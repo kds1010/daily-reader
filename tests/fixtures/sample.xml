@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Example Feed</title>
+    <link>https://example.com</link>
+    <description>Example articles</description>
+    <item>
+      <title>PythonとAIの新機能</title>
+      <link>https://example.com/article?utm_source=rss&amp;id=42</link>
+      <description><![CDATA[<p>GitHubで公開された新機能です。</p>]]></description>
+      <pubDate>Tue, 12 Aug 2026 01:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>広告キャンペーンのお知らせ</title>
+      <link>https://example.com/campaign</link>
+      <description>期間限定のお知らせです。</description>
+      <pubDate>Mon, 11 Aug 2026 01:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

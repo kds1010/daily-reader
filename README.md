@@ -1,0 +1,86 @@
+# Daily Reader
+
+関心のあるニュースやブログをRSS/Atomから集め、iPhoneで読みやすい画面として表示する個人用リーダーです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部公開用サーバーやデータベースは必要ありません。
+
+## 主な機能
+
+- RSS/Atomフィードの定期取得
+- URL正規化による重複除去
+- キーワードによる注目度スコア
+- カテゴリ、検索、新着順／注目順の切り替え
+- 「あとで読む」と既読状態の端末内保存
+- ダークモード、ホーム画面起動、オフラインキャッシュ
+- 一部フィードが失敗しても、取得できた記事で更新を継続
+- 起動時と毎日8時、12時、17時、20時の自動更新
+- Codex CLIによる「今日のハイライト」と、公式リリースの製品別日本語まとめ（記事構成が変わった場合のみ生成）
+- 自動車・製造業におけるML基盤、データマネジメント、データガバナンスの実践事例
+- 業務改善やQOL向上につながるガジェット、家電、仕事効率化ツールの分野別ハイライト
+- 記事を開いた履歴をMac mini内の`data/read-events.jsonl`へ記録し、`/api/analytics`で閲覧傾向を集計
+- localhostへの限定バインド
+
+## Mac miniで起動する
+
+[uv](https://docs.astral.sh/uv/)が必要です。
+
+```bash
+uv sync --frozen
+uv run daily-reader-local
+```
+
+ブラウザで <http://127.0.0.1:8787> を開きます。起動時に記事を取得し、その後は毎日8時、12時、17時、20時に更新します。サーバーは`127.0.0.1`だけで待ち受けるため、LANへ直接公開されません。
+
+Codex CLIがログイン済みの場合は、更新時に注目記事から今日のハイライトを生成します。Snowflake、Databricks、dbt、Apache Icebergなどの公式リリースは製品別に束ね、英語の記事も日本語で要約して原文リンクを添えます。同じ候補記事の組み合わせでは再生成しません。実行にはCodexの利用量を消費しますが、`gpt-5.6-luna`を低推論設定で1回だけ呼び出し、ハイライトと公式リリースまとめを同時に生成します。Codexは`--ephemeral`、`--sandbox read-only`、構造化出力で呼び出され、記事本文中の命令を無視するよう指示されます。
+
+## TailscaleでiPhoneだけに公開する
+
+Mac miniとiPhoneを同じtailnetへ参加させ、Mac miniで次を実行します。
+
+```bash
+tailscale serve --bg --yes http://127.0.0.1:8787
+tailscale serve status
+```
+
+`tailscale serve status`に表示された`https://<Mac mini名>.<tailnet名>.ts.net`をiPhoneのSafariで開きます。Tailscale Funnelは使用しません。Serveにはtailnetのアクセス制御が適用されるため、iPhoneだけに限定する場合はTailscaleのポリシーでも対象端末またはユーザーを制限してください。
+
+## 購読先とキーワード
+
+購読先は[`config/feeds.toml`](config/feeds.toml)、評価キーワードは[`config/keywords.toml`](config/keywords.toml)で管理します。
+
+```toml
+[[feeds]]
+name = "サイト名"
+url = "https://example.com/feed.xml"
+category = "カテゴリ"
+enabled = true
+```
+
+```toml
+[positive]
+Python = 4
+
+[negative]
+広告 = -4
+```
+
+タイトルまたは概要にキーワードが含まれると、指定した重みが記事のスコアへ加算されます。同じキーワードが複数回現れても、記事ごとに一度だけ加算します。
+
+## 常駐化
+
+`daily-reader-local`をmacOSのLaunchAgentから起動すると、ログイン後に常駐できます。Mac mini固有のHome Manager設定から、リポジトリ内の`.venv/bin/daily-reader-local`を作業ディレクトリ付きで起動する構成を推奨します。Tailscale Serveの設定はバックグラウンド設定としてTailscale側に保存されます。
+
+## iPhoneへの追加
+
+1. 公開されたページをSafariで開きます。
+2. 共有ボタンから「ホーム画面に追加」を選びます。
+3. 「Web Appとして開く」を有効にして追加します。
+
+「あとで読む」と既読状態はiPhoneのブラウザ内にだけ保存されます。ブラウザデータを消去した場合や別の端末には引き継がれません。
+
+## 開発時の検証
+
+```bash
+uv run ruff check .
+uv run pytest
+uv run daily-reader
+uv run daily-reader-local
+```

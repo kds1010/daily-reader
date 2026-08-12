@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f1e8">
+    <meta name="description" content="気になるニュースを静かにまとめる個人用リーダー">
+    <title>Daily Reader</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">YOUR DAILY SIGNAL</p>
+        <h1>Daily Reader</h1>
+        <p id="status" class="status" aria-live="polite">ニュースを読み込んでいます…</p>
+      </div>
+      <button id="refresh" class="icon-button" type="button" aria-label="再読み込み">↻</button>
+    </header>
+
+    <main>
+      <section id="highlights" class="highlights" hidden aria-labelledby="highlights-heading">
+        <p class="eyebrow">TODAY'S HIGHLIGHTS</p>
+        <h2 id="highlights-heading"></h2>
+        <p id="highlights-overview" class="highlights-overview"></p>
+        <div id="highlight-items" class="highlight-items"></div>
+      </section>
+
+      <section id="official-digest" class="official-digest" hidden aria-labelledby="digest-heading">
+        <div class="section-heading">
+          <h2 id="digest-heading">公式リリースまとめ</h2>
+          <span>日本語ダイジェスト</span>
+        </div>
+        <div id="digest-items" class="digest-items"></div>
+      </section>
+
+      <section id="gadget-digest" class="official-digest" hidden aria-labelledby="gadget-heading">
+        <div class="section-heading">
+          <h2 id="gadget-heading">ガジェットまとめ</h2>
+          <span>目的別ダイジェスト</span>
+        </div>
+        <div id="gadget-digest-items" class="digest-items"></div>
+      </section>
+
+      <section id="tech-picks" class="official-digest" hidden aria-labelledby="tech-picks-heading">
+        <div class="section-heading">
+          <h2 id="tech-picks-heading">読む価値のある技術ブログ</h2>
+          <span>実践知を厳選</span>
+        </div>
+        <div id="tech-pick-items" class="digest-items"></div>
+      </section>
+
+      <details class="feed-browser">
+        <summary>
+          <strong>すべての記事を見る</strong>
+          <span>検索・カテゴリ・あとで読む</span>
+        </summary>
+      <section class="controls" aria-label="記事の絞り込み">
+        <label class="search">
+          <span class="sr-only">記事を検索</span>
+          <input id="search" type="search" placeholder="キーワードで検索" autocomplete="off">
+        </label>
+        <div id="categories" class="chips" role="group" aria-label="カテゴリ"></div>
+        <div class="control-row">
+          <label>
+            並び順
+            <select id="sort">
+              <option value="newest">新着順</option>
+              <option value="score">注目順</option>
+            </select>
+          </label>
+          <label class="toggle">
+            <input id="saved-only" type="checkbox">
+            あとで読む
+          </label>
+        </div>
+      </section>
+
+      <section aria-labelledby="feed-heading">
+        <div class="section-heading">
+          <h2 id="feed-heading">今日のフィード</h2>
+          <span id="result-count"></span>
+        </div>
+        <div id="articles" class="articles"></div>
+        <p id="empty" class="empty" hidden>条件に合う記事はありません。</p>
+      </section>
+      </details>
+    </main>
+
+    <template id="article-template">
+      <article class="article-card">
+        <div class="article-meta">
+          <span class="category"></span>
+          <span class="source"></span>
+          <time></time>
+        </div>
+        <a class="article-link" target="_blank" rel="noopener noreferrer">
+          <h3></h3>
+          <p class="summary"></p>
+        </a>
+        <div class="article-footer">
+          <span class="score"></span>
+          <button class="save-button" type="button"></button>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

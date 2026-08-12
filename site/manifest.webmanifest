@@ -1,0 +1,19 @@
+{
+  "name": "Daily Reader",
+  "short_name": "Reader",
+  "description": "気になるニュースを静かにまとめる個人用リーダー",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f1e8",
+  "theme_color": "#f4f1e8",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

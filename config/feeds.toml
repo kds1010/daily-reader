@@ -1,0 +1,431 @@
+[settings]
+retention_days = 30
+max_articles = 500
+request_timeout_seconds = 20
+summary_max_length = 280
+
+[[feeds]]
+name = "NHK NEWS WEB"
+url = "https://www.nhk.or.jp/rss/news/cat0.xml"
+category = "社会"
+enabled = false
+
+[[feeds]]
+name = "ITmedia NEWS"
+url = "https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml"
+category = "テクノロジー"
+enabled = true
+
+[[feeds]]
+name = "GitHub Blog"
+url = "https://github.blog/feed/"
+category = "開発"
+enabled = true
+
+[[feeds]]
+name = "Python Insider"
+url = "https://blog.python.org/feeds/posts/default"
+category = "開発"
+enabled = true
+
+[[feeds]]
+name = "eza Releases"
+url = "https://github.com/eza-community/eza/releases.atom"
+category = "CLI生産性"
+enabled = true
+
+[[feeds]]
+name = "fzf Releases"
+url = "https://github.com/junegunn/fzf/releases.atom"
+category = "CLI生産性"
+enabled = true
+
+[[feeds]]
+name = "Yazi Releases"
+url = "https://github.com/sxyazi/yazi/releases.atom"
+category = "CLI生産性"
+enabled = true
+
+[[feeds]]
+name = "cmux Releases"
+url = "https://github.com/manaflow-ai/cmux/releases.atom"
+category = "CLI生産性"
+enabled = true
+
+[[feeds]]
+name = "CLI・ターミナルツール発見"
+url = "https://news.google.com/rss/search?q=%28CLI%20OR%20TUI%20OR%20%E3%82%BF%E3%83%BC%E3%83%9F%E3%83%8A%E3%83%AB%29%20%28%E6%96%B0%E3%83%84%E3%83%BC%E3%83%AB%20OR%20%E3%82%AA%E3%83%BC%E3%83%97%E3%83%B3%E3%82%BD%E3%83%BC%E3%82%B9%20OR%20%E7%94%9F%E7%94%A3%E6%80%A7%29&hl=ja&gl=JP&ceid=JP%3Aja"
+category = "CLI生産性"
+enabled = true
+
+[[feeds]]
+name = "Terminal Productivity Tools"
+url = "https://news.google.com/rss/search?q=%28%22command-line%20tool%22%20OR%20%22terminal%20tool%22%20OR%20%22TUI%22%29%20%28productivity%20OR%20workflow%20OR%20release%29&hl=en-US&gl=US&ceid=US%3Aen"
+category = "CLI生産性"
+enabled = true
+
+[[feeds]]
+name = "OpenAI Official"
+url = "https://openai.com/news/rss.xml"
+category = "生成AI活用"
+enabled = true
+
+[[feeds]]
+name = "Hugging Face Blog"
+url = "https://huggingface.co/blog/feed.xml"
+category = "生成AI活用"
+enabled = true
+
+[[feeds]]
+name = "Zenn / 生成AI"
+url = "https://zenn.dev/topics/%E7%94%9F%E6%88%90ai/feed"
+category = "生成AI活用"
+enabled = true
+
+[[feeds]]
+name = "Zenn / LLM"
+url = "https://zenn.dev/topics/llm/feed"
+category = "生成AI活用"
+enabled = true
+
+[[feeds]]
+name = "Qiita / 生成AI"
+url = "https://qiita.com/tags/%E7%94%9F%E6%88%90ai/feed.atom"
+category = "生成AI活用"
+enabled = true
+
+[[feeds]]
+name = "Qiita / LLM"
+url = "https://qiita.com/tags/llm/feed.atom"
+category = "生成AI活用"
+enabled = true
+
+[[feeds]]
+name = "Snowflake Release Notes"
+url = "https://docs.snowflake.com/en/release-notes/all-release-notes?bundle=true"
+category = "データ基盤"
+kind = "snowflake_release_notes"
+enabled = true
+
+[[feeds]]
+name = "dbt Labs Blog"
+url = "https://www.getdbt.com/blog/rss.xml"
+category = "データマネジメント"
+enabled = true
+
+[[feeds]]
+name = "dbt Core Releases"
+url = "https://github.com/dbt-labs/dbt-core/releases.atom"
+category = "リリース速報"
+enabled = true
+
+[[feeds]]
+name = "Apache Iceberg Releases"
+url = "https://github.com/apache/iceberg/releases.atom"
+category = "リリース速報"
+enabled = true
+
+[[feeds]]
+name = "Databricks Release Notes"
+url = "https://docs.databricks.com/aws/en/feed.xml"
+category = "リリース速報"
+enabled = true
+
+[[feeds]]
+name = "横浜市イベント"
+url = "https://www.city.yokohama.lg.jp/kanko-bunka/kanko-event/eventannai/rss_news.xml"
+category = "横浜イベント"
+enabled = true
+
+[[feeds]]
+name = "横浜市こどもイベント"
+url = "https://cgi.city.yokohama.lg.jp/common/event2/kodomo/event_list.html?txt=%E5%A4%8F%E7%A5%AD%E3%82%8A&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
+category = "子育て"
+kind = "yokohama_child_events"
+enabled = true
+
+[[feeds]]
+name = "横浜市親子イベント"
+url = "https://cgi.city.yokohama.lg.jp/common/event2/kodomo/event_list.html?txt=%E8%A6%AA%E5%AD%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
+category = "子育て"
+kind = "yokohama_child_events"
+enabled = true
+
+[[feeds]]
+name = "横浜市乳幼児イベント"
+url = "https://cgi.city.yokohama.lg.jp/common/event2/kodomo/event_list.html?txt=%E4%B9%B3%E5%B9%BC%E5%85%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
+category = "子育て"
+kind = "yokohama_child_events"
+enabled = true
+
+[[feeds]]
+name = "横浜市中区親子イベント"
+url = "https://cgi.city.yokohama.lg.jp/common/event2/naka/event_list.html?txt=%E8%A6%AA%E5%AD%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
+category = "子育て"
+kind = "yokohama_child_events"
+enabled = true
+
+[[feeds]]
+name = "横浜市中区乳幼児イベント"
+url = "https://cgi.city.yokohama.lg.jp/common/event2/naka/event_list.html?txt=%E4%B9%B3%E5%B9%BC%E5%85%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
+category = "子育て"
+kind = "yokohama_child_events"
+enabled = true
+
+[[feeds]]
+name = "横浜市西区親子イベント"
+url = "https://cgi.city.yokohama.lg.jp/common/event2/nishi/event_list.html?txt=%E8%A6%AA%E5%AD%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%8C%E4%B8%8A"
+category = "子育て"
+kind = "yokohama_child_events"
+enabled = true
+
+[[feeds]]
+name = "横浜市西区乳幼児イベント"
+url = "https://cgi.city.yokohama.lg.jp/common/event2/nishi/event_list.html?txt=%E4%B9%B3%E5%B9%BC%E5%85%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%8C%E4%B8%8A"
+category = "子育て"
+kind = "yokohama_child_events"
+enabled = true
+
+[[feeds]]
+name = "横浜市公式観光イベント"
+url = "https://www.welcome.city.yokohama.jp/eventinfo/index.php?action=home"
+category = "横浜イベント"
+kind = "yokohama_tourism_events"
+enabled = true
+
+[[feeds]]
+name = "桜木町・野毛の新店"
+url = "https://news.google.com/rss/search?q=%28%E6%A1%9C%E6%9C%A8%E7%94%BA%20OR%20%E9%87%8E%E6%AF%9B%29%20%28%E3%82%AA%E3%83%BC%E3%83%97%E3%83%B3%20OR%20%E9%96%8B%E5%BA%97%20OR%20%E6%96%B0%E5%BA%97%20OR%20%E3%83%AA%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%A2%E3%83%AB%29&hl=ja&gl=JP&ceid=JP%3Aja"
+category = "街の新店"
+retention_days = 60
+enabled = true
+
+[[feeds]]
+name = "馬車道・北仲の新店"
+url = "https://news.google.com/rss/search?q=%28%E9%A6%AC%E8%BB%8A%E9%81%93%20OR%20%E5%8C%97%E4%BB%B2%20OR%20%E8%8A%B1%E5%92%B2%E7%94%BA%20OR%20%E7%B4%85%E8%91%89%E5%9D%82%29%20%28%E3%82%AA%E3%83%BC%E3%83%97%E3%83%B3%20OR%20%E9%96%8B%E5%BA%97%20OR%20%E6%96%B0%E5%BA%97%20OR%20%E3%83%AA%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%A2%E3%83%AB%29&hl=ja&gl=JP&ceid=JP%3Aja"
+category = "街の新店"
+retention_days = 60
+enabled = true
+
+[[feeds]]
+name = "Zenn / Snowflake"
+url = "https://zenn.dev/topics/snowflake/feed"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Zenn / dbt"
+url = "https://zenn.dev/topics/dbt/feed"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Zenn / Iceberg"
+url = "https://zenn.dev/topics/iceberg/feed"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Zenn / Databricks"
+url = "https://zenn.dev/topics/databricks/feed"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Zenn / データエンジニアリング"
+url = "https://zenn.dev/topics/%E3%83%87%E3%83%BC%E3%82%BF%E3%82%A8%E3%83%B3%E3%82%B8%E3%83%8B%E3%82%A2%E3%83%AA%E3%83%B3%E3%82%B0/feed"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Qiita / Snowflake"
+url = "https://qiita.com/tags/snowflake/feed.atom"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Qiita / dbt"
+url = "https://qiita.com/tags/dbt/feed.atom"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Qiita / Iceberg"
+url = "https://qiita.com/tags/iceberg/feed.atom"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Qiita / Databricks"
+url = "https://qiita.com/tags/databricks/feed.atom"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Qiita / データエンジニアリング"
+url = "https://qiita.com/tags/%E3%83%87%E3%83%BC%E3%82%BF%E3%82%A8%E3%83%B3%E3%82%B8%E3%83%8B%E3%82%A2%E3%83%AA%E3%83%B3%E3%82%B0/feed.atom"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Qiita / データガバナンス"
+url = "https://qiita.com/tags/%E3%83%87%E3%83%BC%E3%82%BF%E3%82%AC%E3%83%90%E3%83%8A%E3%83%B3%E3%82%B9/feed.atom"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "DAMA International"
+url = "https://dama.org/feed/"
+category = "データマネジメント"
+enabled = true
+
+[[feeds]]
+name = "DAMA日本支部"
+url = "https://dama-japan.org/blog/feed/"
+category = "データマネジメント"
+enabled = true
+
+[[feeds]]
+name = "O'Reilly Japan 新刊・近刊"
+url = "https://www.oreilly.co.jp/catalog/soon.xml"
+category = "データ関連書籍"
+retention_days = 180
+enabled = true
+
+[[feeds]]
+name = "技術評論社 新刊"
+url = "https://gihyo.jp/book/feed/rss2"
+category = "データ関連書籍"
+retention_days = 180
+enabled = true
+
+[[feeds]]
+name = "Toyota Research Institute"
+url = "https://medium.com/feed/toyotaresearch"
+category = "ML・データ事例"
+retention_days = 730
+enabled = true
+
+[[feeds]]
+name = "Woven by Toyota"
+url = "https://woven.toyota/en/news/"
+category = "ML・データ事例"
+kind = "woven_news"
+retention_days = 730
+enabled = true
+
+[[feeds]]
+name = "Volvo Cars Engineering"
+url = "https://medium.com/feed/volvo-cars-engineering"
+category = "ML・データ事例"
+retention_days = 730
+enabled = true
+
+[[feeds]]
+name = "Mercedes-Benz Tech Innovation"
+url = "https://medium.com/feed/mercedes-benz-techinnovation-blog"
+category = "ML・データ事例"
+retention_days = 730
+enabled = true
+
+[[feeds]]
+name = "Zenn / MLOps"
+url = "https://zenn.dev/topics/mlops/feed"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Qiita / MLOps"
+url = "https://qiita.com/tags/mlops/feed.atom"
+category = "技術コミュニティ"
+enabled = true
+
+[[feeds]]
+name = "Apple Newsroom"
+url = "https://www.apple.com/newsroom/rss-feed.rss"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "PC Watch"
+url = "https://pc.watch.impress.co.jp/data/rss/1.0/pcw/feed.rdf"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "ITmedia PC USER"
+url = "https://rss.itmedia.co.jp/rss/2.0/pcuser.xml"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "AKIBA PC Hotline!"
+url = "https://akiba-pc.watch.impress.co.jp/data/rss/1.0/ah/feed.rdf"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "ASCII.jp デジタル"
+url = "https://ascii.jp/digital/rss.xml"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "家電 Watch"
+url = "https://kaden.watch.impress.co.jp/data/rss/1.0/kdw/feed.rdf"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "INTERNET Watch"
+url = "https://internet.watch.impress.co.jp/data/rss/1.0/iw/feed.rdf"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "ライフハッカー・ジャパン"
+url = "https://www.lifehacker.jp/feed/index.xml"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "デスクツアー・作業環境"
+url = "https://news.google.com/rss/search?q=%E3%83%87%E3%82%B9%E3%82%AF%E3%83%84%E3%82%A2%E3%83%BC%20OR%20%E3%83%87%E3%82%B9%E3%82%AF%E7%92%B0%E5%A2%83%20OR%20%E4%BD%9C%E6%A5%AD%E7%92%B0%E5%A2%83%20%E3%82%AC%E3%82%B8%E3%82%A7%E3%83%83%E3%83%88&hl=ja&gl=JP&ceid=JP%3Aja"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "Desk Setup / Global"
+url = "https://news.google.com/rss/search?q=%22desk%20setup%22%20OR%20%22workspace%20setup%22%20OR%20%22home%20office%20setup%22&hl=en-US&gl=US&ceid=US%3Aen"
+category = "業務改善・QOL"
+enabled = true
+
+[[feeds]]
+name = "ACSM"
+url = "https://acsm.org/feed/"
+category = "筋トレ"
+enabled = true
+
+[[feeds]]
+name = "Sleep Foundation"
+url = "https://www.sleepfoundation.org/feed"
+category = "睡眠"
+enabled = true
+
+[[feeds]]
+name = "Nature / Sleep Research"
+url = "https://www.nature.com/subjects/sleep.rss"
+category = "睡眠"
+enabled = true
+
+[[feeds]]
+name = "睡眠製品ニュース"
+url = "https://news.google.com/rss/search?q=%E7%9D%A1%E7%9C%A0%20%E6%9E%95%20OR%20%E3%83%9E%E3%83%83%E3%83%88%E3%83%AC%E3%82%B9%20OR%20%E7%9D%A1%E7%9C%A0%E3%83%87%E3%83%90%E3%82%A4%E3%82%B9&hl=ja&gl=JP&ceid=JP%3Aja"
+category = "睡眠"
+enabled = true
+
+[[feeds]]
+name = "睡眠研究ニュース"
+url = "https://news.google.com/rss/search?q=%E7%9D%A1%E7%9C%A0%20%E7%A0%94%E7%A9%B6%20OR%20%E7%99%BA%E8%A6%8B%20OR%20%E3%83%A1%E3%83%A9%E3%83%88%E3%83%8B%E3%83%B3&hl=ja&gl=JP&ceid=JP%3Aja"
+category = "睡眠"
+enabled = true
