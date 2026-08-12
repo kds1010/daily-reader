@@ -16,6 +16,7 @@ from daily_reader.highlights import generate_highlights
 
 LOGGER = logging.getLogger(__name__)
 READ_LOG_LOCK = threading.Lock()
+FEEDBACK_LOG_LOCK = threading.Lock()
 READ_SURFACES = {
     "field_highlight",
     "official_digest",
@@ -60,7 +61,44 @@ def summarize_read_events(log_path: Path) -> dict[str, object]:
     }
 
 
-def make_handler(site: Path, articles_path: Path, read_log_path: Path):
+def append_feedback_event(
+    log_path: Path, article: dict[str, object], surface: str
+) -> None:
+    event = {
+        "feedback_at": datetime.now(UTC).isoformat(),
+        "feedback": "not_interested",
+        "article_id": article["id"],
+        "title": article["title"],
+        "source": article["source"],
+        "category": article["category"],
+        "surface": surface,
+    }
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with FEEDBACK_LOG_LOCK, log_path.open("a", encoding="utf-8") as log_file:
+        log_file.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def load_feedback_events(log_path: Path) -> list[dict[str, object]]:
+    try:
+        lines = log_path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+    events = []
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("feedback") == "not_interested" and isinstance(
+            event.get("article_id"), str
+        ):
+            events.append(event)
+    return events
+
+
+def make_handler(
+    site: Path, articles_path: Path, read_log_path: Path, feedback_log_path: Path
+):
     class DailyReaderHandler(SimpleHTTPRequestHandler):
         def _send_json(self, status: int, payload: object) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode()
@@ -75,10 +113,19 @@ def make_handler(site: Path, articles_path: Path, read_log_path: Path):
             if self.path == "/api/analytics":
                 self._send_json(200, summarize_read_events(read_log_path))
                 return
+            if self.path == "/api/feedback":
+                events = load_feedback_events(feedback_log_path)
+                self._send_json(
+                    200,
+                    {"hidden_article_ids": list(dict.fromkeys(
+                        event["article_id"] for event in events
+                    ))},
+                )
+                return
             super().do_GET()
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path != "/api/read":
+            if self.path not in {"/api/read", "/api/feedback"}:
                 self._send_json(404, {"error": "not found"})
                 return
             try:
@@ -92,7 +139,10 @@ def make_handler(site: Path, articles_path: Path, read_log_path: Path):
                     raise ValueError("invalid event")
                 articles = json.loads(articles_path.read_text(encoding="utf-8"))["articles"]
                 article = next(item for item in articles if item["id"] == article_id)
-                append_read_event(read_log_path, article, surface)
+                if self.path == "/api/read":
+                    append_read_event(read_log_path, article, surface)
+                else:
+                    append_feedback_event(feedback_log_path, article, surface)
             except (
                 FileNotFoundError,
                 StopIteration,
@@ -108,7 +158,12 @@ def make_handler(site: Path, articles_path: Path, read_log_path: Path):
     return functools.partial(DailyReaderHandler, directory=site)
 
 
-def update_articles(feeds_path: Path, keywords_path: Path, output_path: Path) -> None:
+def update_articles(
+    feeds_path: Path,
+    keywords_path: Path,
+    output_path: Path,
+    feedback_log_path: Path = Path("data/feedback-events.jsonl"),
+) -> None:
     now = datetime.now(UTC)
     settings, feeds = load_config(feeds_path)
     keywords = load_keywords(keywords_path)
@@ -123,6 +178,7 @@ def update_articles(feeds_path: Path, keywords_path: Path, output_path: Path) ->
         output_path.parent / "highlights.json",
         Path("config/highlight-schema.json"),
         now,
+        feedback_log_path,
     )
 
 
@@ -131,13 +187,14 @@ def run_scheduler(
     keywords_path: Path,
     output_path: Path,
     update_hours: set[int],
+    feedback_log_path: Path,
 ) -> None:
     last_run: tuple[str, int] | None = None
     while True:
         local_now = datetime.now().astimezone()
         run_key = (local_now.date().isoformat(), local_now.hour)
         if local_now.hour in update_hours and local_now.minute < 5 and run_key != last_run:
-            update_articles(feeds_path, keywords_path, output_path)
+            update_articles(feeds_path, keywords_path, output_path, feedback_log_path)
             last_run = run_key
         sleep(60)
 
@@ -151,6 +208,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--keywords", type=Path, default=Path("config/keywords.toml"))
     parser.add_argument("--update-hours", default="8,12,17,20")
     parser.add_argument("--read-log", type=Path, default=Path("data/read-events.jsonl"))
+    parser.add_argument(
+        "--feedback-log", type=Path, default=Path("data/feedback-events.jsonl")
+    )
     return parser
 
 
@@ -162,15 +222,15 @@ def main() -> None:
     if not update_hours <= set(range(24)):
         raise SystemExit("--update-hours must contain hours from 0 to 23")
 
-    update_articles(args.feeds, args.keywords, output_path)
+    update_articles(args.feeds, args.keywords, output_path, args.feedback_log)
     scheduler = threading.Thread(
         target=run_scheduler,
-        args=(args.feeds, args.keywords, output_path, update_hours),
+        args=(args.feeds, args.keywords, output_path, update_hours, args.feedback_log),
         daemon=True,
     )
     scheduler.start()
 
-    handler = make_handler(args.site, output_path, args.read_log)
+    handler = make_handler(args.site, output_path, args.read_log, args.feedback_log)
     server = ThreadingHTTPServer((args.host, args.port), handler)
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)
     try:

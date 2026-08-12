@@ -1,11 +1,22 @@
+function loadStoredSet(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(`daily-reader:${key}`) || "[]");
+    return new Set(Array.isArray(value) ? value.filter((item) => typeof item === "string") : []);
+  } catch {
+    localStorage.removeItem(`daily-reader:${key}`);
+    return new Set();
+  }
+}
+
 const state = {
   articles: [],
   category: "すべて",
   query: "",
   sort: "newest",
   savedOnly: false,
-  saved: new Set(JSON.parse(localStorage.getItem("daily-reader:saved") || "[]")),
-  read: new Set(JSON.parse(localStorage.getItem("daily-reader:read") || "[]")),
+  saved: loadStoredSet("saved"),
+  read: loadStoredSet("read"),
+  hidden: loadStoredSet("hidden"),
 };
 
 const elements = {
@@ -45,6 +56,61 @@ function recordRead(article, surface) {
   }).catch(() => {});
 }
 
+function hideArticle(article, surface) {
+  state.hidden.add(article.id);
+  persist("hidden", state.hidden);
+  document.querySelectorAll(`[data-article-id="${CSS.escape(article.id)}"]`).forEach((item) => {
+    item.remove();
+  });
+  fetch("./api/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ article_id: article.id, surface }),
+  }).catch(() => {});
+  if (state.articles.length) {
+    renderArticles();
+  }
+}
+
+function makeNotInterestedButton(article, surface) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "not-interested-button";
+  button.textContent = "表示したくない";
+  button.setAttribute("aria-label", `「${article.title}」を表示したくない`);
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    hideArticle(article, surface);
+  });
+  return button;
+}
+
+function wrapFeedbackItem(content, article, surface, className = "feedback-item") {
+  const wrapper = document.createElement("div");
+  wrapper.className = className;
+  wrapper.dataset.articleId = article.id;
+  const actions = document.createElement("div");
+  actions.className = "feedback-actions";
+  actions.append(makeNotInterestedButton(article, surface));
+  wrapper.append(content, actions);
+  return wrapper;
+}
+
+async function loadFeedback() {
+  try {
+    const response = await fetch("./api/feedback", { cache: "no-store" });
+    if (!response.ok) {
+      return;
+    }
+    const payload = await response.json();
+    state.hidden = new Set(payload.hidden_article_ids || []);
+    persist("hidden", state.hidden);
+  } catch {
+    // Keep the device-local copy when the local server is temporarily unavailable.
+  }
+}
+
 function trackLink(link, article, surface) {
   link.addEventListener("click", () => recordRead(article, surface));
 }
@@ -60,7 +126,7 @@ function makeDigestLink(article, surface) {
   const metadata = document.createElement("small");
   metadata.textContent = `${article.source}・${formatReleaseDate(article.published_at)}`;
   link.append(title, metadata);
-  return link;
+  return wrapFeedbackItem(link, article, surface, "digest-link-item");
 }
 
 async function loadHighlights() {
@@ -83,6 +149,9 @@ async function loadHighlights() {
       const items = document.createElement("div");
       items.className = "highlight-field-items";
       for (const [itemIndex, item] of field.items.entries()) {
+        if (state.hidden.has(item.article.id)) {
+          continue;
+        }
         const link = document.createElement("a");
         link.className = "highlight-item";
         if (itemIndex === 0) {
@@ -136,7 +205,7 @@ async function loadHighlights() {
         }
         content.append(reason);
         link.append(content);
-        items.append(link);
+        items.append(wrapFeedbackItem(link, item.article, "field_highlight", "highlight-item-wrapper"));
       }
       group.append(fieldName, fieldSummary, items);
       fragment.append(group);
@@ -163,7 +232,9 @@ async function loadHighlights() {
       const links = document.createElement("div");
       links.className = "digest-links";
       digest.articles.forEach((article) => {
-        links.append(makeDigestLink(article, "official_digest"));
+        if (!state.hidden.has(article.id)) {
+          links.append(makeDigestLink(article, "official_digest"));
+        }
       });
       details.append(summary, changes, links);
       digestFragment.append(details);
@@ -191,7 +262,9 @@ async function loadHighlights() {
       const links = document.createElement("div");
       links.className = "digest-links";
       digest.articles.forEach((article) => {
-        links.append(makeDigestLink(article, "gadget_digest"));
+        if (!state.hidden.has(article.id)) {
+          links.append(makeDigestLink(article, "gadget_digest"));
+        }
       });
       details.append(summary, benefits, links);
       gadgetFragment.append(details);
@@ -201,6 +274,9 @@ async function loadHighlights() {
 
     const techFragment = document.createDocumentFragment();
     for (const pick of payload.tech_picks || []) {
+      if (state.hidden.has(pick.article.id)) {
+        continue;
+      }
       const link = document.createElement("a");
       link.className = "tech-pick";
       link.href = pick.article.url;
@@ -214,7 +290,7 @@ async function loadHighlights() {
       const reason = document.createElement("small");
       reason.textContent = pick.why_read;
       link.append(title, insight, reason);
-      techFragment.append(link);
+      techFragment.append(wrapFeedbackItem(link, pick.article, "tech_pick"));
     }
     elements.techPickItems.replaceChildren(techFragment);
     elements.techPicks.hidden = !payload.tech_picks?.length;
@@ -224,7 +300,11 @@ async function loadHighlights() {
 }
 
 function persist(key, values) {
-  localStorage.setItem(`daily-reader:${key}`, JSON.stringify([...values]));
+  try {
+    localStorage.setItem(`daily-reader:${key}`, JSON.stringify([...values]));
+  } catch {
+    // Rendering should continue even when Safari storage is unavailable or full.
+  }
 }
 
 function formatDate(value) {
@@ -248,6 +328,7 @@ function filteredArticles() {
   const query = state.query.toLocaleLowerCase("ja");
   return state.articles
     .filter((article) => state.category === "すべて" || article.category === state.category)
+    .filter((article) => !state.hidden.has(article.id))
     .filter((article) => !state.savedOnly || state.saved.has(article.id))
     .filter((article) => {
       const searchable = `${article.title} ${article.summary} ${article.source}`.toLocaleLowerCase("ja");
@@ -283,6 +364,7 @@ function renderArticles() {
   const fragment = document.createDocumentFragment();
   for (const article of articles) {
     const card = elements.template.content.firstElementChild.cloneNode(true);
+    card.dataset.articleId = article.id;
     card.classList.toggle("read", state.read.has(article.id));
     card.querySelector(".category").textContent = article.category;
     card.querySelector(".source").textContent = article.source;
@@ -313,6 +395,13 @@ function renderArticles() {
       persist("saved", state.saved);
       renderArticles();
     });
+    card
+      .querySelector(".not-interested-button")
+      .addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        hideArticle(article, "article_feed");
+      });
     fragment.append(card);
   }
   elements.articles.replaceChildren(fragment);
@@ -367,3 +456,13 @@ if ("serviceWorker" in navigator) {
 
 loadArticles();
 loadHighlights();
+loadFeedback().then(() => {
+  document.querySelectorAll("[data-article-id]").forEach((item) => {
+    if (state.hidden.has(item.dataset.articleId)) {
+      item.remove();
+    }
+  });
+  if (state.articles.length) {
+    renderArticles();
+  }
+});

@@ -19,10 +19,11 @@
 - `config/highlight-schema.json`: Codexの構造化出力スキーマ。
 - `src/daily_reader/core.py`: 収集、各種パーサー、正規化、重複排除、画像抽出、新店日付検証。
 - `src/daily_reader/highlights.py`: 候補選定、Codexプロンプト、出力検証、OG画像補完。
-- `src/daily_reader/local_server.py`: ローカルHTTPサーバー、更新スケジューラー、閲覧ログAPI。
+- `src/daily_reader/local_server.py`: ローカルHTTPサーバー、更新スケジューラー、閲覧・不要フィードバックAPI。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。
 - `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。Git管理対象。
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
+- `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
 
 ## 現在のハイライト分野
 
@@ -87,6 +88,14 @@
 - 全リンクのクリックを `POST /api/read` へ送り、`data/read-events.jsonl` に追記する。
 - `GET /api/analytics` でカテゴリ、情報元、表示面別の集計を返す。
 - ログはMac mini内だけに保持し、Gitへ含めない。
+
+## 不要記事フィードバック
+
+- 各表示面の「表示したくない」から `POST /api/feedback` へ送り、`data/feedback-events.jsonl` に追記する。
+- `GET /api/feedback` は指定済み記事IDを返し、画面上で同一記事を非表示にする。
+- 次回ハイライト生成では指定済み記事を候補から除外し、直近100件のタイトル、情報元、カテゴリをCodexへ不要例として渡す。
+- 不要例は繰り返し現れる傾向の減点にだけ使い、少数例によるカテゴリ全体の除外や既存の優先・地域ルールの上書きはしない。
+- フィードバック内容も入力ハッシュへ含めるため、新しい指定後の定期更新では記事候補が同じでも再生成される。
 
 ## 開発・検証
 

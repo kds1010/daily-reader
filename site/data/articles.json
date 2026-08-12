@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-12T14:12:32.338793+00:00",
+  "generated_at": "2026-08-12T15:16:57.670355+00:00",
   "article_count": 500,
   "errors": [],
   "articles": [
@@ -191,6 +191,28 @@
       "image_url": null
     },
     {
+      "id": "2be162ca73f85554c12d",
+      "title": "睡眠呼吸研究者発──不眠症の原因は“浅い呼吸”だった。交感神経が高まり、眠りが浅くなるから。 - Newscast.jp",
+      "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE1jR1JDWW4wZE9sdkx3SmtwV1lfUWZsb3Z5NjVnZU1wSTJOVFJ1QXUzWlM0UkFZUFZaVUwwU0JXcE5CYXpPTjhJLUtxQkNQYTQ?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-07-25T07:00:00+00:00",
+      "summary": "睡眠呼吸研究者発──不眠症の原因は“浅い呼吸”だった。交感神経が高まり、眠りが浅くなるから。 Newscast.jp",
+      "category": "睡眠",
+      "score": 21,
+      "image_url": null
+    },
+    {
+      "id": "8a428efaf257320eca7d",
+      "title": "脳内に「睡眠スイッチ」が発見されたことで、不眠症治療の新たな道が開かれた。 - Vietnam.vn",
+      "url": "https://news.google.com/rss/articles/CBMikgFBVV95cUxOOEZIeW9RUmxOQjJMOWVQN05GcklpMnQwVjZWRkFRVEQxUE9zOVY5OG10X3JaRHQ1ZkNlcHNqZzVWaUdsQzJLWU5lQmJ2a3dpVkhTT3FvNi1YN05JbkZ6b0xIdnB4WWFsT0tlTnFnd1JvSDBJZmU0aWVibmdqZjE5RjkxY0EzQnhXVTY1WWFWRkF4dw?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-07-24T07:00:00+00:00",
+      "summary": "脳内に「睡眠スイッチ」が発見されたことで、不眠症治療の新たな道が開かれた。 Vietnam.vn",
+      "category": "睡眠",
+      "score": 21,
+      "image_url": null
+    },
+    {
       "id": "774affd2857e742e5ee5",
       "title": "Snowflake: amazon s3 tables iceberg rest catalog integration ga",
       "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-10-amazon-s3-tables-iceberg-rest-catalog-integration-ga",
@@ -312,17 +334,6 @@
       "image_url": null
     },
     {
-      "id": "e61b2bd18ff52ee7d827",
-      "title": "乳幼児親子対象イベント",
-      "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=111095",
-      "source": "横浜市親子イベント",
-      "published_at": "2026-08-12T00:00:00+00:00",
-      "summary": "集まれ 0歳児!・場所: 踊場地区センター ( 戸塚区 )",
-      "category": "子育て",
-      "score": 18,
-      "image_url": null
-    },
-    {
       "id": "862e1affb02d656546e4",
       "title": "Amazon S3 Tables×Snowflake CLDでbase directory不整合が発生した話",
       "url": "https://zenn.dev/penginpenguin/articles/c48e7859b48341",
@@ -330,17 +341,6 @@
       "published_at": "2026-08-11T01:17:21+00:00",
       "summary": "はじめに AWS Community Builderのぺんぎん（@jitepengin）です。 S3 Tables上のIcebergテーブルを、SnowflakeのCatalog-Linked Database（以下CLD）経由で参照する構成を組んでいました。 その際、興味深いエラーに遭遇したので調査過程含めて共有します。 Snowsight上で、あるテーブルのData Previewを眺めていたところ、下記のようなエラーが出ていることに気づきました。 The parquet file 'data/xxxx/xxxx/xxxx/xxxxxxxx/tar…",
       "category": "技術コミュニティ",
-      "score": 18,
-      "image_url": null
-    },
-    {
-      "id": "a5a365b355420c7bea4b",
-      "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 - BCN Retail",
-      "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1wRFNteEppM0tYOHFWU05fc0FzUDdTcVNQcDVjaXZKMW5xZW9vN2NuUjdOUTNZb085OEhDYVRZMEtTQXZwcFBnRFhwN0h5QnNyanVnQnU5dTdsTVhneXQwOHVtX2FrcFNyYlE?oc=5",
-      "source": "睡眠製品ニュース",
-      "published_at": "2026-07-17T07:00:00+00:00",
-      "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 BCN Retail",
-      "category": "睡眠",
       "score": 18,
       "image_url": null
     },
@@ -401,11 +401,11 @@
     },
     {
       "id": "9575ea5c497b1292b6f7",
-      "title": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは - GoodsPress Web",
+      "title": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは - goodspress.jp",
       "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE51MS01MXdJOHB1Q2IzRFpCY1NVMXJGaC1ha2x4XzJ6S3FEZVdFZjhLcHdfM1o1NURCSmtXZE1yNVZtdXQ1WFMwcTNKVU9tM1E?oc=5",
       "source": "デスクツアー・作業環境",
       "published_at": "2026-08-10T21:00:00+00:00",
-      "summary": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは GoodsPress Web",
+      "summary": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは goodspress.jp",
       "category": "業務改善・QOL",
       "score": 17,
       "image_url": null
@@ -565,6 +565,17 @@
       "image_url": null
     },
     {
+      "id": "4cf77bc8ef2e88383386",
+      "title": "未就学児の腸内細菌、睡眠や情緒との関連を確認…金沢工業大・三重大 - リセマム",
+      "url": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE8zQVBHQ0t1d0U2eElHNnlPZi05T3VKS2dZOWhtSEV6ZFJycjE4TG5QS01MN1QzZWdCYnc2N3dFelpzbmtUOVNJenFHUk8tQ0FkdWdIMWhVNDc0eWxT?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-07-22T07:00:00+00:00",
+      "summary": "未就学児の腸内細菌、睡眠や情緒との関連を確認…金沢工業大・三重大 リセマム",
+      "category": "睡眠",
+      "score": 15,
+      "image_url": null
+    },
+    {
       "id": "4ef4b26d9ebdab2061de",
       "title": "入門 Python 3 第3版",
       "url": "http://www.oreilly.co.jp/books/9784814401642/",
@@ -653,6 +664,17 @@
       "image_url": null
     },
     {
+      "id": "9172d10fd6851ab7ab18",
+      "title": "閉塞性睡眠時無呼吸症候群、女性は男性より症状負担が大きい｜CareNet.com - CareNet.com",
+      "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE50dkZKSVZyNmNDUkZ5em8yTlZRSGZybGMwQ3R6X2xWMDk0LXFMOVJITUlsTjRocnlJa2c4ZGxJVlc4SnZvcVhjamdyZDRFSjlCMWVSVldqY08yQQ?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-07-29T07:00:00+00:00",
+      "summary": "閉塞性睡眠時無呼吸症候群、女性は男性より症状負担が大きい｜CareNet.com CareNet.com",
+      "category": "睡眠",
+      "score": 14,
+      "image_url": null
+    },
+    {
       "id": "a1f262a6ab11ec843d2a",
       "title": "Snowflake: dbt projects on snowflake environment variables",
       "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-07-23-dbt-projects-on-snowflake-environment-variables",
@@ -697,6 +719,17 @@
       "image_url": null
     },
     {
+      "id": "72b6b903a0e305e2091b",
+      "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 - ｄメニューニュース",
+      "url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE4zb3BQNlZzLUpIVWdzM2hjSndaM1lxOEFINl9MeXVNcU1CNHFkSF9RNkNkbHlTS3BiRHM3eTFKenp6QW1JeWJQaW1jRXd3MEFwXzRGSDktc0JzVzFoSXpYUVRTeUI2RHVkblI3aEw0RDV0eXplMlZob2FDQ3LSAYIBQVVfeXFMT0tMYUxVN1ZVQzhKNHVjeXI2NGxOWnBTNTVoT0VFaFdoTG5DXzV1ekNXcmM2WnJrT3d4ZktMb1BpVFBka1ctUGZLQnNoV0FOdE1MX3YtVkJlTnRCc29fMWRJRllsdTdNOU1IRXgyd1lLWUhyR2llRk5XR2FwMzZGR3R6QQ?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-07-17T07:00:00+00:00",
+      "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 ｄメニューニュース",
+      "category": "睡眠",
+      "score": 14,
+      "image_url": null
+    },
+    {
       "id": "a11a85cf7cae413d5f44",
       "title": "睡眠障害研究のカギを握る？ 世界中で研究が進む脳内物質“オレキシン”とは【Tarzan】 (Tarzan Web) - Yahoo!ニュース",
       "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxQX2tpNVBIYXM1Q1VJVTZjQUhuWWV6LW5VYWlVVmVNUm1wVktBd0twSFVMTExwb2V0Vlc1YzNyN2RhcjFvblJiYVg3MVozMndndnA3cHFTTDh1blBCT0hEZnJkeXB1NXlXYXhHZGZYWVpiajlhUU9pbFpJUW0xVEd1Ym14d3dfSXhiV3ozUmdB?oc=5",
@@ -726,17 +759,6 @@
       "published_at": "2026-07-14T22:48:59+00:00",
       "summary": "最近のアップデートでDatabricksの「マネージドIcebergマテリアライズドビュー（パブリックプレビュー）」が登場しました。今回は、この Iceberg MV の仕様を検証してみました。 参考：https://docs.databricks.com/gcp/ja/release-notes/product/2026/july#managed-iceberg-materialized-views-are-in-public-preview 結論：どう使い分けるべきか？ もし分析ワークロードがすべて Databricks 内で完結しているのであれば…",
       "category": "技術コミュニティ",
-      "score": 14,
-      "image_url": null
-    },
-    {
-      "id": "9172d10fd6851ab7ab18",
-      "title": "閉塞性睡眠時無呼吸症候群、女性は男性より症状負担が大きい｜CareNet.com - CareNet.com",
-      "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE50dkZKSVZyNmNDUkZ5em8yTlZRSGZybGMwQ3R6X2xWMDk0LXFMOVJITUlsTjRocnlJa2c4ZGxJVlc4SnZvcVhjamdyZDRFSjlCMWVSVldqY08yQQ?oc=5",
-      "source": "睡眠研究ニュース",
-      "published_at": "2026-07-14T07:00:00+00:00",
-      "summary": "閉塞性睡眠時無呼吸症候群、女性は男性より症状負担が大きい｜CareNet.com CareNet.com",
-      "category": "睡眠",
       "score": 14,
       "image_url": null
     },
@@ -780,17 +802,6 @@
       "source": "Nature / Sleep Research",
       "published_at": "2026-07-30T00:00:00+00:00",
       "summary": "",
-      "category": "睡眠",
-      "score": 13,
-      "image_url": null
-    },
-    {
-      "id": "33fbb6daacd093ab1ca4",
-      "title": "梅雨の時季こそ“睡眠”が大切！コアラスリープジャパンの夏のおすすめ寝具3選 - ウォーカープラス",
-      "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1HMFlDREFEUlVrVEVBS29pN2Y3RElsZHJhcTNxMnJjd2E4QzR3RG1uQ3g2WXlLLTFXYmJ0V3IwbFN3d01GeDhuR1liNXRXd2txOHhKTktB0gFbQVVfeXFMT0NyZzNIc2Y4X0xicUt0cnJkamJqUUp3dmVNc0ZFeDhCMmhwU3FfcVZPRFNBWE12bnpJNjN6Um1IUjRyVEd6UXNCX3hmNHl3Zkp5VFlhN1BTemItOA?oc=5",
-      "source": "睡眠製品ニュース",
-      "published_at": "2026-07-27T07:00:00+00:00",
-      "summary": "梅雨の時季こそ“睡眠”が大切！コアラスリープジャパンの夏のおすすめ寝具3選 ウォーカープラス",
       "category": "睡眠",
       "score": 13,
       "image_url": null
@@ -1291,6 +1302,17 @@
       "image_url": null
     },
     {
+      "id": "955f0525607c39f57dfd",
+      "title": "親子でワッと遊ぼう ~天気が良ければ外で水風船遊び~",
+      "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=110874",
+      "source": "横浜市親子イベント",
+      "published_at": "2026-08-24T00:00:00+00:00",
+      "summary": "場所: 白幡地区センター ( 神奈川区 )",
+      "category": "子育て",
+      "score": 10,
+      "image_url": null
+    },
+    {
       "id": "3ea582b72047180a4e82",
       "title": "Claude Codeが立てた実装プランを、承認前にCodexへ自動レビューさせる",
       "url": "https://zenn.dev/tamat_llc/articles/claude-code-codex-cross-review",
@@ -1551,17 +1573,6 @@
       "published_at": "2026-08-12T05:36:56+00:00",
       "summary": "! 著者はSnowflakeに所属しておりますが、本記事は個人の見解であり、所属する組織の公式見解ではありません。 はじめに 「この広告動画にスケートボードのシーンは何秒から何秒にある？」「過去の会見映像の中で『増税』と発言している箇所をすべて抽出せよ」――こうした問いに答えるには、従来はファイル名やタグ、人手による目視確認に頼るしかありませんでした。 2026年8月10日、Snowflake はこの問題への対応を一般提供開始しました。AI_MULTI_EMBED 関数の動画対応が GA となり、最大 6 GB / 4時間 の動画ファイルを Snowf…",
       "category": "技術コミュニティ",
-      "score": 8,
-      "image_url": null
-    },
-    {
-      "id": "a5622181793c9ab5860e",
-      "title": "「生成AIのコンテキストウィンドウ」ってなに？ChatGPTやClaudeが一度に処理できる情報量を図解でやさしく解説",
-      "url": "https://qiita.com/ABC-KeisukeKashio/items/7b201bdeabf7bdd9f16c",
-      "source": "Qiita / 生成AI",
-      "published_at": "2026-08-12T04:23:06+00:00",
-      "summary": "はじめに ChatGPTやClaudeと長く会話していると、「さっき話した内容を急に忘れられてしまった」「長いPDFを渡したら処理が遅くなった、あるいは途中の情報を見落とされた」という経験をしたことはないでしょうか。この背景にあるのが「コンテキストウィンドウ」と呼ばれる仕...",
-      "category": "生成AI活用",
       "score": 8,
       "image_url": null
     },
@@ -2116,17 +2127,6 @@
       "image_url": null
     },
     {
-      "id": "403b99300db35c0040ee",
-      "title": "海でも使える撮影ドローン！ 勝手に付いてくるモードがスゴイぞ",
-      "url": "https://ascii.jp/elem/000/004/420/4420115/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-07-18T09:00:00+00:00",
-      "summary": "100％防水の空飛ぶカメラ「HOVERAir AQUA」を実際に海へ持ち出して使い倒してきました！プロ並みの映像が撮れる自動追尾など、この夏に遊びたい最新ガジェットの魅力をレビューします。",
-      "category": "業務改善・QOL",
-      "score": 8,
-      "image_url": "https://ascii.jp/img/2026/07/16/4501495/s/4a026db49a525f54.png"
-    },
-    {
       "id": "e5152551df0b5371e0e4",
       "title": "【開催レポート】Tokyo dbt meetup #20 組織で広げるdbt｜#dbt_tokyo",
       "url": "https://zenn.dev/dbttokyo/articles/b73a3256f38228",
@@ -2303,6 +2303,17 @@
       "image_url": null
     },
     {
+      "id": "0383de7a8e36cf24ea1b",
+      "title": "Nightly Build",
+      "url": "https://github.com/sxyazi/yazi/releases/tag/nightly",
+      "source": "Yazi Releases",
+      "published_at": "2026-08-12T14:27:24+00:00",
+      "summary": "From commit: fe95035 Generated on: 2026-08-12 14:27 UTC Nightly changelog: https://github.com/sxyazi/yazi/blob/main/CHANGELOG.md#unreleased",
+      "category": "CLI生産性",
+      "score": 7,
+      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+    },
+    {
       "id": "14d9f9ad626ac3af7da8",
       "title": "Windows 11などに”緊急”の脆弱性 セキュリティ更新を今すぐチェック（2026年8月）",
       "url": "https://ascii.jp/elem/000/004/426/4426494/?rss=",
@@ -2323,17 +2334,6 @@
       "category": "業務改善・QOL",
       "score": 7,
       "image_url": null
-    },
-    {
-      "id": "0383de7a8e36cf24ea1b",
-      "title": "Nightly Build",
-      "url": "https://github.com/sxyazi/yazi/releases/tag/nightly",
-      "source": "Yazi Releases",
-      "published_at": "2026-08-12T06:55:33+00:00",
-      "summary": "From commit: 3a1f1ab Generated on: 2026-08-12 06:54 UTC Nightly changelog: https://github.com/sxyazi/yazi/blob/main/CHANGELOG.md#unreleased",
-      "category": "CLI生産性",
-      "score": 7,
-      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
     },
     {
       "id": "1e72f940a443d20bdec1",
@@ -2644,17 +2644,6 @@
       "image_url": null
     },
     {
-      "id": "160762492ac2878c54a4",
-      "title": "第157回 アルツハイマーの予防に効く？「40Hz」と「深い睡眠」の共通点 - ナショナルジオグラフィック日本版",
-      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxObTZTVU9jVTVwQmd4WjZsanZsU2NOajVzY3JZWlh0Z3lRZ2NPT0EwdVI3OUtNZ0xtSVVENnZFSS1DUDFyLXVobjB3bW8ySUxlSWo4dmkwRlB6bHZGMmhmSG9pV2FsTFowR1RBb2M3Mko1MkU2YU5uTk9iUVdNWG9LelhxYw?oc=5",
-      "source": "睡眠研究ニュース",
-      "published_at": "2026-08-01T03:53:22+00:00",
-      "summary": "第157回 アルツハイマーの予防に効く？「40Hz」と「深い睡眠」の共通点 ナショナルジオグラフィック日本版",
-      "category": "睡眠",
-      "score": 7,
-      "image_url": null
-    },
-    {
       "id": "b46c8149df4998db56f1",
       "title": "Keychron Nape Pro wireless trackball launches for $90 to fix your desk setup - Notebookcheck",
       "url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxNMWcwQkJ6eGRaY000cktua0VLSkJQVm4yS0NoNFJEWXJvamp4dWZsWi1xNVI3cERwRVZjRHRRV0ZrLUdzcFZHb2hCMGUtbkZxMDIyU1Y2b05QSnd3eFo0M0VIeUxNSjl1Z1RVRFowOWxkXzN2V0I1QUZCWHVlMmZtYzNTcDFuVzdodjE0ekpxVm8zbnVXb0FHLXdMNDVXN1JGSE9XZDgxWnQ0VHZzckNHbHRSdkE2WFJNU21aOQ?oc=5",
@@ -2672,6 +2661,17 @@
       "source": "睡眠研究ニュース",
       "published_at": "2026-07-30T07:00:00+00:00",
       "summary": "【睡眠不足はダイエットの敵】毎晩1時間強の睡眠不足が6週間続くと体重増加！ 米研究が示唆（ヨガジャーナルオンライン） Yahoo!ニュース",
+      "category": "睡眠",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "87cb0f36e0183c34fd8e",
+      "title": "「眠っているのに、休めていない」時代へ。100万個突破の“無重力枕”が見直したのは、頭の重さだった - ニコニコニュース",
+      "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTFBzWHYydjNwOTdscmNFUXJPYi1IMlI4d2RidnJfSzkxVmVDWklocXYxUE1lVFh5Ym1yZFFGM2VUQmZsMnZwWDNzWTJxWGFoRFQ1aEJBUFRnSzVKNUQ3MjNnRGFiU2VURGh6QWtQekduc2pic3ZWYjEwSk1Zdw?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-07-29T07:00:00+00:00",
+      "summary": "「眠っているのに、休めていない」時代へ。100万個突破の“無重力枕”が見直したのは、頭の重さだった ニコニコニュース",
       "category": "睡眠",
       "score": 7,
       "image_url": null
@@ -2710,12 +2710,12 @@
       "image_url": null
     },
     {
-      "id": "56148961d674d660a354",
-      "title": "いびき防止枕市場戦略レポート2026：競合状況、成長要因、投資リスク - Newscast.jp",
-      "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE4xcTltamU3dnZ1VXdJSFFucUo0UTZpQU4tbENEU3FJZU12Q2wxNV9xX2U5RDg2dlpGejZOTEEyVUY1YlhiUUptdnNUNVZtZ00?oc=5",
+      "id": "abe9d9f7056cf85984a0",
+      "title": "いびき防止枕市場戦略レポート2026：競合状況、成長要因、投資リスク - アットプレス",
+      "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE11NXBXTHJCcTl0SXRTc0R4YXVFVkJCMXNEcmF6VXRGdElsNkdSclJYWmFwN0tidng4VDJJTFYwV2NkSFNzUGdNM3RvVEhKNk0?oc=5",
       "source": "睡眠製品ニュース",
       "published_at": "2026-07-24T07:00:00+00:00",
-      "summary": "いびき防止枕市場戦略レポート2026：競合状況、成長要因、投資リスク Newscast.jp",
+      "summary": "いびき防止枕市場戦略レポート2026：競合状況、成長要因、投資リスク アットプレス",
       "category": "睡眠",
       "score": 7,
       "image_url": null
@@ -2777,11 +2777,11 @@
     },
     {
       "id": "8e75756c6ae12b07a5cb",
-      "title": "「冷えすぎ」と「暑すぎ」の間で 熱帯夜の睡眠バランスはどう取る？専門家が教える熱中症リスクと疲労回避の秘訣 - TBS NEWS DIG",
+      "title": "「冷えすぎ」と「暑すぎ」の間で 熱帯夜の睡眠バランスはどう取る？専門家が教える熱中症リスクと疲労回避の秘訣 - newsdig.tbs.co.jp",
       "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5TVzhVMXVUa3Y5T3h0Y1M3cERfT3J6eWtSTWJJRDc1NXZlRGNRM1VjbVJHSHhCVENNaG5zOFRETmtFLU1KVmQ4TVd4NVdZQjBad2N6Tm9yNXdGX1RiazB4NVBBVjd5UVE?oc=5",
       "source": "睡眠研究ニュース",
       "published_at": "2026-07-16T07:00:00+00:00",
-      "summary": "「冷えすぎ」と「暑すぎ」の間で 熱帯夜の睡眠バランスはどう取る？専門家が教える熱中症リスクと疲労回避の秘訣 TBS NEWS DIG",
+      "summary": "「冷えすぎ」と「暑すぎ」の間で 熱帯夜の睡眠バランスはどう取る？専門家が教える熱中症リスクと疲労回避の秘訣 newsdig.tbs.co.jp",
       "category": "睡眠",
       "score": 7,
       "image_url": null
@@ -2809,23 +2809,23 @@
       "image_url": null
     },
     {
-      "id": "c9bcd9d2d6a731ed8ad2",
-      "title": "「失われた睡眠」温暖化で倍増 - shimotsuke.co.jp",
-      "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE9Qa3pKbW5tOWJjdXg0bFAtWFJtWEc1M3YzZmZWSE54SzBiQlI2Ukx3eGhhckR6QmJraE5ZTWNzVzdDQ3l2ZDR2Y1NJR1RJWVhuZmdwRF9EaE1lZTg?oc=5",
-      "source": "睡眠研究ニュース",
-      "published_at": "2026-07-15T07:00:00+00:00",
-      "summary": "「失われた睡眠」温暖化で倍増 shimotsuke.co.jp",
-      "category": "睡眠",
-      "score": 7,
-      "image_url": null
-    },
-    {
       "id": "2115a45fbd984d00d354",
       "title": "「失われた睡眠」温暖化で倍増 米研究団体、健康懸念 - 山陽新聞",
       "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE9NbUZicVdTZTR4ZEVySkJydkwxWXlRN3BCNWQ5Ymc2bjFMc1FWMGpCVGlhNGdkaFVwY2J2dnJPVVpXMm91ZllXV3VDWFR2bnpLemc?oc=5",
       "source": "睡眠研究ニュース",
       "published_at": "2026-07-15T07:00:00+00:00",
       "summary": "「失われた睡眠」温暖化で倍増 米研究団体、健康懸念 山陽新聞",
+      "category": "睡眠",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "c9e0660e7bf6adb8d652",
+      "title": "「失われた睡眠」温暖化で倍増 米研究団体、健康懸念 - 西日本新聞me",
+      "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE9lUFp5SWRFODRTemp5TGZmNzJyRkM1N3l1aFB6R25HbE1SeW1pYjNBcUlRdWgtbUcteGJId3A4TlkzX202SGVndzFLZlF1ZFEwVXA0b01R?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-07-15T07:00:00+00:00",
+      "summary": "「失われた睡眠」温暖化で倍増 米研究団体、健康懸念 西日本新聞me",
       "category": "睡眠",
       "score": 7,
       "image_url": null
@@ -2904,6 +2904,17 @@
       "published_at": "2026-08-18T00:00:00+00:00",
       "summary": "★親子でイングリッシュ★・場所: 踊場地区センター ( 戸塚区 )",
       "category": "子育て",
+      "score": 6,
+      "image_url": null
+    },
+    {
+      "id": "a718071219131f02f4d4",
+      "title": "「Pixel Watch 5」が8月20日に発売へ 前モデルから最大20％の高速化、価格は6万2800円から",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/13/news051.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-12T15:00:00+00:00",
+      "summary": "Googleが、Wear OS by Googleを搭載するスマートウォッチの最新モデル「Google Pixel Watch 5」を発表した。進化した最新モデルの特徴と従来モデル「Pixel Watch 4」からの変更点をお届けする。",
+      "category": "業務改善・QOL",
       "score": 6,
       "image_url": null
     },
@@ -3410,6 +3421,39 @@
       "published_at": "2026-09-09T15:00:00+00:00",
       "summary": "「AIに頼りすぎて，自分は成長できていないのでは」「気づけば，AIの提案にただ従っているだけになっている」 AIを仕事に使う中で，そんな違和感を覚えたことはないでしょうか。 本書は，AIを「壁打ち相手」として使いこなし，自分自身の思考力と判断力を鍛えるための実践書です。エンジニアに必要なのは，小手先のプロンプトのテクニックではなく，「質問力」「仮説構築力」「言語化力」という，一生使えるスキルなのです。 企画・設計・実装・問題解決という開発の流れに沿って，各フェーズでAIとどう壁打ちすればよいかを具体的に解説します。自分の業務やプロジェクトをイメージしな…",
       "category": "データ関連書籍",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "ac3cc21d00c847d97cab",
+      "title": "8万回読まれた記事からリンクを張ったのに、リンク先に来たのは18人だった",
+      "url": "https://qiita.com/yurukusa/items/f1b871be7c64ccee8dca",
+      "source": "Qiita / 生成AI",
+      "published_at": "2026-08-12T15:07:12+00:00",
+      "summary": "私が何をしている人で、何をしようとしていたか 先に前提を書きます。ここを飛ばすと、以下の数字が何の話だか分からないからです。 私はプログラミングができません。AIに指示を出して、記事を書いたり、小さな道具を作ったりしています。使っているのは Claude Code という...",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "676b04d3a76578dab370",
+      "title": "1型センサー搭載でジンバルカメラにもなる全天周カメラの新モデル「Insta360 X6」発表＝実機レビューでX5と比較してみた",
+      "url": "https://ascii.jp/elem/000/004/426/4426284/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-12T15:01:00+00:00",
+      "summary": "Insta360は、ハードウェア・AI機能ともに大幅に強化した、360度全天周カメラのフラッグシップモデル「X6」を発表しました",
+      "category": "業務改善・QOL",
+      "score": 4,
+      "image_url": "https://ascii.jp/img/2026/08/10/4511678/s/846d8a4b9c0ec2c7.jpg"
+    },
+    {
+      "id": "086918226f0e6f406b06",
+      "title": "Google版“AirTag”こと「Pixel Tag」登場 10億台のAndroidネットワークで居場所を探知",
+      "url": "https://www.itmedia.co.jp/news/article/2608/12/2000000518/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-12T14:34:21+00:00",
+      "summary": "米Googleが紛失防止タグ「Google Pixel Tag」を発表した。鍵や財布に取り付け、10億台超のAndroid端末で構成されるFind Hubのネットワークで位置を探せる。UWBで距離と方向も分かる。日本では単品5010円、4個セット1万6940円で11月に発売する。",
+      "category": "テクノロジー",
       "score": 4,
       "image_url": null
     },
@@ -4404,6 +4448,17 @@
       "image_url": null
     },
     {
+      "id": "a82210b3e696aabd7f49",
+      "title": "SpaceXAI、AIコーディングエージェント「Grok Build」をオープンソース化／利用制限もすべてのユーザーを対象にリセット - 窓の杜",
+      "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE5xM0pneUdkWHBtWkJUWVl1ZkN5dWtiZjFIcUpJWUktNkhqR3ZaaXBuS3RmMkJQalVXeXVyckZRZmd2Wks3UHZGY1R2MENSc3VGalhxS1d6cVhzeUhGMF8wdi1NN3NCa0VK?oc=5",
+      "source": "CLI・ターミナルツール発見",
+      "published_at": "2026-07-16T07:00:00+00:00",
+      "summary": "SpaceXAI、AIコーディングエージェント「Grok Build」をオープンソース化／利用制限もすべてのユーザーを対象にリセット 窓の杜",
+      "category": "CLI生産性",
+      "score": 4,
+      "image_url": null
+    },
+    {
       "id": "2ca9ce5a8451c6c43c97",
       "title": "AIエージェント「Grok Build」がオープンソース化される - GIGAZINE",
       "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTE10Wmw5ZEFOeTI1VGI5Y0kzOFktVm5RZG5SbG5WdTJGUHZlMFBDRUxhcUltR3FQbDNTMFUxeVVtTTNJV3NYdEdMQ1dLVk9jV3BaMG1FMHlFcm5iYU9wblg3XzJPbDdzZmRnVVE?oc=5",
@@ -4701,6 +4756,17 @@
       "image_url": "https://www.apple.com/newsroom/images/2026/07/madden-nfl-27-arcade-edition-brings-gridiron-action-to-apple-arcade-on-august-6/tile/Apple-Arcade-Madden-NFL-27-Arcade-Edition-trailer-lp.jpg.og.jpg"
     },
     {
+      "id": "163b99ce47131b8119eb",
+      "title": "Google新スマホ「Pixel 11シリーズ」正式発表 「Gemini Intelligence」向けに設計 カメラも強化",
+      "url": "https://www.itmedia.co.jp/news/article/2608/12/2000000516/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-12T14:03:56+00:00",
+      "summary": "米Googleは8月12日、「Pixel 11」「Pixel 11 Pro」「Pixel 11 Pro XL」を発表した。新チップ「Google Tensor G6」を搭載し、カメラを刷新。Proには通知を光で知らせる「HiLight」を加えた。中核のAI機能「Gemini Intelligence」が目玉としている。8月20日に発予定。",
+      "category": "テクノロジー",
+      "score": 2,
+      "image_url": null
+    },
+    {
       "id": "9920171f9860698de10b",
       "title": "最新Tensor G6搭載でオンデバイスAIもできる折りたたみスマホ「Google Pixel 11 Pro Fold」",
       "url": "https://pc.watch.impress.co.jp/docs/news/2132349.html",
@@ -4950,17 +5016,6 @@
       "published_at": "2026-07-16T16:00:00+00:00",
       "summary": "Learn how OpenAI is making ChatGPT safer for teens with age-appropriate protections, learning tools, parental controls, and expert partnerships.",
       "category": "生成AI活用",
-      "score": 2,
-      "image_url": null
-    },
-    {
-      "id": "a82210b3e696aabd7f49",
-      "title": "SpaceXAI、AIコーディングエージェント「Grok Build」をオープンソース化／利用制限もすべてのユーザーを対象にリセット - forest.watch.impress.co.jp",
-      "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE5xM0pneUdkWHBtWkJUWVl1ZkN5dWtiZjFIcUpJWUktNkhqR3ZaaXBuS3RmMkJQalVXeXVyckZRZmd2Wks3UHZGY1R2MENSc3VGalhxS1d6cVhzeUhGMF8wdi1NN3NCa0VK?oc=5",
-      "source": "CLI・ターミナルツール発見",
-      "published_at": "2026-07-16T07:00:00+00:00",
-      "summary": "SpaceXAI、AIコーディングエージェント「Grok Build」をオープンソース化／利用制限もすべてのユーザーを対象にリセット forest.watch.impress.co.jp",
-      "category": "CLI生産性",
       "score": 2,
       "image_url": null
     },
@@ -5350,6 +5405,17 @@
       "image_url": null
     },
     {
+      "id": "e254e970070124d008c8",
+      "title": "ハンドメイド教室",
+      "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=111077",
+      "source": "横浜市親子イベント",
+      "published_at": "2026-08-22T00:00:00+00:00",
+      "summary": "折紙でリースを作ろう・場所: 踊場地区センター ( 戸塚区 )",
+      "category": "子育て",
+      "score": 0,
+      "image_url": null
+    },
+    {
       "id": "6f3106d2f7995193648f",
       "title": "わくわくポン!おはなしのとびら",
       "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=110539",
@@ -5405,15 +5471,26 @@
       "image_url": null
     },
     {
-      "id": "48e2b40564dc8edb6242",
-      "title": "おもちゃ病院",
-      "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=110527",
-      "source": "横浜市親子イベント",
-      "published_at": "2026-08-15T00:00:00+00:00",
-      "summary": "おもちゃの修理はおもちゃドクターにおまかせ!・場所: 藤が丘地区センター ( 青葉区 )",
-      "category": "子育て",
+      "id": "da398565474b5f8c974a",
+      "title": "Claude Code で書くと記事が薄い——その原因と『メタ実演構造』で説得力を一段上げる方法",
+      "url": "https://qiita.com/saitoko/items/7086e8004ae14f21d7f8",
+      "source": "Qiita / 生成AI",
+      "published_at": "2026-08-12T15:01:37+00:00",
+      "summary": "この記事の実施記録（2026年5〜6月）: Claude Code との対話セッション中に「いま起きていること自体が、書こうとしている記事の主張の証拠になっている」という構造（メタ実演構造）を3本の既存記事で確認した。本記事は4本目の実例として、本記事自身もメタ実演構造で書...",
+      "category": "生成AI活用",
       "score": 0,
       "image_url": null
+    },
+    {
+      "id": "02e8368d7fba1d3435aa",
+      "title": "20世紀を代表するMoMA伝説の写真展「ザ・ファミリー・オブ・マン」が日本橋高島屋で復活",
+      "url": "https://ascii.jp/elem/000/004/426/4426513/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-12T15:01:00+00:00",
+      "summary": "日本経済新聞社は日本橋高島屋S.C. 本館8階ホールにて「ザ・ファミリー・オブ・マン写真展 人類愛と平和のビジョンを、いま再び」を開催しています",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/08/12/4512275/s/63c8a8c26af51899.jpg"
     },
     {
       "id": "2c563947428818b93259",
@@ -5422,83 +5499,6 @@
       "source": "Hugging Face Blog",
       "published_at": "2026-08-12T14:00:51+00:00",
       "summary": "",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "4d9de1a7d78d95d63855",
-      "title": "CPUとカメラが大幅に進化！6.3型スマホ「Google Pixel 11」誕生。13万6,800円から",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2132345.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-12T14:00:00+00:00",
-      "summary": "Googleは8月12日、新型の6.3型スマートフォン「Google Pixel 11」を発表した。Google Storeでの直販価格は13万6,800円から。8月12日よりオンラインで、8月13日より店頭での予約販売を開始し、8月20日に発売する。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "34cb913b76aa3e362593",
-      "title": "Google純正の紛失防止タグ「Pixel Tag」が登場！ Pixel 11を彩る最新アクセサリーを一挙紹介",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/12/news091.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-12T14:00:00+00:00",
-      "summary": "GoogleがPixel新製品の発表に合わせ、さまざまなアクセサリーを発表した。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "9a4c593cdeb9d7b1066b",
-      "title": "グーグル純正の忘れ物タグがついに登場！ 「Pixel Tag」は10月発売",
-      "url": "https://ascii.jp/elem/000/004/426/4426524/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-12T14:00:00+00:00",
-      "summary": "部屋の鍵にお財布、IDカードと、決してなくしてはいけない大切な持ち物の場所をいつでも確認できる「忘れ物タグ」。ついにグーグルからAndroidスマホに対応した純正品「Pixel Tag」が登場！",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/12/4512326/s/6ebb2d2c7840302b.jpg"
-    },
-    {
-      "id": "20d5e96c969e9934746b",
-      "title": "【心理テスト】仕事に求めるのはやりがい？収入？あなたの幸福度を最大化するバランスは…",
-      "url": "https://www.lifehacker.jp/article/2608_psychological_test_balance/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-12T14:00:00+00:00",
-      "summary": "【心理テスト】浜辺の波打ち際で見つけた小瓶に、1枚のカードが。何が書かれていた？ 選んだ答えからわかるのは、あなたに合った仕事の「やりがい」と「収入」のバランス。人生を豊かにし、自分を知るきっかけにもなる「心理テスト」をお届けします。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/12/4ef13546-048a-483b-a9a7-f022ac6f585c/original.jpg?w=1200"
-    },
-    {
-      "id": "7fd4446e22d00f7d298b",
-      "title": "クリアな窓がスパッと決まる。高密度カーボン生地が水分や汚れをしっかりキャッチ",
-      "url": "https://www.lifehacker.jp/article/machi-ya-carboneraser-end-958819/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-12T13:45:00+00:00",
-      "summary": "馬連形状✕厚手パッド✕高密度カーボンファイバー生地の連携で、窓の拭き取りがムラ無く効率的に。外用と中用の2個セットで、洗えば繰り返し使えます。おトクな先行販売は終了間近。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/12/2aaeba13-0d9c-4fa8-aa76-5e17f3aaa540/original.jpg?w=1200"
-    },
-    {
-      "id": "4b1e5dbcef00946960f2",
-      "title": "録音したら、文字起こしまで終わっている。ポケットに収まる「Notta Memo」",
-      "url": "https://www.lifehacker.jp/article/2608-lht-notta-memo/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-12T13:15:00+00:00",
-      "summary": "どんなに優秀なアプリであっても、録音データのクオリティが低ければ、アウトプットもそれなりにしかなりません。ワンランク上の精度を求めるなら、ボイスレコーダーもこだわるべき。いくつか候補があるなかで目にとまったのが、今回紹介する「Notta Memo」です。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/12/8eaba113-6c0e-43e9-906e-8eff322f2d39/original.png?w=1200"
-    },
-    {
-      "id": "181b2e6b45f044c9bf9b",
-      "title": "Claudeの研究版がリーマン予想の零点密度で新たな下界67.2%を達成",
-      "url": "https://qiita.com/picnic/items/61f7ba572c94f982b0e7",
-      "source": "Qiita / LLM",
-      "published_at": "2026-08-12T12:20:19+00:00",
-      "summary": "はじめに 2026年8月10日、Anthropicの研究ページ（Scienceカテゴリ）に新しい記事「Learning more about Claude's mathematical capabilities」が公開されました。内容は、まだ一般公開されていない研究版のC...",
       "category": "生成AI活用",
       "score": 0,
       "image_url": null

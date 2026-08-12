@@ -1,5 +1,13 @@
-const CACHE_NAME = "daily-reader-v13";
+const CACHE_NAME = "daily-reader-v23";
 const APP_ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./icons/icon.svg"];
+
+async function cacheSuccessfulResponse(request, response) {
+  if (response?.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS)));
@@ -19,25 +27,20 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") {
     return;
   }
-  if (new URL(event.request.url).pathname.includes("/data/")) {
+  const url = new URL(event.request.url);
+  if (url.pathname.includes("/data/")) {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return response;
-        })
-        .catch(() => caches.match(event.request)),
+        .then((response) => cacheSuccessfulResponse(event.request, response))
+        .catch(async () => (await caches.match(event.request)) || Response.error()),
     );
     return;
   }
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      })
-      .catch(() => caches.match(event.request)),
+    caches.match(event.request).then(
+      (cached) =>
+        cached ||
+        fetch(event.request).then((response) => cacheSuccessfulResponse(event.request, response)),
+    ),
   );
 });

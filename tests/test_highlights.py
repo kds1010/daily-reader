@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from daily_reader.core import Article
 from daily_reader.highlights import (
+    _feedback_examples,
     _is_cli_productivity_article,
     _is_local_store_opening,
     _is_parenting_walking_distance,
@@ -40,3 +43,22 @@ def test_cli_productivity_excludes_nightly_releases() -> None:
     article = _event("Yazi update")
     article = Article(**{**article.__dict__, "title": "Nightly Build", "source": "Yazi Releases"})
     assert not _is_cli_productivity_article(article)
+
+
+def test_feedback_examples_ignore_invalid_and_keep_recent_entries(tmp_path: Path) -> None:
+    feedback_path = tmp_path / "feedback.jsonl"
+    feedback_path.write_text(
+        '{"feedback":"not_interested","article_id":"a1","title":"Noisy",'
+        '"source":"Example","category":"AI"}\ninvalid\n',
+        encoding="utf-8",
+    )
+
+    assert _feedback_examples(feedback_path) == [
+        {
+            "article_id": "a1",
+            "title": "Noisy",
+            "source": "Example",
+            "category": "AI",
+        }
+    ]
+    assert _feedback_examples(Path("missing.jsonl")) == []

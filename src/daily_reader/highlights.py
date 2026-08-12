@@ -373,6 +373,34 @@ def _input_hash(articles: list[Article]) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def _feedback_examples(feedback_path: Path | None) -> list[dict[str, object]]:
+    if feedback_path is None:
+        return []
+    try:
+        lines = feedback_path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+    examples = []
+    for line in lines[-200:]:
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("feedback") != "not_interested" or not isinstance(
+            event.get("article_id"), str
+        ):
+            continue
+        examples.append(
+            {
+                "article_id": event["article_id"],
+                "title": str(event.get("title", ""))[:300],
+                "source": str(event.get("source", ""))[:120],
+                "category": str(event.get("category", ""))[:120],
+            }
+        )
+    return examples[-100:]
+
+
 def _existing_hash(output_path: Path) -> str | None:
     try:
         return json.loads(output_path.read_text(encoding="utf-8")).get("input_hash")
@@ -385,9 +413,19 @@ def generate_highlights(
     output_path: Path,
     schema_path: Path,
     generated_at: datetime,
+    feedback_path: Path | None = None,
 ) -> bool:
-    candidates = _candidate_articles(articles)
-    current_hash = _input_hash(candidates)
+    feedback_examples = _feedback_examples(feedback_path)
+    hidden_ids = {str(item["article_id"]) for item in feedback_examples}
+    candidates = [
+        article for article in _candidate_articles(articles) if article.id not in hidden_ids
+    ]
+    feedback_hash = hashlib.sha256(
+        json.dumps(feedback_examples, ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    current_hash = hashlib.sha256(
+        f"{_input_hash(candidates)}:{feedback_hash}".encode()
+    ).hexdigest()
     if _existing_hash(output_path) == current_hash:
         LOGGER.info("Highlights are already current")
         return False
@@ -495,7 +533,17 @@ def generate_highlights(
         "羅列ではなく、設計判断、アーキテクチャ、障害や失敗からの学び、運用改善、データ・ML基盤の"
         "実践知が得られる記事を優先し、insightに学べること、why_readに読む価値を示してください。"
         "article_idは入力にある値を正確に使ってください。\n\n"
-        + json.dumps(article_payload, ensure_ascii=False)
+        "not_interested_examplesは、ユーザーが過去に『表示したくない』と指定した記事です。"
+        "同一記事は候補から除外済みです。タイトル、情報元、カテゴリに繰り返し現れる傾向を"
+        "選定の減点材料にしてください。ただし、少数の例からカテゴリ全体を除外せず、明示された"
+        "優先分野や地域ルールを上書きしないでください。\n\n"
+        + json.dumps(
+            {
+                "candidate_articles": article_payload,
+                "not_interested_examples": feedback_examples,
+            },
+            ensure_ascii=False,
+        )
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

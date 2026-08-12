@@ -102,7 +102,21 @@ h1 {
 }
 
 .feed-browser {
+  width: 100%;
+  min-width: 0;
   margin-top: 24px;
+}
+
+.feed-browser > .controls,
+.feed-browser > section,
+.feed-browser .articles {
+  width: min(calc(100vw - 32px), 760px);
+  min-width: 0;
+}
+
+.feed-browser .article-card {
+  width: min(calc(100vw - 32px), 760px);
+  min-width: 0;
 }
 
 .feed-browser > summary {
@@ -214,6 +228,18 @@ h1 {
   color: inherit;
   background: rgb(255 255 255 / 8%);
   text-decoration: none;
+}
+
+.highlight-item-wrapper,
+.feedback-item,
+.digest-link-item {
+  display: grid;
+  gap: 5px;
+}
+
+.feedback-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .highlight-item:has(.highlight-image) {
@@ -489,6 +515,12 @@ h1 {
   font-size: 0.72rem;
 }
 
+.article-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
 .category {
   padding: 3px 7px;
   border-radius: 999px;
@@ -548,6 +580,21 @@ h1 {
   color: var(--muted);
   background: transparent;
   font-size: 0.75rem;
+}
+
+.not-interested-button {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 0.7rem;
+}
+
+.highlights .not-interested-button {
+  border-color: rgb(255 255 255 / 22%);
+  color: rgb(247 251 248 / 82%);
+  background: rgb(13 77 61 / 90%);
 }
 
 .save-button.saved {
