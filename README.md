@@ -20,6 +20,23 @@
 - 記事を開いた履歴をMac mini内の`data/read-events.jsonl`へ記録し、`/api/analytics`で閲覧傾向を集計
 - 不要とした記事をMac mini内の`data/feedback-events.jsonl`へ記録し、同一記事の除外と類似傾向の減点に利用
 - localhostへの限定バインド
+- Gmailの重要メール抽出、返信状況の追跡、日次・週次リマインド
+- Gmailスレッドへのリンクと、対応済み・保留・対応不要の記録
+
+## Gmailアシスタント
+
+Google Cloudでデスクトップアプリ用OAuthクライアントを作成し、JSONを
+`secrets/gmail-client.json`へ配置します。権限はGmailの読み取り専用だけです。
+
+```bash
+uv run --frozen daily-reader-gmail auth
+uv run --frozen daily-reader-gmail sync
+```
+
+認証トークンとSQLiteデータベースはMac mini内だけに保存され、Git管理されません。
+同期後、Daily Readerの先頭に重要な未対応メールが表示されます。返信したスレッドは
+「返信待ち」になり、Web操作や電話で対応した項目は画面の「対応済み」で完了できます。
+日次表示は直近1日、週次表示は直近7日を基本とし、期限付きと返信待ちは期間外でも残ります。
 
 ## Mac miniで起動する
 

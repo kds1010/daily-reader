@@ -6,6 +6,7 @@
 ## 目的と運用形態
 
 - 個人向けニュース／情報ダッシュボード。iPhoneで1ページのハイライトを確認する。
+- 同じ基盤で生活支援機能を拡張する。最初の追加機能はGmailの未対応メール管理。
 - Mac miniの `127.0.0.1:8787` だけでホストし、Tailscale Serve経由でtailnet内に限定公開する。
 - 公開URL: `https://sk-mins-mac-mini.tailc193b2.ts.net/`
 - 外部サーバー、DB、有料ホスティングは使わない。
@@ -19,12 +20,14 @@
 - `config/highlight-schema.json`: Codexの構造化出力スキーマ。
 - `src/daily_reader/core.py`: 収集、各種パーサー、正規化、重複排除、画像抽出、新店日付検証。
 - `src/daily_reader/highlights.py`: 候補選定、Codexプロンプト、出力検証、OG画像補完。
-- `src/daily_reader/local_server.py`: ローカルHTTPサーバー、更新スケジューラー、閲覧・不要フィードバックAPI。
+- `src/daily_reader/local_server.py`: ローカルHTTPサーバー、更新スケジューラー、閲覧・不要フィードバック・メールAPI。
+- `src/daily_reader/email_assistant.py`: Gmail読み取り専用OAuth、重要度判定、SQLite状態管理。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。
 - `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。Git管理対象。
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
 - `data/selection-history.jsonl`: 分野別ハイライトの連続掲載履歴。Git管理対象外。
+- `data/assistant.sqlite3`: メール判定と対応状態。Mac mini内だけに保持しGit管理対象外。
 
 ## 現在のハイライト分野
 

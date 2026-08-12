@@ -6,11 +6,14 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "feedparser>=6.0.11,<7",
+  "google-api-python-client>=2.179,<3",
+  "google-auth-oauthlib>=1.2,<2",
 ]
 
 [project.scripts]
 daily-reader = "daily_reader.cli:main"
 daily-reader-local = "daily_reader.local_server:main"
+daily-reader-gmail = "daily_reader.email_assistant:main"
 
 [dependency-groups]
 dev = [

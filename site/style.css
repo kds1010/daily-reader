@@ -43,6 +43,33 @@ main {
   margin-inline: auto;
 }
 
+.email-assistant {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--paper) 90%, white);
+}
+
+.email-period, .email-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+.email-period button, .email-actions button, .email-actions a {
+  padding: .55rem .75rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+}
+
+.email-period button.active, .email-actions a { background: var(--ink); color: var(--paper); }
+.email-items { display: grid; gap: .75rem; }
+.email-card { padding: .9rem; border-left: 4px solid #b58b25; background: var(--paper); }
+.email-card.importance-high { border-left-color: #b43a32; }
+.email-card h3, .email-card p { margin: 0 0 .45rem; }
+.email-meta { font-size: .78rem; opacity: .72; }
+
 .masthead {
   display: flex;
   align-items: flex-start;

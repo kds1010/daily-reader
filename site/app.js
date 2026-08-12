@@ -40,7 +40,80 @@ const elements = {
   template: document.querySelector("#article-template"),
   techPicks: document.querySelector("#tech-picks"),
   techPickItems: document.querySelector("#tech-pick-items"),
+  emailAssistant: document.querySelector("#email-assistant"),
+  emailEmpty: document.querySelector("#email-empty"),
+  emailItems: document.querySelector("#email-items"),
 };
+
+function emailStatusLabel(status) {
+  return status === "awaiting_reply" ? "返信待ち" : status === "snoozed" ? "保留中" : "未対応";
+}
+
+async function updateEmailStatus(threadId, action) {
+  const response = await fetch("./api/email-status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ thread_id: threadId, action }),
+  });
+  if (!response.ok) throw new Error("メール状態を更新できませんでした");
+}
+
+async function loadEmailReminders(period = "daily") {
+  try {
+    const response = await fetch(`./api/email-reminders/${period}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const payload = await response.json();
+    const fragment = document.createDocumentFragment();
+    for (const email of payload.items || []) {
+      const card = document.createElement("article");
+      card.className = `email-card importance-${email.importance}`;
+      const meta = document.createElement("p");
+      meta.className = "email-meta";
+      meta.textContent = `${emailStatusLabel(email.status)}・${email.sender}`;
+      const title = document.createElement("h3");
+      title.textContent = email.subject;
+      const reason = document.createElement("p");
+      reason.textContent = `理由：${email.reason}`;
+      const nextAction = document.createElement("p");
+      nextAction.textContent = `次の行動：${email.required_action}${email.due_date ? `（期限 ${email.due_date}）` : ""}`;
+      const controls = document.createElement("div");
+      controls.className = "email-actions";
+      const open = document.createElement("a");
+      open.href = email.gmail_url;
+      open.target = "_blank";
+      open.rel = "noopener noreferrer";
+      open.textContent = "Gmailで開く";
+      controls.append(open);
+      for (const [value, label] of [["done", "対応済み"], ["snooze", "明日"], ["dismiss", "対応不要"]]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            await updateEmailStatus(email.thread_id, value);
+            card.remove();
+            if (!elements.emailItems.children.length) elements.emailEmpty.hidden = false;
+          } catch (error) {
+            button.disabled = false;
+            elements.status.textContent = error.message;
+          }
+        });
+        controls.append(button);
+      }
+      card.append(meta, title, reason, nextAction, controls);
+      fragment.append(card);
+    }
+    elements.emailItems.replaceChildren(fragment);
+    elements.emailEmpty.hidden = Boolean(payload.items?.length);
+    elements.emailAssistant.hidden = false;
+    document.querySelectorAll("[data-email-period]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.emailPeriod === period);
+    });
+  } catch {
+    elements.emailAssistant.hidden = true;
+  }
+}
 
 function recordRead(article, surface) {
   const body = JSON.stringify({ article_id: article.id, surface });
@@ -453,6 +526,9 @@ elements.savedOnly.addEventListener("change", (event) => {
   renderArticles();
 });
 elements.refresh.addEventListener("click", loadArticles);
+document.querySelectorAll("[data-email-period]").forEach((button) => {
+  button.addEventListener("click", () => loadEmailReminders(button.dataset.emailPeriod));
+});
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
@@ -460,6 +536,7 @@ if ("serviceWorker" in navigator) {
 
 loadArticles();
 loadHighlights();
+loadEmailReminders();
 loadFeedback().then(() => {
   document.querySelectorAll("[data-article-id]").forEach((item) => {
     if (state.hidden.has(item.dataset.articleId)) {

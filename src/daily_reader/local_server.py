@@ -12,6 +12,7 @@ from pathlib import Path
 from time import sleep
 
 from daily_reader.core import collect, load_config, load_keywords, write_output
+from daily_reader.email_assistant import list_reminders, update_status
 from daily_reader.highlights import generate_highlights
 
 LOGGER = logging.getLogger(__name__)
@@ -97,7 +98,11 @@ def load_feedback_events(log_path: Path) -> list[dict[str, object]]:
 
 
 def make_handler(
-    site: Path, articles_path: Path, read_log_path: Path, feedback_log_path: Path
+    site: Path,
+    articles_path: Path,
+    read_log_path: Path,
+    feedback_log_path: Path,
+    assistant_db: Path,
 ):
     class DailyReaderHandler(SimpleHTTPRequestHandler):
         def _send_json(self, status: int, payload: object) -> None:
@@ -122,10 +127,21 @@ def make_handler(
                     ))},
                 )
                 return
+            if self.path in {"/api/email-reminders/daily", "/api/email-reminders/weekly"}:
+                period = self.path.rsplit("/", 1)[-1]
+                self._send_json(
+                    200,
+                    {
+                        "period": period,
+                        "generated_at": datetime.now(UTC).isoformat(),
+                        "items": list_reminders(assistant_db, period, datetime.now(UTC)),
+                    },
+                )
+                return
             super().do_GET()
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path not in {"/api/read", "/api/feedback"}:
+            if self.path not in {"/api/read", "/api/feedback", "/api/email-status"}:
                 self._send_json(404, {"error": "not found"})
                 return
             try:
@@ -133,6 +149,16 @@ def make_handler(
                 if not 0 < length <= 2048:
                     raise ValueError("invalid content length")
                 request = json.loads(self.rfile.read(length))
+                if self.path == "/api/email-status":
+                    if not update_status(
+                        assistant_db,
+                        request["thread_id"],
+                        request["action"],
+                        datetime.now(UTC),
+                    ):
+                        raise ValueError("invalid email action")
+                    self._send_json(202, {"updated": True})
+                    return
                 article_id = request["article_id"]
                 surface = request["surface"]
                 if not isinstance(article_id, str) or surface not in READ_SURFACES:
@@ -225,6 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("data/selection-history.jsonl"),
     )
+    parser.add_argument("--assistant-db", type=Path, default=Path("data/assistant.sqlite3"))
     return parser
 
 
@@ -257,7 +284,9 @@ def main() -> None:
     )
     scheduler.start()
 
-    handler = make_handler(args.site, output_path, args.read_log, args.feedback_log)
+    handler = make_handler(
+        args.site, output_path, args.read_log, args.feedback_log, args.assistant_db
+    )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)
     try:

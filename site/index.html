@@ -21,6 +21,18 @@
     </header>
 
     <main>
+      <section id="email-assistant" class="email-assistant" hidden aria-labelledby="email-heading">
+        <div class="section-heading">
+          <div><p class="eyebrow">ACTION REQUIRED</p><h2 id="email-heading">対応が必要なメール</h2></div>
+          <div class="email-period" role="group" aria-label="メール表示期間">
+            <button type="button" data-email-period="daily" class="active">今日</button>
+            <button type="button" data-email-period="weekly">今週</button>
+          </div>
+        </div>
+        <p id="email-empty" class="empty" hidden>未対応の重要メールはありません。</p>
+        <div id="email-items" class="email-items"></div>
+      </section>
+
       <section id="highlights" class="highlights" hidden aria-labelledby="highlights-heading">
         <p class="eyebrow">TODAY'S HIGHLIGHTS</p>
         <h2 id="highlights-heading"></h2>
