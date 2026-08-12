@@ -2,11 +2,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from daily_reader.core import (
+    Article,
     Feed,
     Settings,
     calculate_score,
     canonicalize_url,
     clean_text,
+    is_recent_or_upcoming_store_opening,
     load_keywords,
     parse_feed,
     parse_snowflake_release_notes,
@@ -62,6 +64,7 @@ def test_parse_feed_normalizes_and_scores_articles() -> None:
     assert articles[0].url == "https://example.com/article?id=42"
     assert articles[0].summary == "GitHubで公開された新機能です。"
     assert articles[0].score == 11
+    assert articles[0].image_url == "https://images.example.com/python-ai.jpg"
     assert articles[1].score == -7
 
 
@@ -135,6 +138,54 @@ def test_parse_yokohama_tourism_events_extracts_event_card() -> None:
     assert len(articles) == 1
     assert articles[0].published_at == "2026-08-20T00:00:00+00:00"
     assert articles[0].score == 12
+
+
+def test_store_opening_rejects_stale_date_even_when_feed_date_is_recent() -> None:
+    now = datetime(2026, 8, 12, tzinfo=UTC)
+    article = Article(
+        id="store",
+        title="すみれ 横浜店が2月13日に野毛町で復活オープン",
+        url="https://example.com/store",
+        source="桜木町・野毛の新店",
+        published_at=now.isoformat(),
+        summary="",
+        category="街の新店",
+        score=1,
+    )
+
+    assert not is_recent_or_upcoming_store_opening(article, now)
+
+
+def test_store_opening_keeps_recent_or_upcoming_date() -> None:
+    now = datetime(2026, 8, 12, tzinfo=UTC)
+    article = Article(
+        id="store",
+        title="野毛の新店が9月1日にオープン",
+        url="https://example.com/store",
+        source="桜木町・野毛の新店",
+        published_at=now.isoformat(),
+        summary="",
+        category="街の新店",
+        score=1,
+    )
+
+    assert is_recent_or_upcoming_store_opening(article, now)
+
+
+def test_store_opening_rejects_article_without_confirmable_opening_date() -> None:
+    now = datetime(2026, 8, 12, tzinfo=UTC)
+    article = Article(
+        id="store",
+        title="野毛に新しいカフェがオープン",
+        url="https://example.com/store",
+        source="桜木町・野毛の新店",
+        published_at=now.isoformat(),
+        summary="",
+        category="街の新店",
+        score=1,
+    )
+
+    assert not is_recent_or_upcoming_store_opening(article, now)
 
 
 def test_write_output_writes_utf8_json(tmp_path: Path) -> None:

@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-reader-v12";
+const CACHE_NAME = "daily-reader-v13";
 const APP_ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./icons/icon.svg"];
 
 self.addEventListener("install", (event) => {

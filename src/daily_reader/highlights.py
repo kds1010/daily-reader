@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import hashlib
+import html
+import ipaddress
 import json
 import logging
+import re
 import shutil
+import socket
 import subprocess
 import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -101,6 +109,14 @@ STORE_OPENING_KEYWORDS = {
 STORE_EXCLUDED_KEYWORDS = {"閉店", "セール", "求人", "スタッフ募集"}
 CLI_RELEASE_SOURCES = {"eza Releases", "fzf Releases", "Yazi Releases", "cmux Releases"}
 CLI_EXCLUDED_TITLES = {"nightly", "nightly build", "issue report assets"}
+OG_IMAGE_PATTERN = re.compile(
+    r'<meta[^>]+(?:property|name)=["\']og:image(?::secure_url)?["\'][^>]+content=["\'](?P<url>[^"\']+)',
+    re.I,
+)
+OG_IMAGE_REVERSED_PATTERN = re.compile(
+    r'<meta[^>]+content=["\'](?P<url>[^"\']+)["\'][^>]+(?:property|name)=["\']og:image(?::secure_url)?["\']',
+    re.I,
+)
 DESK_KEYWORDS = {
     "デスク",
     "作業環境",
@@ -166,6 +182,61 @@ def _is_cli_productivity_article(article: Article) -> bool:
     if article.source not in CLI_RELEASE_SOURCES:
         return True
     return article.title.strip().casefold() not in CLI_EXCLUDED_TITLES
+
+
+def _is_public_web_url(url: str) -> bool:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return False
+    try:
+        addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 443, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        return False
+    return all(ipaddress.ip_address(address[4][0]).is_global for address in addresses)
+
+
+class _PublicRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, new_url):  # noqa: ANN001
+        if not _is_public_web_url(new_url):
+            raise urllib.error.URLError("redirect target is not public")
+        return super().redirect_request(request, fp, code, message, headers, new_url)
+
+
+def _fetch_og_image(article: Article) -> str | None:
+    if article.image_url or not _is_public_web_url(article.url):
+        return article.image_url
+    request = urllib.request.Request(
+        article.url,
+        headers={"User-Agent": "daily-reader/0.1 (+https://github.com/kds1010/daily-reader)"},
+    )
+    try:
+        opener = urllib.request.build_opener(_PublicRedirectHandler())
+        with opener.open(request, timeout=4) as response:
+            content_type = response.headers.get_content_type()
+            if content_type != "text/html":
+                return None
+            page = response.read(512_000).decode("utf-8", errors="replace")
+            final_url = response.geturl()
+    except (OSError, ValueError, urllib.error.URLError):
+        return None
+    match = OG_IMAGE_PATTERN.search(page) or OG_IMAGE_REVERSED_PATTERN.search(page)
+    if match is None:
+        return None
+    image_url = urllib.parse.urljoin(final_url, html.unescape(match.group("url")))
+    return image_url if _is_public_web_url(image_url) else None
+
+
+def _highlight_images(article_by_id: dict[str, Article], article_ids: set[str]) -> dict[str, str]:
+    selected = [
+        article_by_id[article_id] for article_id in article_ids if article_id in article_by_id
+    ]
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        images = executor.map(_fetch_og_image, selected)
+    return {
+        article.id: image_url
+        for article, image_url in zip(selected, images, strict=True)
+        if image_url
+    }
 
 
 def _suggested_field(article: Article) -> str | None:
@@ -457,6 +528,12 @@ def generate_highlights(
         )
         result = json.loads(result_path.read_text(encoding="utf-8"))
         article_by_id = {article.id: article for article in articles}
+        highlight_article_ids = {
+            item["article_id"]
+            for field in result["field_highlights"]
+            for item in field["items"]
+        }
+        highlight_images = _highlight_images(article_by_id, highlight_article_ids)
         field_highlights = []
         for field in result["field_highlights"]:
             valid_items = []
@@ -487,7 +564,9 @@ def generate_highlights(
                     or (article is not None and _is_cli_productivity_article(article))
                 )
                 if article is not None and is_local_event and is_valid_cli_article:
-                    valid_items.append({**item, "article": asdict(article)})
+                    article_data = asdict(article)
+                    article_data["image_url"] = highlight_images.get(article.id)
+                    valid_items.append({**item, "article": article_data})
             field_highlights.append({**field, "items": valid_items})
         official_digest = []
         for digest in result["official_digest"]:

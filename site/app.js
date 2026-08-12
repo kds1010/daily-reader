@@ -82,9 +82,12 @@ async function loadHighlights() {
       fieldSummary.textContent = field.summary;
       const items = document.createElement("div");
       items.className = "highlight-field-items";
-      for (const item of field.items) {
+      for (const [itemIndex, item] of field.items.entries()) {
         const link = document.createElement("a");
         link.className = "highlight-item";
+        if (itemIndex === 0) {
+          link.classList.add("highlight-item-featured");
+        }
         link.href = item.article.url;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
@@ -93,7 +96,20 @@ async function loadHighlights() {
         title.textContent = item.label;
         const reason = document.createElement("span");
         reason.textContent = item.reason;
-        link.append(title);
+        if (item.article.image_url) {
+          const image = document.createElement("img");
+          image.className = "highlight-image";
+          image.src = item.article.image_url;
+          image.alt = item.article.title;
+          image.loading = "lazy";
+          image.decoding = "async";
+          image.referrerPolicy = "no-referrer";
+          image.addEventListener("error", () => image.remove());
+          link.append(image);
+        }
+        const content = document.createElement("div");
+        content.className = "highlight-item-content";
+        content.append(title);
         if (
           field.field === "データマネジメント・エンジニアリング書籍" ||
           field.field === "生成AI活用・テクニック" ||
@@ -116,9 +132,10 @@ async function loadHighlights() {
             dateLabel = "公開日";
           }
           eventDate.textContent = `${dateLabel} ${formatReleaseDate(item.article.published_at)}`;
-          link.append(eventDate);
+          content.append(eventDate);
         }
-        link.append(reason);
+        content.append(reason);
+        link.append(content);
         items.append(link);
       }
       group.append(fieldName, fieldSummary, items);

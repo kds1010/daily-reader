@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
     <title>Example Feed</title>
     <link>https://example.com</link>
@@ -9,6 +9,7 @@
       <link>https://example.com/article?utm_source=rss&amp;id=42</link>
       <description><![CDATA[<p>GitHubで公開された新機能です。</p>]]></description>
       <pubDate>Tue, 12 Aug 2026 01:00:00 GMT</pubDate>
+      <media:thumbnail url="https://images.example.com/python-ai.jpg" />
     </item>
     <item>
       <title>広告キャンペーンのお知らせ</title>

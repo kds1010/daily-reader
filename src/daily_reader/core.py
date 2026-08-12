@@ -28,6 +28,9 @@ TRACKING_PARAMETERS = {
 }
 TAG_PATTERN = re.compile(r"<[^>]+>")
 SPACE_PATTERN = re.compile(r"\s+")
+JAPANESE_DATE_PATTERN = re.compile(
+    r"(?:(?P<year>20\d{2})年)?(?P<month>1[0-2]|0?[1-9])月(?P<day>3[01]|[12]\d|0?[1-9])日"
+)
 
 
 @dataclass(frozen=True)
@@ -57,6 +60,7 @@ class Article:
     summary: str
     category: str
     score: int
+    image_url: str | None = None
 
 
 def load_config(path: Path) -> tuple[Settings, list[Feed]]:
@@ -124,9 +128,55 @@ def _published_at(entry: Any, fallback: datetime) -> datetime:
     return fallback
 
 
+def _entry_image_url(entry: Any, base_url: str) -> str | None:
+    candidates: list[str] = []
+    for item in entry.get("media_content", []) or []:
+        if item.get("url") and str(item.get("medium", "image")).casefold() == "image":
+            candidates.append(str(item["url"]))
+    for item in entry.get("media_thumbnail", []) or []:
+        if item.get("url"):
+            candidates.append(str(item["url"]))
+    for item in entry.get("enclosures", []) or []:
+        if item.get("href") and str(item.get("type", "")).casefold().startswith("image/"):
+            candidates.append(str(item["href"]))
+    raw_summary = str(entry.get("summary", entry.get("description", "")))
+    image_match = re.search(r'<img[^>]+src=["\'](?P<url>[^"\']+)', raw_summary, re.I)
+    if image_match:
+        candidates.append(image_match.group("url"))
+    for candidate in candidates:
+        image_url = urllib.parse.urljoin(base_url, html.unescape(candidate.strip()))
+        if urllib.parse.urlsplit(image_url).scheme in {"http", "https"}:
+            return image_url
+    return None
+
+
 def calculate_score(title: str, summary: str, keywords: dict[str, int]) -> int:
     searchable = f"{title}\n{summary}".casefold()
     return sum(weight for keyword, weight in keywords.items() if keyword in searchable)
+
+
+def is_recent_or_upcoming_store_opening(article: Article, now: datetime) -> bool:
+    if article.category != "街の新店":
+        return True
+    searchable = f"{article.title} {article.summary}"
+    dates: list[datetime] = []
+    for match in JAPANESE_DATE_PATTERN.finditer(searchable):
+        year = int(match.group("year") or now.year)
+        try:
+            dates.append(
+                datetime(
+                    year,
+                    int(match.group("month")),
+                    int(match.group("day")),
+                    tzinfo=now.tzinfo or UTC,
+                )
+            )
+        except ValueError:
+            continue
+    if not dates:
+        return False
+    cutoff = now - timedelta(days=60)
+    return any(opening_date >= cutoff for opening_date in dates)
 
 
 def parse_feed(
@@ -158,6 +208,7 @@ def parse_feed(
                 summary=summary,
                 category=feed.category,
                 score=calculate_score(title, summary, keywords),
+                image_url=_entry_image_url(entry, url),
             )
         )
     return articles
@@ -371,7 +422,7 @@ def collect(
             cutoff = now - timedelta(days=retention_days)
             for article in parsed_articles:
                 published_at = datetime.fromisoformat(article.published_at)
-                if published_at >= cutoff:
+                if published_at >= cutoff and is_recent_or_upcoming_store_opening(article, now):
                     existing = articles.get(article.id)
                     if existing is None or article.published_at > existing.published_at:
                         articles[article.id] = article
