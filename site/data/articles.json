@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-13T00:31:20.420053+00:00",
+  "generated_at": "2026-08-13T01:12:34.014784+00:00",
   "article_count": 500,
   "errors": [],
   "articles": [
@@ -170,19 +170,19 @@
     },
     {
       "id": "d933e87fb7933d3cbcfd",
-      "title": "【日本睡眠学会で発表】睡眠ブランドNELL、枕・マットレス変更後の睡眠データを比較。入眠までの時間は枕変更で約10分延長、マットレス変更で約2分短縮 - 朝日新聞",
+      "title": "【日本睡眠学会で発表】睡眠ブランドNELL、枕・マットレス変更後の睡眠データを比較。入眠までの時間は枕変更で約10分延長、マットレス変更で約2分短縮 - asahi.com",
       "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE85WGVxVExUU2NrUDcteVFtMWhmTUdmVWNRRmhySDNPX2VRUWhQdThqaG9BbDR2elBzSVUySjRPMWhkUDlSb2tEaWFTTmtfOTdJUmFCTzNPSzRCZFE?oc=5",
       "source": "睡眠製品ニュース",
       "published_at": "2026-07-28T07:00:00+00:00",
-      "summary": "【日本睡眠学会で発表】睡眠ブランドNELL、枕・マットレス変更後の睡眠データを比較。入眠までの時間は枕変更で約10分延長、マットレス変更で約2分短縮 朝日新聞",
+      "summary": "【日本睡眠学会で発表】睡眠ブランドNELL、枕・マットレス変更後の睡眠データを比較。入眠までの時間は枕変更で約10分延長、マットレス変更で約2分短縮 asahi.com",
       "category": "睡眠",
       "score": 21,
       "image_url": null
     },
     {
-      "id": "2be162ca73f85554c12d",
+      "id": "b4961fc5842a9d80c7b8",
       "title": "睡眠呼吸研究者発──不眠症の原因は“浅い呼吸”だった。交感神経が高まり、眠りが浅くなるから。 - Newscast.jp",
-      "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE1jR1JDWW4wZE9sdkx3SmtwV1lfUWZsb3Z5NjVnZU1wSTJOVFJ1QXUzWlM0UkFZUFZaVUwwU0JXcE5CYXpPTjhJLUtxQkNQYTQ?oc=5",
+      "url": "https://news.google.com/rss/articles/CBMiR0FVX3lxTFAyay1BSzFJVkJtb2g1MDFvNzBTT3E3cDV6VjNtNjQ2Zl83b0dzNG5jbGVkVEVpTmZySzNmX3R2a1VnSXlCZmFZ?oc=5",
       "source": "睡眠研究ニュース",
       "published_at": "2026-07-25T07:00:00+00:00",
       "summary": "睡眠呼吸研究者発──不眠症の原因は“浅い呼吸”だった。交感神経が高まり、眠りが浅くなるから。 Newscast.jp",
@@ -598,6 +598,17 @@
       "image_url": null
     },
     {
+      "id": "05120c3837459b11c842",
+      "title": "ゲームや作業の没入感を高める44.5型ウルトラワイド有機ELディスプレイ「LG 45GX950A-B」がセールで16％オフの25万1791円に",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/13/news058.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-13T00:17:00+00:00",
+      "summary": "Amazon.co.jpでLGの44.5型有機ELゲーミングディスプレイ「45GX950A-B」が16％オフとなる25万1791円で販売されている。5K2K解像度や曲率800Rの湾曲画面に対応する。",
+      "category": "業務改善・QOL",
+      "score": 14,
+      "image_url": null
+    },
+    {
       "id": "976e062789dc25c47b1e",
       "title": "dbt-core v1.12.1",
       "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.12.1",
@@ -671,17 +682,6 @@
       "published_at": "2026-07-31T00:00:00+00:00",
       "summary": "Snowflake公式リリースノート",
       "category": "データ基盤",
-      "score": 14,
-      "image_url": null
-    },
-    {
-      "id": "9172d10fd6851ab7ab18",
-      "title": "閉塞性睡眠時無呼吸症候群、女性は男性より症状負担が大きい｜CareNet.com - CareNet.com",
-      "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE50dkZKSVZyNmNDUkZ5em8yTlZRSGZybGMwQ3R6X2xWMDk0LXFMOVJITUlsTjRocnlJa2c4ZGxJVlc4SnZvcVhjamdyZDRFSjlCMWVSVldqY08yQQ?oc=5",
-      "source": "睡眠研究ニュース",
-      "published_at": "2026-07-29T07:00:00+00:00",
-      "summary": "閉塞性睡眠時無呼吸症候群、女性は男性より症状負担が大きい｜CareNet.com CareNet.com",
-      "category": "睡眠",
       "score": 14,
       "image_url": null
     },
@@ -770,6 +770,17 @@
       "published_at": "2026-07-14T22:48:59+00:00",
       "summary": "最近のアップデートでDatabricksの「マネージドIcebergマテリアライズドビュー（パブリックプレビュー）」が登場しました。今回は、この Iceberg MV の仕様を検証してみました。 参考：https://docs.databricks.com/gcp/ja/release-notes/product/2026/july#managed-iceberg-materialized-views-are-in-public-preview 結論：どう使い分けるべきか？ もし分析ワークロードがすべて Databricks 内で完結しているのであれば…",
       "category": "技術コミュニティ",
+      "score": 14,
+      "image_url": null
+    },
+    {
+      "id": "9172d10fd6851ab7ab18",
+      "title": "閉塞性睡眠時無呼吸症候群、女性は男性より症状負担が大きい｜CareNet.com - CareNet.com",
+      "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE50dkZKSVZyNmNDUkZ5em8yTlZRSGZybGMwQ3R6X2xWMDk0LXFMOVJITUlsTjRocnlJa2c4ZGxJVlc4SnZvcVhjamdyZDRFSjlCMWVSVldqY08yQQ?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-07-14T07:00:00+00:00",
+      "summary": "閉塞性睡眠時無呼吸症候群、女性は男性より症状負担が大きい｜CareNet.com CareNet.com",
+      "category": "睡眠",
       "score": 14,
       "image_url": null
     },
@@ -1269,17 +1280,6 @@
       "image_url": null
     },
     {
-      "id": "9dfb4ca098caad433bee",
-      "title": "NVIDIA、エージェントAI向け高速モデル「Nemotron 3.5 Lightning」無償公開",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2132324.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-12T06:52:39+00:00",
-      "summary": "エージェントAIのさらなる高速化/効率化を実現するオープンモデル「Nemotron 3.5 Lightning」が8月11日無償公開された。NVIDIAが開発するAIモデル「Nemotron」シリーズの1つで、Hugging Face、ModelScope、OpenRouterのほか、NVIDIA NIMなどを通じて提供している。",
-      "category": "業務改善・QOL",
-      "score": 11,
-      "image_url": null
-    },
-    {
       "id": "5275fe895a23e3d6e98e",
       "title": "世界巡回展・日本で唯一の開催 横浜美術館「マリー・アントワネット・スタイル」",
       "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw12991",
@@ -1413,11 +1413,11 @@
     },
     {
       "id": "b99ce5d9638a7536181c",
-      "title": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) - news.livedoor.com",
+      "title": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) - ライブドアニュース",
       "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE1nVFlVcUlNc3g2Y0FjdmxGNlFpTERKQks4Y3kxOV9pSjFHTmY5eENpaEd6dnFqaHpuRGdjRUMzSngtYkFzOWxQWTFNUUtPTW04X3NzV2x3Q1ZfR2xMakE?oc=5",
       "source": "CLI・ターミナルツール発見",
       "published_at": "2026-07-29T07:00:00+00:00",
-      "summary": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) news.livedoor.com",
+      "summary": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) ライブドアニュース",
       "category": "CLI生産性",
       "score": 10,
       "image_url": null
@@ -1475,6 +1475,17 @@
       "summary": "Woven by Toyota公式 Company News",
       "category": "ML・データ事例",
       "score": 10,
+      "image_url": null
+    },
+    {
+      "id": "b887b443cab9f644b0ea",
+      "title": "レトロなタイプライター風のメカニカルキーボード「YUNZII QL75」がセールで20％オフの1万4820円に",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/13/news060.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-13T00:30:00+00:00",
+      "summary": "Amazon.co.jpでYUNZIIのメカニカルキーボード「QL75」が20％オフとなる1万4820円で販売されている。レトロなタイプライター風デザインや3モード接続、ホットスワップ機能に対応する。",
+      "category": "業務改善・QOL",
+      "score": 9,
       "image_url": null
     },
     {
@@ -1613,7 +1624,7 @@
       "id": "51b06c28d30eeb581fba",
       "title": "【備忘】『誰でもわかる大規模言語モデル入門』",
       "url": "https://qiita.com/s-y0001/items/cce9ade8012de0a02029",
-      "source": "Qiita / 生成AI",
+      "source": "Qiita / LLM",
       "published_at": "2026-08-12T23:48:20+00:00",
       "summary": "経緯 普段から ChatGPT や Gemini、Claude などの生成AIを使っているが、より効果的に活用できるようになりたいと思い、今更ながら、ちゃんと LLM を学ぶこととした。 完全初学者向けの書籍を探していたところ、この本を見つけた。 広く浅く書いてあるので1...",
       "category": "生成AI活用",
@@ -2413,17 +2424,6 @@
       "image_url": "https://ascii.jp/img/2026/08/12/4512234/s/e98613f45e373b81.png"
     },
     {
-      "id": "a66eff85acb6c440bb6e",
-      "title": "HD/500Hz、フルHD/360Hz、WQHD/260Hzに切り替えられるゲーミングモニター",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2132292.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-12T07:10:25+00:00",
-      "summary": "AOCは8月12日、HD(1,280×720ドット)/500Hz、フルHD(1,920×1,080ドット)/360Hz、WQHD(2,560×1,440ドット)/260Hzの3種類のモードを切り替えられるゲーミングモニター「CQ32G4Z」、「Q27G40ZE2」、「Q27G41ZE2」をゲーミングブランドのAGON by AOCで発表した。価格や発売日は公開されていない。",
-      "category": "業務改善・QOL",
-      "score": 7,
-      "image_url": null
-    },
-    {
       "id": "1e72f940a443d20bdec1",
       "title": "BenQから360Hz駆動の24.1型WQHDゲーミングディスプレイ「ZOWIE XQ2566X」登場 バトロワ系FPSゲームに適した機能を強化",
       "url": "https://www.itmedia.co.jp/pcuser/articles/2608/12/news077.html",
@@ -2651,6 +2651,17 @@
       "published_at": "2026-08-03T22:00:00+00:00",
       "summary": "OpenAI addresses Apple’s baseless lawsuit, corrects claims about its employees, and shares messages documenting what happened.",
       "category": "生成AI活用",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "160762492ac2878c54a4",
+      "title": "第157回 アルツハイマーの予防に効く？「40Hz」と「深い睡眠」の共通点 - ナショナルジオグラフィック日本版",
+      "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxObTZTVU9jVTVwQmd4WjZsanZsU2NOajVzY3JZWlh0Z3lRZ2NPT0EwdVI3OUtNZ0xtSVVENnZFSS1DUDFyLXVobjB3bW8ySUxlSWo4dmkwRlB6bHZGMmhmSG9pV2FsTFowR1RBb2M3Mko1MkU2YU5uTk9iUVdNWG9LelhxYw?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-08-01T03:53:22+00:00",
+      "summary": "第157回 アルツハイマーの予防に効く？「40Hz」と「深い睡眠」の共通点 ナショナルジオグラフィック日本版",
+      "category": "睡眠",
       "score": 7,
       "image_url": null
     },
@@ -2893,6 +2904,17 @@
       "published_at": "2026-08-18T00:00:00+00:00",
       "summary": "★親子でイングリッシュ★・場所: 踊場地区センター ( 戸塚区 )",
       "category": "子育て",
+      "score": 6,
+      "image_url": null
+    },
+    {
+      "id": "c124799b9c244ff7d7e1",
+      "title": "【プロダクトレビュー・ショーケース】クランプ&クリップでしっかり固定できる充電器やUSBハブが便利！まだまだあるぞ、卓上タップ/ハブのおすすめアイテムガッチリ固定できるけど設置は簡単、使い勝手優秀な7製品 text by 竹内 亮介",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/parts_review/showcase/2132393.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-13T01:00:00+00:00",
+      "summary": "電源コンセントを便利にするテーブルタップ、スマホやタブレットを充電する充電器は現代の必需品だが、手でしっかり押さえながらケーブルを抜き挿ししなければならないのがちょっとしたストレス。そんなささやかなストレスを、抜群の使い勝手で解消してくれるアイテムとして、前回の記事では“クランプ式”のUSB付き電源タップを紹介した。",
+      "category": "業務改善・QOL",
       "score": 6,
       "image_url": null
     },
@@ -3249,12 +3271,23 @@
       "image_url": null
     },
     {
-      "id": "f91d5a70ec2671e401c2",
-      "title": "RAG の精度は「検索」ではなく「取り込み」で決まる — メタデータ設計・コンテキスト認識チャンキング・知識ベースの更新運用",
-      "url": "https://qiita.com/engchina/items/7f9200e33c1c5df6207a",
-      "source": "Qiita / LLM",
-      "published_at": "2026-08-12T23:12:51+00:00",
-      "summary": "はじめに RAG がうまく動かないとき、多くの人はまず検索側をいじります。Top-K を増やす、Rerank を足す、ハイブリッド検索にする。 しかし社内文書の RAG で実際に起きる事故の大半は、検索アルゴリズムではなくインデックスの作り方が原因です。 上流の失敗は下...",
+      "id": "114b9f0b2fc68f853d7b",
+      "title": "【本日みつけたお買い得品】14in1のAnker製Thunderbolt 5ドックが8千円引き",
+      "url": "https://pc.watch.impress.co.jp/docs/news/todays_sales/2132458.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-13T01:10:29+00:00",
+      "summary": "Amazonにおいて、Anker「Prime ドッキングステーション(14-in-1,8K,Thunderbolt 5)」が8,000円引きクーポンで、4万1,990円にて購入できる。",
+      "category": "業務改善・QOL",
+      "score": 5,
+      "image_url": null
+    },
+    {
+      "id": "e880ff882097cd5a0f5b",
+      "title": "RTX 4090 × 4枚で Qwen3.6-27B ファインチューン「Fable-Fusion-711」を vLLM (Docker) で動かす — ハイブリッド構成の KV 設計まで",
+      "url": "https://qiita.com/engchina/items/fa84ceb77fccbc4429e5",
+      "source": "Qiita / 生成AI",
+      "published_at": "2026-08-13T00:34:39+00:00",
+      "summary": "はじめに Qwen3.6-27B のコミュニティファインチューンとして、DavidAU 氏の Qwen3.6-27B-Fable-Fusion-711 が公開されています。ARC-C で 0.711 を出し、ベースの Qwen3.6-27B を 7 指標中 6 つで上回...",
       "category": "生成AI活用",
       "score": 5,
       "image_url": null
@@ -3278,17 +3311,6 @@
       "published_at": "2026-08-12T11:02:50+00:00",
       "summary": "以前、手元で眠っていたQuadro P2200でllama.cppを動かした記事を書きました。 https://zenn.dev/nooop/articles/3fba81b0b7b732 今回はP2200をもう1枚追加してみました。 これで合計のVRAMは10GBとなり、Gemma4-E4Bより一回り大きなGemma4-12Bを動かせるはずです。 https://huggingface.co/unsloth/gemma-4-12B-it-qat-GGUF 目標は単に12Bモデルをロードすることではなく、Hermes Agentで使うために64Kコンテ…",
       "category": "生成AI活用",
-      "score": 5,
-      "image_url": null
-    },
-    {
-      "id": "c7e17a2471b1a3bd2947",
-      "title": "12ボタンでMMO、2ボタンで日常利用できるゲーミングマウス「Razer Naga V3 Pro」",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2132266.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-12T07:29:18+00:00",
-      "summary": "Razerは8月11日、最大12ボタン、最小2ボタンにカスタマイズできるMMORPG向けゲーミングマウスの最新モデル「Razer Naga V3 Pro」を発売した。価格は2万9,980円。",
-      "category": "業務改善・QOL",
       "score": 5,
       "image_url": null
     },
@@ -3839,28 +3861,6 @@
       "published_at": "2026-08-12T01:46:19+00:00",
       "summary": "はじめに 私たちは複数のプロダクトにLLMを組み込んでいます。 長い専門文書のドラフトなど、LLMの出力がそのまま顧客向けの成果物になるものが多いのが特徴です。 こうしたプロダクトでは、出力が「速い・安い」だけでは足りません。 数値や事実が1つ間違っているだけで、成果物として使えないこともあります。 では、LLMの出力が正しいことを、どう担保すればいいのか。 本記事は出力を信じすぎず、仕組みで検証して守る話です。 前回の記事「LLM呼び出しを実測したら、速度も品質も改善した話」では、入力（呼び出し側）を引き算して速く・安くする話を書きました。 共通する…",
       "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "3464c2b8094598c983b6",
-      "title": "COMPUTEXを振り返る、クリアパネルで中が見えるCORSAIRの電源や、木目パネルを使ったオシャレな電源など(PC電源編その2)",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132162.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-12T01:30:00+00:00",
-      "summary": "6月に開催されたPC/IT関連の見本市「COMPUTEX TAIPEI 2026」。今年も数多くの製品が発表され、弊誌でも記事やXへの投稿でご紹介しました。今回の記事では、Xに投稿した数多くのアイテムをジャンル分けし、COMPUTEXを振り返るかたちで改めてお届けします。",
-      "category": "業務改善・QOL",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "4c0e081097123f63c403",
-      "title": "CORSAIRのピラーレスmicroATXケース「2800X RS-R ARGB White」がTSUKUMOで展示スタート",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2131767.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-12T01:05:00+00:00",
-      "summary": "ピラーレス構造のCORSAIR製PCケース「2800X RS-R ARGB White」の実機展示が、ツクモパソコン本店で始まっている。",
-      "category": "業務改善・QOL",
       "score": 4,
       "image_url": null
     },
@@ -4745,17 +4745,6 @@
       "image_url": null
     },
     {
-      "id": "df8135916a331bebbd04",
-      "title": "iPhoneの物理キーボード付きケース「Clicks」が15 Pro用だけセールで25％オフの1万7899円に",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/12/news058.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-12T00:39:00+00:00",
-      "summary": "Amazon.co.jpのタイムセールで、ClicksのiPhone 15 Pro用キーボード付きケースが25％オフの1万7899円で販売中。物理キーボードにより画面の表示領域を大きく広げ、ショートカット操作や長文入力を快適に行える。",
-      "category": "業務改善・QOL",
-      "score": 2,
-      "image_url": null
-    },
-    {
       "id": "9bafa93fe08b847d5d92",
       "title": "How RingCentral builds AI-native work from engineering to ops",
       "url": "https://openai.com/index/ringcentral",
@@ -5031,6 +5020,17 @@
       "image_url": "https://cdn-images-1.medium.com/max/1024/1*LhF-4Ol7L9DIDZEnSYneyA.png"
     },
     {
+      "id": "1fc5f1621c26b851a78a",
+      "title": "横スクロール機能で表計算ソフトの作業効率を高める「バッファロー ワイヤレスマウス BSMBW505MRD」がセールで10％オフの1920円に",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/13/news061.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-13T00:41:00+00:00",
+      "summary": "Amazon.co.jpで、バッファローのワイヤレスマウス「BSMBW505MRD」が10％オフのセール中。高いフィット感と静音スイッチ、チルトホイールを備えた5ボタンモデルをお得に入手するチャンスだ。",
+      "category": "業務改善・QOL",
+      "score": 1,
+      "image_url": null
+    },
+    {
       "id": "856e60d35ca81404cd84",
       "title": "Pixel 11／Pixel 11 Proの詳細スペック表を掲載！ 過去のPixelと完全比較",
       "url": "https://ascii.jp/elem/000/004/426/4426529/?rss=",
@@ -5070,17 +5070,6 @@
       "source": "ITmedia PC USER",
       "published_at": "2026-08-12T07:50:00+00:00",
       "summary": "Amazon.co.jpのタイムセールにて、タッチパッドやテンキーを搭載した「Ewin ワイヤレス折りたたみキーボード」が24％オフの5319円で販売中。外出先での作業効率を高めたい人に適したアイテムだ。",
-      "category": "業務改善・QOL",
-      "score": 1,
-      "image_url": null
-    },
-    {
-      "id": "f63b3f42aa09e4a086be",
-      "title": "淡いブルーがかわいすぎるロジクールのワイヤレスキーボード「PEBBLE KEYS 2 K380s 日本語配列」がセールで17％オフの4381円に",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/12/news059.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-12T00:46:00+00:00",
-      "summary": "Amazon.co.jpで、ロジクールのワイヤレスキーボード「PEBBLE KEYS 2 K380s」が17％オフの4381円で販売中。薄型軽量で持ち運びやすく、最大3台の機器を切り替えて快適に入力できる。",
       "category": "業務改善・QOL",
       "score": 1,
       "image_url": null
@@ -5427,6 +5416,39 @@
       "image_url": null
     },
     {
+      "id": "5fec64a748c11f1ab7f4",
+      "title": "小型ピラーレスケース採用/メモリ32GBのゲーミングPCが駿河屋から、GPU別に2モデル",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132296.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-13T01:05:00+00:00",
+      "summary": "Ryzen 5 7500F搭載の駿河屋オリジナルゲーミングPC「SURUGA UN 7000A」が登場。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "2dbbb95dd6e7822af816",
+      "title": "まだ市場にないアイデアに一番乗り。「未発売のプロダクト」をクラファンで買う面白さ",
+      "url": "https://www.lifehacker.jp/article/2608-keychron-orca-echo-how-to-enjoy-crowdfunding/",
+      "source": "ライフハッカー・ジャパン",
+      "published_at": "2026-08-13T01:00:00+00:00",
+      "summary": "",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://media.loom-app.com/loom/2026/08/06/142a0992-ec7d-42a7-ab15-ee918416b615/original.jpg?w=1200"
+    },
+    {
+      "id": "c04b32fba4f9143acda3",
+      "title": "【本日みつけたお買い得品】990gと軽量！スナドラX2搭載モバイルノートが3万円オフ",
+      "url": "https://pc.watch.impress.co.jp/docs/news/todays_sales/2132449.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-13T00:36:45+00:00",
+      "summary": "Amazonにおいて、14型ノートPCのASUS「Zenbook SORA 14」(UX3407NA-GL32170GRS)が3万円引きで、31万9,800円にて購入できる。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
       "id": "4d0f4bdd8dd701651f06",
       "title": "【本日みつけたお買い得品】M.2スロットを3基備えるCore UltraミニPCが約3万2千円オフ",
       "url": "https://pc.watch.impress.co.jp/docs/news/todays_sales/2132447.html",
@@ -5480,28 +5502,6 @@
       "category": "業務改善・QOL",
       "score": 0,
       "image_url": null
-    },
-    {
-      "id": "c44ad6725604faa5708c",
-      "title": "【毎日書評】予定に「なんのため？」をそえるだけ。追われる日々が、自分だけの時間に変わるわけ",
-      "url": "https://www.lifehacker.jp/article/2608-book_to_read-2011/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-12T23:00:00+00:00",
-      "summary": "【毎日書評】『あなたの時間が足りないのは、 あなたの言葉が足りないから。』（荒木俊哉 著、ソシム）より、予定に「なんのため？」をそえるだけ。追われる日々が、自分だけの時間に変わる理由について解説します。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/12/dd680a36-dfa3-4026-b8e0-474241dceeb2/original.jpg?w=1200"
-    },
-    {
-      "id": "95127ed7d918cf33596f",
-      "title": "「フルHD」の“フル”ってフルパワーの略で合ってますか←違います。",
-      "url": "https://ascii.jp/elem/000/004/421/4421500/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-12T22:30:00+00:00",
-      "summary": "フルHD液晶の「フル」って何がフルなの？ フルボリューム？ フルスロットル？ フルコース？ はたまたハートフル？ いやそもそも「HD」って何の略？ もう何もわからない……。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/07/22/4503983/s/1b3a0a22f012e43e.png"
     }
   ]
 }

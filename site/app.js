@@ -43,7 +43,23 @@ const elements = {
   emailAssistant: document.querySelector("#email-assistant"),
   emailEmpty: document.querySelector("#email-empty"),
   emailItems: document.querySelector("#email-items"),
+  emailCount: document.querySelector("#email-count"),
+  emailView: document.querySelector("#email-view"),
+  newsView: document.querySelector("#news-view"),
 };
+
+let currentView = localStorage.getItem("daily-reader:view") === "email" ? "email" : "news";
+
+function switchView(view) {
+  currentView = view;
+  localStorage.setItem("daily-reader:view", view);
+  elements.newsView.hidden = view !== "news";
+  elements.emailView.hidden = view !== "email";
+  document.querySelectorAll("[data-app-view]").forEach((button) => {
+    button.setAttribute("aria-selected", String(button.dataset.appView === view));
+  });
+  elements.refresh.setAttribute("aria-label", view === "email" ? "メールを再読み込み" : "ニュースを再読み込み");
+}
 
 function emailStatusLabel(status) {
   return status === "awaiting_reply" ? "返信待ち" : status === "snoozed" ? "保留中" : "未対応";
@@ -93,7 +109,10 @@ async function loadEmailReminders(period = "daily") {
           try {
             await updateEmailStatus(email.thread_id, value);
             card.remove();
-            if (!elements.emailItems.children.length) elements.emailEmpty.hidden = false;
+            const remaining = elements.emailItems.children.length;
+            elements.emailEmpty.hidden = remaining !== 0;
+            elements.emailCount.textContent = String(remaining);
+            elements.emailCount.hidden = remaining === 0;
           } catch (error) {
             button.disabled = false;
             elements.status.textContent = error.message;
@@ -107,6 +126,9 @@ async function loadEmailReminders(period = "daily") {
     elements.emailItems.replaceChildren(fragment);
     elements.emailEmpty.hidden = Boolean(payload.items?.length);
     elements.emailAssistant.hidden = false;
+    const count = payload.items?.length || 0;
+    elements.emailCount.textContent = String(count);
+    elements.emailCount.hidden = count === 0;
     document.querySelectorAll("[data-email-period]").forEach((button) => {
       button.classList.toggle("active", button.dataset.emailPeriod === period);
     });
@@ -525,7 +547,16 @@ elements.savedOnly.addEventListener("change", (event) => {
   state.savedOnly = event.target.checked;
   renderArticles();
 });
-elements.refresh.addEventListener("click", loadArticles);
+elements.refresh.addEventListener("click", () => {
+  if (currentView === "email") {
+    loadEmailReminders();
+  } else {
+    loadArticles();
+  }
+});
+document.querySelectorAll("[data-app-view]").forEach((button) => {
+  button.addEventListener("click", () => switchView(button.dataset.appView));
+});
 document.querySelectorAll("[data-email-period]").forEach((button) => {
   button.addEventListener("click", () => loadEmailReminders(button.dataset.emailPeriod));
 });
@@ -547,3 +578,4 @@ loadFeedback().then(() => {
     renderArticles();
   }
 });
+switchView(currentView);

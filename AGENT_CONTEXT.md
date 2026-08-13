@@ -22,7 +22,7 @@
 - `src/daily_reader/highlights.py`: 候補選定、Codexプロンプト、出力検証、OG画像補完。
 - `src/daily_reader/local_server.py`: ローカルHTTPサーバー、更新スケジューラー、閲覧・不要フィードバック・メールAPI。
 - `src/daily_reader/email_assistant.py`: Gmail読み取り専用OAuth、重要度判定、SQLite状態管理。
-- `site/app.js`, `site/style.css`: iPhone向け1ページUI。
+- `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
 - `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。Git管理対象。
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
