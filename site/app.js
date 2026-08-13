@@ -178,6 +178,10 @@ async function loadHighlights() {
         }
         const content = document.createElement("div");
         content.className = "highlight-item-content";
+        const selectionStatus = document.createElement("small");
+        selectionStatus.className = `selection-status selection-status-${item.selection_status || "new"}`;
+        selectionStatus.textContent = item.selection_status === "continued" ? "継続" : "新着";
+        content.append(selectionStatus);
         content.append(title);
         if (
           field.field === "データマネジメント・エンジニアリング書籍" ||

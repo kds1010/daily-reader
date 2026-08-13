@@ -15,13 +15,13 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from daily_reader.core import Article
 
 LOGGER = logging.getLogger(__name__)
-PROMPT_VERSION = "generative-ai-techniques-v23"
+PROMPT_VERSION = "selection-freshness-v24"
 FOCUS_CATEGORIES = {
     "データマネジメント",
     "データ基盤",
@@ -251,7 +251,23 @@ def _suggested_field(article: Article) -> str | None:
     return None
 
 
-def _candidate_articles(articles: list[Article], limit: int = 105) -> list[Article]:
+def _candidate_rank(
+    article: Article, previous_ids: set[str], generated_at: datetime
+) -> tuple[int, str]:
+    published_at = datetime.fromisoformat(article.published_at)
+    fresh = generated_at - timedelta(hours=24) <= published_at <= generated_at
+    adjusted_score = article.score + (6 if fresh else 0) - (6 if article.id in previous_ids else 0)
+    return adjusted_score, article.published_at
+
+
+def _candidate_articles(
+    articles: list[Article],
+    limit: int = 105,
+    previous_ids: set[str] | None = None,
+    generated_at: datetime | None = None,
+) -> list[Article]:
+    previous_ids = previous_ids or set()
+    generated_at = generated_at or datetime.now().astimezone()
     focused = [
         article
         for article in articles
@@ -260,7 +276,7 @@ def _candidate_articles(articles: list[Article], limit: int = 105) -> list[Artic
     newest = sorted(focused, key=lambda article: article.published_at, reverse=True)[:12]
     ranked = sorted(
         focused,
-        key=lambda article: (article.score, article.published_at),
+        key=lambda article: _candidate_rank(article, previous_ids, generated_at),
         reverse=True,
     )[:limit]
     official = sorted(
@@ -301,8 +317,8 @@ def _candidate_articles(articles: list[Article], limit: int = 105) -> list[Artic
                 field_articles,
                 key=lambda article: (
                     _sakuragicho_area_priority(article),
+                    -_candidate_rank(article, previous_ids, generated_at)[0],
                     article.published_at,
-                    -article.score,
                 ),
             )
         elif field == "街の新店":
@@ -313,7 +329,7 @@ def _candidate_articles(articles: list[Article], limit: int = 105) -> list[Artic
             ]
             field_articles = sorted(
                 field_articles,
-                key=lambda article: (article.score, article.published_at),
+                key=lambda article: _candidate_rank(article, previous_ids, generated_at),
                 reverse=True,
             )
         elif field == "CLI・ターミナル生産性":
@@ -324,13 +340,13 @@ def _candidate_articles(articles: list[Article], limit: int = 105) -> list[Artic
             ]
             field_articles = sorted(
                 field_articles,
-                key=lambda article: (article.score, article.published_at),
+                key=lambda article: _candidate_rank(article, previous_ids, generated_at),
                 reverse=True,
             )
         else:
             field_articles = sorted(
                 field_articles,
-                key=lambda article: (article.score, article.published_at),
+                key=lambda article: _candidate_rank(article, previous_ids, generated_at),
                 reverse=True,
             )
         if field == "睡眠":
@@ -401,6 +417,70 @@ def _feedback_examples(feedback_path: Path | None) -> list[dict[str, object]]:
     return examples[-100:]
 
 
+def _selection_runs(
+    output_path: Path, history_path: Path | None
+) -> list[dict[str, list[str]]]:
+    runs: list[dict[str, list[str]]] = []
+    if history_path is not None:
+        try:
+            lines = history_path.read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            lines = []
+        for line in lines[-20:]:
+            try:
+                event = json.loads(line)
+                fields = event["fields"]
+            except (json.JSONDecodeError, KeyError, TypeError):
+                continue
+            if isinstance(fields, dict):
+                runs.append(
+                    {
+                        str(field): [str(article_id) for article_id in article_ids]
+                        for field, article_ids in fields.items()
+                        if isinstance(article_ids, list)
+                    }
+                )
+    try:
+        existing = json.loads(output_path.read_text(encoding="utf-8"))
+        existing_fields = {
+            field["field"]: [item["article"]["id"] for item in field["items"]]
+            for field in existing["field_highlights"]
+        }
+    except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError):
+        existing_fields = {}
+    if existing_fields and (not runs or runs[-1] != existing_fields):
+        runs.append(existing_fields)
+    return runs
+
+
+def _selection_streak(article_id: str, field: str, runs: list[dict[str, list[str]]]) -> int:
+    streak = 0
+    for run in reversed(runs):
+        if article_id not in run.get(field, []):
+            break
+        streak += 1
+    return streak
+
+
+def _append_selection_history(
+    history_path: Path | None,
+    generated_at: datetime,
+    field_highlights: list[dict[str, object]],
+) -> None:
+    if history_path is None:
+        return
+    event = {
+        "generated_at": generated_at.isoformat(),
+        "fields": {
+            str(field["field"]): [item["article"]["id"] for item in field["items"]]
+            for field in field_highlights
+        },
+    }
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    with history_path.open("a", encoding="utf-8") as history_file:
+        history_file.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
 def _existing_hash(output_path: Path) -> str | None:
     try:
         return json.loads(output_path.read_text(encoding="utf-8")).get("input_hash")
@@ -414,17 +494,31 @@ def generate_highlights(
     schema_path: Path,
     generated_at: datetime,
     feedback_path: Path | None = None,
+    history_path: Path | None = None,
 ) -> bool:
     feedback_examples = _feedback_examples(feedback_path)
     hidden_ids = {str(item["article_id"]) for item in feedback_examples}
+    selection_runs = _selection_runs(output_path, history_path)
+    previous_ids = {
+        article_id
+        for article_ids in (selection_runs[-1].values() if selection_runs else [])
+        for article_id in article_ids
+    }
     candidates = [
-        article for article in _candidate_articles(articles) if article.id not in hidden_ids
+        article
+        for article in _candidate_articles(
+            articles, previous_ids=previous_ids, generated_at=generated_at
+        )
+        if article.id not in hidden_ids
     ]
     feedback_hash = hashlib.sha256(
         json.dumps(feedback_examples, ensure_ascii=False, sort_keys=True).encode()
     ).hexdigest()
+    selection_hash = hashlib.sha256(
+        json.dumps(selection_runs[-2:], ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
     current_hash = hashlib.sha256(
-        f"{_input_hash(candidates)}:{feedback_hash}".encode()
+        f"{_input_hash(candidates)}:{feedback_hash}:{selection_hash}".encode()
     ).hexdigest()
     if _existing_hash(output_path) == current_hash:
         LOGGER.info("Highlights are already current")
@@ -445,6 +539,17 @@ def generate_highlights(
             "score": article.score,
             "summary": article.summary[:400],
             "suggested_field": _suggested_field(article),
+            "freshness": (
+                "new"
+                if generated_at - timedelta(hours=24)
+                <= datetime.fromisoformat(article.published_at)
+                <= generated_at
+                else "existing"
+            ),
+            "previously_selected": article.id in previous_ids,
+            "consecutive_selections": _selection_streak(
+                article.id, _suggested_field(article) or "", selection_runs
+            ),
         }
         for article in candidates
     ]
@@ -537,6 +642,10 @@ def generate_highlights(
         "同一記事は候補から除外済みです。タイトル、情報元、カテゴリに繰り返し現れる傾向を"
         "選定の減点材料にしてください。ただし、少数の例からカテゴリ全体を除外せず、明示された"
         "優先分野や地域ルールを上書きしないでください。\n\n"
+        "鮮度についてはfreshness=newの記事を優先し、previously_selected=trueの記事は減点して"
+        "ください。consecutive_selectionsが2以上の記事は、その分野に他の適格候補がある限り"
+        "field_highlightsへ選ばないでください。適格な新着・代替候補がない分野だけ継続掲載を"
+        "許可します。単に新しいだけの低品質記事で埋めず、該当なしなら空配列にしてください。\n\n"
         + json.dumps(
             {
                 "candidate_articles": article_payload,
@@ -584,6 +693,12 @@ def generate_highlights(
         highlight_images = _highlight_images(article_by_id, highlight_article_ids)
         field_highlights = []
         for field in result["field_highlights"]:
+            field_candidate_ids = {
+                candidate.id
+                for candidate in candidates
+                if _suggested_field(candidate) == field["field"]
+                and _selection_streak(candidate.id, field["field"], selection_runs) < 2
+            }
             valid_items = []
             for item in field["items"]:
                 article = article_by_id.get(item["article_id"])
@@ -611,10 +726,24 @@ def generate_highlights(
                     field["field"] != "CLI・ターミナル生産性"
                     or (article is not None and _is_cli_productivity_article(article))
                 )
-                if article is not None and is_local_event and is_valid_cli_article:
+                streak = _selection_streak(item["article_id"], field["field"], selection_runs)
+                has_alternative = bool(field_candidate_ids - {item["article_id"]})
+                within_repeat_limit = streak < 2 or not has_alternative
+                if (
+                    article is not None
+                    and is_local_event
+                    and is_valid_cli_article
+                    and within_repeat_limit
+                ):
                     article_data = asdict(article)
                     article_data["image_url"] = highlight_images.get(article.id)
-                    valid_items.append({**item, "article": article_data})
+                    valid_items.append(
+                        {
+                            **item,
+                            "selection_status": "new" if streak == 0 else "continued",
+                            "article": article_data,
+                        }
+                    )
             field_highlights.append({**field, "items": valid_items})
         official_digest = []
         for digest in result["official_digest"]:
@@ -659,6 +788,7 @@ def generate_highlights(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
+        _append_selection_history(history_path, generated_at, field_highlights)
         LOGGER.info("Generated Codex highlights for %d fields", len(field_highlights))
         return True
     except (subprocess.SubprocessError, json.JSONDecodeError, KeyError, ValueError) as error:

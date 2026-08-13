@@ -163,6 +163,7 @@ def update_articles(
     keywords_path: Path,
     output_path: Path,
     feedback_log_path: Path = Path("data/feedback-events.jsonl"),
+    selection_history_path: Path = Path("data/selection-history.jsonl"),
 ) -> None:
     now = datetime.now(UTC)
     settings, feeds = load_config(feeds_path)
@@ -179,6 +180,7 @@ def update_articles(
         Path("config/highlight-schema.json"),
         now,
         feedback_log_path,
+        selection_history_path,
     )
 
 
@@ -188,13 +190,20 @@ def run_scheduler(
     output_path: Path,
     update_hours: set[int],
     feedback_log_path: Path,
+    selection_history_path: Path,
 ) -> None:
     last_run: tuple[str, int] | None = None
     while True:
         local_now = datetime.now().astimezone()
         run_key = (local_now.date().isoformat(), local_now.hour)
         if local_now.hour in update_hours and local_now.minute < 5 and run_key != last_run:
-            update_articles(feeds_path, keywords_path, output_path, feedback_log_path)
+            update_articles(
+                feeds_path,
+                keywords_path,
+                output_path,
+                feedback_log_path,
+                selection_history_path,
+            )
             last_run = run_key
         sleep(60)
 
@@ -211,6 +220,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--feedback-log", type=Path, default=Path("data/feedback-events.jsonl")
     )
+    parser.add_argument(
+        "--selection-history",
+        type=Path,
+        default=Path("data/selection-history.jsonl"),
+    )
     return parser
 
 
@@ -222,10 +236,23 @@ def main() -> None:
     if not update_hours <= set(range(24)):
         raise SystemExit("--update-hours must contain hours from 0 to 23")
 
-    update_articles(args.feeds, args.keywords, output_path, args.feedback_log)
+    update_articles(
+        args.feeds,
+        args.keywords,
+        output_path,
+        args.feedback_log,
+        args.selection_history,
+    )
     scheduler = threading.Thread(
         target=run_scheduler,
-        args=(args.feeds, args.keywords, output_path, update_hours, args.feedback_log),
+        args=(
+            args.feeds,
+            args.keywords,
+            output_path,
+            update_hours,
+            args.feedback_log,
+            args.selection_history,
+        ),
         daemon=True,
     )
     scheduler.start()

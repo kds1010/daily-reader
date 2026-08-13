@@ -1,65 +1,52 @@
 {
-  "generated_at": "2026-08-12T15:16:57.670355+00:00",
-  "input_hash": "4da8ee3d9c7a32cc9095a30a733b51f595f5f29db0ce8fd210acada9c5a5f3da",
-  "headline": "データ基盤の本番運用・AIエージェント観測性・横浜の親子向け催しが注目",
-  "overview": "データ品質・ガバナンスとAI基盤の運用改善に関する更新が中心です。生成AIではエージェントのレビュー、ドリフト検知、RAG設計が実践的です。横浜ではみなとみらいと野毛の近日イベントが確認できます。",
+  "generated_at": "2026-08-13T00:31:20.420053+00:00",
+  "input_hash": "c8e1238aa8f869b1223ad3f5ad5338d9c47c6ef95405d6157707c0013d59df7a",
+  "headline": "データ基盤とAI運用の実践知が中心の新着です",
+  "overview": "本日は、Databricks・dbtのデータ基盤更新、RAGやAIエージェントの運用設計、Snowflakeのコスト・可観測性改善に注目記事が集まりました。横浜の近日イベントや条件に合う新店、筋トレの新規性が高い記事は限定的です。",
   "field_highlights": [
     {
       "field": "データ・AI",
-      "summary": "データ品質、ガバナンス、Iceberg、MLOps、AIエージェント運用に関する実践的な更新が多い分野です。",
+      "summary": "Databricksとdbtの新機能に加え、Lakehouse運用、AIエージェント観測、MLOpsの実践記事が中心です。",
       "items": [
         {
-          "article_id": "b282afca7ae4a347f117",
-          "label": "Snowflakeのデータ品質モニタリングダッシュボード",
-          "reason": "品質監視をダッシュボードで集約し、異常の早期発見と運用責任の明確化につなげられます。",
-          "article": {
-            "id": "b282afca7ae4a347f117",
-            "title": "Snowflake: data quality monitoring dashboard pupr",
-            "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-07-29-data-quality-monitoring-dashboard-pupr",
-            "source": "Snowflake Release Notes",
-            "published_at": "2026-07-29T00:00:00+00:00",
-            "summary": "Snowflake公式リリースノート",
-            "category": "データ基盤",
-            "score": 19,
-            "image_url": null
-          }
-        },
-        {
           "article_id": "d8d8c584b7a5537ec950",
-          "label": "Databricks Unity CatalogのABAC拡張",
-          "reason": "タグ条件に基づくアクセス制御がモデルだけでなくモデルサービスやMCPサービスにも広がり、AI資産の統制を設計しやすくなります。",
+          "label": "DatabricksでGmailデータを取り込む",
+          "reason": "Lakeflow ConnectのGmailコネクターでメール、ラベル、下書きなどを管理データへ取り込めるため、業務データ連携の検証に使えます。",
+          "selection_status": "new",
           "article": {
             "id": "d8d8c584b7a5537ec950",
-            "title": "Unity Catalog ABAC GRANT policies support more securable types in Beta",
+            "title": "Gmail connector in Lakeflow Connect (Beta)",
             "url": "https://docs.databricks.com/aws/en/release-notes/product/2026/august",
             "source": "Databricks Release Notes",
-            "published_at": "2026-08-11T00:00:00+00:00",
-            "summary": "ABAC GRANT policies dynamically grant Unity Catalog privileges to securables whose governed tags match a condition. These policies were previously only available for models, but now also support model services, model provider services, Model Context Protocol (MCP) services, agen…",
+            "published_at": "2026-08-13T00:00:00+00:00",
+            "summary": "You can now ingest data from a Gmail mailbox into Databricks using the managed Gmail connector in Lakeflow Connect. The connector ingests messages, labels, drafts, filters, and profile data using a Google service account, and syncs the messages and message_labels tables incremen…",
             "category": "リリース速報",
-            "score": 6,
+            "score": 10,
             "image_url": null
           }
         },
         {
-          "article_id": "a6af201a1b2f923fe2d2",
-          "label": "AIエージェントをOpenTelemetryとDatabricksで観測",
-          "reason": "ツール呼び出しや失敗箇所をトレースとしてLakehouseに蓄積し、SQLで原因分析できます。",
+          "article_id": "54ab90e049fb0b604c22",
+          "label": "dbt Core v1.12.2",
+          "reason": "非推奨バージョンの警告とDatabricks関連設定の検証改善を確認でき、更新計画やCIの見直しに役立ちます。",
+          "selection_status": "new",
           "article": {
-            "id": "a6af201a1b2f923fe2d2",
-            "title": "AIエージェントをOpenTelemetryで計装し、DatabricksのLakehouseにトレースを残してみた",
-            "url": "https://zenn.dev/babysteps/articles/databricks-opentelemetry-ai-agent-dabs",
-            "source": "Zenn / Databricks",
-            "published_at": "2026-08-10T12:20:05+00:00",
-            "summary": "AI エージェントは「考えて → ツールを呼んで → また考えて → 答える」ため、失敗したときに どこで詰まったのか が追いにくい。 今回は倉庫オペレーション用の小さなエージェントを OpenTelemetry（GenAI semantic conventions） で計装し、トレースを Databricks Unity Catalog に貯めて SQL で見るところまでやった。 デプロイはすべて Declarative Automation Bundles（旧 Databricks Asset Bundles / DABs）で行い、Serverle…",
-            "category": "技術コミュニティ",
-            "score": 28,
-            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--jQR-avUf--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:AI%25E3%2582%25A8%25E3%2583%25BC%25E3%2582%25B8%25E3%2582%25A7%25E3%2583%25B3%25E3%2583%2588%25E3%2582%2592OpenTelemetry%25E3%2581%25A7%25E8%25A8%2588%25E8%25A3%2585%25E3%2581%2597%25E3%2580%2581Databricks%25E3%2581%25AELakehouse%25E3%2581%25AB%25E3%2583%2588%25E3%2583%25AC%25E3%2583%25BC%25E3%2582%25B9%25E3%2582%2592%25E6%25AE%258B%25E3%2581%2597%25E3%2581%25A6%25E3%2581%25BF%25E3%2581%259F%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:Taka%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jS3V1V3VscTVOcVA1T1F3OWxEVkRQbTNkQVZqUlpPZDYtZUZpckNQeGlOSVNRcz1zMjUwLWM=%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
+            "id": "54ab90e049fb0b604c22",
+            "title": "dbt-core v1.12.2",
+            "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.12.2",
+            "source": "dbt Core Releases",
+            "published_at": "2026-08-12T19:27:40+00:00",
+            "summary": "dbt-core 1.12.2 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 ) Fixes Recognize Databricks adapter config keys ( query_tags , zorder , options , unique_tmp_table_suffix , skip_optimize ) in jsonschema validation so they no longer raise…",
+            "category": "リリース速報",
+            "score": 18,
+            "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
           }
         },
         {
           "article_id": "d91ed34cf3270b44fb30",
-          "label": "AIエージェントのLLM比較と失敗スパン通知",
-          "reason": "モデル別のコスト・レイテンシ比較とエラースパンのアラートを追加し、本番運用の改善点を見つけられます.",
+          "label": "AIエージェントのLLM比較と失敗スパン監視",
+          "reason": "OpenTelemetryでモデル別のコスト・レイテンシーを比較し、失敗スパンを通知する設計を試せます。",
+          "selection_status": "new",
           "article": {
             "id": "d91ed34cf3270b44fb30",
             "title": "OpenTelemetryでAIエージェントのLLM比較と失敗スパンアラートまでやってみた",
@@ -71,92 +58,62 @@
             "score": 22,
             "image_url": "https://res.cloudinary.com/zenn/image/upload/s--1zFAYpMM--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:OpenTelemetry%25E3%2581%25A7AI%25E3%2582%25A8%25E3%2583%25BC%25E3%2582%25B8%25E3%2582%25A7%25E3%2583%25B3%25E3%2583%2588%25E3%2581%25AELLM%25E6%25AF%2594%25E8%25BC%2583%25E3%2581%25A8%25E5%25A4%25B1%25E6%2595%2597%25E3%2582%25B9%25E3%2583%2591%25E3%2583%25B3%25E3%2582%25A2%25E3%2583%25A9%25E3%2583%25BC%25E3%2583%2588%25E3%2581%25BE%25E3%2581%25A7%25E3%2582%2584%25E3%2581%25A3%25E3%2581%25A6%25E3%2581%25BF%25E3%2581%259F%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:Taka%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jS3V1V3VscTVOcVA1T1F3OWxEVkRQbTNkQVZqUlpPZDYtZUZpckNQeGlOSVNRcz1zMjUwLWM=%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
           }
+        },
+        {
+          "article_id": "dff1b140017a357a1e02",
+          "label": "Snowflake MLOpsの高額コスト事故",
+          "reason": "推論データ格納で高額請求になった原因と回避策から、転送・ウェアハウス稼働時間の見直し点を学べます。",
+          "selection_status": "new",
+          "article": {
+            "id": "dff1b140017a357a1e02",
+            "title": "【MLOps】Snowflakeで1回25万円溶かして21万円削ったが虚業だった話【ストレージ統合させてくれ】",
+            "url": "https://zenn.dev/zenn_mita/articles/e18a00ccb2625e",
+            "source": "Zenn / Snowflake",
+            "published_at": "2026-08-11T13:18:55+00:00",
+            "summary": "目次 はじめに 結論 1回25万円の請求が来た元々の処理構成 本来やりたかった改善策 立ちはだかった組織の壁 苦肉の策：ローカル落とし＋PUT＋COPY INTO 本来はどうすべきだったのかの結果論 感想 はじめに 新しい機械学習モデルの基盤を構築し、はじめての商用運用を実施したところ、 1回の実行で25万円のSnowflakeのコンピュートコストがかかってしまいました。 コスト増加の原因は、SagemakerからSnowflakeに推論済みデータを格納する処理中ずっとウェアハウスが動きっぱなしだったこと。 それらを回避するために対応策を考えたのですが…",
+            "category": "技術コミュニティ",
+            "score": 16,
+            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--jGzwd-iL--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:%25E3%2580%2590MLOps%25E3%2580%2591Snowflake%25E3%2581%25A71%25E5%259B%259E25%25E4%25B8%2587%25E5%2586%2586%25E6%25BA%25B6%25E3%2581%258B%25E3%2581%2597%25E3%2581%25A621%25E4%25B8%2587%25E5%2586%2586%25E5%2589%258A%25E3%2581%25A3%25E3%2581%259F%25E3%2581%258C%25E8%2599%259A%25E6%25A5%25AD%25E3%2581%25A0%25E3%2581%25A3%25E3%2581%259F%25E8%25A9%25B1%25E3%2580%2590%25E3%2582%25B9%25E3%2583%2588%25E3%2583%25AC%25E3%2583%25BC%25E3%2582%25B8%25E7%25B5%25B1%25E5%2590%2588%25E3%2581%2595%25E3%2581%259B%25E3%2581%25A6%25E3%2581%258F%25E3%2582%258C%25E3%2580%2591%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:mita%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyLzg5MGU0YzEwYjguanBlZw==%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
+          }
         }
       ]
     },
     {
       "field": "データマネジメント・エンジニアリング書籍",
-      "summary": "メタデータ管理とAIエージェントの運用・防御に関する近刊が候補です。",
-      "items": [
-        {
-          "article_id": "4104275d7092511d9ee1",
-          "label": "『メタデータ管理入門』—2026年8月26日発売予定",
-          "reason": "メタデータリポジトリ統合、データ探索チーム、データ民主化とセキュリティ強化を体系的に学べます。",
-          "article": {
-            "id": "4104275d7092511d9ee1",
-            "title": "メタデータ管理入門",
-            "url": "http://www.oreilly.co.jp/books/9784814401765/",
-            "source": "O'Reilly Japan 新刊・近刊",
-            "published_at": "2026-08-25T15:00:00+00:00",
-            "summary": "本書は、乱立するメタデータリポジトリを統合・調整し、組織的なデータ管理の課題を解決するため、「メタグリッド」によるリポジトリ管理やデータ探索チームの構築手法など、経営層からアーキテクトまでが押さえるべき戦略を網羅しています。一見、大企業向けの抽象的な理論に見えますが、本書の本質は、EMS、IR、IAMといった「管理のための仕組み」がなぜ存在するのかを、現場のエンジニア視点でも納得させてくれる点にあります。データ民主化やセキュリティ強化を支える基盤の全体像を一通り頭に入れることで、日々の開発の背景にある「組織の意図」が理解できるようになります。エンジニア…",
-            "category": "データ関連書籍",
-            "score": 8,
-            "image_url": "https://www.oreilly.co.jp/books/images/picture_large978-4-8144-0176-5.jpeg"
-          }
-        },
-        {
-          "article_id": "8c8fc54a6ddf417ef81c",
-          "label": "『MCPの教科書［下巻］』—2026年8月26日発売予定",
-          "reason": "MCPサーバー開発、データベース連携、セキュリティ、運用設計をコード例とともに確認できます。",
-          "article": {
-            "id": "8c8fc54a6ddf417ef81c",
-            "title": "MCPの教科書［下巻］～内部構造・開発・運用・防御",
-            "url": "https://gihyo.jp/book/2026/978-4-297-15852-1",
-            "source": "技術評論社 新刊",
-            "published_at": "2026-08-25T15:00:00+00:00",
-            "summary": "AI導入戦略を描き，ロードマップも決まった。では，具体的に誰がどう実装し，安全に運用するのでしょうか。本書では，MCPを活用したAIシステムをどう作るか，どう動かすか，どう守るかにフォーカスします。MCPの基礎的なアーキテクチャ，通信仕様から丁寧に紐解き，技術的な制約やセキュリティリスクへの対策を体系化。各種業務システム・サービス・データベースとの連携手順，カスタムMCPサーバーの開発，プラットフォーム統合から安全な運用，コンプライアンス設計に至るまで，豊富な図解とコード例とともに解説します。 本書を読めば，理解から構築，統合，運用，防御まで，本番環境…",
-            "category": "データ関連書籍",
-            "score": 7,
-            "image_url": "https://gihyo.jp/assets/images/ogp/2026/9784297158521.jpg"
-          }
-        }
-      ]
+      "summary": "指定条件に直接合致するデータエンジニアリング新刊は確認できませんでした。",
+      "items": []
     },
     {
       "field": "生成AI活用・テクニック",
-      "summary": "AIエージェントの指示管理、レビュー自動化、ガバナンス設計など、再現可能な運用改善が中心です。",
+      "summary": "RAGの取り込み設計とAIガバナンスの運用化が実践的です。",
       "items": [
         {
-          "article_id": "3ea582b72047180a4e82",
-          "label": "Claude Codeの実装プランをCodexで自動レビュー",
-          "reason": "実装前に別エージェントで計画を検証し、穴のあるタスク分解を承認前に発見できます。",
+          "article_id": "f91d5a70ec2671e401c2",
+          "label": "RAGの精度を左右する取り込み設計",
+          "reason": "メタデータ、コンテキスト認識チャンキング、更新運用を見直し、検索側だけを調整する失敗を避けられます。",
+          "selection_status": "new",
           "article": {
-            "id": "3ea582b72047180a4e82",
-            "title": "Claude Codeが立てた実装プランを、承認前にCodexへ自動レビューさせる",
-            "url": "https://zenn.dev/tamat_llc/articles/claude-code-codex-cross-review",
-            "source": "Zenn / LLM",
-            "published_at": "2026-08-12T07:35:58+00:00",
-            "summary": "こんにちは、TamaT の 増田 です。 TamaT は顧客提案から要件定義、設計、開発までを一気通貫で担う少数精鋭の開発会社です。 バイブコーディングでプランを立ててから実装を始める重要性は言うまでもないですが、各エージェントが立てるプランは意外に穴があります。 今まではプランが妥当か手動でAIにレビューさせていましたが、チケットが多いとそれも手間になりキリがないので、自動化するフローを組み込んでいます。 色々やり方はありますが、今回はClaude CodeのCUI内で完結させる方法を紹介します。 TL;DR Claude Code のプランモードで…",
+            "id": "f91d5a70ec2671e401c2",
+            "title": "RAG の精度は「検索」ではなく「取り込み」で決まる — メタデータ設計・コンテキスト認識チャンキング・知識ベースの更新運用",
+            "url": "https://qiita.com/engchina/items/7f9200e33c1c5df6207a",
+            "source": "Qiita / LLM",
+            "published_at": "2026-08-12T23:12:51+00:00",
+            "summary": "はじめに RAG がうまく動かないとき、多くの人はまず検索側をいじります。Top-K を増やす、Rerank を足す、ハイブリッド検索にする。 しかし社内文書の RAG で実際に起きる事故の大半は、検索アルゴリズムではなくインデックスの作り方が原因です。 上流の失敗は下...",
             "category": "生成AI活用",
-            "score": 10,
-            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--IpKzb6Hs--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:Claude%2520Code%25E3%2581%258C%25E7%25AB%258B%25E3%2581%25A6%25E3%2581%259F%25E5%25AE%259F%25E8%25A3%2585%25E3%2583%2597%25E3%2583%25A9%25E3%2583%25B3%25E3%2582%2592%25E3%2580%2581%25E6%2589%25BF%25E8%25AA%258D%25E5%2589%258D%25E3%2581%25ABCodex%25E3%2581%25B8%25E8%2587%25AA%25E5%258B%2595%25E3%2583%25AC%25E3%2583%2593%25E3%2583%25A5%25E3%2583%25BC%25E3%2581%2595%25E3%2581%259B%25E3%2582%258B%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_34:%25E3%2582%2586%25E3%2581%2586%25E3%2581%2584%25E3%2581%25A1%25E3%2582%258D%25E3%2581%2586%2Cx_220%2Cy_108/bo_3px_solid_rgb:d6e3ed%2Cg_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyLzFiMjM4N2RmOTIuanBlZw==%2Cr_20%2Cw_90%2Cx_92%2Cy_102/co_rgb:6e7b85%2Cg_south_west%2Cl_text:notosansjp-medium.otf_30:TamaT%2520LLC%2Cx_220%2Cy_160/bo_4px_solid_white%2Cg_south_west%2Ch_50%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyLzI3NzdiNzBkYTguanBlZw==%2Cr_max%2Cw_50%2Cx_139%2Cy_84/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
-          }
-        },
-        {
-          "article_id": "75776309a1d8dab4a4c0",
-          "label": "CLAUDE.mdのエージェントドリフト検出",
-          "reason": "依存ゼロの読み取り専用スクリプトで端末間の指示ファイル差分を測定し、設定ずれを定期確認できます。",
-          "article": {
-            "id": "75776309a1d8dab4a4c0",
-            "title": "散らばったCLAUDE.mdのうち、どれがズレているのかを出すスクリプトを書いた",
-            "url": "https://zenn.dev/untactit/articles/c65ee6d3011fdf",
-            "source": "Zenn / 生成AI",
-            "published_at": "2026-08-11T21:00:11+00:00",
-            "summary": "前回、AIエージェントの指示ファイルが端末ごとにズレていく話を書きました。構造の話で終わっていたので、今回は実際に計測できるものを作りました。 https://github.com/untactit/agent-drift 単一ファイル・依存ゼロ・Python 3.8+。読み取り専用で、スキャンしたファイルには一切書き込みません。 curl -O https://raw.githubusercontent.com/untactit/agent-drift/main/agent_drift.py python3 agent_drift.py ~/work…",
-            "category": "生成AI活用",
-            "score": 11,
-            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--SLCciHUs--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:%25E6%2595%25A3%25E3%2582%2589%25E3%2581%25B0%25E3%2581%25A3%25E3%2581%259FCLAUDE.md%25E3%2581%25AE%25E3%2581%2586%25E3%2581%25A1%25E3%2580%2581%25E3%2581%25A9%25E3%2582%258C%25E3%2581%258C%25E3%2582%25BA%25E3%2583%25AC%25E3%2581%25A6%25E3%2581%2584%25E3%2582%258B%25E3%2581%25AE%25E3%2581%258B%25E3%2582%2592%25E5%2587%25BA%25E3%2581%2599%25E3%2582%25B9%25E3%2582%25AF%25E3%2583%25AA%25E3%2583%2597%25E3%2583%2588%25E3%2582%2592%25E6%259B%25B8%25E3%2581%2584%25E3%2581%259F%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:untactit%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyLzExZTRlZDRhYTcuanBlZw==%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
+            "score": 5,
+            "image_url": "https://qiita-user-contents.imgix.net/https%3A%2F%2Fqiita-user-contents.imgix.net%2Fhttps%253A%252F%252Fcdn.qiita.com%252Fassets%252Fpublic%252Farticle-ogp-background-afbab5eb44e0b055cce1258705637a91.png%3Fixlib%3Drb-4.1.1%26w%3D1200%26blend64%3DaHR0cHM6Ly9xaWl0YS11c2VyLXByb2ZpbGUtaW1hZ2VzLmltZ2l4Lm5ldC9odHRwcyUzQSUyRiUyRnMzLWFwLW5vcnRoZWFzdC0xLmFtYXpvbmF3cy5jb20lMkZxaWl0YS1pbWFnZS1zdG9yZSUyRjAlMkYzOTMyNzgxJTJGOTA5ODgyYWQ5YTcwNWVmZjI2ZmM5NDBmMzg0MzQwMWU3OWQyNjY4YyUyRnhfbGFyZ2UucG5nJTNGMTc2OTAzODc0OD9peGxpYj1yYi00LjEuMSZhcj0xJTNBMSZmaXQ9Y3JvcCZtYXNrPWVsbGlwc2UmYmc9RkZGRkZGJmZtPXBuZzMyJnM9NjlhZjBhYTliMGQ4ZGI2ODU0N2Q1MmJiNzIxZjNhOWQ%26blend-x%3D120%26blend-y%3D467%26blend-w%3D82%26blend-h%3D82%26blend-mode%3Dnormal%26s%3Dcd90e93143b337f0499d992a3f230c37?ixlib=rb-4.1.1&w=1200&fm=jpg&mark64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTk2MCZoPTMyNCZ0eHQ9UkFHJTIwJUUzJTgxJUFFJUU3JUIyJUJFJUU1JUJBJUE2JUUzJTgxJUFGJUUzJTgwJThDJUU2JUE0JTlDJUU3JUI0JUEyJUUzJTgwJThEJUUzJTgxJUE3JUUzJTgxJUFGJUUzJTgxJUFBJUUzJTgxJThGJUUzJTgwJThDJUU1JThGJTk2JUUzJTgyJThBJUU4JUJFJUJDJUUzJTgxJUJGJUUzJTgwJThEJUUzJTgxJUE3JUU2JUIxJUJBJUUzJTgxJUJFJUUzJTgyJThCJTIwJUUyJTgwJTk0JTIwJUUzJTgzJUExJUUzJTgyJUJGJUUzJTgzJTg3JUUzJTgzJUJDJUUzJTgyJUJGJUU4JUE4JUFEJUU4JUE4JTg4JUUzJTgzJUJCJUUzJTgyJUIzJUUzJTgzJUIzJUUzJTgzJTg2JUUzJTgyJUFEJUUzJTgyJUI5JUUzJTgzJTg4JUU4JUFBJThEJUU4JUFEJTk4JUUzJTgzJTgxJUUzJTgzJUEzJUUzJTgzJUIzJUUzJTgyJUFEJUUzJTgzJUIzJUUzJTgyJUIwJUUzJTgzJUJCJUUyJTgwJUE2JnR4dC1hbGlnbj1sZWZ0JTJDdG9wJnR4dC1jb2xvcj0lMjMxRTIxMjEmdHh0LWZvbnQ9SGlyYWdpbm8lMjBTYW5zJTIwVzYmdHh0LXNpemU9NTYmdHh0LXBhZD0wJnM9MzI0ZWYwNjdkY2Q4MjAzZGZkNWZlZjg1ZjE2MzdlMDg&mark-x=120&mark-y=112&blend64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTgzOCZoPTU4JnR4dD0lNDBlbmdjaGluYSZ0eHQtY29sb3I9JTIzMUUyMTIxJnR4dC1mb250PUhpcmFnaW5vJTIwU2FucyUyMFc2JnR4dC1zaXplPTM2JnR4dC1wYWQ9MCZzPWJjNzFmYTUzNmUwM2I1OWMzMmYzZjlmMDM3ZTI5MTcz&blend-x=242&blend-y=480&blend-w=838&blend-h=46&blend-fit=crop&blend-crop=left%2Cbottom&blend-mode=normal&s=fbce148590f25a5e96ebfae4d178ec9a"
           }
         },
         {
           "article_id": "15e4b93dd73d7c94d823",
           "label": "AIガバナンスを運用能力として設計",
-          "reason": "禁止事項だけでなく、評価・監視・インシデント対応を運用プロセスとして定義する視点を得られます。",
+          "reason": "禁止事項の列挙で終わらせず、評価・監視・責任分担を業務フローへ組み込む観点を得られます。",
+          "selection_status": "continued",
           "article": {
             "id": "15e4b93dd73d7c94d823",
             "title": "AIガバナンスを「運用能力」として設計する",
             "url": "https://zenn.dev/tomyuk/articles/ai-governance-operating-capability",
-            "source": "Zenn / LLM",
+            "source": "Zenn / 生成AI",
             "published_at": "2026-08-12T10:56:11+00:00",
             "summary": "AIガバナンスを「運用能力」として設計する はじめに AIガバナンスという言葉は、しばしば「AIを安全に縛る仕組み」として受け取られる。 利用禁止事項を並べる。入力してはいけない情報を定義する。利用申請フローを作る。法務、セキュリティ、情報システム部門が現場利用を管理する。 もちろん、これらは必要である。生成AIやLLMを業務に使えば、機密情報の入力、誤回答、差別的な出力、著作権や契約上の問題、説明不能な判断、ベンダー依存などのリスクが出る。ルールなしに現場任せにするのは危うい。 ただし、AIガバナンスを「禁止と承認の仕組み」だけで考えると、運用上もっ…",
             "category": "生成AI活用",
@@ -165,38 +122,57 @@
           }
         },
         {
-          "article_id": "db5022b632d8980d4c9a",
-          "label": "自社システム向けRAGの限界と対策",
-          "reason": "検索精度やハルシネーションなどの課題を踏まえ、RAG導入前に評価項目を設計できます。",
+          "article_id": "73c32573097483d57d9b",
+          "label": "低VRAM環境でGemmaを長文脈運用",
+          "reason": "Quadro P2200を2枚使い、llama.cppで64Kコンテキストを動かす構成を検証できます。",
+          "selection_status": "new",
           "article": {
-            "id": "db5022b632d8980d4c9a",
-            "title": "生成AI自社システム組み込みRAGの全貌：仕組み、限界、実践的克服法",
-            "url": "https://qiita.com/Maku-Inc/items/c6ed40c4d2c1c68ca89c",
-            "source": "Qiita / 生成AI",
-            "published_at": "2026-08-12T10:04:29+00:00",
-            "summary": "生成AI自社システム組み込みRAGの全貌：仕組み、限界、実践的克服法 1. 生成AIとRAGの必要性 大規模言語モデル（LLM）の進化は目覚ましく、私たちの業務プロセスに革命をもたらす可能性を秘めています。しかし、自社システムに組み込む際には、特定の課題に直面します。L...",
+            "id": "73c32573097483d57d9b",
+            "title": "Quadro P2200を2枚にしてGemma 4 12Bを64Kコンテキストで動かしてみた",
+            "url": "https://zenn.dev/nooop/articles/8f037931aa73de",
+            "source": "Zenn / LLM",
+            "published_at": "2026-08-12T11:02:50+00:00",
+            "summary": "以前、手元で眠っていたQuadro P2200でllama.cppを動かした記事を書きました。 https://zenn.dev/nooop/articles/3fba81b0b7b732 今回はP2200をもう1枚追加してみました。 これで合計のVRAMは10GBとなり、Gemma4-E4Bより一回り大きなGemma4-12Bを動かせるはずです。 https://huggingface.co/unsloth/gemma-4-12B-it-qat-GGUF 目標は単に12Bモデルをロードすることではなく、Hermes Agentで使うために64Kコンテ…",
             "category": "生成AI活用",
-            "score": 8,
-            "image_url": "https://qiita-user-contents.imgix.net/https%3A%2F%2Fqiita-user-contents.imgix.net%2Fhttps%253A%252F%252Fcdn.qiita.com%252Fassets%252Fpublic%252Farticle-ogp-background-afbab5eb44e0b055cce1258705637a91.png%3Fixlib%3Drb-4.1.1%26w%3D1200%26blend64%3DaHR0cHM6Ly9xaWl0YS11c2VyLXByb2ZpbGUtaW1hZ2VzLmltZ2l4Lm5ldC9odHRwcyUzQSUyRiUyRnMzLWFwLW5vcnRoZWFzdC0xLmFtYXpvbmF3cy5jb20lMkZxaWl0YS1pbWFnZS1zdG9yZSUyRjAlMkY0MDU1Nzc4JTJGNWZkYjM1MjEyZWZmOGZjZjJhNTFlY2FkYTZlZDkyZTM1OTc1ZmYyNyUyRmxhcmdlLnBuZyUzRjE3ODI3NDM1NzI_aXhsaWI9cmItNC4xLjEmYXI9MSUzQTEmZml0PWNyb3AmbWFzaz1lbGxpcHNlJmJnPUZGRkZGRiZmbT1wbmczMiZzPTEwYzhmMWYzNDkzMTQxNjQ2ZGMzYTNiMTAyYjQzOTli%26blend-x%3D120%26blend-y%3D467%26blend-w%3D82%26blend-h%3D82%26blend-mode%3Dnormal%26s%3D708ad4aa3fb7ebe64e03f6185490ebaa?ixlib=rb-4.1.1&w=1200&fm=jpg&mark64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTk2MCZoPTMyNCZ0eHQ9JUU3JTk0JTlGJUU2JTg4JTkwQUklRTglODclQUElRTclQTQlQkUlRTMlODIlQjclRTMlODIlQjklRTMlODMlODYlRTMlODMlQTAlRTclQjUlODQlRTMlODElQkYlRTglQkUlQkMlRTMlODElQkZSQUclRTMlODElQUUlRTUlODUlQTglRTglQjIlOEMlRUYlQkMlOUElRTQlQkIlOTUlRTclQjUlODQlRTMlODElQkYlRTMlODAlODElRTklOTklOTAlRTclOTUlOEMlRTMlODAlODElRTUlQUUlOUYlRTglQjclQjUlRTclOUElODQlRTUlODUlOEIlRTYlOUMlOEQlRTYlQjMlOTUmdHh0LWFsaWduPWxlZnQlMkN0b3AmdHh0LWNvbG9yPSUyMzFFMjEyMSZ0eHQtZm9udD1IaXJhZ2lubyUyMFNhbnMlMjBXNiZ0eHQtc2l6ZT01NiZ0eHQtcGFkPTAmcz02ZTZmYmZhMjM4ODFhZDY4ZTgxZjllYmRiNDA5MjlhNA&mark-x=120&mark-y=112&blend64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTgzOCZoPTU4JnR4dD0lNDBNYWt1LUluYyZ0eHQtY29sb3I9JTIzMUUyMTIxJnR4dC1mb250PUhpcmFnaW5vJTIwU2FucyUyMFc2JnR4dC1zaXplPTM2JnR4dC1wYWQ9MCZzPWI0MzEzYTM5NDUzZWIwY2JhNTU4MWE3Yjg4MTJmZTY2&blend-x=242&blend-y=480&blend-w=838&blend-h=46&blend-fit=crop&blend-crop=left%2Cbottom&blend-mode=normal&s=29cd1196c8c91d5582dc63171772978f"
+            "score": 5,
+            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--hnSl9lcK--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:Quadro%2520P2200%25E3%2582%25922%25E6%259E%259A%25E3%2581%25AB%25E3%2581%2597%25E3%2581%25A6Gemma%25204%252012B%25E3%2582%259264K%25E3%2582%25B3%25E3%2583%25B3%25E3%2583%2586%25E3%2582%25AD%25E3%2582%25B9%25E3%2583%2588%25E3%2581%25A7%25E5%258B%2595%25E3%2581%258B%25E3%2581%2597%25E3%2581%25A6%25E3%2581%25BF%25E3%2581%259F%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:nooop%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyL2M5M2ZlYTRkM2UuanBlZw==%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
+          }
+        },
+        {
+          "article_id": "89c29168a75ae34b666f",
+          "label": "n8nでSlack・メール・AIを連携",
+          "reason": "通知・メール・AI処理を一つのワークフローへまとめる自動化設計を試せます。",
+          "selection_status": "new",
+          "article": {
+            "id": "89c29168a75ae34b666f",
+            "title": "ツールは揃っている、あとはつなぐだけ｜n8nでSlack・メール・AIを一本のフローにする考え方",
+            "url": "https://qiita.com/DnD-inc/items/e69fedb5121e73d6c5cf",
+            "source": "Qiita / 生成AI",
+            "published_at": "2026-08-13T00:15:03+00:00",
+            "summary": "ツールは揃っている、あとはつなぐだけ｜n8nでSlack・メール・AIを一本のフローにする考え方 本記事は、株式会社DnD（https://dnd-inc.jp）のコラムを一部編集して掲載しています。 初出: https://dnd-inc.jp/blog/n8n-wo...",
+            "category": "生成AI活用",
+            "score": 4,
+            "image_url": "https://qiita-user-contents.imgix.net/https%3A%2F%2Fqiita-user-contents.imgix.net%2Fhttps%253A%252F%252Fcdn.qiita.com%252Fassets%252Fpublic%252Farticle-ogp-background-afbab5eb44e0b055cce1258705637a91.png%3Fixlib%3Drb-4.1.1%26w%3D1200%26blend64%3DaHR0cHM6Ly9xaWl0YS11c2VyLXByb2ZpbGUtaW1hZ2VzLmltZ2l4Lm5ldC9odHRwcyUzQSUyRiUyRnMzLWFwLW5vcnRoZWFzdC0xLmFtYXpvbmF3cy5jb20lMkZxaWl0YS1pbWFnZS1zdG9yZSUyRjAlMkY0NDYxMDA5JTJGNTdlYzdiNDVjOTdmY2RhNDc2MDFjNTA5YTczYmQxYzE2MDQ0YjQ0OCUyRnhfbGFyZ2UucG5nJTNGMTc4NjEwNDM3Nz9peGxpYj1yYi00LjEuMSZhcj0xJTNBMSZmaXQ9Y3JvcCZtYXNrPWVsbGlwc2UmYmc9RkZGRkZGJmZtPXBuZzMyJnM9YjFhMTU0Y2FiZWJhY2RiYWI5ODY4ZTBhOGM3NzIyYWM%26blend-x%3D120%26blend-y%3D467%26blend-w%3D82%26blend-h%3D82%26blend-mode%3Dnormal%26s%3Dfa736dfdb8fb73b3aa012875ab077cae?ixlib=rb-4.1.1&w=1200&fm=jpg&mark64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTk2MCZoPTMyNCZ0eHQ9JUUzJTgzJTg0JUUzJTgzJUJDJUUzJTgzJUFCJUUzJTgxJUFGJUU2JThGJTgzJUUzJTgxJUEzJUUzJTgxJUE2JUUzJTgxJTg0JUUzJTgyJThCJUUzJTgwJTgxJUUzJTgxJTgyJUUzJTgxJUE4JUUzJTgxJUFGJUUzJTgxJUE0JUUzJTgxJUFBJUUzJTgxJTkwJUUzJTgxJUEwJUUzJTgxJTkxJUVGJUJEJTlDbjhuJUUzJTgxJUE3U2xhY2slRTMlODMlQkIlRTMlODMlQTElRTMlODMlQkMlRTMlODMlQUIlRTMlODMlQkJBSSVFMyU4MiU5MiVFNCVCOCU4MCVFNiU5QyVBQyVFMyU4MSVBRSVFMyU4MyU5NSVFMyU4MyVBRCVFMyU4MyVCQyVFMyU4MSVBQiVFMyU4MSU5OSVFMyU4MiU4QiVFOCU4MCU4MyVFMyU4MSU4OCVFNiU5NiVCOSZ0eHQtYWxpZ249bGVmdCUyQ3RvcCZ0eHQtY29sb3I9JTIzMUUyMTIxJnR4dC1mb250PUhpcmFnaW5vJTIwU2FucyUyMFc2JnR4dC1zaXplPTU2JnR4dC1wYWQ9MCZzPTM0MTM5NDY2Yzk2MjJiNjk1MzYzZDFhZGFhNzU5OTBi&mark-x=120&mark-y=112&blend64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTgzOCZoPTU4JnR4dD0lNDBEbkQtaW5jJnR4dC1jb2xvcj0lMjMxRTIxMjEmdHh0LWZvbnQ9SGlyYWdpbm8lMjBTYW5zJTIwVzYmdHh0LXNpemU9MzYmdHh0LXBhZD0wJnM9NzRmYzk0NjNhNjc1YWQ5ZDExOGM5ZGQwMTE3YmM5YWY&blend-x=242&blend-y=480&blend-w=838&blend-h=46&blend-fit=crop&blend-crop=left%2Cbottom&blend-mode=normal&s=2d1cc3a771e764af52498c01856a699d"
           }
         }
       ]
     },
     {
       "field": "CLI・ターミナル生産性",
-      "summary": "入力候補ではCodex Security CLI関連が中心で、eza、fzf、Yazi、cmuxの公式安定版リリースは確認できません。",
+      "summary": "安定版のeza、fzf、Yazi、cmuxに該当する公式記事は入力にありませんでした。Codex Security CLIの記事はありますが、紹介記事中心のため限定掲載です。",
       "items": [
         {
-          "article_id": "b84885324d45a1f73bf3",
+          "article_id": "b99ce5d9638a7536181c",
           "label": "Codex Security CLIのオープンソース化",
-          "reason": "CLIから脆弱性の発見・検証・修正までを行えるため、ターミナル中心の開発フローにセキュリティ確認を組み込めます。",
+          "reason": "CLIとGitHub連携で脆弱性レビューを自動化でき、CI/CDへ組み込む運用を検討できます。",
+          "selection_status": "new",
           "article": {
-            "id": "b84885324d45a1f73bf3",
-            "title": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に - GIGAZINE",
-            "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTE41X2RxeWpvX01ZazE4R0dzU2M5cjdDMHI1eVBPdWxmTFdlcUpicHk2SFl3S00yc3VEM3hSbGM4SnVkT3hoM0VOdFVNU1o3VFE2NUZxeUlpa25XdTJ0bFV2RHRvdGt1V0VrXzZGS00yaHRza2py?oc=5",
+            "id": "b99ce5d9638a7536181c",
+            "title": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) - news.livedoor.com",
+            "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE1nVFlVcUlNc3g2Y0FjdmxGNlFpTERKQks4Y3kxOV9pSjFHTmY5eENpaEd6dnFqaHpuRGdjRUMzSngtYkFzOWxQWTFNUUtPTW04X3NzV2x3Q1ZfR2xMakE?oc=5",
             "source": "CLI・ターミナルツール発見",
             "published_at": "2026-07-29T07:00:00+00:00",
-            "summary": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に GIGAZINE",
+            "summary": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) news.livedoor.com",
             "category": "CLI生産性",
             "score": 10,
             "image_url": null
@@ -206,40 +182,24 @@
     },
     {
       "field": "業務改善・QOL",
-      "summary": "新製品の値引き記事が多く、実際の時短に結びつく候補はUSBハブ一体型の充電ケーブルです。",
-      "items": [
-        {
-          "article_id": "9575ea5c497b1292b6f7",
-          "label": "エレコムのUSBハブ一体型PC充電ケーブル",
-          "reason": "充電と周辺機器接続を1本にまとめられ、外出先や簡易デスクでドックを持ち運ぶ手間を減らせます。",
-          "article": {
-            "id": "9575ea5c497b1292b6f7",
-            "title": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは - goodspress.jp",
-            "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE51MS01MXdJOHB1Q2IzRFpCY1NVMXJGaC1ha2x4XzJ6S3FEZVdFZjhLcHdfM1o1NURCSmtXZE1yNVZtdXQ1WFMwcTNKVU9tM1E?oc=5",
-            "source": "デスクツアー・作業環境",
-            "published_at": "2026-08-10T21:00:00+00:00",
-            "summary": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは goodspress.jp",
-            "category": "業務改善・QOL",
-            "score": 17,
-            "image_url": null
-          }
-        }
-      ]
+      "summary": "PC周辺機器の記事はありますが、入力された新着候補の多くはセール情報のため除外しました。",
+      "items": []
     },
     {
       "field": "子育て",
-      "summary": "桜木町駅から徒歩圏の野毛地区センターで、乳幼児向け催しが確認できます。",
+      "summary": "桜木町駅から徒歩圏の野毛地区センターで、乳幼児向け催しが予定されています。",
       "items": [
         {
-          "article_id": "6ef9fac963f054249770",
-          "label": "野毛地区センター（野毛）「ぽっぽっぽっ」とあそぼう!",
-          "reason": "野毛地区センターは桜木町駅から徒歩圏で、2026年8月28日開催。遊びとお話会で1歳半前後の子どもも参加候補です。",
+          "article_id": "cbe755c6b741a83752ac",
+          "label": "「ぽっぽっぽっ」とあそぼう!（野毛）",
+          "reason": "野毛地区センターで開催。桜木町駅から徒歩圏で、遊びとお話会を組み合わせた乳幼児向け催しです。",
+          "selection_status": "new",
           "article": {
-            "id": "6ef9fac963f054249770",
+            "id": "cbe755c6b741a83752ac",
             "title": "「ぽっぽっぽっ」とあそぼう!",
-            "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=110186",
+            "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=111324",
             "source": "横浜市中区親子イベント",
-            "published_at": "2026-08-28T00:00:00+00:00",
+            "published_at": "2026-10-23T00:00:00+00:00",
             "summary": "いっぱい遊んだ後、お話会に参加しよう。・場所: 野毛地区センター ( 中区 )",
             "category": "子育て",
             "score": 0,
@@ -250,28 +210,13 @@
     },
     {
       "field": "横浜イベント",
-      "summary": "桜木町から行きやすいみなとみらいの盆踊りなど、今後開催の家族向けイベントがあります。",
+      "summary": "今後開催される、桜木町から行きやすいみなとみらい・赤レンガ周辺のイベントを選びました。",
       "items": [
         {
-          "article_id": "3e70d5f570b43720de36",
-          "label": "みなとみらい大盆踊り（みなとみらい）",
-          "reason": "桜木町から徒歩または短距離移動で行きやすい臨港パーク周辺で、2026年8月28・29日に開催予定です。",
-          "article": {
-            "id": "3e70d5f570b43720de36",
-            "title": "みなとみらい大盆踊り",
-            "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw10025",
-            "source": "横浜市公式観光イベント",
-            "published_at": "2026-08-28T00:00:00+00:00",
-            "summary": "こども向け、イベント、屋外（雨天変更）・こども向け イベント 屋外（雨天変更） みなとみらい大盆踊り エリア みなとみらい21 開催日程 2026年8月28日(金)・8月29日(… 住所 臨港パーク・プラザ広場（パシフィコ横浜隣接・横浜市西区みなとみらい1） もっとみる",
-            "category": "横浜イベント",
-            "score": 18,
-            "image_url": "https://ycvb.yokohama/img_data/yw10025_1.jpg"
-          }
-        },
-        {
           "article_id": "ec68a4742fa0e392c7ce",
-          "label": "横浜オクトーバーフェスト2026（赤レンガ倉庫）",
-          "reason": "桜木町から徒歩圏の赤レンガ倉庫で、2026年9月18日から開催予定。屋内対応で家族でも訪れやすい催しです。",
+          "label": "横浜オクトーバーフェスト2026（赤レンガ・みなとみらい）",
+          "reason": "横浜赤レンガ倉庫で9月18日から開催。桜木町から徒歩またはみなとみらい経由で行きやすく、屋内対応です。",
+          "selection_status": "continued",
           "article": {
             "id": "ec68a4742fa0e392c7ce",
             "title": "横浜オクトーバーフェスト 2026",
@@ -288,65 +233,85 @@
     },
     {
       "field": "街の新店",
-      "summary": "桜木町駅徒歩圏で、開店日が条件を満たす新店情報はありません。",
+      "summary": "桜木町駅から徒歩圏で、開店日やリニューアル日が確認できる新店記事はありませんでした。",
       "items": []
     },
     {
       "field": "睡眠",
-      "summary": "睡眠デバイスの評価基準と、Nature掲載の睡眠研究が確認できます。",
+      "summary": "Natureの一次研究と睡眠製品の比較記事があります。製品効果は広告・発表由来のため、個人差と研究デザインに注意が必要です。",
       "items": [
         {
-          "article_id": "adf10594a9459736aeab",
-          "label": "Sleepisol＋（睡眠デバイス）",
-          "reason": "米NSFのSleepMark取得が新しい点ですが、認証は睡眠改善効果の保証ではないため、購入時の品質確認材料として扱うのが適切です。",
+          "article_id": "9218f29498beed563726",
+          "label": "睡眠データによる健康リスク層別化モデル",
+          "reason": "睡眠情報から臨床アウトカムを予測する基盤モデルの研究で、実用化には外部検証と公平性確認が必要です。",
+          "selection_status": "new",
           "article": {
-            "id": "adf10594a9459736aeab",
-            "title": "睡眠デバイスを選ぶ「物差し」はできるのか｜韓国LEESOLの「Sleepisol＋」が米NSFのSleepMarkを日本初取得、ただし効果の保証ではない - Smart Watch Life",
-            "url": "https://news.google.com/rss/articles/CBMiTEFVX3lxTE9BWndvcHpoQnRkRVlUcE9yQkd4LVNvd1RKWC1JNnh1eERXdEc4bTZZREhvSFE5akZHTzg2OFRDSzhSVXF1NTl5eWhqWDk?oc=5",
+            "id": "9218f29498beed563726",
+            "title": "A foundation model for sleep-based risk stratification and clinical outcomes",
+            "url": "https://www.nature.com/articles/s41467-026-75326-9",
+            "source": "Nature / Sleep Research",
+            "published_at": "2026-08-03T00:00:00+00:00",
+            "summary": "",
+            "category": "睡眠",
+            "score": 6,
+            "image_url": "https://media.springernature.com/m685/springer-static/image/art%3A10.1038%2Fs41467-026-75326-9/MediaObjects/41467_2026_75326_Fig1_HTML.png"
+          }
+        },
+        {
+          "article_id": "d933e87fb7933d3cbcfd",
+          "label": "NELL枕・マットレス変更後の睡眠データ比較",
+          "reason": "枕変更で入眠時間が延び、マットレス変更で短縮した比較結果ですが、学会発表ベースで因果効果を断定できません。",
+          "selection_status": "new",
+          "article": {
+            "id": "d933e87fb7933d3cbcfd",
+            "title": "【日本睡眠学会で発表】睡眠ブランドNELL、枕・マットレス変更後の睡眠データを比較。入眠までの時間は枕変更で約10分延長、マットレス変更で約2分短縮 - 朝日新聞",
+            "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE85WGVxVExUU2NrUDcteVFtMWhmTUdmVWNRRmhySDNPX2VRUWhQdThqaG9BbDR2elBzSVUySjRPMWhkUDlSb2tEaWFTTmtfOTdJUmFCTzNPSzRCZFE?oc=5",
             "source": "睡眠製品ニュース",
-            "published_at": "2026-08-06T02:04:34+00:00",
-            "summary": "睡眠デバイスを選ぶ「物差し」はできるのか｜韓国LEESOLの「Sleepisol＋」が米NSFのSleepMarkを日本初取得、ただし効果の保証ではない Smart Watch Life",
+            "published_at": "2026-07-28T07:00:00+00:00",
+            "summary": "【日本睡眠学会で発表】睡眠ブランドNELL、枕・マットレス変更後の睡眠データを比較。入眠までの時間は枕変更で約10分延長、マットレス変更で約2分短縮 朝日新聞",
             "category": "睡眠",
             "score": 21,
             "image_url": null
           }
         },
         {
-          "article_id": "7d32029b44e702a0ed6d",
-          "label": "オレキシン系を標的とする睡眠障害治療の可能性",
-          "reason": "Natureの研究レビューで、覚醒・睡眠制御に関わるオレキシン系を治療標的として整理しています。薬の利用は医療者への相談が必要です。",
+          "article_id": "a5a365b355420c7bea4b",
+          "label": "リカバリーマットレス",
+          "reason": "アスリート向けの睡眠環境製品として紹介されていますが、購入前に硬さ、体格適合、返品条件を確認すべきです。",
+          "selection_status": "new",
           "article": {
-            "id": "7d32029b44e702a0ed6d",
-            "title": "Therapeutic potential of targeting the orexin (hypocretin) system in sleep disorders",
-            "url": "https://www.nature.com/articles/s41574-026-01277-2",
-            "source": "Nature / Sleep Research",
-            "published_at": "2026-07-30T00:00:00+00:00",
-            "summary": "",
+            "id": "a5a365b355420c7bea4b",
+            "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 - bcnretail.com",
+            "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1wRFNteEppM0tYOHFWU05fc0FzUDdTcVNQcDVjaXZKMW5xZW9vN2NuUjdOUTNZb085OEhDYVRZMEtTQXZwcFBnRFhwN0h5QnNyanVnQnU5dTdsTVhneXQwOHVtX2FrcFNyYlE?oc=5",
+            "source": "睡眠製品ニュース",
+            "published_at": "2026-07-17T07:00:00+00:00",
+            "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 bcnretail.com",
             "category": "睡眠",
-            "score": 13,
-            "image_url": "https://media.springernature.com/m685/springer-static/image/art%3A10.1038%2Fs41574-026-01277-2/MediaObjects/41574_2026_1277_Fig1_HTML.png"
+            "score": 18,
+            "image_url": null
           }
         }
       ]
     },
     {
       "field": "筋トレ",
-      "summary": "筋力・筋肥大では重量だけでなく、総負荷やトレーニング設計全体を見る重要性が示されています。",
+      "summary": "負荷の重さだけでなく、総負荷量やトレーニング設計を考える記事はありますが、新着性は限定的です。",
       "items": [
         {
-          "article_id": "3066811d8dd8cef92340",
-          "label": "ACSM：レジスタンストレーニングは重量だけが要点ではない",
-          "reason": "重量の大小だけで最適解を決めず、目的に応じて反復回数、総量、フォーム、継続性を組み合わせる視点を得られます。",
+          "article_id": "2bd5619c61c036726178",
+          "label": "屋外活動と運動の心理的メリット",
+          "reason": "屋外での運動や自然環境が気分に与える影響を考える材料になります。筋トレ後の散歩などへ応用できます。",
+          "selection_status": "new",
           "article": {
-            "id": "3066811d8dd8cef92340",
-            "title": "Active Voice | With Resistance Training, Load is Only Half the Story",
-            "url": "https://acsm.org/active-voice-with-resistance-training-load-is-only-half-the-story/",
+            "id": "2bd5619c61c036726178",
+            "title": "Hot Topic | Being Outside Makes You Feel Better",
+            "url": "https://acsm.org/hot-topic-being-outside-makes-you-feel-better/",
             "source": "ACSM",
-            "published_at": "2026-08-10T20:11:41+00:00",
-            "summary": "For decades, one question has dominated resistance-training research: How much weight should we lift? Many studies have compared heavy and light loads to identify the optimal stimulus for maximizing strength and muscle hypertrophy. These investigations have shaped coaching pract…",
+            "published_at": "2026-07-21T20:08:14+00:00",
+            "summary": "Nature as a therapeutic intervention is a practice that dates back centuries but has only recently gained empirical legitimacy. From Shinrin-yoku (forest bathing) in Japan to green exercise initiatives in urban areas of the United States and Europe, nature-based approaches to he…",
             "category": "筋トレ",
-            "score": 9,
-            "image_url": "https://acsm.org/wp-content/uploads/GettyImages-884653660-scaled-e1786026995775.jpg"
+            "score": 2,
+            "image_url": "https://acsm.org/wp-content/uploads/2025/07/two-people-walking-on-nature-path-1024x482.png"
           }
         }
       ]
@@ -354,16 +319,77 @@
   ],
   "official_digest": [
     {
-      "product": "dbt Core",
-      "summary": "dbt-core 1.12.1が公開され、Snowflakeプロジェクト向けOpenTelemetry計装などが追加されました。",
+      "product": "Databricks Lakeflow Connect",
+      "summary": "Gmailコネクターがベータ提供され、GmailメールボックスのデータをDatabricksへ管理連携できるようになりました。",
       "changes": [
-        "ノードとフック実行のスパン計装を追加（フラグで有効化）",
-        "unit test選択時のdbt buildノード数表示を修正"
+        "メール、ラベル、下書き、フィルター、プロフィール情報を取り込める",
+        "Googleサービスアカウントを使うため権限設計と個人情報管理の確認が必要"
       ],
       "article_ids": [
+        "d8d8c584b7a5537ec950"
+      ],
+      "articles": [
+        {
+          "id": "d8d8c584b7a5537ec950",
+          "title": "Gmail connector in Lakeflow Connect (Beta)",
+          "url": "https://docs.databricks.com/aws/en/release-notes/product/2026/august",
+          "source": "Databricks Release Notes",
+          "published_at": "2026-08-13T00:00:00+00:00",
+          "summary": "You can now ingest data from a Gmail mailbox into Databricks using the managed Gmail connector in Lakeflow Connect. The connector ingests messages, labels, drafts, filters, and profile data using a Google service account, and syncs the messages and message_labels tables incremen…",
+          "category": "リリース速報",
+          "score": 10,
+          "image_url": null
+        }
+      ]
+    },
+    {
+      "product": "dbt Core",
+      "summary": "v1.12.2を中心に、非推奨バージョンの警告とDatabricksアダプター設定の検証改善が入りました。",
+      "changes": [
+        "非推奨dbtバージョンを警告",
+        "Databricks固有設定をJSON Schemaで認識",
+        "更新前にCIとアダプター互換性を確認"
+      ],
+      "article_ids": [
+        "54ab90e049fb0b604c22",
+        "583aab297dae31a77f01",
+        "bb7a4f2063237a14b145",
         "976e062789dc25c47b1e"
       ],
       "articles": [
+        {
+          "id": "54ab90e049fb0b604c22",
+          "title": "dbt-core v1.12.2",
+          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.12.2",
+          "source": "dbt Core Releases",
+          "published_at": "2026-08-12T19:27:40+00:00",
+          "summary": "dbt-core 1.12.2 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 ) Fixes Recognize Databricks adapter config keys ( query_tags , zorder , options , unique_tmp_table_suffix , skip_optimize ) in jsonschema validation so they no longer raise…",
+          "category": "リリース速報",
+          "score": 18,
+          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+        },
+        {
+          "id": "583aab297dae31a77f01",
+          "title": "dbt-core v1.10.23",
+          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.10.23",
+          "source": "dbt Core Releases",
+          "published_at": "2026-08-12T16:28:10+00:00",
+          "summary": "dbt-core 1.10.23 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 )",
+          "category": "リリース速報",
+          "score": 6,
+          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+        },
+        {
+          "id": "bb7a4f2063237a14b145",
+          "title": "dbt-core v1.11.13",
+          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.11.13",
+          "source": "dbt Core Releases",
+          "published_at": "2026-08-12T15:48:56+00:00",
+          "summary": "dbt-core 1.11.13 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 ) Fixes Fix intermittent \"references a model that does not exist\" parsing error when unit testing versioned models, caused by non-deterministic filesystem parse order ( #11…",
+          "category": "リリース速報",
+          "score": 6,
+          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+        },
         {
           "id": "976e062789dc25c47b1e",
           "title": "dbt-core v1.12.1",
@@ -378,212 +404,37 @@
       ]
     },
     {
-      "product": "Snowflake",
-      "summary": "Iceberg連携、AI処理、エージェント管理、データ品質監視などのGA・プレビューが相次いでいます。",
+      "product": "Databricks",
+      "summary": "サーバーレス計算上でJARタスクを実行できる機能が一般提供されました。",
       "changes": [
-        "Amazon S3 TablesのIceberg REST Catalog連携をGA",
-        "動画ファイル向けAI_MULTI_EMBEDをGA",
-        "Native AppsのAgents/MCP対応をGA",
-        "データ品質モニタリングダッシュボードを公開プレビュー",
-        "Trust CenterでAIセキュリティ・エージェント棚卸しを強化"
+        "Scala・JavaコードをJARとしてLakeflow Jobで実行可能",
+        "Scala、JDK、Databricks Connectのバージョン整合性が必要"
       ],
       "article_ids": [
-        "774affd2857e742e5ee5",
-        "daa3a17de153dfeab222",
-        "c73cd5b2670a4e33cf9c",
-        "b282afca7ae4a347f117",
-        "3e421e6d45173944f60e",
-        "e389a5a631f806834fbf"
+        "a7254e120b6ba2d8028b"
       ],
       "articles": [
         {
-          "id": "774affd2857e742e5ee5",
-          "title": "Snowflake: amazon s3 tables iceberg rest catalog integration ga",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-10-amazon-s3-tables-iceberg-rest-catalog-integration-ga",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-08-10T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 20,
-          "image_url": null
-        },
-        {
-          "id": "daa3a17de153dfeab222",
-          "title": "Snowflake: ai multi embed large video files ga",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-10-ai-multi-embed-large-video-files-ga",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-08-10T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 12,
-          "image_url": null
-        },
-        {
-          "id": "c73cd5b2670a4e33cf9c",
-          "title": "Snowflake: native apps agents mcp ga",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-07-native-apps-agents-mcp-ga",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-08-07T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 8,
-          "image_url": null
-        },
-        {
-          "id": "b282afca7ae4a347f117",
-          "title": "Snowflake: data quality monitoring dashboard pupr",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-07-29-data-quality-monitoring-dashboard-pupr",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-07-29T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 19,
-          "image_url": null
-        },
-        {
-          "id": "3e421e6d45173944f60e",
-          "title": "Snowflake: trust center ai security ga",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-03-trust-center-ai-security-ga",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-08-03T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 12,
-          "image_url": null
-        },
-        {
-          "id": "e389a5a631f806834fbf",
-          "title": "Snowflake: trust center ai agents inventory preview",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-03-trust-center-ai-agents-inventory-preview",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-08-03T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 10,
-          "image_url": null
-        }
-      ]
-    },
-    {
-      "product": "Databricks Unity Catalog",
-      "summary": "ABACポリシーの対象がAIサービスやMCPサービスに広がり、ガバナンス範囲が拡大しました。",
-      "changes": [
-        "タグ条件による動的権限付与の対象をモデルサービス、MCPサービスなどへ拡張"
-      ],
-      "article_ids": [
-        "d8d8c584b7a5537ec950"
-      ],
-      "articles": [
-        {
-          "id": "d8d8c584b7a5537ec950",
-          "title": "Unity Catalog ABAC GRANT policies support more securable types in Beta",
-          "url": "https://docs.databricks.com/aws/en/release-notes/product/2026/august",
+          "id": "a7254e120b6ba2d8028b",
+          "title": "JAR tasks on serverless compute are now generally available",
+          "url": "https://docs.databricks.com/aws/en/release-notes/serverless",
           "source": "Databricks Release Notes",
-          "published_at": "2026-08-11T00:00:00+00:00",
-          "summary": "ABAC GRANT policies dynamically grant Unity Catalog privileges to securables whose governed tags match a condition. These policies were previously only available for models, but now also support model services, model provider services, Model Context Protocol (MCP) services, agen…",
+          "published_at": "2026-08-06T00:00:00+00:00",
+          "summary": "Package Scala or Java code as a JAR and run it as a task in a Lakeflow Job on serverless compute. Your JAR must match the Scala, Java Development Kit (JDK), and Databricks Connect versions of your serverless environment version. See Create and run JARs on serverless compute .",
           "category": "リリース速報",
-          "score": 6,
+          "score": 12,
           "image_url": null
         }
       ]
     }
   ],
-  "gadget_digest": [
-    {
-      "theme": "新しいPC周辺機器",
-      "summary": "エレコムの充電ケーブル一体型USBハブやKeychron Nape Proワイヤレストラックボールが登場しています。",
-      "benefits": [
-        "充電ケーブルとUSBハブを一体化し、持ち運ぶ機器を減らせる",
-        "トラックボールは手首やマウス移動を抑えたい利用者に向く",
-        "購入前に端子数、給電能力、OS対応、ポインタ操作の相性を確認する"
-      ],
-      "article_ids": [
-        "9575ea5c497b1292b6f8",
-        "b46c8149df4998db56f1"
-      ],
-      "articles": [
-        {
-          "id": "b46c8149df4998db56f1",
-          "title": "Keychron Nape Pro wireless trackball launches for $90 to fix your desk setup - Notebookcheck",
-          "url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxNMWcwQkJ6eGRaY000cktua0VLSkJQVm4yS0NoNFJEWXJvamp4dWZsWi1xNVI3cERwRVZjRHRRV0ZrLUdzcFZHb2hCMGUtbkZxMDIyU1Y2b05QSnd3eFo0M0VIeUxNSjl1Z1RVRFowOWxkXzN2V0I1QUZCWHVlMmZtYzNTcDFuVzdodjE0ekpxVm8zbnVXb0FHLXdMNDVXN1JGSE9XZDgxWnQ0VHZzckNHbHRSdkE2WFJNU21aOQ?oc=5",
-          "source": "Desk Setup / Global",
-          "published_at": "2026-07-31T07:00:00+00:00",
-          "summary": "Keychron Nape Pro wireless trackball launches for $90 to fix your desk setup Notebookcheck",
-          "category": "業務改善・QOL",
-          "score": 7,
-          "image_url": null
-        }
-      ]
-    },
-    {
-      "theme": "デスクツアー・作業環境",
-      "summary": "入力機器、モニター、接続機器を用途別に整理し、配線と持ち運びを簡素化する構成が中心です。",
-      "benefits": [
-        "充電・接続を一本化して出社時の準備時間を短縮",
-        "トラックボールで狭い机でも操作領域を確保",
-        "製品を足す前に、モニター配置・配線・収納を先に整えると費用対効果が高い"
-      ],
-      "article_ids": [
-        "9575ea5c497b1292b6f8",
-        "bfea06060081a689d44b",
-        "11e78214e6681ec2c6e8",
-        "b46c8149df4998db56f1",
-        "3d50188f9c5931f78d5e"
-      ],
-      "articles": [
-        {
-          "id": "bfea06060081a689d44b",
-          "title": "I've performed a small miracle—for under $200, you can upgrade your entire desk setup in one go - PC Gamer",
-          "url": "https://news.google.com/rss/articles/CBMilgJBVV95cUxOWUxvTzAydGNsNXFTWmw2WTdkNjBqZG1kUnNaMEVoTUgwT2ZJd29XR2VMMEpHMGFhZ3dIM3kzeXVtbG1nV1FrWnVfOWxFY3MxbVJhYWRyM0ZIRkNPODVaU3hFaUNBRGcxZ1kydXdTMTNsUnFBWVVtaG5hRHlKX2dYS3pWS3F4T0VHclFZZEw5MDlhX3dGSnFQbjdyOG9mTnZWVlFYNU1YdHIyU0xlakJCbFVqX01HZ0VmR1E4VTgtSUd3YVVsUVBUM3gyTXAzV0FvdDYzeURJM0lVU2I4OFZoVGVrX1JjVjZrZVlhWGNCc0o0Zmd6U1NpMEhrek1tTG53ZTZrbkEyZ0RYS1hqNlJmejhJczhiUQ?oc=5",
-          "source": "Desk Setup / Global",
-          "published_at": "2026-08-11T16:22:05+00:00",
-          "summary": "I've performed a small miracle—for under $200, you can upgrade your entire desk setup in one go PC Gamer",
-          "category": "業務改善・QOL",
-          "score": 9,
-          "image_url": null
-        },
-        {
-          "id": "11e78214e6681ec2c6e8",
-          "title": "10 ways to upgrade your PC desk setup for less than $100 - PCWorld",
-          "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxPajdNbEsySHVxYjBhaExfek5qeFllOXEtNlBaSmMxNXdKT2xpaFVhWmhLZFQwRjFLUjRlSmJybkdPbUh4TkMzR2swcFJhMjV5aE9lWmxHRlF0YjFESHNmT0s4NVBfZFhLMV9JWnJIYTRXZnFuejdxUDRxMzRfSkdxUEJQSVVGbkllSGxTaDRhZmxqSEU3ZFIwYVhVYm1rU0ZY?oc=5",
-          "source": "Desk Setup / Global",
-          "published_at": "2026-07-29T19:11:20+00:00",
-          "summary": "10 ways to upgrade your PC desk setup for less than $100 PCWorld",
-          "category": "業務改善・QOL",
-          "score": 9,
-          "image_url": null
-        },
-        {
-          "id": "b46c8149df4998db56f1",
-          "title": "Keychron Nape Pro wireless trackball launches for $90 to fix your desk setup - Notebookcheck",
-          "url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxNMWcwQkJ6eGRaY000cktua0VLSkJQVm4yS0NoNFJEWXJvamp4dWZsWi1xNVI3cERwRVZjRHRRV0ZrLUdzcFZHb2hCMGUtbkZxMDIyU1Y2b05QSnd3eFo0M0VIeUxNSjl1Z1RVRFowOWxkXzN2V0I1QUZCWHVlMmZtYzNTcDFuVzdodjE0ekpxVm8zbnVXb0FHLXdMNDVXN1JGSE9XZDgxWnQ0VHZzckNHbHRSdkE2WFJNU21aOQ?oc=5",
-          "source": "Desk Setup / Global",
-          "published_at": "2026-07-31T07:00:00+00:00",
-          "summary": "Keychron Nape Pro wireless trackball launches for $90 to fix your desk setup Notebookcheck",
-          "category": "業務改善・QOL",
-          "score": 7,
-          "image_url": null
-        },
-        {
-          "id": "3d50188f9c5931f78d5e",
-          "title": "OmniBook + Poly + Monitors: The Ultimate Home Office Setup Guide - HP",
-          "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxPVlpMdWtyalZGaFZRUVAwYUs2THFwSFoyY3k5QmZZRkhsUE9kNEdvVFVaTEtJQ0VLS2taUWhacDBEWEF4Qy1MeVVvLUJTNHNYb1d5ZEh2ZHdlbFpTQU1SaDRkRTNOWHJmQjh1cHlDdG05cks1bGVQODZFM2UxWWhuY001WElROFhJc2twdGxpNjhHU3J1QXcyb0tpWDdLaTJI?oc=5",
-          "source": "Desk Setup / Global",
-          "published_at": "2026-07-24T22:18:06+00:00",
-          "summary": "OmniBook + Poly + Monitors: The Ultimate Home Office Setup Guide HP",
-          "category": "業務改善・QOL",
-          "score": 6,
-          "image_url": null
-        }
-      ]
-    }
-  ],
+  "gadget_digest": [],
   "tech_picks": [
     {
       "article_id": "a6af201a1b2f923fe2d2",
-      "label": "AIエージェントのOpenTelemetry計装",
-      "insight": "エージェントの思考・ツール呼び出し・失敗をトレース化し、Lakehouse上で運用分析する設計が参考になります。",
-      "why_read": "AIエージェントを試作から本番へ移す際の可観測性を、具体的な構成で学べます。",
+      "label": "AIエージェントをOpenTelemetryで計装",
+      "insight": "エージェントの推論・ツール呼び出し・失敗箇所をトレースとしてLakehouseへ残す設計を学べます。",
+      "why_read": "AIを本番運用する際のデバッグ可能性と監査性を高める具体例です。",
       "article": {
         "id": "a6af201a1b2f923fe2d2",
         "title": "AIエージェントをOpenTelemetryで計装し、DatabricksのLakehouseにトレースを残してみた",
@@ -599,8 +450,8 @@
     {
       "article_id": "d91ed34cf3270b44fb30",
       "label": "LLM比較と失敗スパンアラート",
-      "insight": "モデル別のコスト・速度・失敗率を比較し、エラーを自動通知する運用パターンを示しています。",
-      "why_read": "モデル選択と障害対応を感覚ではなく計測値で改善できます。",
+      "insight": "同一質問でモデルのコスト、遅延、失敗率を比較し、異常を通知する実装へ進めています。",
+      "why_read": "モデル選択を感覚ではなく運用データで判断する方法が分かります。",
       "article": {
         "id": "d91ed34cf3270b44fb30",
         "title": "OpenTelemetryでAIエージェントのLLM比較と失敗スパンアラートまでやってみた",
@@ -614,53 +465,53 @@
       }
     },
     {
-      "article_id": "2e03b69bf3725726eb6f",
-      "label": "Cloud Run JobとManaged Airflowでdbtを運用",
-      "insight": "dbtをコンテナ化し、Cloud Run JobとAirflowで定期実行する構成を確認できます。",
-      "why_read": "クラウド上でELTジョブを分離・再実行可能にする実装手順が得られます。",
+      "article_id": "c6b505b58abf61320e0a",
+      "label": "dbt CI/CDとLakeflow JobsのDABs管理",
+      "insight": "dbtのCI/CD、定期実行、環境分離、Declarative Automation BundlesによるIaC化を扱います。",
+      "why_read": "複数事業・複数環境でデータ基盤を安全に継続運用する設計知が得られます。",
       "article": {
-        "id": "2e03b69bf3725726eb6f",
-        "title": "Cloud Run Job で dbt を実行して Managed Airflow からオーケストレーションする手順",
-        "url": "https://qiita.com/satoshi_enomoto/items/4eefa793eb171fdd9170",
-        "source": "Qiita / dbt",
-        "published_at": "2026-08-12T09:17:09+00:00",
-        "summary": "はじめに 本記事では、以下の記事で作成される Silver テーブルを入力として、dbt を使って Gold テーブルを作成します。 dbtの実行環境には Cloud Run Job を利用し、dbt プロジェクトを Docker コンテナとして実行できるようにしま...",
+        "id": "c6b505b58abf61320e0a",
+        "title": "dbtのCI/CDとLakeflow Jobsによる定期実行のDABs管理",
+        "url": "https://zenn.dev/genda_jp/articles/29d1ffe3546d4f",
+        "source": "Zenn / dbt",
+        "published_at": "2026-07-31T00:00:30+00:00",
+        "summary": "こんにちは、データマネジメント部でデータエンジニアをしています。山城です。 今回はデータチームで管理しているdbtのCI/CDや、定期実行用Lakeflow Jobsについて実際に行っている下記の取り組みについてまとめます。GENDAの場合だと、複数の事業・グループ企業があるため、それぞれの管理や環境を分ける部分に注力して作成しました。 dbtのCI/CD dbtの定期実行用Lakeflow JobsのDeclarative Automation Bundles (DABs) によるIaC化 Lakeflow JobsのCD 前提 簡単に取り組み前の状…",
         "category": "技術コミュニティ",
-        "score": 17,
+        "score": 21,
         "image_url": null
       }
     },
     {
-      "article_id": "862e1affb02d656546e4",
-      "label": "S3 Tables×Snowflake CLDの不整合調査",
-      "insight": "Icebergテーブル連携で発生したbase directory不整合を、エラーから追跡する過程が記録されています。",
-      "why_read": "マルチクラウドのデータ基盤で起きる境界条件と切り分け方法を学べます。",
+      "article_id": "dff1b140017a357a1e02",
+      "label": "Snowflake MLOpsのコスト事故と改善",
+      "insight": "推論済みデータの格納経路がウェアハウスを長時間稼働させ、高額費用を生んだ事例です。",
+      "why_read": "性能だけでなく、データ転送と課金単位を含めてMLOps設計を見直せます。",
       "article": {
-        "id": "862e1affb02d656546e4",
-        "title": "Amazon S3 Tables×Snowflake CLDでbase directory不整合が発生した話",
-        "url": "https://zenn.dev/penginpenguin/articles/c48e7859b48341",
-        "source": "Zenn / Snowflake",
-        "published_at": "2026-08-11T01:17:21+00:00",
-        "summary": "はじめに AWS Community Builderのぺんぎん（@jitepengin）です。 S3 Tables上のIcebergテーブルを、SnowflakeのCatalog-Linked Database（以下CLD）経由で参照する構成を組んでいました。 その際、興味深いエラーに遭遇したので調査過程含めて共有します。 Snowsight上で、あるテーブルのData Previewを眺めていたところ、下記のようなエラーが出ていることに気づきました。 The parquet file 'data/xxxx/xxxx/xxxx/xxxxxxxx/tar…",
-        "category": "技術コミュニティ",
-        "score": 18,
-        "image_url": null
-      }
-    },
-    {
-      "article_id": "24d790d2eceaf381a40f",
-      "label": "Snowflake MLOpsの高額コスト削減事例",
-      "insight": "推論データ投入中にウェアハウスが稼働し続けたコスト問題と、21万円削減した回避策を扱っています。",
-      "why_read": "MLOpsの性能だけでなく、実行経路と課金単位を確認する重要性が分かります。",
-      "article": {
-        "id": "24d790d2eceaf381a40f",
+        "id": "dff1b140017a357a1e02",
         "title": "【MLOps】Snowflakeで1回25万円溶かして21万円削ったが虚業だった話【ストレージ統合させてくれ】",
-        "url": "https://qiita.com/qiita_mita/items/c44b309ba7f02472a145",
-        "source": "Qiita / Snowflake",
-        "published_at": "2026-08-11T13:19:41+00:00",
-        "summary": "目次 はじめに 結論 1回25万円の請求が来た元々の処理構成 本来やりたかった改善策 立ちはだかった組織の壁 苦肉の策：ローカル落とし＋PUT＋COPY INTO 本来はどうすべきだったのかの結果論 感想 はじめに 新しい機械学習モデルの基盤を構築し、はじめての商用...",
+        "url": "https://zenn.dev/zenn_mita/articles/e18a00ccb2625e",
+        "source": "Zenn / Snowflake",
+        "published_at": "2026-08-11T13:18:55+00:00",
+        "summary": "目次 はじめに 結論 1回25万円の請求が来た元々の処理構成 本来やりたかった改善策 立ちはだかった組織の壁 苦肉の策：ローカル落とし＋PUT＋COPY INTO 本来はどうすべきだったのかの結果論 感想 はじめに 新しい機械学習モデルの基盤を構築し、はじめての商用運用を実施したところ、 1回の実行で25万円のSnowflakeのコンピュートコストがかかってしまいました。 コスト増加の原因は、SagemakerからSnowflakeに推論済みデータを格納する処理中ずっとウェアハウスが動きっぱなしだったこと。 それらを回避するために対応策を考えたのですが…",
         "category": "技術コミュニティ",
         "score": 16,
+        "image_url": null
+      }
+    },
+    {
+      "article_id": "9c4e0c738afb690a0eff",
+      "label": "Apache IcebergとBigLakeのハンズオン",
+      "insight": "Icebergの基本概念と、複数クラウド・データ基盤での位置づけを実習形式で整理しています。",
+      "why_read": "Lakehouseのテーブル形式を比較検討する際の前提知識を補えます。",
+      "article": {
+        "id": "9c4e0c738afb690a0eff",
+        "title": "Apache Iceberg / BigLake を学んでみた",
+        "url": "https://zenn.dev/tetsu_don/articles/c79d105d8b0ac3",
+        "source": "Zenn / Iceberg",
+        "published_at": "2026-07-30T13:09:15+00:00",
+        "summary": "Apache Iceberg / BigLake を学んでみた（座学＋ハンズオン） はじめに てつどんです。BigQuery・Dataform を中心にデータエンジニアリングを学んできましたが、次のトピックをClaudeとともに探していたところ、「2026年、Apache Iceberg がテーブルフォーマットの標準としてほぼ決着がついた」という情報を目にしました。 Snowflake・Databricks・AWS・Google・Microsoft すべてが Iceberg フォーマットの読み書きに対応しており、避けて通れない技術になってきています。今…",
+        "category": "技術コミュニティ",
+        "score": 32,
         "image_url": null
       }
     }

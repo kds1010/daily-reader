@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-12T15:16:57.670355+00:00",
+  "generated_at": "2026-08-13T00:31:20.420053+00:00",
   "article_count": 500,
   "errors": [],
   "articles": [
@@ -45,17 +45,6 @@
       "summary": "TL;DR 日本のスタートアップ／成長企業では、対話型音声AIの IVRy、エンタメの GENDA、薬局DXの カケハシ、リユースの BuySell、レシピ動画の エブリー、リテールメディアの データ・ワン、企業DBの SalesNow、自動運転の チューリング（Turing）、Fintechの マネーフォワード などが、2022年以降にDatabricks採用を加速させている。共通するのは「メダリオンアーキテクチャ」「Unity Catalogによるガバナンス」「Genieによる分析民主化」の3点である。 定量成果として、データ・ワンはRedshif…",
       "category": "技術コミュニティ",
       "score": 26,
-      "image_url": null
-    },
-    {
-      "id": "9f238e5abfd9363f2ca6",
-      "title": "【今すぐ読みたい！人気記事】「マルチモニターが使いにくい」は過去のこと～Windows 11ならこんなに便利になる！機能まとめ - PC Watch",
-      "url": "https://pc.watch.impress.co.jp/docs/topic/readitnow/2132085.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-11T21:11:00+00:00",
-      "summary": "デスクトップを拡大して生産性を高められるマルチモニター環境。でも、Windows 10時代までは必ずしもメリットばかりではなかった。解像度の異なるモニター同士ではマウスカーソルの行き来がスムーズじゃなかったり、モニターの着脱でウィンドウの位置がすぐにリセットされてしまったりなど、使いにくいと感じる場面もけっこうあったのだ。",
-      "category": "業務改善・QOL",
-      "score": 25,
       "image_url": null
     },
     {
@@ -202,17 +191,6 @@
       "image_url": null
     },
     {
-      "id": "8a428efaf257320eca7d",
-      "title": "脳内に「睡眠スイッチ」が発見されたことで、不眠症治療の新たな道が開かれた。 - Vietnam.vn",
-      "url": "https://news.google.com/rss/articles/CBMikgFBVV95cUxOOEZIeW9RUmxOQjJMOWVQN05GcklpMnQwVjZWRkFRVEQxUE9zOVY5OG10X3JaRHQ1ZkNlcHNqZzVWaUdsQzJLWU5lQmJ2a3dpVkhTT3FvNi1YN05JbkZ6b0xIdnB4WWFsT0tlTnFnd1JvSDBJZmU0aWVibmdqZjE5RjkxY0EzQnhXVTY1WWFWRkF4dw?oc=5",
-      "source": "睡眠研究ニュース",
-      "published_at": "2026-07-24T07:00:00+00:00",
-      "summary": "脳内に「睡眠スイッチ」が発見されたことで、不眠症治療の新たな道が開かれた。 Vietnam.vn",
-      "category": "睡眠",
-      "score": 21,
-      "image_url": null
-    },
-    {
       "id": "774affd2857e742e5ee5",
       "title": "Snowflake: amazon s3 tables iceberg rest catalog integration ga",
       "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-10-amazon-s3-tables-iceberg-rest-catalog-integration-ga",
@@ -301,10 +279,21 @@
       "image_url": null
     },
     {
+      "id": "54ab90e049fb0b604c22",
+      "title": "dbt-core v1.12.2",
+      "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.12.2",
+      "source": "dbt Core Releases",
+      "published_at": "2026-08-12T19:27:40+00:00",
+      "summary": "dbt-core 1.12.2 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 ) Fixes Recognize Databricks adapter config keys ( query_tags , zorder , options , unique_tmp_table_suffix , skip_optimize ) in jsonschema validation so they no longer raise…",
+      "category": "リリース速報",
+      "score": 18,
+      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+    },
+    {
       "id": "15e4b93dd73d7c94d823",
       "title": "AIガバナンスを「運用能力」として設計する",
       "url": "https://zenn.dev/tomyuk/articles/ai-governance-operating-capability",
-      "source": "Zenn / LLM",
+      "source": "Zenn / 生成AI",
       "published_at": "2026-08-12T10:56:11+00:00",
       "summary": "AIガバナンスを「運用能力」として設計する はじめに AIガバナンスという言葉は、しばしば「AIを安全に縛る仕組み」として受け取られる。 利用禁止事項を並べる。入力してはいけない情報を定義する。利用申請フローを作る。法務、セキュリティ、情報システム部門が現場利用を管理する。 もちろん、これらは必要である。生成AIやLLMを業務に使えば、機密情報の入力、誤回答、差別的な出力、著作権や契約上の問題、説明不能な判断、ベンダー依存などのリスクが出る。ルールなしに現場任せにするのは危うい。 ただし、AIガバナンスを「禁止と承認の仕組み」だけで考えると、運用上もっ…",
       "category": "生成AI活用",
@@ -345,12 +334,23 @@
       "image_url": null
     },
     {
+      "id": "a5a365b355420c7bea4b",
+      "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 - bcnretail.com",
+      "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1wRFNteEppM0tYOHFWU05fc0FzUDdTcVNQcDVjaXZKMW5xZW9vN2NuUjdOUTNZb085OEhDYVRZMEtTQXZwcFBnRFhwN0h5QnNyanVnQnU5dTdsTVhneXQwOHVtX2FrcFNyYlE?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-07-17T07:00:00+00:00",
+      "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 bcnretail.com",
+      "category": "睡眠",
+      "score": 18,
+      "image_url": null
+    },
+    {
       "id": "05ab2ae5e5fc59bd1bb4",
-      "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 - BCN Retail",
+      "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 - bcnretail.com",
       "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTE0zMm1Sai1Zc05scjlFQ0FkcUpfLVMtZXRpTS1xb2h3Z0R0d1dXY3Q5M0hjRVJCVTZnb2pZT3JSbXNISkhGTEV1S0VaeUZoRjFiUE9FQXFINlNacXVKNjlSclR1WXF3dVNBT3NwUjN3V3BwTHUw?oc=5",
       "source": "睡眠製品ニュース",
       "published_at": "2026-07-17T07:00:00+00:00",
-      "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 BCN Retail",
+      "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 bcnretail.com",
       "category": "睡眠",
       "score": 18,
       "image_url": null
@@ -401,11 +401,11 @@
     },
     {
       "id": "9575ea5c497b1292b6f7",
-      "title": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは - goodspress.jp",
+      "title": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは - GoodsPress Web",
       "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE51MS01MXdJOHB1Q2IzRFpCY1NVMXJGaC1ha2x4XzJ6S3FEZVdFZjhLcHdfM1o1NURCSmtXZE1yNVZtdXQ1WFMwcTNKVU9tM1E?oc=5",
       "source": "デスクツアー・作業環境",
       "published_at": "2026-08-10T21:00:00+00:00",
-      "summary": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは goodspress.jp",
+      "summary": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは GoodsPress Web",
       "category": "業務改善・QOL",
       "score": 17,
       "image_url": null
@@ -653,6 +653,17 @@
       "image_url": null
     },
     {
+      "id": "3116721973bc30613414",
+      "title": "【ヒツジのいらない枕(R)× LUCY尾瀬鳩待】日本最大級の高層湿原・尾瀬国立公園で、究極の睡眠による“前泊体験”を！「スリープチャージステイ」プラン提供開始 - 信濃毎日新聞デジタル",
+      "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTE83VmRsLTZMWkRZampJOHRISjB2QW1Td3RMSnNWMlh6M0FCU3hCM3hWVTlfdGZ5VzJvYTdBWjRBeDdmMGFwV05oRTdBZFN0bkhlMWNlb1JhVl8xWTZPbm16Slo5Vkd4dw?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-07-31T07:00:00+00:00",
+      "summary": "【ヒツジのいらない枕(R)× LUCY尾瀬鳩待】日本最大級の高層湿原・尾瀬国立公園で、究極の睡眠による“前泊体験”を！「スリープチャージステイ」プラン提供開始 信濃毎日新聞デジタル",
+      "category": "睡眠",
+      "score": 14,
+      "image_url": null
+    },
+    {
       "id": "f633b6f68c40e16de717",
       "title": "Snowflake: notebooks compute monitoring",
       "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-07-31-notebooks-compute-monitoring",
@@ -708,23 +719,23 @@
       "image_url": null
     },
     {
+      "id": "712864a167f6dff97022",
+      "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用（BCN） - Yahoo!ニュース",
+      "url": "https://news.google.com/rss/articles/CBMif0FVX3lxTE5jRFQzRkttX2RRN2k5TU1mSldRUFZVMXZ0UmNCckdaMmhTQVplTUttbXNONkd2YWt4U1FJczZVem5SWXVmYXJoTGY2cU43UWxjUk1yc3lYWG81bXRfUy1UTkU0YXFSb1hBZnhGOWJueDlITlIxUEV1eHlYTVlEbUU?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-07-17T07:00:00+00:00",
+      "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用（BCN） Yahoo!ニュース",
+      "category": "睡眠",
+      "score": 14,
+      "image_url": null
+    },
+    {
       "id": "e1383e8177c6b0490bc3",
       "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 - ウレぴあ総研",
       "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE9WNUVuR0JmazlCMzVxczdkMGk5TWVZZC03cmhkTEtndE55Ry1PNmpjZ1RCOXZlZ2hrLWdiNjNsbVFmVHBybEdwamZOU19ZOWlneWc?oc=5",
       "source": "睡眠製品ニュース",
       "published_at": "2026-07-17T07:00:00+00:00",
       "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 ウレぴあ総研",
-      "category": "睡眠",
-      "score": 14,
-      "image_url": null
-    },
-    {
-      "id": "72b6b903a0e305e2091b",
-      "title": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 - ｄメニューニュース",
-      "url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE4zb3BQNlZzLUpIVWdzM2hjSndaM1lxOEFINl9MeXVNcU1CNHFkSF9RNkNkbHlTS3BiRHM3eTFKenp6QW1JeWJQaW1jRXd3MEFwXzRGSDktc0JzVzFoSXpYUVRTeUI2RHVkblI3aEw0RDV0eXplMlZob2FDQ3LSAYIBQVVfeXFMT0tMYUxVN1ZVQzhKNHVjeXI2NGxOWnBTNTVoT0VFaFdoTG5DXzV1ekNXcmM2WnJrT3d4ZktMb1BpVFBka1ctUGZLQnNoV0FOdE1MX3YtVkJlTnRCc29fMWRJRllsdTdNOU1IRXgyd1lLWUhyR2llRk5XR2FwMzZGR3R6QQ?oc=5",
-      "source": "睡眠製品ニュース",
-      "published_at": "2026-07-17T07:00:00+00:00",
-      "summary": "快適な睡眠環境をサポートするリカバリーマットレス アスリートが愛用 ｄメニューニュース",
       "category": "睡眠",
       "score": 14,
       "image_url": null
@@ -807,6 +818,17 @@
       "image_url": null
     },
     {
+      "id": "33fbb6daacd093ab1ca4",
+      "title": "梅雨の時季こそ“睡眠”が大切！コアラスリープジャパンの夏のおすすめ寝具3選 - ウォーカープラス",
+      "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1HMFlDREFEUlVrVEVBS29pN2Y3RElsZHJhcTNxMnJjd2E4QzR3RG1uQ3g2WXlLLTFXYmJ0V3IwbFN3d01GeDhuR1liNXRXd2txOHhKTktB0gFbQVVfeXFMT0NyZzNIc2Y4X0xicUt0cnJkamJqUUp3dmVNc0ZFeDhCMmhwU3FfcVZPRFNBWE12bnpJNjN6Um1IUjRyVEd6UXNCX3hmNHl3Zkp5VFlhN1BTemItOA?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-07-27T07:00:00+00:00",
+      "summary": "梅雨の時季こそ“睡眠”が大切！コアラスリープジャパンの夏のおすすめ寝具3選 ウォーカープラス",
+      "category": "睡眠",
+      "score": 13,
+      "image_url": null
+    },
+    {
       "id": "c6e98a740631de0b9e8c",
       "title": "舞岡)乳幼児発育測定会",
       "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=110918",
@@ -825,6 +847,17 @@
       "published_at": "2026-08-22T00:00:00+00:00",
       "summary": "こども向け、イベント、屋外（雨天変更）・こども向け イベント 屋外（雨天変更） 第52回 金沢まつり花火大会 エリア 南部エリア（金沢・南・港南・戸塚・栄） 開催日程 2026年8月22日(土) ※小雨決行… 住所 海の公園 もっとみる",
       "category": "横浜イベント",
+      "score": 12,
+      "image_url": null
+    },
+    {
+      "id": "427b57e33803403eed04",
+      "title": "Databricks入門：カタログ設計",
+      "url": "https://qiita.com/mellowlaunch/items/95e8dba12367435a50a0",
+      "source": "Qiita / Databricks",
+      "published_at": "2026-08-12T21:14:10+00:00",
+      "summary": "📚 参考動画 📚 参考書籍 『ゼロから触ってわかった！ Databricks 本番導入完全ガイド（非公式） ― Serverless・Lakeflow・AI時代のデータ基盤実践 ― 』 『Databricks──ゼロから触ってわかった！Databric...",
+      "category": "技術コミュニティ",
       "score": 12,
       "image_url": null
     },
@@ -873,17 +906,6 @@
       "image_url": null
     },
     {
-      "id": "2739cd24f7df09f8a174",
-      "title": "厚さ4.75mmのMac向け極薄メカニカルキーボード",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2132213.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-12T03:50:19+00:00",
-      "summary": "Electronic Materials Officeは8月6日(英国時間)、厚さ4.75mmの極薄筐体を採用したMac向けのフルメカニカルキーボード「Altar II」を発表した。Kickstarterでは11月10日にキャンペーンを公開する予定で、製品の発送は2027年初夏を予定している。現在予約受付を開始しており、予約者はKickstarterに249ドル(約4万円)出資することで入手できる。",
-      "category": "業務改善・QOL",
-      "score": 12,
-      "image_url": null
-    },
-    {
       "id": "c47ed08706185fbb1395",
       "title": "AWS S3をPythonで操作する — boto3の基本をまとめた",
       "url": "https://qiita.com/cozy_666_tech/items/47d150bfa231f2dc2834",
@@ -923,17 +945,6 @@
       "source": "Zenn / Snowflake",
       "published_at": "2026-08-09T22:00:05+00:00",
       "summary": "Snowflake App Runtimeに無限の可能性を感じています。 AIの進化で業務で利用するWebアプリを簡単に作ることができる時代になりましたが、それを安全にアクセスしたりするように管理するための基盤を運用していくプラットフォームがなければ安心して使うことができません。 App RuntimeはSnowflakeがその基盤をまるっと管理してくれていて、Snowflakeと同じ認証情報を利用できるので社内アプリのデプロイ先としてはかなり有力な選択肢の一つです。 SCIMで自動でユーザーのプロビジョニングができ、SAMLで認証できるので社内の共通…",
-      "category": "技術コミュニティ",
-      "score": 12,
-      "image_url": null
-    },
-    {
-      "id": "a32fc70c6a885d5eb06f",
-      "title": "Genie Codeと学ぶDatabricks 最終回: コーディングエージェントに、エージェントそのものを作らせる",
-      "url": "https://qiita.com/taka_yayoi/items/772b995354b9e6dec631",
-      "source": "Qiita / Databricks",
-      "published_at": "2026-08-08T06:56:57+00:00",
-      "summary": "連載「Genie Codeと学ぶDatabricks」 入門編: 作らせて読む学習法 Unity Catalog編: 3階層名前空間を体で覚える Delta Lake編: わざと事故を起こして、タイムトラベルで戻す Lakeflow編: DesignerとSDPは同じ...",
       "category": "技術コミュニティ",
       "score": 12,
       "image_url": null
@@ -1247,6 +1258,17 @@
       "image_url": null
     },
     {
+      "id": "bb428ed9c5835547c61e",
+      "title": "COMPUTEXを振り返る、ASUSの24金コートプレート付きハイエンドキーボードや、MSIの本当に水に強い防滴性能を高めたキーボードなど(キーボード編)",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132439.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-13T00:30:00+00:00",
+      "summary": "6月に開催されたPC/IT関連の見本市「COMPUTEX TAIPEI 2026」。今年も数多くの製品が発表され、弊誌でも記事やXへの投稿でご紹介しました。今回の記事では、Xに投稿した数多くのアイテムをジャンル分けし、COMPUTEXを振り返るかたちで改めてお届けします。",
+      "category": "業務改善・QOL",
+      "score": 11,
+      "image_url": null
+    },
+    {
       "id": "9dfb4ca098caad433bee",
       "title": "NVIDIA、エージェントAI向け高速モデル「Nemotron 3.5 Lightning」無償公開",
       "url": "https://pc.watch.impress.co.jp/docs/news/2132324.html",
@@ -1254,17 +1276,6 @@
       "published_at": "2026-08-12T06:52:39+00:00",
       "summary": "エージェントAIのさらなる高速化/効率化を実現するオープンモデル「Nemotron 3.5 Lightning」が8月11日無償公開された。NVIDIAが開発するAIモデル「Nemotron」シリーズの1つで、Hugging Face、ModelScope、OpenRouterのほか、NVIDIA NIMなどを通じて提供している。",
       "category": "業務改善・QOL",
-      "score": 11,
-      "image_url": null
-    },
-    {
-      "id": "75776309a1d8dab4a4c0",
-      "title": "散らばったCLAUDE.mdのうち、どれがズレているのかを出すスクリプトを書いた",
-      "url": "https://zenn.dev/untactit/articles/c65ee6d3011fdf",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-11T21:00:11+00:00",
-      "summary": "前回、AIエージェントの指示ファイルが端末ごとにズレていく話を書きました。構造の話で終わっていたので、今回は実際に計測できるものを作りました。 https://github.com/untactit/agent-drift 単一ファイル・依存ゼロ・Python 3.8+。読み取り専用で、スキャンしたファイルには一切書き込みません。 curl -O https://raw.githubusercontent.com/untactit/agent-drift/main/agent_drift.py python3 agent_drift.py ~/work…",
-      "category": "生成AI活用",
       "score": 11,
       "image_url": null
     },
@@ -1309,6 +1320,28 @@
       "published_at": "2026-08-24T00:00:00+00:00",
       "summary": "場所: 白幡地区センター ( 神奈川区 )",
       "category": "子育て",
+      "score": 10,
+      "image_url": null
+    },
+    {
+      "id": "d8d8c584b7a5537ec950",
+      "title": "Gmail connector in Lakeflow Connect (Beta)",
+      "url": "https://docs.databricks.com/aws/en/release-notes/product/2026/august",
+      "source": "Databricks Release Notes",
+      "published_at": "2026-08-13T00:00:00+00:00",
+      "summary": "You can now ingest data from a Gmail mailbox into Databricks using the managed Gmail connector in Lakeflow Connect. The connector ingests messages, labels, drafts, filters, and profile data using a Google service account, and syncs the messages and message_labels tables incremen…",
+      "category": "リリース速報",
+      "score": 10,
+      "image_url": null
+    },
+    {
+      "id": "d031e79f4510ebde0f13",
+      "title": "AIが「完了しました」と報告したタスクが、実は終わっていなかった話",
+      "url": "https://zenn.dev/maysun/articles/9468721e105843",
+      "source": "Zenn / 生成AI",
+      "published_at": "2026-08-12T12:43:11+00:00",
+      "summary": "タスクを任せた子エージェントが「完了」と報告したのに、実は完了していなかった——同じ午後に2回、こうしてタスクが静かに消えていた。エラーも出ず、「できません」とすら言わずに。 1つ目：以前メインのセッションはブラウザ自動化ツール＋ログイン済みセッションを使ってLinkedInに実際投稿していた（投稿記録あり）。後日、似た作業をバックグラウンドの子エージェントに任せたところ、「LinkedIn自動化は設定されていません」と返ってきた——これ自体は事実だが、その子エージェントの実行環境にはブラウザツールもログインセッションも存在しなかっただけで、「能力が消…",
+      "category": "生成AI活用",
       "score": 10,
       "image_url": null
     },
@@ -1380,11 +1413,11 @@
     },
     {
       "id": "b99ce5d9638a7536181c",
-      "title": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) - ライブドアニュース",
+      "title": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) - news.livedoor.com",
       "url": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE1nVFlVcUlNc3g2Y0FjdmxGNlFpTERKQks4Y3kxOV9pSjFHTmY5eENpaEd6dnFqaHpuRGdjRUMzSngtYkFzOWxQWTFNUUtPTW04X3NzV2x3Q1ZfR2xMakE?oc=5",
       "source": "CLI・ターミナルツール発見",
       "published_at": "2026-07-29T07:00:00+00:00",
-      "summary": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) ライブドアニュース",
+      "summary": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に (2026年7月29日掲載) news.livedoor.com",
       "category": "CLI生産性",
       "score": 10,
       "image_url": null
@@ -1555,19 +1588,85 @@
       "image_url": null
     },
     {
-      "id": "db5022b632d8980d4c9a",
-      "title": "生成AI自社システム組み込みRAGの全貌：仕組み、限界、実践的克服法",
-      "url": "https://qiita.com/Maku-Inc/items/c6ed40c4d2c1c68ca89c",
+      "id": "9eb07f604781be3f3af3",
+      "title": "AI時代、顧客データは「記録」から「予測する資産」へ変わる",
+      "url": "https://qiita.com/mhamadajp/items/66d959ca8815c7da4ac5",
       "source": "Qiita / 生成AI",
-      "published_at": "2026-08-12T10:04:29+00:00",
-      "summary": "生成AI自社システム組み込みRAGの全貌：仕組み、限界、実践的克服法 1. 生成AIとRAGの必要性 大規模言語モデル（LLM）の進化は目覚ましく、私たちの業務プロセスに革命をもたらす可能性を秘めています。しかし、自社システムに組み込む際には、特定の課題に直面します。L...",
+      "published_at": "2026-08-13T00:05:09+00:00",
+      "summary": "顧客管理（CRM：Customer Relationship Management）は長く、「誰に、いつ、何を提案し、どんな対応をしたか」を残すための仕組みでした。生成AIの普及で、この役割が変わり始めています。 目指されているのは、AIが顧客を自動的に支配することではあり...",
+      "category": "生成AI活用",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "2bfeed00a5e9a946f4a5",
+      "title": "LLMって何だろう？",
+      "url": "https://qiita.com/miyukichi/items/2db5256439d8b7b0c856",
+      "source": "Qiita / 生成AI",
+      "published_at": "2026-08-13T00:02:43+00:00",
+      "summary": "はじめに 生成AIが普及する中で、 「LLM（Large Language Model）」 という言葉を耳にする機会が増えました。 生成AIが文章を作成したり、質問に回答できるのは、LLMという技術があるからです。 ということで、今回はLLMの基本的な仕組みやできることに...",
+      "category": "生成AI活用",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "51b06c28d30eeb581fba",
+      "title": "【備忘】『誰でもわかる大規模言語モデル入門』",
+      "url": "https://qiita.com/s-y0001/items/cce9ade8012de0a02029",
+      "source": "Qiita / 生成AI",
+      "published_at": "2026-08-12T23:48:20+00:00",
+      "summary": "経緯 普段から ChatGPT や Gemini、Claude などの生成AIを使っているが、より効果的に活用できるようになりたいと思い、今更ながら、ちゃんと LLM を学ぶこととした。 完全初学者向けの書籍を探していたところ、この本を見つけた。 広く浅く書いてあるので1...",
+      "category": "生成AI活用",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "4a06d2775ceadf97603c",
+      "title": "dbtの基本構成～sourcesとは何か？",
+      "url": "https://qiita.com/mellowlaunch/items/5e42d8e9be8bfedf664e",
+      "source": "Qiita / dbt",
+      "published_at": "2026-08-12T21:39:32+00:00",
+      "summary": "📚 参考書籍 ####『ゼロから触ってわかった！dbt実務入門 非公式ガイド SQLで作るモダンデータ変換・テスト・ドキュメント・セマンティックレイヤー』 本書は、dbtをこれから学びたい方、SQLを使ったデータ変換をより体系的に管理したい方、データ基盤やモダンデータス...",
+      "category": "技術コミュニティ",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "d6608be294bfe13501da",
+      "title": "Databricks～データロード SDP（Spark Declarative Pipeline）とAuto Loader",
+      "url": "https://qiita.com/mellowlaunch/items/d7335719ef6cded040f4",
+      "source": "Qiita / Databricks",
+      "published_at": "2026-08-12T21:16:58+00:00",
+      "summary": "6-2 データロード SDP（Spark Declarative Pipeline）とAuto Loader データロードはPoCの最初の検証ポイント Databricks PoCを進める際、最初に検証するのがデータロード（Data Ingestion）です。 どれほど...",
+      "category": "技術コミュニティ",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "845586e5f6fa2506cf79",
+      "title": "AI生成文章を公開する前の事実確認ゲートを設計する",
+      "url": "https://zenn.dev/miraigent/articles/ai-generated-text-fact-check-gate",
+      "source": "Zenn / 生成AI",
+      "published_at": "2026-08-12T20:36:16+00:00",
+      "summary": "生成AIでブログ、FAQ、営業資料の下書きを作ると、文章の作成時間は短くできます。一方で、公開前に確認すべき事実・日付・数値・固有名詞・引用元が増えることがあります。 この記事では、AI生成文章をそのまま公開せず、**主張ごとに根拠と確認状態を持たせる「事実確認ゲート」**を小さく実装します。対象読者は、AIで公開文書を作り始めた小規模チームの開発者、編集担当者、業務責任者です。 完成状態は、次の4点を一つの記録で説明できることです。 文章のどこに、どんな主張があるか その主張を支える一次情報は何か 誰が、いつ、どの観点を確認したか 未確認の主張を含む…",
+      "category": "生成AI活用",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "1b2a06d542c80c4a7b75",
+      "title": "で、何をAIエージェントにすればいいの？",
+      "url": "https://zenn.dev/jx/articles/2026-08-ai-agent-map",
+      "source": "Zenn / 生成AI",
+      "published_at": "2026-08-12T15:24:21+00:00",
+      "summary": "はじめに：AIエージェントの作り方より先に迷うこと 生成AIの利用が、個人のチャット利用から組織の業務活用へ広がるにつれ、「AIエージェントを作る」「業務にエージェントを導入する」というテーマを目にする機会が増えました。 AIエージェントをどう作るかについては、すでに多くの情報があります。Copilot StudioやPower Automateの使い方、RAGの構成、外部ツールとの接続、エージェントフレームワークの実装方法などは、公式ドキュメントや技術記事から学べます。 一方で、作り方が分かっても、それだけでは何をAIエージェントにすればよいかは決ま…",
       "category": "生成AI活用",
       "score": 8,
       "image_url": null
     },
     {
       "id": "33eabe838bd14a1a9d5b",
-      "title": "Snowflakeで動画をセマンティック検索する — Snowflake AI_MULTI_EMBED Video",
+      "title": "Snowflakeで作るセマンティック動画検索 — Snowflake AI_MULTI_EMBED Video",
       "url": "https://zenn.dev/snowflakejp/articles/4fb66476e2d5c2",
       "source": "Zenn / Snowflake",
       "published_at": "2026-08-12T05:36:56+00:00",
@@ -1584,6 +1683,17 @@
       "published_at": "2026-08-12T02:30:00+00:00",
       "summary": "Amazon.co.jpでは現在、8月17日までの期間限定で「Amazonデバイス」のサマーセールを実施している。その一環として、スマートホーム端末「Echo」シリーズもセール中だ。",
       "category": "業務改善・QOL",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "3c60a7b6a29440de1390",
+      "title": "Python 3.12.14, 3.11.16 and 3.10.21 are now available!",
+      "url": "https://blog.python.org/2026/08/python-31214-31116-31021/",
+      "source": "Python Insider",
+      "published_at": "2026-08-12T00:00:00+00:00",
+      "summary": "[Python Releases Eclipse Your Security!](https://discuss.python.org/t/python-3-12-14-3-11-16-and-3-10-21-are-now-available/108537) New security releases for 3.10, 3.11 and 3.12 are now available.",
+      "category": "開発",
       "score": 8,
       "image_url": null
     },
@@ -1617,17 +1727,6 @@
       "published_at": "2026-08-10T22:00:00+00:00",
       "summary": "米シカゴ大学などに所属する研究者らがPNASで発表した論文「Social dynamics of AI adoption in parents’ educational decisions」は、親が子どもに生成AIを使わせる判断の背景を調査した研究報告だ。",
       "category": "テクノロジー",
-      "score": 8,
-      "image_url": null
-    },
-    {
-      "id": "7806159f04175a63f2bc",
-      "title": "Azure × Databricks～UDR / Firewall設計：強制トンネリングと通信統制",
-      "url": "https://qiita.com/mellowlaunch/items/b3f3baff5e5f88f360ea",
-      "source": "Qiita / Databricks",
-      "published_at": "2026-08-10T20:57:33+00:00",
-      "summary": "📚 参考書籍 ※この記事は書籍の一部をベースに再構成しています。もう少し踏み込んだ内容（設計や具体例）は書籍の中でまとめているので、気になる方はそちらもどうぞ。 『ゼロから触ってわかった！Azure × Databricksでつくる次世代データ基盤 非公式ガイド ―』...",
-      "category": "技術コミュニティ",
       "score": 8,
       "image_url": null
     },
@@ -1929,17 +2028,6 @@
       "image_url": null
     },
     {
-      "id": "cfb33881e1e4ecfd1603",
-      "title": "dbtプロジェクトの全体像",
-      "url": "https://qiita.com/mellowlaunch/items/f4420ee1cd5a26f12e04",
-      "source": "Qiita / dbt",
-      "published_at": "2026-07-28T21:20:27+00:00",
-      "summary": "📚 関連書籍 ※この記事は書籍の一部をベースに再構成しています。もう少し踏み込んだ内容（設計や具体例）は書籍の中でまとめているので、気になる方はそちらもどうぞ。 ####『ゼロから触ってわかった！dbt実務入門 非公式ガイド SQLで作るモダンデータ変換・テスト・ドキュ...",
-      "category": "技術コミュニティ",
-      "score": 8,
-      "image_url": null
-    },
-    {
       "id": "267cc001e2517e36422e",
       "title": "【2026/07/24】「第7回 Snowflake金融ユーザー会 ~ Snowflake Summit 26 特集」参加レポート ❄️",
       "url": "https://zenn.dev/r_ninomin/articles/39fd17b9ddeecc",
@@ -2226,28 +2314,6 @@
       "image_url": null
     },
     {
-      "id": "e0b27dcbba4affbfb66d",
-      "title": "Snowflake: create or alter ga",
-      "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-07-14-create-or-alter-ga",
-      "source": "Snowflake Release Notes",
-      "published_at": "2026-07-14T00:00:00+00:00",
-      "summary": "Snowflake公式リリースノート",
-      "category": "データ基盤",
-      "score": 8,
-      "image_url": null
-    },
-    {
-      "id": "e9b73de27daca0938cb2",
-      "title": "EDA-10 Iceberg の概念を理解する",
-      "url": "https://zenn.dev/hideyuki_hori/articles/1188c9acc8b222",
-      "source": "Zenn / Iceberg",
-      "published_at": "2026-07-13T22:48:47+00:00",
-      "summary": "はじめに EDA-09 Flink を動かす では、Flink で post ごとの現在の like 数を集計しました。 しかしこの集計トピックには最新の値が流れ続けるだけなので、たとえば「先週の時点では何件だったか」を問い合わせることはできません。 集計結果や元の like イベントを貯めて後から SQL で分析するための置き場がほしいですよね。 Apache Iceberg はこの置き場になります。データをオブジェクトストレージ上の「テーブル」として貯めておき、後から SQL で問い合わせられます。過去の時点のテーブルに遡って読むこともできます。…",
-      "category": "技術コミュニティ",
-      "score": 8,
-      "image_url": null
-    },
-    {
       "id": "9cac840f25b242ef2dd5",
       "title": "プロフェッショナルAI駆動開発〜確率論から決定論へ AIの揺らぎを制御する開発フレームワーク〜",
       "url": "https://gihyo.jp/book/2026/978-4-297-15788-3",
@@ -2299,6 +2365,28 @@
       "published_at": "2026-08-17T15:00:00+00:00",
       "summary": "動画マーケティング市場は年々成長しており，企業のSNSプロモーションや採用活動，研修などで動画の活用が当たり前になっています。その中で，コスト削減やスピード対応を目的に，外注から内製化（インハウス化）へのシフトが進んでいます。しかし，多くの企業では「担当者のスキル不足」や「制作の効率化」に課題を抱えています。本書は，これらの課題を解決し，企業の動画活用を支援するための実践書です。本書の目的は，社内＝インハウスで動画制作を担当する初心者が，効率的かつ高品質な動画を制作できるようになることです。コスト削減，スピーディな対応，そして成果を最大化するための具体…",
       "category": "データ関連書籍",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "315d46bc71915bbc1db6",
+      "title": "慢性的な睡眠不足で体重増加の恐れ 睡眠中の「脳の掃除」にも影響か - NEWS SALT",
+      "url": "https://news.google.com/rss/articles/CBMiREFVX3lxTE9GUTZrZEIwNDZRelVlY0hjQmZDME5Xc2c0TV8xbVdWbnFZenFTSDhUbmlEenR3RW9jdXBiekxSWTd5b0ZC?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-08-13T00:24:18+00:00",
+      "summary": "慢性的な睡眠不足で体重増加の恐れ 睡眠中の「脳の掃除」にも影響か NEWS SALT",
+      "category": "睡眠",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "a867b54089923a36f1cc",
+      "title": "GitHub availability report: July 2026",
+      "url": "https://github.blog/news-insights/company-news/github-availability-report-july-2026/",
+      "source": "GitHub Blog",
+      "published_at": "2026-08-12T22:17:32+00:00",
+      "summary": "In July, we experienced eight incidents that resulted in degraded performance across GitHub services. The post GitHub availability report: July 2026 appeared first on The GitHub Blog .",
+      "category": "開発",
       "score": 7,
       "image_url": null
     },
@@ -2380,28 +2468,6 @@
       "image_url": "https://media.loom-app.com/loom/2026/08/12/d9ba8f50-0183-45fd-8e97-9c8c55d7cec2/original.jpg?w=1200"
     },
     {
-      "id": "19687e302f9c5f2a9afb",
-      "title": "CodexからGitHubを操作するときの権限を最小限にする【AI開発運用記録 #6】",
-      "url": "https://qiita.com/archer2232/items/2d751dc26e384f7c6c50",
-      "source": "Qiita / 生成AI",
-      "published_at": "2026-08-12T05:01:50+00:00",
-      "summary": "CodexからGitHubを操作するときの権限を最小限にする【AI開発運用記録 #6】 はじめに こんにちは。 なかのひとカンパニーの archer です。 普段の開発では、Codex・GitHub・GitHub CLIの gh を使って、Issue単位で実装を進めてい...",
-      "category": "生成AI活用",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "64a1393b638a1cb79bee",
-      "title": "リング際でも見やすいバトルロイヤルFPS向けゲーミングモニター、ベンキューから登場",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2132267.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-12T04:55:25+00:00",
-      "summary": "ベンキュージャパンは、ゲーミングブランドのZOWIEから、バトルロイヤル系FPS向けをうたう24.1型WQHD(2,560×1,440ドット)/360Hz対応ゲーミングモニター「XQ2566X」を8月19日に発売する。価格はオープンプライスで、直販価格は16万4,800円。",
-      "category": "業務改善・QOL",
-      "score": 7,
-      "image_url": null
-    },
-    {
       "id": "30bdb07e3587289f2f96",
       "title": "自動車内で家電が使える「100Wマルチパワーインバーター」が店頭入荷、価格は3,980円",
       "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2131565.html",
@@ -2419,28 +2485,6 @@
       "source": "ITmedia PC USER",
       "published_at": "2026-08-12T03:00:00+00:00",
       "summary": "フィリップスが、解像度とリフレッシュレートを3段階で切り替えられるゲーミングディスプレイ2機種を発表した。最大540Hz駆動の競技向けモードなど、プレイするゲームジャンルに応じた最適な表示環境をワンタッチで選択できるのが特徴だ。",
-      "category": "業務改善・QOL",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "89e6ef281083f1dfda50",
-      "title": "「PowerToys」もNPU活用へ。AI貼り付け時にPhi Silicaを利用",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2132184.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-12T02:32:04+00:00",
-      "summary": "Microsoft純正の便利ツール群「PowerToys」もNPUを活用するようになった。同社は8月9日にGitHub上で最新のプレビュー版「PowerToys v0.101.2211.0」を公開したが、このバージョンでは、クリップボードの内容を貼り付ける際に加工できる「Advanced Paste」機能の「AIを使用して貼り付ける」機能として、新たにNPUを利用するモデル「Phi Silica」を追加した。",
-      "category": "業務改善・QOL",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "c06f0a7821e242584293",
-      "title": "世界初、解像度/リフレッシュレートを3段階で変えられるゲーミングモニター。Philipsから登場",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2132187.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-12T02:24:40+00:00",
-      "summary": "これまでのデュアルモードを超え、トリプルモードで動作するゲーミングモニターが登場する。Philipsは、ゲーミングモニターブランドのEnviaから、HD/540Hz・フルHD/360Hz・WQHD/275Hzの3つの解像度/リフレッシュレートを切り替えられる27型ゲーミングモニター「27M4N3500PT」および「27M4N5500PT」を発表した。現時点で国内での発売予定はないとしている。",
       "category": "業務改善・QOL",
       "score": 7,
       "image_url": null
@@ -2488,28 +2532,6 @@
       "category": "睡眠",
       "score": 7,
       "image_url": null
-    },
-    {
-      "id": "43a922ce00dfc1ba0dff",
-      "title": "ハンドメイドマットレス市場規模分析2026：需要増加を背景に高成長を維持 Global Reports - ニコニコニュース",
-      "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTFAtV295Z2Fvc1dOTTE3NTd6Q08xb05yRlNyVmpJS3FOMTV4NjdwRWxJRHVaRXBrMHRxdWtNcDhsNE1fTF9GMUxOanBUcHVVWjlQeW9CZkp3YlM1NjcwSmROVlRSa0xCcnhySDUwX1FHYVFkMmpFUjRGRGhTMA?oc=5",
-      "source": "睡眠製品ニュース",
-      "published_at": "2026-08-10T08:03:33+00:00",
-      "summary": "ハンドメイドマットレス市場規模分析2026：需要増加を背景に高成長を維持 Global Reports ニコニコニュース",
-      "category": "睡眠",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "42ea652b42957affbe6a",
-      "title": "これならiPhoneの折りたたみにも（多分）勝てる「Galazy Z Fold8 Ultra」を実際にテストする",
-      "url": "https://ascii.jp/elem/000/004/426/4426020/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-10T08:00:00+00:00",
-      "summary": "サムスンの新型折りたたみスマホ「Galaxy Z Fold8 Ultra」のレビューです。開くと約8.0型の大画面ながら、厚さ約4.1mm、重さ約215gと驚異の薄型軽量化を実現。約30万円からと高価ですが、最上位の性能とAI機能を備えた完成形と言える1台です。",
-      "category": "業務改善・QOL",
-      "score": 7,
-      "image_url": "https://ascii.jp/img/2026/08/10/4511474/s/6d73b5fab6bc3b3b.jpg"
     },
     {
       "id": "88547771f4ccf92b4666",
@@ -2615,7 +2637,7 @@
       "title": "呼吸研究家・発──睡眠の質を下げる7つの原因を世界で初めて解明 - アットプレス",
       "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE50MUdnbGlfbFhBVHZTcEdmV1FVNnJDVm95Y1pEMVFyQzl1YlN5TmVwVFNfeDNsRGhGeXZtZGFObkFpVkgySjR3eUhpSk1DX0k?oc=5",
       "source": "睡眠研究ニュース",
-      "published_at": "2026-08-04T04:10:00+00:00",
+      "published_at": "2026-08-04T07:00:00+00:00",
       "summary": "呼吸研究家・発──睡眠の質を下げる7つの原因を世界で初めて解明 アットプレス",
       "category": "睡眠",
       "score": 7,
@@ -2629,17 +2651,6 @@
       "published_at": "2026-08-03T22:00:00+00:00",
       "summary": "OpenAI addresses Apple’s baseless lawsuit, corrects claims about its employees, and shares messages documenting what happened.",
       "category": "生成AI活用",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "9dc73e1a03f88ca65f0e",
-      "title": "ポケモンアプリで睡眠分析 要注意タイプ、ＡＩ解明 仕事の効率との関係探る - 山陽新聞",
-      "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE00YlhVVFppbFIwdVI5MWdCNTFwNDktTG5EWmxiSVVxX2htOXowLVp0aUpzMERjejJNYzFOdVIzRWlGdUhKR0ZPUXJwcy1TY0JSSWc?oc=5",
-      "source": "睡眠研究ニュース",
-      "published_at": "2026-08-02T07:00:00+00:00",
-      "summary": "ポケモンアプリで睡眠分析 要注意タイプ、ＡＩ解明 仕事の効率との関係探る 山陽新聞",
-      "category": "睡眠",
       "score": 7,
       "image_url": null
     },
@@ -2684,17 +2695,6 @@
       "published_at": "2026-07-29T07:00:00+00:00",
       "summary": "寝室の温度は高齢者の睡眠に影響｜CareNet.com CareNet.com",
       "category": "睡眠",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "4df08dafbca922d113b0",
-      "title": "Disrupting supply chain attacks on npm and GitHub Actions",
-      "url": "https://github.blog/security/supply-chain-security/disrupting-supply-chain-attacks-on-npm-and-github-actions/",
-      "source": "GitHub Blog",
-      "published_at": "2026-07-28T16:00:00+00:00",
-      "summary": "Explore the changes we've shipped across npm and GitHub Actions over the past few months to disrupt supply chain attack techniques and limit their impact. The post Disrupting supply chain attacks on npm and GitHub Actions appeared first on The GitHub Blog .",
-      "category": "開発",
       "score": 7,
       "image_url": null
     },
@@ -2777,11 +2777,11 @@
     },
     {
       "id": "8e75756c6ae12b07a5cb",
-      "title": "「冷えすぎ」と「暑すぎ」の間で 熱帯夜の睡眠バランスはどう取る？専門家が教える熱中症リスクと疲労回避の秘訣 - newsdig.tbs.co.jp",
+      "title": "「冷えすぎ」と「暑すぎ」の間で 熱帯夜の睡眠バランスはどう取る？専門家が教える熱中症リスクと疲労回避の秘訣 - TBS NEWS DIG",
       "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5TVzhVMXVUa3Y5T3h0Y1M3cERfT3J6eWtSTWJJRDc1NXZlRGNRM1VjbVJHSHhCVENNaG5zOFRETmtFLU1KVmQ4TVd4NVdZQjBad2N6Tm9yNXdGX1RiazB4NVBBVjd5UVE?oc=5",
       "source": "睡眠研究ニュース",
       "published_at": "2026-07-16T07:00:00+00:00",
-      "summary": "「冷えすぎ」と「暑すぎ」の間で 熱帯夜の睡眠バランスはどう取る？専門家が教える熱中症リスクと疲労回避の秘訣 newsdig.tbs.co.jp",
+      "summary": "「冷えすぎ」と「暑すぎ」の間で 熱帯夜の睡眠バランスはどう取る？専門家が教える熱中症リスクと疲労回避の秘訣 TBS NEWS DIG",
       "category": "睡眠",
       "score": 7,
       "image_url": null
@@ -2809,23 +2809,23 @@
       "image_url": null
     },
     {
+      "id": "c9bcd9d2d6a731ed8ad2",
+      "title": "「失われた睡眠」温暖化で倍増 - 下野新聞社",
+      "url": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE9Qa3pKbW5tOWJjdXg0bFAtWFJtWEc1M3YzZmZWSE54SzBiQlI2Ukx3eGhhckR6QmJraE5ZTWNzVzdDQ3l2ZDR2Y1NJR1RJWVhuZmdwRF9EaE1lZTg?oc=5",
+      "source": "睡眠研究ニュース",
+      "published_at": "2026-07-15T07:00:00+00:00",
+      "summary": "「失われた睡眠」温暖化で倍増 下野新聞社",
+      "category": "睡眠",
+      "score": 7,
+      "image_url": null
+    },
+    {
       "id": "2115a45fbd984d00d354",
       "title": "「失われた睡眠」温暖化で倍増 米研究団体、健康懸念 - 山陽新聞",
       "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE9NbUZicVdTZTR4ZEVySkJydkwxWXlRN3BCNWQ5Ymc2bjFMc1FWMGpCVGlhNGdkaFVwY2J2dnJPVVpXMm91ZllXV3VDWFR2bnpLemc?oc=5",
       "source": "睡眠研究ニュース",
       "published_at": "2026-07-15T07:00:00+00:00",
       "summary": "「失われた睡眠」温暖化で倍増 米研究団体、健康懸念 山陽新聞",
-      "category": "睡眠",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "c9e0660e7bf6adb8d652",
-      "title": "「失われた睡眠」温暖化で倍増 米研究団体、健康懸念 - 西日本新聞me",
-      "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE9lUFp5SWRFODRTemp5TGZmNzJyRkM1N3l1aFB6R25HbE1SeW1pYjNBcUlRdWgtbUcteGJId3A4TlkzX202SGVndzFLZlF1ZFEwVXA0b01R?oc=5",
-      "source": "睡眠研究ニュース",
-      "published_at": "2026-07-15T07:00:00+00:00",
-      "summary": "「失われた睡眠」温暖化で倍増 米研究団体、健康懸念 西日本新聞me",
       "category": "睡眠",
       "score": 7,
       "image_url": null
@@ -2838,17 +2838,6 @@
       "published_at": "2026-07-14T15:00:00+00:00",
       "summary": "本書は、特異値分解や最適化、グラフ理論といった数学的基礎から、自然言語処理、オペレーションズ・リサーチまで、AIを支える広範な数学を順を追って丁寧に解説します。実践的な応用例を補完する公開データセットとJupyter NotebookがGitHubに用意されており、理論と実践を行き来しながら理解を深めることができる構成になっています。",
       "category": "データ関連書籍",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "9f7c131e9b79bafc941e",
-      "title": "上矢部せんたくん(1歳児と保護者)",
-      "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=103774",
-      "source": "横浜市親子イベント",
-      "published_at": "2026-07-14T00:00:00+00:00",
-      "summary": "場所: 上矢部地区センター ( 戸塚区 )",
-      "category": "子育て",
       "score": 7,
       "image_url": null
     },
@@ -2908,6 +2897,28 @@
       "image_url": null
     },
     {
+      "id": "583aab297dae31a77f01",
+      "title": "dbt-core v1.10.23",
+      "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.10.23",
+      "source": "dbt Core Releases",
+      "published_at": "2026-08-12T16:28:10+00:00",
+      "summary": "dbt-core 1.10.23 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 )",
+      "category": "リリース速報",
+      "score": 6,
+      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+    },
+    {
+      "id": "bb7a4f2063237a14b145",
+      "title": "dbt-core v1.11.13",
+      "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.11.13",
+      "source": "dbt Core Releases",
+      "published_at": "2026-08-12T15:48:56+00:00",
+      "summary": "dbt-core 1.11.13 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 ) Fixes Fix intermittent \"references a model that does not exist\" parsing error when unit testing versioned models, caused by non-deterministic filesystem parse order ( #11…",
+      "category": "リリース速報",
+      "score": 6,
+      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+    },
+    {
       "id": "a718071219131f02f4d4",
       "title": "「Pixel Watch 5」が8月20日に発売へ 前モデルから最大20％の高速化、価格は6万2800円から",
       "url": "https://www.itmedia.co.jp/pcuser/articles/2608/13/news051.html",
@@ -2930,24 +2941,13 @@
       "image_url": null
     },
     {
-      "id": "2cadf9e2c4baa84eea4d",
+      "id": "8358579d662525de4d08",
       "title": "仁川港初の完全自動化ターミナル、2028年稼働へ サイバーロジテックが運営システム受注 - ニコニコニュース",
-      "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE45aHVqcF9HbnhQLWNjcEM0SVh2eG1rTUNiOHNCM2JyaGs3dTh0MEJoenR2WlJEZGVtN1pnT2ZSYVloMm5BT29HNG1sOGhfSWNlZUs0S2duX3VIOGh5ZmRqcWRXTUxQYloxeGFOUXRMTzk0MUxQLWh3YW1NWQ?oc=5",
+      "url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE1PNTMxN0lmemdOb2VPRHY3Z3FzUGVxNk1kM0RuQUkwdExkLXZ2WGljTXhiR3NFTXdXNHVhT09yaW43REpWZkpaWmdwU001bGhBY0VDVS1YNlY1SHM4Q3dnZmFDQzA3dmUxQ1BDUzVJYUc5b19leXc?oc=5",
       "source": "CLI・ターミナルツール発見",
       "published_at": "2026-08-12T00:48:11+00:00",
       "summary": "仁川港初の完全自動化ターミナル、2028年稼働へ サイバーロジテックが運営システム受注 ニコニコニュース",
       "category": "CLI生産性",
-      "score": 6,
-      "image_url": null
-    },
-    {
-      "id": "b93da5eb8b33813d6245",
-      "title": "MiniMax H3（動画生成AI）をMacBook Pro M4 Max 128GBで動かす ―4bit/8bit実測",
-      "url": "https://zenn.dev/ccie26302/articles/zenn-minimax-h3-m4max",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-11T22:30:48+00:00",
-      "summary": "はじめに 2026 年に MiniMax がオープンウェイトで出した H3（Hailuo 3.0）。テキスト・画像・音声を一つのコンテキストで理解し、ネイティブのステレオ音声つきで動画を返す omni-modal な動画生成モデルです。API で使うのが普通ですが、これを手元の MacBook Pro（M4 Max / 128GB）で丸ごとローカルに回せるのか、を実測しました。 結論から言うと動きます。ただし「動く」までにいくつも壁があり、動いてからも「どこまで実用か」は解像度と尺で大きく変わります。導入・つまずき・スケーリングの実測値・4bit と…",
-      "category": "生成AI活用",
       "score": 6,
       "image_url": null
     },
@@ -2959,28 +2959,6 @@
       "published_at": "2026-08-11T16:22:11+00:00",
       "summary": "🌱 はじめに models/staging/, models/intermediate/, models/marts/ の配下をどう切るか。dbt 公式の How we structure our dbt projects（2026-08-06 版）に沿って、サブディレクトリの分類軸と命名規則を整理します。 前提: 3 レイヤーの役割 staging (stg_): source と 1:1 の atomic モデル。rename / cast / 軽い変換のみ intermediate (int_): staging と marts の橋渡し。複数概…",
       "category": "技術コミュニティ",
-      "score": 6,
-      "image_url": null
-    },
-    {
-      "id": "89c37904bac2798e14cb",
-      "title": "足を止めずにアイデア記録！Amazfit Balance 3を「トレーニングの相棒」に変える5つの活用テク",
-      "url": "https://www.lifehacker.jp/article/2608-hacks-every-amazfit-balance-3-user-should-know/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-11T12:30:00+00:00",
-      "summary": "Amazfit Balance 3は優れたヘルスケア機能を備える一方、トレーニング用の潜在能力も見逃せません。設定変更や音声メモの活用、GPS接続の工夫など、同モデルの性能をより深く引き出すための5つの活用ハックを解説します。",
-      "category": "業務改善・QOL",
-      "score": 6,
-      "image_url": "https://media.loom-app.com/loom/2026/08/10/72b3bde0-f914-4bd2-8081-6ef922ffe5e7/original.png?w=1200"
-    },
-    {
-      "id": "d8d8c584b7a5537ec950",
-      "title": "Unity Catalog ABAC GRANT policies support more securable types in Beta",
-      "url": "https://docs.databricks.com/aws/en/release-notes/product/2026/august",
-      "source": "Databricks Release Notes",
-      "published_at": "2026-08-11T00:00:00+00:00",
-      "summary": "ABAC GRANT policies dynamically grant Unity Catalog privileges to securables whose governed tags match a condition. These policies were previously only available for models, but now also support model services, model provider services, Model Context Protocol (MCP) services, agen…",
-      "category": "リリース速報",
       "score": 6,
       "image_url": null
     },
@@ -3271,6 +3249,28 @@
       "image_url": null
     },
     {
+      "id": "f91d5a70ec2671e401c2",
+      "title": "RAG の精度は「検索」ではなく「取り込み」で決まる — メタデータ設計・コンテキスト認識チャンキング・知識ベースの更新運用",
+      "url": "https://qiita.com/engchina/items/7f9200e33c1c5df6207a",
+      "source": "Qiita / LLM",
+      "published_at": "2026-08-12T23:12:51+00:00",
+      "summary": "はじめに RAG がうまく動かないとき、多くの人はまず検索側をいじります。Top-K を増やす、Rerank を足す、ハイブリッド検索にする。 しかし社内文書の RAG で実際に起きる事故の大半は、検索アルゴリズムではなくインデックスの作り方が原因です。 上流の失敗は下...",
+      "category": "生成AI活用",
+      "score": 5,
+      "image_url": null
+    },
+    {
+      "id": "e7ebe94da85da4167df1",
+      "title": "Your contributors are AI-first now. Is your project?",
+      "url": "https://github.blog/open-source/maintainers/your-contributors-are-ai-first-now-is-your-project/",
+      "source": "GitHub Blog",
+      "published_at": "2026-08-12T18:00:08+00:00",
+      "summary": "AI contributors are already in your queue. AutoGPT maintainer Nicholas Tindle shares the repo instructions, gates, and boundaries that keep maintainers in control. The post Your contributors are AI-first now. Is your project? appeared first on The GitHub Blog .",
+      "category": "開発",
+      "score": 5,
+      "image_url": null
+    },
+    {
       "id": "73c32573097483d57d9b",
       "title": "Quadro P2200を2枚にしてGemma 4 12Bを64Kコンテキストで動かしてみた",
       "url": "https://zenn.dev/nooop/articles/8f037931aa73de",
@@ -3425,13 +3425,79 @@
       "image_url": null
     },
     {
-      "id": "ac3cc21d00c847d97cab",
-      "title": "8万回読まれた記事からリンクを張ったのに、リンク先に来たのは18人だった",
-      "url": "https://qiita.com/yurukusa/items/f1b871be7c64ccee8dca",
+      "id": "89c29168a75ae34b666f",
+      "title": "ツールは揃っている、あとはつなぐだけ｜n8nでSlack・メール・AIを一本のフローにする考え方",
+      "url": "https://qiita.com/DnD-inc/items/e69fedb5121e73d6c5cf",
       "source": "Qiita / 生成AI",
-      "published_at": "2026-08-12T15:07:12+00:00",
-      "summary": "私が何をしている人で、何をしようとしていたか 先に前提を書きます。ここを飛ばすと、以下の数字が何の話だか分からないからです。 私はプログラミングができません。AIに指示を出して、記事を書いたり、小さな道具を作ったりしています。使っているのは Claude Code という...",
+      "published_at": "2026-08-13T00:15:03+00:00",
+      "summary": "ツールは揃っている、あとはつなぐだけ｜n8nでSlack・メール・AIを一本のフローにする考え方 本記事は、株式会社DnD（https://dnd-inc.jp）のコラムを一部編集して掲載しています。 初出: https://dnd-inc.jp/blog/n8n-wo...",
       "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "2e26cfee83294bb42fd8",
+      "title": "COMPUTEXを振り返る、遠隔地から無線操作で破壊できるTEAMGROUPのセキュアな外付けSSDや、カラフルな冷却液を封入したヒートシンク付きM.2 SSDなど(SSD編)",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132438.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-12T23:30:00+00:00",
+      "summary": "6月に開催されたPC/IT関連の見本市「COMPUTEX TAIPEI 2026」。今年も数多くの製品が発表され、弊誌でも記事やXへの投稿でご紹介しました。今回の記事では、Xに投稿した数多くのアイテムをジャンル分けし、COMPUTEXを振り返るかたちで改めてお届けします。",
+      "category": "業務改善・QOL",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "c220070c3f4e8e99b6e1",
+      "title": "COMPUTEXを振り返る、大容量メモリの新規格「CQDIMM」のサンプルや、超高速接続を実現する「SOCAMM2」のサンプルなど(メモリ編)",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132437.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-12T22:30:00+00:00",
+      "summary": "6月に開催されたPC/IT関連の見本市「COMPUTEX TAIPEI 2026」。今年も数多くの製品が発表され、弊誌でも記事やXへの投稿でご紹介しました。今回の記事では、Xに投稿した数多くのアイテムをジャンル分けし、COMPUTEXを振り返るかたちで改めてお届けします。",
+      "category": "業務改善・QOL",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "29010748e7d5a64a4db9",
+      "title": "SpaceXAI、「Grok 4.6」を発表 総合指標で「GPT-5.6 Sol Max」に並ぶと謳う",
+      "url": "https://www.itmedia.co.jp/news/article/2608/13/2000000520/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-12T21:32:01+00:00",
+      "summary": "SpaceXAIは、AIモデル「Grok 4.6」を発表した。前世代の「Grok 4.5」をベースに、多数の手順にまたがって作業を続けるエージェント用途と、対話的・視覚的な成果物の作成を強化した。「Cursor」、「Grok Build」、「Grok Bot」、APIで同日提供を始めた。API料金は入力100万トークン当たり2ドルから。",
+      "category": "テクノロジー",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "893969fc553b86154a86",
+      "title": "工具不要のクランプ式、集中空間を作るフェルト製デスクトップパネル、サンワサプライが発売",
+      "url": "https://internet.watch.impress.co.jp/docs/news/2132294.html",
+      "source": "INTERNET Watch",
+      "published_at": "2026-08-12T21:30:00+00:00",
+      "summary": "サンワサプライ株式会社は8月5日、周囲の視線を気にせず、集中しやすいワークスペースを作るフェルト製デスクトップパネル「100-DPT0」を発売した。高さ30/40/50cmの3種類があり、直販サイト「サンワダイレクト」での販売価格は8980円、9980円、1万800円。",
+      "category": "業務改善・QOL",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "e6ee30c817e5bc7763b2",
+      "title": "【西川和久の不定期コラム】Sora 2超えでSeedance 2.0に迫る！動画AI「MiniMax H3」が凄まじいクオリティだった",
+      "url": "https://pc.watch.impress.co.jp/docs/column/nishikawa/2132431.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-12T21:04:00+00:00",
+      "summary": "",
+      "category": "業務改善・QOL",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "c6bff9bca09987ae5feb",
+      "title": "「Qwen3.8-27B」が8月15日にオープンウェイト公開！最新AI技術をお手元に",
+      "url": "https://pc.watch.impress.co.jp/docs/news/2132435.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-12T15:41:07+00:00",
+      "summary": "Alibabaが開発した、コンシューマ向けハードウェアにおいてローカル駆動できる規模のLLM「Qwen3.8-27B」が、8月15日0時にオープンウェイト公開される。ModelScopeで予告ページがあり、カウントダウンが開始している。",
+      "category": "業務改善・QOL",
       "score": 4,
       "image_url": null
     },
@@ -3516,7 +3582,7 @@
       "id": "043dc5ac386aa41c2172",
       "title": "Claudeが生成テキストに「見えない透かし」を入れ始めた件を整理する",
       "url": "https://zenn.dev/jeong/articles/3c5c5431b5109d",
-      "source": "Zenn / LLM",
+      "source": "Zenn / 生成AI",
       "published_at": "2026-08-12T13:37:59+00:00",
       "summary": "はじめに 2026年8月11日、AnthropicがClaudeのヘルプセンター記事「How Claude marks AI-generated content」を更新し、Claudeが生成したテキストに人間には知覚できないウォーターマーク（透かし）を埋め込むことを明らかにしました。 「AI検出ツール」が精度の低い統計的推定に留まっていた時代から、モデル自身が署名を刻む時代への移行です。しかもこれはEU限定ではなく、日本を含む全世界に適用されます。 この記事では、公式ドキュメントをベースに「実際に何が決まったのか」「技術的に何をやっていそうか」「書き手…",
       "category": "生成AI活用",
@@ -3524,12 +3590,23 @@
       "image_url": null
     },
     {
-      "id": "4fcfc157c51217e5d7b7",
-      "title": "さくらのAI Engineで「名もなき家事」に名前をつけようとしたら、名前はいらなかった話",
-      "url": "https://qiita.com/riiiii/items/1045523d2ec009245510",
-      "source": "Qiita / LLM",
-      "published_at": "2026-08-12T13:18:47+00:00",
-      "summary": "はじめに LLMを組み込んだアプリ開発を体験してみたいと考えていたところ、「さくらのAI Engine」3000リクエスト使い切りチャレンジ（https://qiita.com/official-events/bd14d28b53326d318fec )を知り、参加してみ...",
+      "id": "c79ca64f6475bc574946",
+      "title": "AIレビューツール「Gitar」を触ってみた",
+      "url": "https://zenn.dev/tkishioka/articles/gitar-getting-started",
+      "source": "Zenn / 生成AI",
+      "published_at": "2026-08-12T13:21:54+00:00",
+      "summary": "! 本記事は個人としての技術的な検証・所感記録です。筆者はGitarを提供するSonarSourceに所属しておりますが、本記事における評価や見解はすべて個人のものであり、所属企業の公式な見解を示すものではありません。 レビューが終わらない... 最近、AIコーディングツールのおかげで、コーディングの生成速度が飛躍的に上がっている一方で、レビューがボトルネックになっているといった課題を様々な人から聞きます。 そんな中で気になったのが Gitar というAIレビューツールです。調べた範囲では日本語での紹介記事が見当たらなかったので、もしかしたらこれが日本…",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "610f586e536a4e75c6ec",
+      "title": "フツーの人間がAIと遊んでいたら、査読付き論文にAcceptされた話(4)",
+      "url": "https://zenn.dev/lavieenscope/articles/230a2c712044a6",
+      "source": "Zenn / 生成AI",
+      "published_at": "2026-08-12T13:13:18+00:00",
+      "summary": "GPUをブンブン回していたら、査読中にSSDが死んだ 前回、AIにかなりの部分を手伝ってもらいながら論文を書いた話をしました。 計算もした。スクリプトも書いた。論文も書いた。 そして、Physica Scripta に投稿した。 ここまで来て、ようやく「人間に読んでもらえるところまで来た」と思っていたわけです。 ところが査読中に、PCのSSDが死にました。 GPUを回す 今回の計算では、GPUを使っていました。確かGTX 1060だったと思います。 ものすごく高性能なGPUというわけではありません。 ただ計算を回している間は、ほぼ100%の使用率、だい…",
       "category": "生成AI活用",
       "score": 4,
       "image_url": null
@@ -3568,12 +3645,12 @@
       "image_url": null
     },
     {
-      "id": "355e88fc6fae72feec8b",
-      "title": "AIフロンティアモデルをAWS Bedrockで使う理由の話",
-      "url": "https://qiita.com/Xim2jp/items/279f52468d51e9d77cad",
-      "source": "Qiita / LLM",
-      "published_at": "2026-08-12T11:43:38+00:00",
-      "summary": "初心者向けAmazon Bedrock入門：AIモデルをAWSのサービスとして使う ※本記事は、当方ブログの要約です。全文はこちら https://shinichi.noguchi.jp.net/blog/2026-08-12-amazon-bedrock-agents-...",
+      "id": "e1cc8237bbe71ba10ae4",
+      "title": "モデルが賢くなったわけじゃない ── AIサブタスクへの指示設計が生む本当の差",
+      "url": "https://zenn.dev/maysun/articles/76445458d7cd85",
+      "source": "Zenn / 生成AI",
+      "published_at": "2026-08-12T11:25:38+00:00",
+      "summary": "複数のプロジェクトを個人で管理する開発環境で、少し大きめの変更はバックグラウンドのAIサブエージェントに任せて、自分は別の作業を進める、というスタイルで開発しています。最近、あるアプリに「服薬リマインダー」機能を追加したのですが、その仕上がりが数週間前の同種の変更と比べて明らかに丁寧でした──検証が徹底していて、エッジケースの網羅性も高く、やるべき後片付けの抜け漏れもありませんでした。 使ったモデルは同じです。アップグレードもしていないし、バージョンも変えていません。では、何が違ったのか？ 振り返ってみると、原因はモデルの能力ではなく、3つの具体的な要…",
       "category": "生成AI活用",
       "score": 4,
       "image_url": null
@@ -3582,7 +3659,7 @@
       "id": "2ef67a45a1221f5a911a",
       "title": "AIの生成文章に見えない透かし？？ ― 仕組みを手元で確かめてみた",
       "url": "https://zenn.dev/tavi_ai/articles/3576a2b86ef75b",
-      "source": "Zenn / LLM",
+      "source": "Zenn / 生成AI",
       "published_at": "2026-08-12T11:18:10+00:00",
       "summary": "! この記事は、筆者のブログ「タビの足袋」に掲載した記事の転載です。 初出: AIの生成文章に\"見えない透かし\"？？ ― 仕組みを手元で確かめてみた（2026-08-12） 「Claudeの新しいモデルが生成する文章には、目に見えない透かしが入ります」――2026年8月、Anthropicからそんな発表がありました。EUのAI法への対応として、8月2日以降に登場する新モデルから、生成されるテキストそのものに、機械だけが読み取れる印——いわゆる電子透かし——を埋め込んでいくとのことです。 私は日々、AIを利用してコードを生成し、文章を書いています。これは…",
       "category": "生成AI活用",
@@ -3788,72 +3865,6 @@
       "image_url": null
     },
     {
-      "id": "295519a58ecd01873beb",
-      "title": "COMPUTEXを振り返る、SilverStoneのAI用ワークステーション向けの3,200W電源や、12V-2x6コネクタを監視しビデオカードを保護するMSIの1,600W電源など(PC電源編その1)",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132159.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-12T00:30:00+00:00",
-      "summary": "6月に開催されたPC/IT関連の見本市「COMPUTEX TAIPEI 2026」。今年も数多くの製品が発表され、弊誌でも記事やXへの投稿でご紹介しました。今回の記事では、Xに投稿した数多くのアイテムをジャンル分けし、COMPUTEXを振り返るかたちで改めてお届けします。",
-      "category": "業務改善・QOL",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "077ebf2bb461b885b602",
-      "title": "COMPUTEXを振り返る、デザイン性を重視したファブリック素材採用のMSI製水冷クーラーや、Cooler Masterの3DHPを採用したハイエンド空冷クーラーなど(CPUクーラー編その2)",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132158.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-11T23:30:00+00:00",
-      "summary": "6月に開催されたPC/IT関連の見本市「COMPUTEX TAIPEI 2026」。今年も数多くの製品が発表され、弊誌でも記事やXへの投稿でご紹介しました。今回の記事では、Xに投稿した数多くのアイテムをジャンル分けし、COMPUTEXを振り返るかたちで改めてお届けします。",
-      "category": "業務改善・QOL",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "26da3757037f3435beee",
-      "title": "AIに「E2Eはゴールデンパスだけで十分です」と言われ続けた私が、SIの設計書文化でテストの空白を数えられるようにした話",
-      "url": "https://zenn.dev/youkan_mizu/articles/ce4bd4ad95e0a2",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-11T23:00:05+00:00",
-      "summary": "この記事は何か AI コーディングエージェントに個人開発の SNS を作らせていて、ずっと引っかかっていたことがある。 テストの密度が上がらないのだ。テストを書かせれば書く。CI も緑になる。でも「普通にユーザーが使うパターン」のテストが無い。指摘すると、AI はこう返してくる。 「E2E はゴールデンパス(主要な正常系動線)に絞るのがベストプラクティスです」 「ユニットテストは書いてあります」 どちらも原則としては正しい。正しいから、反論できずに議論が終わる。これが何度も続いた。これが AI の限界かと、もう少し性能が上がるまで待とうと思ったこともあ…",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "a3a9dc5c3b540222571f",
-      "title": "AI の回答を AI に採点させたら、正解に 0 点をつけてきた。RAG 3 方式を 10 問で定量比較した実録",
-      "url": "https://zenn.dev/santassn1224/articles/1757959d2898b0",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-11T22:30:05+00:00",
-      "summary": "1. はじめに。「どの作り方がいい?」を勘で決めたくない RAG (資料を検索してから答える構成) には、マネージドサービスに全部任せる作り方から、検索も生成も自前で組む作り方まで、何通りかの実装があります。仕組みの入門は 以前の記事 に書きました。作れるようになると、次の疑問が湧きます。で、結局どれがいいのか。 7月に、自宅の Bedrock 検証環境で 3 方式に 2 問だけ投げて目視で比べ、結果を記事にしました。そのときの結論は「品質の②、軽さの③。①は絞り込みの追い質問に追従できない」。ただ、これは 2 問だけの目視 (n=2) です。インフラ…",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "50fd853b1f197229fd55",
-      "title": "COMPUTEXを振り返る、接点接続でケーブルレスの画期的なASUSの水冷クーラーや、シックなデザインのbe quiet!製ハイエンド空冷クーラーなど(CPUクーラー編その1)",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132157.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-11T22:30:00+00:00",
-      "summary": "6月に開催されたPC/IT関連の見本市「COMPUTEX TAIPEI 2026」。今年も数多くの製品が発表され、弊誌でも記事やXへの投稿でご紹介しました。今回の記事では、Xに投稿した数多くのアイテムをジャンル分けし、COMPUTEXを振り返るかたちで改めてお届けします。",
-      "category": "業務改善・QOL",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "46f055243c8007325878",
-      "title": "芝刈り機でもDOOMが遊びたい！創造力と技術力が光る「DOOMチャレンジ」たち",
-      "url": "https://pc.watch.impress.co.jp/docs/topic/feature/2132107.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-11T21:12:00+00:00",
-      "summary": "1993年にMS-DOS向けに発売された「DOOM」は、FPSゲームの金字塔ともいわれる名作だ。ゲーム自体の人気もさることながら、さまざまなガジェットやデバイスへの移植が試みられていることでも知られる。これは「DOOMチャレンジ」とも呼ばれ、思いもよらぬ機器でDOOMが遊べるようになることもめずらしくない。",
-      "category": "業務改善・QOL",
-      "score": 4,
-      "image_url": null
-    },
-    {
       "id": "f04d564f06c08f0b4d14",
       "title": "EUがGoogleにAndroidのAIエージェント開放を求めた意味",
       "url": "https://qiita.com/mhamadajp/items/e5b82e8437e59ca964ff",
@@ -3865,17 +3876,6 @@
       "image_url": null
     },
     {
-      "id": "58e4e63e7d02c25dc0e1",
-      "title": "AI開発は「実装前にどこまで決めるか」で速度が決まる",
-      "url": "https://zenn.dev/moca/articles/767295ad77049f",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-11T15:53:42+00:00",
-      "summary": "この記事でわかること AI開発で、人間への確認回数が速度を左右する理由 実装前に決めるべき事業ルールと、実装中に変えてよい技術判断の違い 状態、権限、正本、例外を先に決める方法 仕様を細かくしながら、作る機能を減らす考え方 この記事の要点 AIへ渡す前に終えるべきなのは、コードの書き方ではなく事業判断です。実装開始時の未決定事項が少ないほど、AIは人間を待たずに進めます。 前回、女装カルチャーガイドの運用システムを作り直したとき、旧版では完成間近まで約2週間かかっていたものが、新版では要件定義、仕様書作成、アーキテクチャ設計、実装まで含めてほぼ2日で完…",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
       "id": "c8e6ab1530ab9d9f2562",
       "title": "AIインターフェースデザイン",
       "url": "http://www.oreilly.co.jp/books/9784814401772/",
@@ -3883,39 +3883,6 @@
       "published_at": "2026-08-11T15:00:00+00:00",
       "summary": "AIプロダクト開発においてユーザーを代弁するデザイナーの役割と重要性を問い直す技術書。AIの急速な進化により、プロダクトデザイナーはこれまでにない課題に直面しています。本書では、GoogleのTensorFlowプロジェクトでの実務経験を持つ著者が、予測不可能で非決定論的なAIと、デザイナーはどのように向き合うべきかを、GUIやHCIの初期研究を踏まえながら丁寧に解説します。AIインターフェースのデザイン原則を体系的に整理しているので、従来の決定論的なソフトウェア設計に慣れたデザイナーはもちろん、AI技術の専門知識を持たないデザイナーでも安心して読み進…",
       "category": "データ関連書籍",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "a4b6112ea6fd2f5a3660",
-      "title": "2週間かかった開発が2日になった。AI開発で変えたのはモデルではなく設計だった",
-      "url": "https://zenn.dev/moca/articles/b6e950a5826641",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-11T12:21:38+00:00",
-      "summary": "この記事でわかること AIが速くても、開発全体が速くならなかった理由 GAS・Slackへ分散した業務を、Webサービスへ集約した変更点 AIを担当者ではなく、処理として配置する考え方 「ほぼ2日」が示す範囲と、単純比較ではないという注意点 この記事の要点 速くなった理由はモデルの変更ではなく、業務・状態・権限・外部サービスの関係を先に決め、実装中の判断を減らしたことでした。 前回、ChatGPTをPM、Claude Codeをエンジニアのように配置して開発した結果、AIは速いのにプロジェクト全体は思ったほど速くならなかった話を書きました。 https…",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "d91d553527080a5e85e4",
-      "title": "ChatGPTをPM、Claude Codeをエンジニアにして失敗した。PM役のAIを外すまで",
-      "url": "https://zenn.dev/moca/articles/eb520439e185d8",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-11T11:20:22+00:00",
-      "summary": "この記事でわかること ChatGPTをPM、Claude Codeをエンジニアにした構成が遅くなった理由 AIを増やすことで、処理能力ではなく判断経路が増える場合があること 「念のため」の設計が積み重なると、運用全体が重くなること AIへ役職を与える前に、仕事と判断の流れを設計する考え方 この記事の要点 AIに人間と同じ組織図を与えるより、仕事の流れを先に設計し、必要な処理へAIを配置する方が重要でした。 最初は、かなり合理的なやり方だと思っていました。 ChatGPTをPMにする。Claude Codeをエンジニアにする。私はChatGPTと仕様や進…",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "1ba3c5736c22dda14e72",
-      "title": "AIでLPを1〜3日で作るために、最初に固定する5つのもの",
-      "url": "https://zenn.dev/tact_works/articles/4743cbce968348",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-11T09:16:37+00:00",
-      "summary": "AIに「この営業資料からLPを作って」と頼むと、数分でそれらしい画面が出てきます。しかし、修正を頼むたびに別の場所が崩れたり、スマートフォンで読みにくかったりして、結局人が作るより時間がかかることがあります。 原因は、AIの性能だけではありません。AIに渡す前に固定すべき判断が、まだ人の頭の中に残っているからです。 この記事では、AIを使ってLPを1〜3日で仕上げるために、最初に固定しておきたい5項目と、実務で使える進め方をまとめます。 先に結論 短期間で作りやすいのは、次の条件を満たすLPです。 目的が1つ（問い合わせ、予約、資料請求など） 既存のブ…",
-      "category": "生成AI活用",
       "score": 4,
       "image_url": null
     },
@@ -4085,45 +4052,12 @@
       "image_url": null
     },
     {
-      "id": "624979042481ff504b8c",
-      "title": "TutorMoments: Do AI tutors know when to help and when to hold back?",
-      "url": "https://huggingface.co/blog/allenai/tutormoments",
-      "source": "Hugging Face Blog",
-      "published_at": "2026-08-07T17:53:32+00:00",
-      "summary": "",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
       "id": "d36ecc5b5c19ee54ca24",
       "title": "シャープ、通期純利益見通し170億円下方修正 円安など影響 AIサーバは9月に参入",
       "url": "https://www.itmedia.co.jp/news/article/2608/07/2000000455/",
       "source": "ITmedia NEWS",
       "published_at": "2026-08-07T10:34:01+00:00",
       "summary": "シャープは7日、2027年3月期の連結純利益が前期比47.3％減の250億円になる見通しだと発表した。期初予想から170億円下方修正した。樹脂・燃料の価格上昇や円安が収益を圧迫する。営業利益は190億円引き下げて300億円。売上高は1兆7700億円に据え置いた。",
-      "category": "テクノロジー",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "992671b01d362facc065",
-      "title": "防衛装備庁、ITコンサルSHIFTに「AI装備品」の審査支援を委託",
-      "url": "https://www.itmedia.co.jp/news/article/2608/07/2000000449/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-07T07:01:54+00:00",
-      "summary": "ITコンサルティング事業を手掛けるSHIFT（東京都港区）が、防衛装備庁によるAI装備品の技術的審査を支援する。",
-      "category": "テクノロジー",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "ae9ff840f2219e87c213",
-      "title": "「配信システムをAIで自作したアイドル」こと宮本佳林さん、Cloudflare Workersの開発者イベントに登壇へ",
-      "url": "https://www.itmedia.co.jp/news/article/2608/07/2000000448/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-07T06:27:51+00:00",
-      "summary": "元Juice=Juiceでアイドルの宮本佳林さんが、8月27日開催の開発者向けイベント「Cloudflare Workers Tech Talks in Tokyo」に出演する。公式Xアカウントが8月7日に告知した。",
       "category": "テクノロジー",
       "score": 4,
       "image_url": null
@@ -4191,17 +4125,6 @@
       "published_at": "2026-08-04T00:00:00+00:00",
       "summary": "Get those wheels rolling!",
       "category": "開発",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "9010b83ba7204856f634",
-      "title": "AI研究エージェントは仮説生成より実験ループ設計が本体である",
-      "url": "https://qiita.com/mhamadajp/items/9454227b935510f2b5e2",
-      "source": "Qiita / MLOps",
-      "published_at": "2026-08-03T19:36:10+00:00",
-      "summary": "AIが論文を読み、仮説を立て、実験案を作り、結果を解析して次の実験を提案する。こうした「AI Scientist」の話題は、しばしば研究者を置き換える技術として紹介される。 しかし、IT技術者が注目すべきなのは、AIがもっともらしい仮説を出せることではない。 重要なのは、仮...",
-      "category": "技術コミュニティ",
       "score": 4,
       "image_url": null
     },
@@ -4459,17 +4382,6 @@
       "image_url": null
     },
     {
-      "id": "2ca9ce5a8451c6c43c97",
-      "title": "AIエージェント「Grok Build」がオープンソース化される - GIGAZINE",
-      "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTE10Wmw5ZEFOeTI1VGI5Y0kzOFktVm5RZG5SbG5WdTJGUHZlMFBDRUxhcUltR3FQbDNTMFUxeVVtTTNJV3NYdEdMQ1dLVk9jV3BaMG1FMHlFcm5iYU9wblg3XzJPbDdzZmRnVVE?oc=5",
-      "source": "CLI・ターミナルツール発見",
-      "published_at": "2026-07-16T07:00:00+00:00",
-      "summary": "AIエージェント「Grok Build」がオープンソース化される GIGAZINE",
-      "category": "CLI生産性",
-      "score": 4,
-      "image_url": null
-    },
-    {
       "id": "6e238a2775b5c868aefb",
       "title": "LLM-as-a-Judge時代の、評価ツール選定完全ガイド",
       "url": "https://zenn.dev/tommy_suplex/articles/llm-as-judge",
@@ -4536,6 +4448,28 @@
       "image_url": null
     },
     {
+      "id": "24b61a1efc3d64614ac7",
+      "title": "Androidの「自由」が終わる。2027年、野良アプリが入れられなくなる",
+      "url": "https://www.lifehacker.jp/article/2509android-is-making-it-more-difficult-to-sideload-apps-pai/",
+      "source": "ライフハッカー・ジャパン",
+      "published_at": "2026-08-13T00:00:00+00:00",
+      "summary": "これまでAndroidがAppleのプラットフォームに対して持っていた最大の利点の一つは、その「オープンさ」でした。GoogleのPlayストアからアプリをダウンロードできるだけでなく、インターネットから直接アプリをダウンロードすることも可能です。これは「サイドローディング」と呼ばれ、Androidの魂とも言える機能ですが、これが近いうちに非常に難しくなるかもしれません。",
+      "category": "業務改善・QOL",
+      "score": 3,
+      "image_url": "https://media.loom-app.com/loom/2025/08/30/f76b92f6-5dcf-495f-ac05-68673132c573/original.png?w=1200"
+    },
+    {
+      "id": "dd03156b107c13818a62",
+      "title": "Apple M5 MaxでMLflow公式Quickstartを実践する",
+      "url": "https://qiita.com/kazuharu2022/items/8bcbe11f1cb79c79165b",
+      "source": "Qiita / MLOps",
+      "published_at": "2026-08-12T17:39:52+00:00",
+      "summary": "はじめに この記事では、Apple Silicon M5 Max を搭載したMac上で、MLflow公式の MLflow Tracking Quickstart を最初から順番に実行します。 対象となる公式チュートリアルはこちらです。 公式チュートリアルでは pip...",
+      "category": "技術コミュニティ",
+      "score": 3,
+      "image_url": null
+    },
+    {
       "id": "fcf875ff7f4a9a1ef023",
       "title": "「MacBook Neo」（ブラッシュ、256GBモデル）がセールで約12万→11.4万円に",
       "url": "https://www.itmedia.co.jp/pcuser/articles/2608/12/news089.html",
@@ -4587,17 +4521,6 @@
       "published_at": "2026-08-10T06:21:39+00:00",
       "summary": "防衛省が、委託先のリチェルカセキュリティ（東京都千代田区）に不正行為があったとして、9カ月間の指名停止措置を取ったと発表した。",
       "category": "テクノロジー",
-      "score": 3,
-      "image_url": null
-    },
-    {
-      "id": "e5138099f2fdb7b38514",
-      "title": "Lightning/USB Type-C両対応のiPhone用USBメモリ、サンディスク「SANDISK Phone Drive for iPhone」発売",
-      "url": "https://internet.watch.impress.co.jp/docs/news/2131551.html",
-      "source": "INTERNET Watch",
-      "published_at": "2026-08-09T22:30:00+00:00",
-      "summary": "サンディスクは8月7日、LightningとUSB Type-Cプラグを備えたiPhone/iPad用USBフラッシュメモリ「SANDISK Phone Drive for iPhone」の国内販売を開始した。容量は128GBと256GB。",
-      "category": "業務改善・QOL",
       "score": 3,
       "image_url": null
     },
@@ -4690,17 +4613,6 @@
       "image_url": null
     },
     {
-      "id": "7e5e1e8610f9c5a97fc4",
-      "title": "Stacked sessions and pull requests in the GitHub Copilot app",
-      "url": "https://github.blog/ai-and-ml/github-copilot/stacked-sessions-and-pull-requests-in-the-github-copilot-app/",
-      "source": "GitHub Blog",
-      "published_at": "2026-07-30T17:30:24+00:00",
-      "summary": "Learn how I modernized an old codebase of mine using stacked sessions and pull requests in the GitHub Copilot app. The post Stacked sessions and pull requests in the GitHub Copilot app appeared first on The GitHub Blog .",
-      "category": "開発",
-      "score": 3,
-      "image_url": null
-    },
-    {
       "id": "4d41ee5ee00c4f851bc3",
       "title": "データ漏えいリスクと利便性のトレードオフ ― 低セキュリティ環境への安全なデータ提供パターン",
       "url": "https://zenn.dev/tk_nomura/articles/2026-07-data-provisioning-pattern-tradeoffs",
@@ -4719,17 +4631,6 @@
       "published_at": "2026-07-23T00:00:00+00:00",
       "summary": "Health in ChatGPT now lets eligible U.S. users securely connect medical records and Apple Health to get more personalized insights and better understand their health.",
       "category": "生成AI活用",
-      "score": 3,
-      "image_url": null
-    },
-    {
-      "id": "b359f2c2611477b7654a",
-      "title": "なぜ安全なシステムほど使いにくいのか",
-      "url": "https://qiita.com/Ikuo_Mitani/items/f4bb7c3e2348df88118c",
-      "source": "Qiita / データガバナンス",
-      "published_at": "2026-07-16T10:23:39+00:00",
-      "summary": "先日、情報セキュリティに関する研修を受講する機会がありました。 研修の中では、 パスワード管理 アクセス権限 個人情報保護 端末管理 など、さまざまなセキュリティ対策が紹介されていました。 話を聞きながら改めて感じたのは、 セキュリティを強化すると、利便性は下がる ...",
-      "category": "技術コミュニティ",
       "score": 3,
       "image_url": null
     },
@@ -4754,6 +4655,17 @@
       "category": "業務改善・QOL",
       "score": 3,
       "image_url": "https://www.apple.com/newsroom/images/2026/07/madden-nfl-27-arcade-edition-brings-gridiron-action-to-apple-arcade-on-august-6/tile/Apple-Arcade-Madden-NFL-27-Arcade-Edition-trailer-lp.jpg.og.jpg"
+    },
+    {
+      "id": "8bfd76b6a2361079b401",
+      "title": "MiniMax H3で人物を固定する ―FL2VA(キーフレーム)とREF2VA(参照)を実測比較",
+      "url": "https://zenn.dev/ccie26302/articles/zenn-minimax-h3-character-consistency",
+      "source": "Zenn / 生成AI",
+      "published_at": "2026-08-12T21:45:42+00:00",
+      "summary": "はじめに 前回、MiniMax H3（動画生成モデル）を MacBook Pro M4 Max / 128GB でローカル生成しました。今回はその続きで、動画生成 AI の実用で必ずぶつかる「人物固定」——同じキャラクターを、複数のカットにまたがって一貫して出せるか、をやります。 H3 には、これに使えるタスクが 2 つあります。FL2VA と REF2VA。まず主人公を 1 体作り、その画像を元に別々のカットを生成して、キャラがブレないかを実測しました。5 秒のカットを 4 本つないで 20 秒にするところまで、両方式で通します。環境・ツール（mlx…",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
     },
     {
       "id": "163b99ce47131b8119eb",
@@ -4840,6 +4752,17 @@
       "published_at": "2026-08-12T00:39:00+00:00",
       "summary": "Amazon.co.jpのタイムセールで、ClicksのiPhone 15 Pro用キーボード付きケースが25％オフの1万7899円で販売中。物理キーボードにより画面の表示領域を大きく広げ、ショートカット操作や長文入力を快適に行える。",
       "category": "業務改善・QOL",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "9bafa93fe08b847d5d92",
+      "title": "How RingCentral builds AI-native work from engineering to ops",
+      "url": "https://openai.com/index/ringcentral",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-12T00:00:00+00:00",
+      "summary": "See how RingCentral uses ChatGPT Work and Codex to accelerate AI product development and centralize operational intelligence across engineering and operations.",
+      "category": "生成AI活用",
       "score": 2,
       "image_url": null
     },
@@ -5106,6 +5029,39 @@
       "category": "ML・データ事例",
       "score": 2,
       "image_url": "https://cdn-images-1.medium.com/max/1024/1*LhF-4Ol7L9DIDZEnSYneyA.png"
+    },
+    {
+      "id": "856e60d35ca81404cd84",
+      "title": "Pixel 11／Pixel 11 Proの詳細スペック表を掲載！ 過去のPixelと完全比較",
+      "url": "https://ascii.jp/elem/000/004/426/4426529/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-12T23:30:00+00:00",
+      "summary": "今年もiPhoneに先立つ形で「Pixel」シリーズの新モデルが登場。そこで過去のモデルも含めたPixelシリーズの詳細なスペック表を掲載。これなら自分が持っているPixelとの比較ができます！",
+      "category": "業務改善・QOL",
+      "score": 1,
+      "image_url": "https://ascii.jp/img/2026/08/13/4512424/s/fcba34df61a4f41b.jpg"
+    },
+    {
+      "id": "d682d2015baa5e3e6b00",
+      "title": "Googleの新型スマホ「Pixel 11」シリーズ登場。iPhoneとスペック比較",
+      "url": "https://pc.watch.impress.co.jp/docs/topic/feature/2132432.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-12T21:16:00+00:00",
+      "summary": "Googleは8月12日、新型スマートフォンの「Pixel 11」シリーズを発表した。価格はスタンダードモデルの「Pixel 11」が13万6,800円から、上位モデルの「Pixel 11 Pro」が17万4,800円から、上位モデルで大画面の「Pixel 11 Pro XL」が20万7,800円から、フォルダブルの「Pixel 11 Pro Fold」が27万9,900円から。",
+      "category": "業務改善・QOL",
+      "score": 1,
+      "image_url": null
+    },
+    {
+      "id": "8e22b0b0124b585b7b26",
+      "title": "Write your first prompt with the GitHub Copilot app",
+      "url": "https://github.blog/ai-and-ml/github-copilot/write-your-first-prompt-with-the-github-copilot-app/",
+      "source": "GitHub Blog",
+      "published_at": "2026-08-12T19:00:00+00:00",
+      "summary": "Learn how to write your first prompt in the GitHub Copilot app, choose the right context and model, and start your first task with confidence. The post Write your first prompt with the GitHub Copilot app appeared first on The GitHub Blog .",
+      "category": "開発",
+      "score": 1,
+      "image_url": null
     },
     {
       "id": "8d948521ecda81a81af1",
@@ -5471,37 +5427,81 @@
       "image_url": null
     },
     {
-      "id": "da398565474b5f8c974a",
-      "title": "Claude Code で書くと記事が薄い——その原因と『メタ実演構造』で説得力を一段上げる方法",
-      "url": "https://qiita.com/saitoko/items/7086e8004ae14f21d7f8",
-      "source": "Qiita / 生成AI",
-      "published_at": "2026-08-12T15:01:37+00:00",
-      "summary": "この記事の実施記録（2026年5〜6月）: Claude Code との対話セッション中に「いま起きていること自体が、書こうとしている記事の主張の証拠になっている」という構造（メタ実演構造）を3本の既存記事で確認した。本記事は4本目の実例として、本記事自身もメタ実演構造で書...",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "02e8368d7fba1d3435aa",
-      "title": "20世紀を代表するMoMA伝説の写真展「ザ・ファミリー・オブ・マン」が日本橋高島屋で復活",
-      "url": "https://ascii.jp/elem/000/004/426/4426513/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-12T15:01:00+00:00",
-      "summary": "日本経済新聞社は日本橋高島屋S.C. 本館8階ホールにて「ザ・ファミリー・オブ・マン写真展 人類愛と平和のビジョンを、いま再び」を開催しています",
+      "id": "4d0f4bdd8dd701651f06",
+      "title": "【本日みつけたお買い得品】M.2スロットを3基備えるCore UltraミニPCが約3万2千円オフ",
+      "url": "https://pc.watch.impress.co.jp/docs/news/todays_sales/2132447.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-13T00:10:09+00:00",
+      "summary": "Amazonにおいて、GMKtecのミニPC「NucBox K15」が直近価格から3万2,858円引きで、10万4,021円にて購入可能となっている。",
       "category": "業務改善・QOL",
       "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/12/4512275/s/63c8a8c26af51899.jpg"
+      "image_url": null
     },
     {
-      "id": "2c563947428818b93259",
-      "title": "LFM2.5-VL-3B for Better and Faster Vision Capabilities for the Edge",
-      "url": "https://huggingface.co/blog/LiquidAI/lfm2-5-vl-3b",
-      "source": "Hugging Face Blog",
-      "published_at": "2026-08-12T14:00:51+00:00",
-      "summary": "",
+      "id": "45fdb3720d3d7e8165e5",
+      "title": "MMPOはGRPOの平均最適化を捨て失敗分布のモーメントを削る",
+      "url": "https://qiita.com/okssusucha/items/f174d1d124ba26534bc6",
+      "source": "Qiita / LLM",
+      "published_at": "2026-08-13T00:05:19+00:00",
+      "summary": "平均正答率が同じ二つのモデルでも、中身はまるで違う。やさしい問題を確実に当てて難問を全部落とすモデルと、どの難易度もそこそこ取りこぼすモデルは、スコアボード上では区別がつかない。強化学習(RL)で推論モデルを鍛えるとき、私たちが最適化しているのはたいてい「平均」だ。その平均...",
       "category": "生成AI活用",
       "score": 0,
       "image_url": null
+    },
+    {
+      "id": "b4dcb6f5344833ede74d",
+      "title": "夏はビデオカードの消費電力を少し下げると吉？ エコで静かなゲーミング環境を作ろう【石田賀津男の『酒の肴にPCゲーム』】",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/column/sspcgame/2132323.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-13T00:05:00+00:00",
+      "summary": "今年の夏もやはり暑い。40度超えのニュースを聞かない日は暑くないのでは、と感じるくらい猛暑に慣らされてしまったが、暑いものは暑い。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "0700c3a06cc2febee464",
+      "title": "Nightly",
+      "url": "https://github.com/manaflow-ai/cmux/releases/tag/nightly",
+      "source": "cmux Releases",
+      "published_at": "2026-08-12T23:46:24+00:00",
+      "summary": "Automated nightly build for a028ba2 . cmux NIGHTLY is published as a universal app: bundle ID com.cmuxterm.app.nightly feed appcast.xml compatibility feed appcast-universal.xml for older universal nightlies Download cmux-nightly-macos.dmg",
+      "category": "CLI生産性",
+      "score": 0,
+      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+    },
+    {
+      "id": "e72e9d39e03d8979b8dc",
+      "title": "「iPhone 17e 256GB」未使用品が97,800円！イオシス30周年記念セール",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2132092.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-12T23:05:00+00:00",
+      "summary": "Appleの6.1インチスマートフォン「iPhone 17e A3575」の未使用品が、イオシス店頭でセール予定。期間は14日（金）～16日（日）。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "c44ad6725604faa5708c",
+      "title": "【毎日書評】予定に「なんのため？」をそえるだけ。追われる日々が、自分だけの時間に変わるわけ",
+      "url": "https://www.lifehacker.jp/article/2608-book_to_read-2011/",
+      "source": "ライフハッカー・ジャパン",
+      "published_at": "2026-08-12T23:00:00+00:00",
+      "summary": "【毎日書評】『あなたの時間が足りないのは、 あなたの言葉が足りないから。』（荒木俊哉 著、ソシム）より、予定に「なんのため？」をそえるだけ。追われる日々が、自分だけの時間に変わる理由について解説します。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://media.loom-app.com/loom/2026/08/12/dd680a36-dfa3-4026-b8e0-474241dceeb2/original.jpg?w=1200"
+    },
+    {
+      "id": "95127ed7d918cf33596f",
+      "title": "「フルHD」の“フル”ってフルパワーの略で合ってますか←違います。",
+      "url": "https://ascii.jp/elem/000/004/421/4421500/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-12T22:30:00+00:00",
+      "summary": "フルHD液晶の「フル」って何がフルなの？ フルボリューム？ フルスロットル？ フルコース？ はたまたハートフル？ いやそもそも「HD」って何の略？ もう何もわからない……。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/07/22/4503983/s/1b3a0a22f012e43e.png"
     }
   ]
 }

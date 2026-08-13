@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 data/read-events.jsonl
 data/feedback-events.jsonl
+data/selection-history.jsonl

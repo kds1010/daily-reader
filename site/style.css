@@ -283,8 +283,25 @@ h1 {
 
 .highlight-item strong,
 .highlight-item span,
-.highlight-item time {
+.highlight-item time,
+.highlight-item .selection-status {
   display: block;
+}
+
+.highlight-item .selection-status {
+  width: fit-content;
+  margin-bottom: 5px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #073d30;
+  background: #b9ead9;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.highlight-item .selection-status-continued {
+  color: rgb(247 251 248 / 72%);
+  background: rgb(255 255 255 / 12%);
 }
 
 .highlight-item time {

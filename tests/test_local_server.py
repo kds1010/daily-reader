@@ -22,6 +22,7 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.update_hours == "8,12,17,20"
     assert args.read_log == Path("data/read-events.jsonl")
     assert args.feedback_log == Path("data/feedback-events.jsonl")
+    assert args.selection_history == Path("data/selection-history.jsonl")
 
 
 def test_read_events_are_appended_and_summarized(tmp_path: Path) -> None:

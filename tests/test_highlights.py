@@ -1,13 +1,16 @@
+from datetime import datetime
 from pathlib import Path
 
 from daily_reader.core import Article
 from daily_reader.highlights import (
+    _candidate_rank,
     _feedback_examples,
     _is_cli_productivity_article,
     _is_local_store_opening,
     _is_parenting_walking_distance,
     _is_sakuragicho_area_article,
     _sakuragicho_area_priority,
+    _selection_streak,
 )
 
 
@@ -62,3 +65,22 @@ def test_feedback_examples_ignore_invalid_and_keep_recent_entries(tmp_path: Path
         }
     ]
     assert _feedback_examples(Path("missing.jsonl")) == []
+
+
+def test_candidate_rank_boosts_fresh_and_penalizes_previous() -> None:
+    generated_at = datetime.fromisoformat("2026-08-13T00:00:00+00:00")
+    fresh = Article(**{**_event("fresh").__dict__, "published_at": "2026-08-12T12:00:00+00:00"})
+    old = Article(**{**_event("old").__dict__, "published_at": "2026-08-01T12:00:00+00:00"})
+
+    assert _candidate_rank(fresh, set(), generated_at)[0] == fresh.score + 6
+    assert _candidate_rank(old, {old.id}, generated_at)[0] == old.score - 6
+
+
+def test_selection_streak_counts_only_consecutive_runs() -> None:
+    runs = [
+        {"データ・AI": ["article-1"]},
+        {"データ・AI": ["article-1"]},
+    ]
+
+    assert _selection_streak("article-1", "データ・AI", runs) == 2
+    assert _selection_streak("article-2", "データ・AI", runs) == 0
