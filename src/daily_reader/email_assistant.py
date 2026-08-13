@@ -7,6 +7,7 @@ import html
 import os
 import re
 import sqlite3
+import urllib.parse
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -20,6 +21,13 @@ from googleapiclient.discovery import build
 GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 TAG_PATTERN = re.compile(r"<[^>]+>")
 SPACE_PATTERN = re.compile(r"\s+")
+HTML_IGNORED_PATTERN = re.compile(
+    r"<(script|style)[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL
+)
+HTML_BREAK_PATTERN = re.compile(
+    r"<(?:br\s*/?|/p|/div|/h[1-6]|/tr|/table|/blockquote)\s*>", re.IGNORECASE
+)
+HTML_LIST_ITEM_PATTERN = re.compile(r"<li(?:\s[^>]*)?>", re.IGNORECASE)
 DATE_PATTERNS = (
     re.compile(r"(?P<year>20\d{2})[年/-](?P<month>\d{1,2})[月/-](?P<day>\d{1,2})日?"),
     re.compile(r"(?P<month>\d{1,2})月(?P<day>\d{1,2})日"),
@@ -89,6 +97,24 @@ class GmailThreadRecord:
 def clean_message_text(value: str, max_length: int = 1200) -> str:
     cleaned = html.unescape(TAG_PATTERN.sub(" ", value))
     cleaned = SPACE_PATTERN.sub(" ", cleaned).strip()
+    return cleaned[:max_length]
+
+
+def clean_message_body(value: str, is_html: bool, max_length: int = 8000) -> str:
+    if is_html:
+        value = HTML_IGNORED_PATTERN.sub("", value)
+        value = HTML_BREAK_PATTERN.sub("\n", value)
+        value = HTML_LIST_ITEM_PATTERN.sub("\n・", value)
+        value = TAG_PATTERN.sub(" ", value)
+    value = html.unescape(value).replace("\r\n", "\n").replace("\r", "\n")
+    lines = []
+    for line in value.splitlines():
+        normalized = re.sub(r"[ \t\f\v]+", " ", line).strip()
+        if normalized:
+            lines.append(normalized)
+        elif lines and lines[-1] != "":
+            lines.append("")
+    cleaned = "\n".join(lines).strip()
     return cleaned[:max_length]
 
 
@@ -163,6 +189,20 @@ def initialize_database(path: Path) -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gmail_sync_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                completed_at TEXT NOT NULL,
+                thread_count INTEGER NOT NULL
+            )
+            """
+        )
+
+
+def gmail_thread_url(account_email: str, thread_id: str) -> str:
+    account = urllib.parse.quote(account_email, safe="")
+    return f"https://mail.google.com/mail/?authuser={account}#all/{thread_id}"
 
 
 def upsert_thread(path: Path, record: GmailThreadRecord, now: datetime) -> None:
@@ -221,7 +261,22 @@ def list_reminders(path: Path, period: str, now: datetime) -> list[dict[str, Any
             """,
             (now.isoformat(), cutoff.isoformat()),
         ).fetchall()
-    return [dict(row) for row in rows]
+    reminders = [dict(row) for row in rows]
+    for reminder in reminders:
+        reminder["gmail_url"] = gmail_thread_url(
+            reminder["account_email"], reminder["thread_id"]
+        )
+    return reminders
+
+
+def get_gmail_sync_state(path: Path) -> dict[str, Any] | None:
+    initialize_database(path)
+    with sqlite3.connect(path) as connection:
+        connection.row_factory = sqlite3.Row
+        row = connection.execute(
+            "SELECT completed_at, thread_count FROM gmail_sync_state WHERE id = 1"
+        ).fetchone()
+    return dict(row) if row else None
 
 
 def update_status(path: Path, thread_id: str, action: str, now: datetime) -> bool:
@@ -268,7 +323,7 @@ def _headers(message: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def _message_body(message: dict[str, Any]) -> str:
+def _message_body(message: dict[str, Any], max_length: int = 1200) -> str:
     parts = [message.get("payload", {})]
     while parts:
         part = parts.pop(0)
@@ -277,8 +332,57 @@ def _message_body(message: dict[str, Any]) -> str:
             continue
         encoded = part.get("body", {}).get("data")
         if encoded:
-            return clean_message_text(base64.urlsafe_b64decode(encoded).decode(errors="replace"))
-    return clean_message_text(message.get("snippet", ""))
+            return clean_message_body(
+                base64.urlsafe_b64decode(encoded).decode(errors="replace"),
+                part.get("mimeType") == "text/html",
+                max_length,
+            )
+    return clean_message_text(message.get("snippet", ""), max_length)
+
+
+def fetch_gmail_thread_content(
+    database: Path,
+    client_secret: Path,
+    token_path: Path,
+    thread_id: str,
+) -> dict[str, Any] | None:
+    initialize_database(database)
+    with sqlite3.connect(database) as connection:
+        connection.row_factory = sqlite3.Row
+        stored = connection.execute(
+            "SELECT subject, account_email FROM email_threads WHERE thread_id = ?",
+            (thread_id,),
+        ).fetchone()
+    if stored is None:
+        return None
+
+    credentials = load_credentials(client_secret, token_path, interactive=False)
+    service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
+    thread = service.users().threads().get(
+        userId="me", id=thread_id, format="full"
+    ).execute()
+    messages = sorted(
+        thread.get("messages", []), key=lambda value: int(value["internalDate"])
+    )
+    content = []
+    for message in messages:
+        headers = _headers(message)
+        received_at = datetime.fromtimestamp(
+            int(message["internalDate"]) / 1000, tz=UTC
+        ).isoformat()
+        content.append(
+            {
+                "sender": headers.get("from", ""),
+                "received_at": received_at,
+                "body": _message_body(message, 8000),
+            }
+        )
+    return {
+        "thread_id": thread_id,
+        "subject": stored["subject"],
+        "account_email": stored["account_email"],
+        "messages": content,
+    }
 
 
 def sync_gmail(
@@ -328,7 +432,7 @@ def sync_gmail(
                 account_email=account_email, subject=headers.get("subject", "(件名なし)"),
                 sender=sender, received_at=received_at.isoformat(),
                 snippet=clean_message_text(latest.get("snippet", ""), 300),
-                gmail_url=f"https://mail.google.com/mail/u/{account_index}/#all/{thread['id']}",
+                gmail_url=gmail_thread_url(account_email, thread["id"]),
                 importance=assessment.importance, importance_score=assessment.score,
                 reason=assessment.reason, required_action=assessment.required_action,
                 due_date=assessment.due_date,
@@ -338,6 +442,17 @@ def sync_gmail(
             now,
         )
         count += 1
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """
+            INSERT INTO gmail_sync_state (id, completed_at, thread_count)
+            VALUES (1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                completed_at=excluded.completed_at,
+                thread_count=excluded.thread_count
+            """,
+            (datetime.now(UTC).isoformat(), count),
+        )
     return count
 
 

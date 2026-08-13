@@ -4,12 +4,34 @@ from pathlib import Path
 from daily_reader.email_assistant import (
     GmailThreadRecord,
     assess_email,
+    clean_message_body,
+    get_gmail_sync_state,
+    gmail_thread_url,
     list_reminders,
     update_status,
     upsert_thread,
 )
 
 NOW = datetime(2026, 8, 12, 3, tzinfo=UTC)
+
+
+def test_gmail_thread_url_selects_the_synchronized_account() -> None:
+    assert gmail_thread_url("me+reader@example.com", "thread-1") == (
+        "https://mail.google.com/mail/?authuser=me%2Breader%40example.com#all/thread-1"
+    )
+
+
+def test_gmail_sync_state_is_empty_before_first_completed_sync(tmp_path: Path) -> None:
+    assert get_gmail_sync_state(tmp_path / "assistant.sqlite3") is None
+
+
+def test_clean_html_message_body_preserves_structure() -> None:
+    body = clean_message_body(
+        "<style>hidden</style><h1>お知らせ</h1><p>本文です。<br>次の行です。</p>"
+        "<ul><li>項目1</li><li>項目2</li></ul><script>bad()</script>",
+        is_html=True,
+    )
+    assert body == "お知らせ\n本文です。\n次の行です。\n\n・項目1\n・項目2"
 
 
 def test_assess_email_detects_action_and_due_date() -> None:
@@ -44,6 +66,9 @@ def test_reminder_status_workflow(tmp_path: Path) -> None:
     assert [item["thread_id"] for item in list_reminders(database, "daily", NOW)] == [
         "thread-1"
     ]
+    assert list_reminders(database, "daily", NOW)[0]["gmail_url"] == (
+        "https://mail.google.com/mail/?authuser=me%40example.com#all/thread-1"
+    )
     assert update_status(database, "thread-1", "done", NOW)
     assert list_reminders(database, "daily", NOW) == []
 

@@ -28,6 +28,8 @@
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
 - `data/selection-history.jsonl`: 分野別ハイライトの連続掲載履歴。Git管理対象外。
 - `data/assistant.sqlite3`: メール判定と対応状態。Mac mini内だけに保持しGit管理対象外。
+- HTTPサーバーを先に起動可能な状態にし、ニュース更新とGmail同期は別々のバックグラウンドスレッドで実行する。
+- Gmailは起動直後と15分ごとに同期する。ニュース・Gmailの同期中もHTTP応答をブロックしない。
 
 ## 現在のハイライト分野
 

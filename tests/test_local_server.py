@@ -23,6 +23,8 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.read_log == Path("data/read-events.jsonl")
     assert args.feedback_log == Path("data/feedback-events.jsonl")
     assert args.selection_history == Path("data/selection-history.jsonl")
+    assert args.gmail_client_secret == Path("secrets/gmail-client.json")
+    assert args.gmail_token == Path("secrets/gmail-token.json")
 
 
 def test_read_events_are_appended_and_summarized(tmp_path: Path) -> None:

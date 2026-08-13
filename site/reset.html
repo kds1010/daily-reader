@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Daily Readerを更新</title>
+  </head>
+  <body>
+    <p id="status">Daily Readerを更新しています…</p>
+    <script>
+      async function resetApplication() {
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+          }
+          location.replace("./?v=36");
+        } catch (error) {
+          document.querySelector("#status").textContent = `更新に失敗しました：${error.message}`;
+        }
+      }
+      resetApplication();
+    </script>
+  </body>
+</html>

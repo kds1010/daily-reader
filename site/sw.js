@@ -1,5 +1,5 @@
-const CACHE_NAME = "daily-reader-v26";
-const APP_ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./icons/icon.svg"];
+const CACHE_NAME = "daily-reader-v36";
+const APP_ASSETS = ["./", "./index.html", "./style.css?v=36", "./app.js?v=36", "./icons/icon.svg"];
 
 async function cacheSuccessfulResponse(request, response) {
   if (response?.ok) {
@@ -28,12 +28,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   const url = new URL(event.request.url);
-  if (url.pathname.includes("/data/")) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => cacheSuccessfulResponse(event.request, response))
-        .catch(async () => (await caches.match(event.request)) || Response.error()),
-    );
+  if (url.pathname.includes("/api/") || url.pathname.includes("/data/")) {
+    event.respondWith(fetch(event.request));
     return;
   }
   event.respondWith(

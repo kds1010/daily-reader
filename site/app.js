@@ -17,6 +17,8 @@ const state = {
   saved: loadStoredSet("saved"),
   read: loadStoredSet("read"),
   hidden: loadStoredSet("hidden"),
+  newsStatus: "ニュースを読み込んでいます…",
+  emailStatus: "メールを読み込んでいます…",
 };
 
 const elements = {
@@ -43,6 +45,7 @@ const elements = {
   emailAssistant: document.querySelector("#email-assistant"),
   emailEmpty: document.querySelector("#email-empty"),
   emailItems: document.querySelector("#email-items"),
+  emailSyncStatus: document.querySelector("#email-sync-status"),
   emailCount: document.querySelector("#email-count"),
   emailView: document.querySelector("#email-view"),
   newsView: document.querySelector("#news-view"),
@@ -59,6 +62,17 @@ function switchView(view) {
     button.setAttribute("aria-selected", String(button.dataset.appView === view));
   });
   elements.refresh.setAttribute("aria-label", view === "email" ? "メールを再読み込み" : "ニュースを再読み込み");
+  elements.status.textContent = view === "email" ? state.emailStatus : state.newsStatus;
+}
+
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function emailStatusLabel(status) {
@@ -66,7 +80,7 @@ function emailStatusLabel(status) {
 }
 
 async function updateEmailStatus(threadId, action) {
-  const response = await fetch("./api/email-status", {
+  const response = await fetchWithTimeout("./api/email-status", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ thread_id: threadId, action }),
@@ -75,9 +89,11 @@ async function updateEmailStatus(threadId, action) {
 }
 
 async function loadEmailReminders(period = "daily") {
+  state.emailStatus = "メールを読み込んでいます…";
+  if (currentView === "email") elements.status.textContent = state.emailStatus;
   try {
-    const response = await fetch(`./api/email-reminders/${period}`, { cache: "no-store" });
-    if (!response.ok) return;
+    const response = await fetchWithTimeout(`./api/email-reminders/${period}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     const fragment = document.createDocumentFragment();
     for (const email of payload.items || []) {
@@ -94,12 +110,54 @@ async function loadEmailReminders(period = "daily") {
       nextAction.textContent = `次の行動：${email.required_action}${email.due_date ? `（期限 ${email.due_date}）` : ""}`;
       const controls = document.createElement("div");
       controls.className = "email-actions";
-      const open = document.createElement("a");
-      open.href = email.gmail_url;
-      open.target = "_blank";
-      open.rel = "noopener noreferrer";
-      open.textContent = "Gmailで開く";
-      controls.append(open);
+      const content = document.createElement("div");
+      content.className = "email-content";
+      content.hidden = true;
+      const showContent = document.createElement("button");
+      showContent.type = "button";
+      showContent.textContent = "本文を表示";
+      showContent.addEventListener("click", async () => {
+        if (!content.hidden) {
+          content.hidden = true;
+          showContent.textContent = "本文を表示";
+          return;
+        }
+        showContent.disabled = true;
+        showContent.textContent = "本文を取得中…";
+        try {
+          const response = await fetchWithTimeout(
+            `./api/email-content/${encodeURIComponent(email.thread_id)}`,
+            { cache: "no-store" },
+            30000,
+          );
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const payload = await response.json();
+          const messages = document.createDocumentFragment();
+          for (const message of payload.messages || []) {
+            const item = document.createElement("section");
+            item.className = "email-message";
+            const messageMeta = document.createElement("p");
+            messageMeta.className = "email-meta";
+            messageMeta.textContent = `${new Intl.DateTimeFormat("ja-JP", {
+              month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+            }).format(new Date(message.received_at))}・${message.sender}`;
+            const body = document.createElement("p");
+            body.className = "email-body";
+            body.textContent = message.body || "本文を取得できませんでした。";
+            item.append(messageMeta, body);
+            messages.append(item);
+          }
+          content.replaceChildren(messages);
+          content.hidden = false;
+          showContent.textContent = "本文を閉じる";
+        } catch (error) {
+          elements.status.textContent = `本文の取得に失敗しました：${error.message}`;
+          showContent.textContent = "本文を再取得";
+        } finally {
+          showContent.disabled = false;
+        }
+      });
+      controls.append(showContent);
       for (const [value, label] of [["done", "対応済み"], ["snooze", "明日"], ["dismiss", "対応不要"]]) {
         const button = document.createElement("button");
         button.type = "button";
@@ -120,7 +178,7 @@ async function loadEmailReminders(period = "daily") {
         });
         controls.append(button);
       }
-      card.append(meta, title, reason, nextAction, controls);
+      card.append(meta, title, reason, nextAction, controls, content);
       fragment.append(card);
     }
     elements.emailItems.replaceChildren(fragment);
@@ -129,11 +187,29 @@ async function loadEmailReminders(period = "daily") {
     const count = payload.items?.length || 0;
     elements.emailCount.textContent = String(count);
     elements.emailCount.hidden = count === 0;
+    const syncedAt = payload.last_sync_at
+      ? new Intl.DateTimeFormat("ja-JP", {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(new Date(payload.last_sync_at))
+      : "未同期";
+    state.emailStatus = `${syncedAt} Gmail取得・対応メール ${count}件`;
+    elements.emailSyncStatus.textContent = payload.last_sync_at
+      ? `最終取得：${syncedAt}（Gmailから${payload.synced_thread_count}スレッド取得）`
+      : "Gmailの同期はまだ完了していません。";
+    if (currentView === "email") elements.status.textContent = state.emailStatus;
     document.querySelectorAll("[data-email-period]").forEach((button) => {
       button.classList.toggle("active", button.dataset.emailPeriod === period);
     });
-  } catch {
+  } catch (error) {
     elements.emailAssistant.hidden = true;
+    state.emailStatus = error.name === "AbortError"
+      ? "メールの読み込みがタイムアウトしました。Tailscale接続をご確認ください。"
+      : `メールの読み込みに失敗しました：${error.message}`;
+    if (currentView === "email") elements.status.textContent = state.emailStatus;
+    elements.emailSyncStatus.textContent = state.emailStatus;
   }
 }
 
@@ -509,10 +585,11 @@ function renderArticles() {
 }
 
 async function loadArticles() {
-  elements.status.textContent = "ニュースを読み込んでいます…";
+  state.newsStatus = "ニュースを読み込んでいます…";
+  if (currentView === "news") elements.status.textContent = state.newsStatus;
   elements.refresh.disabled = true;
   try {
-    const response = await fetch("./data/articles.json", { cache: "no-store" });
+    const response = await fetchWithTimeout("./data/articles.json", { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -525,11 +602,15 @@ async function loadArticles() {
       minute: "2-digit",
     }).format(new Date(payload.generated_at));
     const errorNote = payload.errors.length ? `・取得失敗 ${payload.errors.length}件` : "";
-    elements.status.textContent = `${generatedAt} 更新${errorNote}`;
+    state.newsStatus = `${generatedAt} 更新${errorNote}`;
+    if (currentView === "news") elements.status.textContent = state.newsStatus;
     renderCategories();
     renderArticles();
   } catch (error) {
-    elements.status.textContent = `読み込みに失敗しました：${error.message}`;
+    state.newsStatus = error.name === "AbortError"
+      ? "ニュースの読み込みがタイムアウトしました。Tailscale接続をご確認ください。"
+      : `ニュースの読み込みに失敗しました：${error.message}`;
+    if (currentView === "news") elements.status.textContent = state.newsStatus;
   } finally {
     elements.refresh.disabled = false;
   }

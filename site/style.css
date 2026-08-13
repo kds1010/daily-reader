@@ -723,3 +723,34 @@ h1 {
     background: rgb(30 37 33 / 86%);
   }
 }
+.email-content {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.email-message {
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 84%, var(--ink) 4%);
+  padding: 0.9rem 1rem;
+}
+
+.email-content .email-meta {
+  margin: 0 0 0.65rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+
+.email-content section + section {
+  margin-top: 1rem;
+}
+
+.email-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.94rem;
+  line-height: 1.75;
+  color: var(--ink);
+}
