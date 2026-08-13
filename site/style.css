@@ -38,10 +38,52 @@ select {
 }
 
 .masthead,
-main {
+main,
+.app-tabs {
   width: min(100% - 32px, 760px);
   margin-inline: auto;
 }
+
+.app-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 20px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.app-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 700;
+}
+
+.app-tabs button[aria-selected="true"] {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.tab-count {
+  display: inline-grid;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  margin-left: .3rem;
+  padding-inline: .35rem;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--ink);
+  background: var(--accent-soft);
+  font-size: .72rem;
+}
+
+.tab-count[hidden], .app-view[hidden] { display: none; }
 
 .email-assistant {
   margin-bottom: 1.5rem;

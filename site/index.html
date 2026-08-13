@@ -20,19 +20,31 @@
       <button id="refresh" class="icon-button" type="button" aria-label="再読み込み">↻</button>
     </header>
 
-    <main>
-      <section id="email-assistant" class="email-assistant" hidden aria-labelledby="email-heading">
-        <div class="section-heading">
-          <div><p class="eyebrow">ACTION REQUIRED</p><h2 id="email-heading">対応が必要なメール</h2></div>
-          <div class="email-period" role="group" aria-label="メール表示期間">
-            <button type="button" data-email-period="daily" class="active">今日</button>
-            <button type="button" data-email-period="weekly">今週</button>
-          </div>
-        </div>
-        <p id="email-empty" class="empty" hidden>未対応の重要メールはありません。</p>
-        <div id="email-items" class="email-items"></div>
-      </section>
+    <nav class="app-tabs" aria-label="表示する情報">
+      <button id="news-tab" type="button" role="tab" aria-controls="news-view" aria-selected="true" data-app-view="news">
+        ニュース
+      </button>
+      <button id="email-tab" type="button" role="tab" aria-controls="email-view" aria-selected="false" data-app-view="email">
+        メール <span id="email-count" class="tab-count" hidden></span>
+      </button>
+    </nav>
 
+    <main>
+      <div id="email-view" class="app-view" role="tabpanel" aria-labelledby="email-tab" hidden>
+        <section id="email-assistant" class="email-assistant" hidden aria-labelledby="email-heading">
+          <div class="section-heading">
+            <div><p class="eyebrow">ACTION REQUIRED</p><h2 id="email-heading">対応が必要なメール</h2></div>
+            <div class="email-period" role="group" aria-label="メール表示期間">
+              <button type="button" data-email-period="daily" class="active">今日</button>
+              <button type="button" data-email-period="weekly">今週</button>
+            </div>
+          </div>
+          <p id="email-empty" class="empty" hidden>未対応の重要メールはありません。</p>
+          <div id="email-items" class="email-items"></div>
+        </section>
+      </div>
+
+      <div id="news-view" class="app-view" role="tabpanel" aria-labelledby="news-tab">
       <section id="highlights" class="highlights" hidden aria-labelledby="highlights-heading">
         <p class="eyebrow">TODAY'S HIGHLIGHTS</p>
         <h2 id="highlights-heading"></h2>
@@ -99,6 +111,7 @@
         <p id="empty" class="empty" hidden>条件に合う記事はありません。</p>
       </section>
       </details>
+      </div>
     </main>
 
     <template id="article-template">
