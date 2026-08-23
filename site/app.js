@@ -19,6 +19,7 @@ const state = {
   hidden: loadStoredSet("hidden"),
   newsStatus: "ニュースを読み込んでいます…",
   emailStatus: "メールを読み込んでいます…",
+  todayStatus: "今日の予定を読み込んでいます…",
 };
 
 const elements = {
@@ -49,20 +50,39 @@ const elements = {
   emailCount: document.querySelector("#email-count"),
   emailView: document.querySelector("#email-view"),
   newsView: document.querySelector("#news-view"),
+  todayView: document.querySelector("#today-view"),
+  todayCount: document.querySelector("#today-count"),
+  todaySummary: document.querySelector("#today-summary"),
+  taskItems: document.querySelector("#task-items"),
+  taskProgress: document.querySelector("#task-progress"),
+  tasksEmpty: document.querySelector("#tasks-empty"),
+  routineItems: document.querySelector("#routine-items"),
+  routineProgress: document.querySelector("#routine-progress"),
+  routinesEmpty: document.querySelector("#routines-empty"),
+  taskForm: document.querySelector("#task-form"),
+  healthForm: document.querySelector("#health-form"),
+  healthMetrics: document.querySelector("#health-metrics"),
+  healthSynced: document.querySelector("#health-synced"),
+  todayEmailItems: document.querySelector("#today-email-items"),
+  todayEmailEmpty: document.querySelector("#today-email-empty"),
 };
 
-let currentView = localStorage.getItem("daily-reader:view") === "email" ? "email" : "news";
+const storedView = localStorage.getItem("daily-reader:view");
+let currentView = ["today", "news", "email"].includes(storedView) ? storedView : "today";
 
 function switchView(view) {
   currentView = view;
   localStorage.setItem("daily-reader:view", view);
   elements.newsView.hidden = view !== "news";
   elements.emailView.hidden = view !== "email";
+  elements.todayView.hidden = view !== "today";
   document.querySelectorAll("[data-app-view]").forEach((button) => {
     button.setAttribute("aria-selected", String(button.dataset.appView === view));
   });
-  elements.refresh.setAttribute("aria-label", view === "email" ? "メールを再読み込み" : "ニュースを再読み込み");
-  elements.status.textContent = view === "email" ? state.emailStatus : state.newsStatus;
+  const labels = { today: "今日を再読み込み", email: "メールを再読み込み", news: "ニュースを再読み込み" };
+  const statuses = { today: state.todayStatus, email: state.emailStatus, news: state.newsStatus };
+  elements.refresh.setAttribute("aria-label", labels[view]);
+  elements.status.textContent = statuses[view];
 }
 
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
@@ -72,6 +92,115 @@ async function fetchWithTimeout(url, options = {}, timeout = 10000) {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timeoutId);
+  }
+}
+
+function localDateString() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+async function postJson(url, payload) {
+  const response = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+function plannerItem(task, routine = false) {
+  const row = document.createElement("article");
+  row.className = `planner-item priority-${task.priority}`;
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = Boolean(task.completed_today);
+  checkbox.setAttribute("aria-label", `${task.title}を完了`);
+  const content = document.createElement("div");
+  const title = document.createElement("strong");
+  title.textContent = task.title;
+  const meta = document.createElement("span");
+  const recurrenceLabels = { daily: "毎日", weekdays: "平日", weekly: "毎週" };
+  meta.textContent = routine
+    ? recurrenceLabels[task.recurrence]
+    : task.due_date ? `期限 ${task.due_date}` : "期限なし";
+  content.append(title, meta);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "planner-delete";
+  remove.textContent = "削除";
+  remove.addEventListener("click", async () => {
+    if (!window.confirm(`「${task.title}」を削除しますか？`)) return;
+    await postJson("./api/tasks/delete", { task_id: task.id });
+    await loadToday();
+  });
+  checkbox.addEventListener("change", async () => {
+    checkbox.disabled = true;
+    try {
+      await postJson("./api/task-status", { task_id: task.id, completed: checkbox.checked });
+      await loadToday();
+    } catch (error) {
+      checkbox.checked = !checkbox.checked;
+      state.todayStatus = `更新に失敗しました：${error.message}`;
+      elements.status.textContent = state.todayStatus;
+    } finally {
+      checkbox.disabled = false;
+    }
+  });
+  row.append(checkbox, content, remove);
+  return row;
+}
+
+function renderHealth(health) {
+  const metrics = [];
+  if (health?.sleep_minutes != null) metrics.push(["睡眠", `${Math.floor(health.sleep_minutes / 60)}時間${health.sleep_minutes % 60}分`]);
+  if (health?.steps != null) metrics.push(["歩数", `${health.steps.toLocaleString("ja-JP")}歩`]);
+  if (health?.resting_heart_rate != null) metrics.push(["安静時心拍", `${health.resting_heart_rate} bpm`]);
+  if (health?.hrv_ms != null) metrics.push(["HRV", `${health.hrv_ms} ms`]);
+  if (health?.respiratory_rate != null) metrics.push(["呼吸数", `${health.respiratory_rate} 回/分`]);
+  elements.healthMetrics.replaceChildren();
+  for (const [label, value] of metrics) {
+    const item = document.createElement("div");
+    const name = document.createElement("span");
+    const measurement = document.createElement("strong");
+    name.textContent = label;
+    measurement.textContent = value;
+    item.append(name, measurement);
+    elements.healthMetrics.append(item);
+  }
+  elements.healthSynced.textContent = metrics.length ? "HealthKit同期済み" : "HealthKit未同期";
+  document.querySelector("#health-fatigue").value = health?.fatigue || "";
+  document.querySelector("#health-mood").value = health?.mood || "";
+  document.querySelector("#health-note").value = health?.note || "";
+}
+
+async function loadToday() {
+  state.todayStatus = "今日の予定を読み込んでいます…";
+  if (currentView === "today") elements.status.textContent = state.todayStatus;
+  try {
+    const response = await fetchWithTimeout("./api/today", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    elements.taskItems.replaceChildren(...payload.tasks.map((task) => plannerItem(task)));
+    elements.routineItems.replaceChildren(...payload.routines.map((task) => plannerItem(task, true)));
+    elements.tasksEmpty.hidden = payload.tasks.length !== 0;
+    elements.routinesEmpty.hidden = payload.routines.length !== 0;
+    const routineDone = payload.routines.filter((task) => task.completed_today).length;
+    elements.taskProgress.textContent = `${payload.tasks.length}件`;
+    elements.routineProgress.textContent = `${routineDone}/${payload.routines.length} 完了`;
+    const remaining = payload.tasks.length + payload.routines.length - routineDone;
+    elements.todayCount.textContent = String(remaining);
+    elements.todayCount.hidden = remaining === 0;
+    elements.todaySummary.textContent = remaining ? `残り ${remaining}件です。` : "今日の項目はすべて完了しました。";
+    state.todayStatus = `今日の残り ${remaining}件`;
+    renderHealth(payload.health);
+    if (currentView === "today") elements.status.textContent = state.todayStatus;
+  } catch (error) {
+    state.todayStatus = `今日の予定を読み込めませんでした：${error.message}`;
+    elements.todaySummary.textContent = state.todayStatus;
+    if (currentView === "today") elements.status.textContent = state.todayStatus;
   }
 }
 
@@ -95,6 +224,29 @@ async function loadEmailReminders(period = "daily") {
     const response = await fetchWithTimeout(`./api/email-reminders/${period}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
+    const todayEmailFragment = document.createDocumentFragment();
+    for (const email of (payload.items || []).slice(0, 5)) {
+      const item = document.createElement("article");
+      item.className = `planner-item email-planner-item importance-${email.importance}`;
+      const marker = document.createElement("span");
+      marker.className = "email-planner-marker";
+      marker.textContent = "✉";
+      const content = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = email.subject;
+      const action = document.createElement("span");
+      action.textContent = email.required_action;
+      content.append(title, action);
+      const link = document.createElement("a");
+      link.href = email.gmail_url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "開く";
+      item.append(marker, content, link);
+      todayEmailFragment.append(item);
+    }
+    elements.todayEmailItems.replaceChildren(todayEmailFragment);
+    elements.todayEmailEmpty.hidden = Boolean(payload.items?.length);
     const fragment = document.createDocumentFragment();
     for (const email of payload.items || []) {
       const card = document.createElement("article");
@@ -649,6 +801,7 @@ if ("serviceWorker" in navigator) {
 loadArticles();
 loadHighlights();
 loadEmailReminders();
+loadToday();
 loadFeedback().then(() => {
   document.querySelectorAll("[data-article-id]").forEach((item) => {
     if (state.hidden.has(item.dataset.articleId)) {

@@ -22,6 +22,37 @@
 - localhostへの限定バインド
 - Gmailの重要メール抽出、返信状況の追跡、日次・週次リマインド
 - Gmailスレッドへのリンクと、対応済み・保留・対応不要の記録
+- 「今日」画面でのタスク、期限、優先度、毎日・平日・毎週のルーティン管理
+- 疲労度・気分・体調メモと、iPhoneショートカットから同期したHealthKit日次集計の表示
+
+## 今日のタスクと体調
+
+「今日」タブでは、期限当日・期限超過・期限なしのタスクと、その日に該当する
+ルーティンをまとめて確認できます。通常タスクは完了すると一覧から外れ、ルーティンは
+日ごとに完了履歴を保持して翌日に再表示されます。データはMac mini内の
+`data/planner.sqlite3`だけに保存され、Gitには含まれません。
+
+体調チェックインは画面から疲労度、気分、メモを入力できます。HealthKitの日次集計は
+iPhoneのショートカットから次のAPIへ送信します。
+
+```text
+POST /api/health/sync
+Authorization: Bearer <専用トークン>
+Content-Type: application/json
+```
+
+専用トークンは改行なしで`secrets/health-sync-token.txt`へ保存します。送信例:
+
+```json
+{
+  "date": "2026-08-24",
+  "sleep_minutes": 412,
+  "steps": 8432,
+  "resting_heart_rate": 58,
+  "hrv_ms": 44.2,
+  "respiratory_rate": 14.5
+}
+```
 
 ## Gmailアシスタント
 

@@ -22,14 +22,17 @@
 - `src/daily_reader/highlights.py`: 候補選定、Codexプロンプト、出力検証、OG画像補完。
 - `src/daily_reader/local_server.py`: ローカルHTTPサーバー、更新スケジューラー、閲覧・不要フィードバック・メールAPI。
 - `src/daily_reader/email_assistant.py`: Gmail読み取り専用OAuth、重要度判定、SQLite状態管理。
+- `src/daily_reader/daily_planner.py`: タスク、繰り返しルーティン、健康チェックインのSQLite状態管理。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
 - `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。Git管理対象。
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
 - `data/selection-history.jsonl`: 分野別ハイライトの連続掲載履歴。Git管理対象外。
 - `data/assistant.sqlite3`: メール判定と対応状態。Mac mini内だけに保持しGit管理対象外。
+- `data/planner.sqlite3`: タスク、日別ルーティン完了、健康日次集計。Mac mini内だけに保持しGit管理対象外。
 - HTTPサーバーを先に起動可能な状態にし、ニュース更新とGmail同期は別々のバックグラウンドスレッドで実行する。
 - Gmailは起動直後と15分ごとに同期する。ニュース・Gmailの同期中もHTTP応答をブロックしない。
+- 初期画面は「今日」。通常タスク、日別ルーティン、健康チェックインを表示し、HealthKit集計は専用トークン付きAPIで受け取る。
 
 ## 現在のハイライト分野
 

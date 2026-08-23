@@ -8,4 +8,6 @@ data/feedback-events.jsonl
 data/selection-history.jsonl
 data/assistant.sqlite3
 data/assistant.sqlite3-*
+data/planner.sqlite3
+data/planner.sqlite3-*
 secrets/

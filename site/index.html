@@ -4,11 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#f4f1e8">
-    <meta name="description" content="気になるニュースを静かにまとめる個人用リーダー">
+    <meta name="description" content="今日やること、体調、メール、ニュースをまとめる個人用ダッシュボード">
     <title>Daily Reader</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="./style.css?v=36">
+    <link rel="stylesheet" href="./style.css?v=38">
   </head>
   <body>
     <header class="masthead">
@@ -21,7 +21,10 @@
     </header>
 
     <nav class="app-tabs" aria-label="表示する情報">
-      <button id="news-tab" type="button" role="tab" aria-controls="news-view" aria-selected="true" data-app-view="news">
+      <button id="today-tab" type="button" role="tab" aria-controls="today-view" aria-selected="true" data-app-view="today">
+        今日 <span id="today-count" class="tab-count" hidden></span>
+      </button>
+      <button id="news-tab" type="button" role="tab" aria-controls="news-view" aria-selected="false" data-app-view="news">
         ニュース
       </button>
       <button id="email-tab" type="button" role="tab" aria-controls="email-view" aria-selected="false" data-app-view="email">
@@ -30,6 +33,80 @@
     </nav>
 
     <main>
+      <div id="today-view" class="app-view" role="tabpanel" aria-labelledby="today-tab">
+        <section class="today-hero" aria-labelledby="today-heading">
+          <p class="eyebrow">TODAY</p>
+          <h2 id="today-heading">今日を整える</h2>
+          <p id="today-summary" class="status" aria-live="polite">今日の予定を読み込んでいます…</p>
+        </section>
+
+        <section class="today-section" aria-labelledby="health-heading">
+          <div class="section-heading">
+            <div><p class="eyebrow">CHECK-IN</p><h2 id="health-heading">体調</h2></div>
+            <span id="health-synced"></span>
+          </div>
+          <div id="health-metrics" class="health-metrics"></div>
+          <form id="health-form" class="health-form">
+            <label>疲労度
+              <select id="health-fatigue" name="fatigue">
+                <option value="">未入力</option><option value="1">1 低い</option><option value="2">2</option>
+                <option value="3">3 普通</option><option value="4">4</option><option value="5">5 高い</option>
+              </select>
+            </label>
+            <label>気分
+              <select id="health-mood" name="mood">
+                <option value="">未入力</option><option value="1">1 低い</option><option value="2">2</option>
+                <option value="3">3 普通</option><option value="4">4</option><option value="5">5 良い</option>
+              </select>
+            </label>
+            <label class="wide-field">メモ
+              <input id="health-note" name="note" maxlength="1000" placeholder="体調や気になったこと">
+            </label>
+            <button type="submit" class="primary-button">記録する</button>
+          </form>
+        </section>
+
+        <section class="today-section" aria-labelledby="tasks-heading">
+          <div class="section-heading"><h2 id="tasks-heading">今日やること</h2><span id="task-progress"></span></div>
+          <p id="tasks-empty" class="compact-empty" hidden>今日のタスクはありません。</p>
+          <div id="task-items" class="planner-items"></div>
+        </section>
+
+        <section class="today-section" aria-labelledby="routines-heading">
+          <div class="section-heading"><h2 id="routines-heading">ルーティン</h2><span id="routine-progress"></span></div>
+          <p id="routines-empty" class="compact-empty" hidden>今日のルーティンはありません。</p>
+          <div id="routine-items" class="planner-items"></div>
+        </section>
+
+        <section class="today-section" aria-labelledby="today-email-heading">
+          <div class="section-heading"><h2 id="today-email-heading">重要メール</h2><span>Gmail</span></div>
+          <p id="today-email-empty" class="compact-empty" hidden>今日対応する重要メールはありません。</p>
+          <div id="today-email-items" class="planner-items"></div>
+        </section>
+
+        <details class="task-composer">
+          <summary>タスク・ルーティンを追加</summary>
+          <form id="task-form" class="task-form">
+            <label class="wide-field">内容
+              <input id="task-title" name="title" required maxlength="200" placeholder="今日やること">
+            </label>
+            <label>期限<input id="task-due-date" name="due_date" type="date"></label>
+            <label>優先度
+              <select id="task-priority" name="priority">
+                <option value="1">高</option><option value="2" selected>中</option><option value="3">低</option>
+              </select>
+            </label>
+            <label>繰り返し
+              <select id="task-recurrence" name="recurrence">
+                <option value="none">なし</option><option value="daily">毎日</option>
+                <option value="weekdays">平日</option><option value="weekly">毎週</option>
+              </select>
+            </label>
+            <button type="submit" class="primary-button">追加する</button>
+          </form>
+        </details>
+      </div>
+
       <div id="email-view" class="app-view" role="tabpanel" aria-labelledby="email-tab" hidden>
         <section id="email-assistant" class="email-assistant" hidden aria-labelledby="email-heading">
           <div class="section-heading">
@@ -136,6 +213,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=36" defer></script>
+    <script src="./app.js?v=38" defer></script>
   </body>
 </html>

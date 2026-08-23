@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import hmac
 import json
 import logging
 import threading
@@ -13,6 +14,13 @@ from pathlib import Path
 from time import sleep
 
 from daily_reader.core import collect, load_config, load_keywords, write_output
+from daily_reader.daily_planner import (
+    create_task,
+    delete_task,
+    list_today,
+    set_task_completion,
+    upsert_health_checkin,
+)
 from daily_reader.email_assistant import (
     fetch_gmail_thread_content,
     get_gmail_sync_state,
@@ -32,6 +40,14 @@ READ_SURFACES = {
     "tech_pick",
     "article_feed",
 }
+
+
+def health_sync_authorized(token_path: Path, authorization: str) -> bool:
+    try:
+        expected = token_path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return False
+    return bool(expected) and hmac.compare_digest(authorization, f"Bearer {expected}")
 
 
 def append_read_event(log_path: Path, article: dict[str, object], surface: str) -> None:
@@ -112,6 +128,8 @@ def make_handler(
     assistant_db: Path,
     gmail_client_secret: Path,
     gmail_token: Path,
+    planner_db: Path = Path("data/planner.sqlite3"),
+    health_sync_token: Path = Path("secrets/health-sync-token.txt"),
 ):
     class DailyReaderHandler(SimpleHTTPRequestHandler):
         def _send_json(self, status: int, payload: object) -> None:
@@ -123,7 +141,24 @@ def make_handler(
             self.end_headers()
             self.wfile.write(body)
 
+        def _read_json(self, max_length: int = 16_384) -> dict[str, object]:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= max_length:
+                raise ValueError("invalid content length")
+            payload = json.loads(self.rfile.read(length))
+            if not isinstance(payload, dict):
+                raise ValueError("invalid JSON payload")
+            return payload
+
+        def _health_sync_authorized(self) -> bool:
+            return health_sync_authorized(
+                health_sync_token, self.headers.get("Authorization", "")
+            )
+
         def do_GET(self) -> None:  # noqa: N802
+            if self.path == "/api/today":
+                self._send_json(200, list_today(planner_db, datetime.now().astimezone().date()))
+                return
             if self.path.startswith("/api/email-content/"):
                 thread_id = urllib.parse.unquote(self.path.rsplit("/", 1)[-1])
                 if not thread_id or not thread_id.isalnum():
@@ -166,20 +201,60 @@ def make_handler(
             super().do_GET()
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path not in {"/api/read", "/api/feedback", "/api/email-status"}:
+            planner_paths = {
+                "/api/tasks",
+                "/api/task-status",
+                "/api/tasks/delete",
+                "/api/health/checkin",
+                "/api/health/sync",
+            }
+            if self.path not in {
+                "/api/read",
+                "/api/feedback",
+                "/api/email-status",
+                *planner_paths,
+            }:
                 self._send_json(404, {"error": "not found"})
                 return
             try:
-                length = int(self.headers.get("Content-Length", "0"))
-                if not 0 < length <= 2048:
-                    raise ValueError("invalid content length")
-                request = json.loads(self.rfile.read(length))
+                request = self._read_json()
+                now = datetime.now(UTC)
+                local_day = datetime.now().astimezone().date()
+                if self.path == "/api/tasks":
+                    self._send_json(201, create_task(planner_db, request, now))
+                    return
+                if self.path == "/api/task-status":
+                    completed = request.get("completed")
+                    if not isinstance(completed, bool) or not set_task_completion(
+                        planner_db, request.get("task_id", ""), completed, local_day, now
+                    ):
+                        raise ValueError("invalid task status")
+                    self._send_json(202, {"updated": True})
+                    return
+                if self.path == "/api/tasks/delete":
+                    if not delete_task(planner_db, request.get("task_id", "")):
+                        raise ValueError("invalid task")
+                    self._send_json(202, {"deleted": True})
+                    return
+                if self.path == "/api/health/checkin":
+                    self._send_json(
+                        202, upsert_health_checkin(planner_db, request, now, "manual")
+                    )
+                    return
+                if self.path == "/api/health/sync":
+                    if not self._health_sync_authorized():
+                        self._send_json(401, {"error": "unauthorized"})
+                        return
+                    self._send_json(
+                        202, upsert_health_checkin(planner_db, request, now, "shortcut")
+                    )
+                    return
                 if self.path == "/api/email-status":
                     if not update_status(
                         assistant_db,
                         request["thread_id"],
                         request["action"],
-                        datetime.now(UTC),
+                        now,
                     ):
                         raise ValueError("invalid email action")
                     self._send_json(202, {"updated": True})
@@ -303,6 +378,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("data/selection-history.jsonl"),
     )
     parser.add_argument("--assistant-db", type=Path, default=Path("data/assistant.sqlite3"))
+    parser.add_argument("--planner-db", type=Path, default=Path("data/planner.sqlite3"))
+    parser.add_argument(
+        "--health-sync-token",
+        type=Path,
+        default=Path("secrets/health-sync-token.txt"),
+    )
     parser.add_argument(
         "--gmail-client-secret", type=Path, default=Path("secrets/gmail-client.json")
     )
@@ -356,6 +437,8 @@ def main() -> None:
         args.assistant_db,
         args.gmail_client_secret,
         args.gmail_token,
+        args.planner_db,
+        args.health_sync_token,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)

@@ -46,7 +46,7 @@ main,
 
 .app-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   margin-bottom: 20px;
   padding: 4px;
@@ -753,4 +753,221 @@ h1 {
   font-size: 0.94rem;
   line-height: 1.75;
   color: var(--ink);
+}
+
+.today-hero,
+.today-section,
+.task-composer {
+  width: min(calc(100vw - 32px), 760px);
+  margin: 0 auto 18px;
+}
+
+.today-hero {
+  padding: 22px 20px;
+  border-radius: 18px;
+  color: #f4fbf7;
+  background: linear-gradient(135deg, #164f3f, #27715c);
+  box-shadow: var(--shadow);
+}
+
+.today-hero h2,
+.today-hero p {
+  margin: 0;
+}
+
+.today-hero .eyebrow {
+  margin-bottom: 5px;
+  color: #a9dec9;
+}
+
+.today-hero .status {
+  margin-top: 7px;
+  color: rgb(244 251 247 / 82%);
+}
+
+.today-section,
+.task-composer[open] {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.today-section .section-heading {
+  margin-bottom: 12px;
+}
+
+.today-section h2 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.planner-items {
+  display: grid;
+  gap: 8px;
+}
+
+.planner-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  padding: 11px 12px;
+  border-left: 3px solid var(--line);
+  border-radius: 11px;
+  background: var(--paper);
+}
+
+.planner-item.priority-1 {
+  border-left-color: #b43a32;
+}
+
+.planner-item.priority-2 {
+  border-left-color: #b58b25;
+}
+
+.planner-item input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+}
+
+.planner-item div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.planner-item strong {
+  overflow-wrap: anywhere;
+}
+
+.planner-item span {
+  color: var(--muted);
+  font-size: .74rem;
+}
+
+.planner-item:has(input:checked) strong {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.planner-delete {
+  padding: 6px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: .72rem;
+}
+
+.email-planner-item.importance-high {
+  border-left-color: #b43a32;
+}
+
+.email-planner-marker {
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.email-planner-item a {
+  color: var(--accent);
+  font-size: .78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.compact-empty {
+  margin: 0;
+  padding: 16px 0 4px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.health-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.health-metrics:empty {
+  display: none;
+}
+
+.health-metrics div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+.health-metrics span {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.health-form,
+.task-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.health-form label,
+.task-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.health-form input,
+.health-form select,
+.task-form input,
+.task-form select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+}
+
+.wide-field,
+.primary-button {
+  grid-column: 1 / -1;
+}
+
+.primary-button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 11px;
+  color: var(--paper);
+  background: var(--accent);
+  font-weight: 700;
+}
+
+.primary-button:disabled {
+  opacity: .55;
+}
+
+.task-composer {
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.task-composer > summary {
+  padding: 15px 17px;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.task-composer[open] > summary {
+  padding: 0 0 14px;
 }
