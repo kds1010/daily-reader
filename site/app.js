@@ -1286,7 +1286,7 @@ elements.agentForm.addEventListener("submit", async (event) => {
     await postJson("./api/agent-jobs", {
       repository: form.get("repository"),
       prompt: form.get("prompt"),
-      mode: event.submitter?.value || "execute",
+      mode: "execute",
     });
     document.querySelector("#agent-prompt").value = "";
     await loadAgentJobs();

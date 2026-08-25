@@ -78,39 +78,15 @@ main,
 }
 
 .agent-hero {
+  padding: 12px;
   color: #f4fbf7;
   background: linear-gradient(135deg, #102d27, #146c55);
 }
 
-.agent-hero .eyebrow {
-  color: #a9dec9;
-}
-
-.agent-hero h2 {
-  margin-bottom: 8px;
-  font-family: Georgia, "Yu Mincho", serif;
-  font-size: 1.55rem;
-  font-weight: 500;
-}
-
-.agent-hero > p:not(.eyebrow) {
-  color: rgb(244 251 247 / 78%);
-  font-size: .82rem;
-  line-height: 1.6;
-}
-
 .agent-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.agent-form label {
-  display: grid;
-  gap: 5px;
-  color: rgb(244 251 247 / 78%);
-  font-size: .76rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
 }
 
 .agent-form select,
@@ -124,35 +100,16 @@ main,
   font: inherit;
 }
 
-.agent-submit-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.agent-submit-actions button {
-  min-height: 44px;
-}
-
-.agent-submit-actions .secondary-button {
-  border: 1px solid rgb(255 255 255 / 45%);
-  border-radius: 999px;
-  color: #f4fbf7;
-  background: rgb(255 255 255 / 8%);
-  font-weight: 800;
-}
-
-.agent-mode-help {
-  margin: -2px 0 0;
-  color: rgb(244 251 247 / 68%);
-  font-size: .72rem;
-  line-height: 1.5;
-}
-
 .agent-form textarea {
-  min-height: 132px;
+  grid-column: 1 / -1;
+  min-height: 84px;
   resize: vertical;
   line-height: 1.55;
+}
+
+.agent-form .primary-button {
+  grid-column: auto;
+  min-width: 88px;
 }
 
 .agent-jobs {

@@ -42,23 +42,12 @@
 
     <main>
       <div id="agent-view" class="app-view" role="tabpanel" aria-labelledby="agent-tab">
-        <section class="agent-hero" aria-labelledby="agent-heading">
-          <p class="eyebrow">AUTONOMOUS CODEX</p>
-          <h2 id="agent-heading">何を完了させますか？</h2>
-          <p>要件を一度渡すと、専用worktreeで実装・検証・main反映まで継続します。</p>
+        <section class="agent-hero" aria-label="Agentタスクを依頼">
           <form id="agent-form" class="agent-form">
-            <label>リポジトリ
-              <select id="agent-repository" name="repository" required></select>
-            </label>
-            <label class="wide-field">タスク
-              <textarea id="agent-prompt" name="prompt" required maxlength="20000" rows="6"
-                placeholder="実現したい結果を書いてください。実装方法や細かな手順はAgentが判断します。"></textarea>
-            </label>
-            <div class="agent-submit-actions wide-field">
-              <button type="submit" name="mode" value="execute" class="primary-button">すぐに依頼</button>
-              <button type="submit" name="mode" value="requirements" class="secondary-button">要件を深掘りして依頼</button>
-            </div>
-            <p class="agent-mode-help wide-field">要件を深掘りすると、Agentが実装前にリポジトリを確認して質問します。回答はタスクの「やりとり」から送れます。</p>
+            <textarea id="agent-prompt" name="prompt" required maxlength="20000" rows="3"
+              aria-label="タスク" placeholder="実現したい結果を書いてください"></textarea>
+            <select id="agent-repository" name="repository" required aria-label="リポジトリ"></select>
+            <button type="submit" class="primary-button">依頼</button>
           </form>
         </section>
 
