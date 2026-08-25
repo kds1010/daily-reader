@@ -289,17 +289,62 @@ main,
   border-left: 3px solid var(--accent);
 }
 
-.agent-event p {
+.agent-event-meta,
+.agent-event-message,
+.agent-result-field p {
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   line-height: 1.5;
 }
 
-.agent-event p:first-child {
+.agent-event-meta {
   margin-bottom: 3px;
   color: var(--muted);
   font-size: .68rem;
+}
+
+.agent-result {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-result-turn {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-result-turn + .agent-result-turn {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.agent-result-state {
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: .68rem;
+  font-weight: 800;
+}
+
+.agent-result-state.state-blocked {
+  color: #775a13;
+  background: #f4e8c9;
+}
+
+.agent-result-field strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.agent-result-field ul {
+  margin: 2px 0 0;
+  padding-left: 1.25rem;
+  line-height: 1.5;
 }
 
 .agent-cancel {

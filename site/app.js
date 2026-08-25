@@ -121,13 +121,93 @@ function agentEventSpeaker(kind) {
   return "進捗";
 }
 
+function parseAgentResult(message) {
+  if (typeof message !== "string" || !message.trimStart().startsWith("{")) return null;
+  try {
+    const result = JSON.parse(message);
+    if (!result || typeof result !== "object" || Array.isArray(result)) return null;
+    if (typeof result.summary !== "string" || typeof result.state !== "string") return null;
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+function parseAgentResults(message) {
+  const singleResult = parseAgentResult(message);
+  if (singleResult) return [singleResult];
+  if (typeof message !== "string") return null;
+  const lines = message.split("\n").filter((line) => line.trim());
+  if (lines.length < 2) return null;
+  const results = lines.map(parseAgentResult);
+  return results.every(Boolean) ? results : null;
+}
+
+function appendAgentResultField(container, labelText, value) {
+  if (typeof value !== "string" || !value.trim()) return;
+  const field = document.createElement("section");
+  field.className = "agent-result-field";
+  const label = document.createElement("strong");
+  label.textContent = labelText;
+  const content = document.createElement("p");
+  content.textContent = value;
+  field.append(label, content);
+  container.append(field);
+}
+
+function renderAgentMessage(messageText, parseStructured = false) {
+  const results = parseStructured ? parseAgentResults(messageText) : null;
+  if (!results) {
+    const message = document.createElement("p");
+    message.className = "agent-event-message";
+    message.textContent = messageText;
+    return message;
+  }
+
+  const message = document.createElement("div");
+  message.className = "agent-event-message agent-result";
+  for (const structured of results) {
+    const turn = document.createElement("section");
+    turn.className = "agent-result-turn";
+    const state = document.createElement("span");
+    state.className = `agent-result-state state-${structured.state}`;
+    state.textContent = {
+      done: "完了",
+      continue: "作業を継続",
+      blocked: "判断待ち",
+    }[structured.state] || structured.state;
+    turn.append(state);
+    appendAgentResultField(turn, "報告", structured.summary);
+    appendAgentResultField(turn, "次に行うこと", structured.next_action);
+    if (Array.isArray(structured.verification) && structured.verification.length) {
+      const verification = document.createElement("section");
+      verification.className = "agent-result-field";
+      const label = document.createElement("strong");
+      label.textContent = "確認結果";
+      const list = document.createElement("ul");
+      for (const entry of structured.verification) {
+        if (typeof entry !== "string" || !entry.trim()) continue;
+        const item = document.createElement("li");
+        item.textContent = entry;
+        list.append(item);
+      }
+      if (list.children.length) {
+        verification.append(label, list);
+        turn.append(verification);
+      }
+    }
+    message.append(turn);
+  }
+  return message;
+}
+
 function renderAgentEvent(event) {
   const item = document.createElement("div");
   item.className = `agent-event event-${event.kind}`;
   const meta = document.createElement("p");
+  meta.className = "agent-event-meta";
   meta.textContent = `${formatAgentTime(event.created_at)}・${agentEventSpeaker(event.kind)}`;
-  const message = document.createElement("p");
-  message.textContent = event.message;
+  const message = renderAgentMessage(event.message, event.kind === "codex");
   item.append(meta, message);
   return item;
 }
