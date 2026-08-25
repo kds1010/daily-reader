@@ -3,3 +3,15 @@ name = "daily-reader"
 label = "Daily Reader"
 path = "."
 default_branch = "main"
+
+[[repositories]]
+name = "soan"
+label = "soan"
+path = "~/ghq/github.com/kds1010/soan"
+default_branch = "main"
+
+[[repositories]]
+name = "tonoi"
+label = "宿直 (tonoi)"
+path = "~/ghq/github.com/kds1010/tonoi"
+default_branch = "main"

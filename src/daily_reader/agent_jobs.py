@@ -27,7 +27,10 @@ def load_repositories(path: Path) -> dict[str, dict[str, str]]:
             raise ValueError("invalid agent repository configuration")
         if name in repositories:
             raise ValueError(f"duplicate agent repository: {name}")
-        resolved = (path.parent.parent / repository_path).resolve()
+        configured_path = Path(repository_path).expanduser()
+        if not configured_path.is_absolute():
+            configured_path = path.parent.parent / configured_path
+        resolved = configured_path.resolve()
         if not (resolved / ".git").exists():
             raise ValueError(f"agent repository is not a Git checkout: {resolved}")
         repositories[name] = {

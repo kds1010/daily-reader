@@ -88,7 +88,7 @@ uv run daily-reader-local
 uv run --frozen daily-reader-agent-worker
 ```
 
-Agentが操作できるリポジトリは`config/agent-repositories.toml`の明示的な許可リストに限定されます。ワーカーはタスクごとに専用branchとworktreeを作り、Codexを構造化出力付きで反復実行します。検証済みの変更は最新`main`へrebaseしてpushし、成功後に作業環境を削除します。競合は同じCodexセッションへ戻して解決と再検証を行います。
+Agentが操作できるリポジトリは`config/agent-repositories.toml`の明示的な許可リストに限定されます。複数の`[[repositories]]`を登録でき、`path`には設定ファイルからの相対パス、絶対パス、または`~/`から始まるホーム相対パスを指定できます。現在はDaily Reader、soan、宿直（tonoi）を選択できます。ワーカーはタスクごとに専用branchとworktreeを作り、Codexを構造化出力付きで反復実行します。検証済みの変更は各リポジトリの最新デフォルトブランチへrebaseしてpushし、成功後に作業環境を削除します。競合は同じCodexセッションへ戻して解決と再検証を行います。
 
 ブラウザで <http://127.0.0.1:8787> を開きます。起動時に記事を取得し、その後は毎日8時、10時、12時、17時、20時、22時に更新します。サーバーは`127.0.0.1`だけで待ち受けるため、LANへ直接公開されません。
 

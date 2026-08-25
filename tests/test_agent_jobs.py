@@ -103,6 +103,38 @@ path = "repo"
         load_repositories(config)
 
 
+def test_repository_configuration_supports_multiple_checkouts_in_home(
+    tmp_path: Path, monkeypatch
+) -> None:
+    home = tmp_path / "home"
+    first = home / "repos" / "first"
+    second = home / "repos" / "second"
+    for repository in (first, second):
+        repository.mkdir(parents=True)
+        (repository / ".git").mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    config = tmp_path / "config" / "agent-repositories.toml"
+    config.parent.mkdir()
+    config.write_text(
+        """[[repositories]]
+name = "first"
+label = "First"
+path = "~/repos/first"
+[[repositories]]
+name = "second"
+label = "Second"
+path = "~/repos/second"
+""",
+        encoding="utf-8",
+    )
+
+    configured = load_repositories(config)
+
+    assert list(configured) == ["first", "second"]
+    assert configured["first"]["path"] == str(first)
+    assert configured["second"]["path"] == str(second)
+
+
 def test_blocked_job_can_resume_with_user_instruction(tmp_path: Path) -> None:
     database = tmp_path / "agent.sqlite3"
     configured = repositories(tmp_path)
