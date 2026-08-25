@@ -71,6 +71,7 @@ def initialize_database(path: Path) -> None:
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 hidden_at TEXT,
+                follow_up INTEGER NOT NULL DEFAULT 0,
                 finished_at TEXT
             );
             CREATE TABLE IF NOT EXISTS agent_events (
@@ -104,6 +105,10 @@ def initialize_database(path: Path) -> None:
             )
         if "hidden_at" not in columns:
             connection.execute("ALTER TABLE agent_jobs ADD COLUMN hidden_at TEXT")
+        if "follow_up" not in columns:
+            connection.execute(
+                "ALTER TABLE agent_jobs ADD COLUMN follow_up INTEGER NOT NULL DEFAULT 0"
+            )
         connection.execute("PRAGMA foreign_keys = ON")
 
 
@@ -250,18 +255,24 @@ def attach_to_job(path: Path, job_id: str, instruction: object) -> bool:
     now = _now()
     with sqlite3.connect(path) as connection:
         row = connection.execute(
-            "SELECT status, worktree FROM agent_jobs WHERE id = ?", (job_id,)
+            "SELECT status, worktree, follow_up FROM agent_jobs WHERE id = ?", (job_id,)
         ).fetchone()
-        if row is None or row[0] in {"completed", "cancelled"}:
+        if row is None or row[0] == "cancelled":
             return False
         if row[0] == "failed" and not row[1]:
             return False
-        next_status = "queued" if row[0] in {"blocked", "failed"} else row[0]
-        next_phase = "再開待ち" if next_status == "queued" and row[0] != "queued" else None
+        completed_follow_up = row[0] == "completed" or bool(row[2])
+        next_status = (
+            "queued" if row[0] in {"blocked", "failed", "completed"} else row[0]
+        )
+        next_phase = None
+        if next_status == "queued" and row[0] != "queued":
+            next_phase = "確認待ち" if completed_follow_up else "再開待ち"
         connection.execute(
             """UPDATE agent_jobs SET status=?, phase=COALESCE(?, phase),
-            cancel_requested=0, finished_at=NULL, updated_at=?, hidden_at=NULL WHERE id=?""",
-            (next_status, next_phase, now, job_id),
+            cancel_requested=0, follow_up=?, finished_at=NULL, updated_at=?, hidden_at=NULL
+            WHERE id=?""",
+            (next_status, next_phase, completed_follow_up, now, job_id),
         )
         connection.execute(
             """INSERT INTO agent_instructions (job_id, created_at, instruction)
@@ -333,6 +344,7 @@ def update_job(path: Path, job_id: str, **fields: object) -> None:
         "worktree",
         "attempts",
         "cancel_requested",
+        "follow_up",
         "finished_at",
     }
     values = {name: value for name, value in fields.items() if name in allowed}

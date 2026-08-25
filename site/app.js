@@ -272,10 +272,15 @@ function renderAgentJob(job) {
   body.className = "agent-job-body";
   card.append(cardSummary, body);
   if (job.summary) {
+    const summaryLabel = document.createElement("strong");
+    summaryLabel.className = "agent-summary-label";
+    summaryLabel.textContent = job.status === "completed" || job.follow_up
+      ? "完了サマリー"
+      : "現在の報告";
     const summary = document.createElement("p");
     summary.className = "agent-summary";
     summary.textContent = job.summary;
-    body.append(summary);
+    body.append(summaryLabel, summary);
   }
   if (["queued", "running", "blocked"].includes(job.status)) {
     const live = document.createElement("section");
@@ -321,7 +326,7 @@ function renderAgentJob(job) {
   });
   conversation.append(conversationSummary, eventList);
   body.append(conversation);
-  const canAttach = ["queued", "running", "blocked"].includes(job.status)
+  const canAttach = ["queued", "running", "blocked", "completed"].includes(job.status)
     || (job.status === "failed" && job.worktree);
   if (canAttach) {
     const responseForm = document.createElement("form");
@@ -332,14 +337,18 @@ function renderAgentJob(job) {
     instruction.rows = 3;
     instruction.placeholder = job.status === "blocked"
       ? "必要な判断や追加情報を入力してください"
-      : "このタスクへの追加指示を入力してください";
+      : job.status === "completed" || job.follow_up
+        ? "完了内容について確認したいことを入力してください"
+        : "このタスクへの追加指示を入力してください";
     instruction.setAttribute("aria-label", "Agentへのメッセージ");
     const resume = document.createElement("button");
     resume.type = "submit";
     resume.className = "primary-button";
-    resume.textContent = job.status === "blocked" || job.status === "failed"
-      ? "送信して再開"
-      : "タスクへ送信";
+    resume.textContent = job.status === "completed" || job.follow_up
+      ? "Agentに確認"
+      : job.status === "blocked" || job.status === "failed"
+        ? "送信して再開"
+        : "タスクへ送信";
     responseForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       resume.disabled = true;

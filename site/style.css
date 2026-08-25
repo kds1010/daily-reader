@@ -277,6 +277,17 @@ main,
   color: var(--ink);
 }
 
+.agent-summary-label {
+  display: block;
+  margin-top: 10px;
+  color: var(--accent);
+  font-size: .72rem;
+}
+
+.agent-summary-label + .agent-summary {
+  margin-top: 3px;
+}
+
 .agent-live {
   margin-top: 12px;
   padding: 10px;

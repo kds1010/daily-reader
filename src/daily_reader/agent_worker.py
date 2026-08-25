@@ -204,6 +204,29 @@ autonomously until the task is committed and verified.
 """
 
 
+def _follow_up_prompt(task: str, summary: str, instructions: list[str]) -> str:
+    messages = "\n\n".join(
+        f"User message {index}:\n{instruction}"
+        for index, instruction in enumerate(instructions, start=1)
+    )
+    return f"""Answer the user's follow-up questions about a completed coding task.
+
+Original task:
+{task}
+
+Completion summary:
+{summary}
+
+{messages}
+
+Inspect the current repository when useful so the answer is grounded in the implemented code.
+This is a read-only confirmation conversation: do not edit files, create commits, push, deploy,
+or start new implementation work. Answer clearly in the summary field. Return state=done after
+answering. If the user requests a new code change, explain that it should be submitted as a new
+task instead of implementing it here.
+"""
+
+
 def _deployment_prompt(commit: str) -> str:
     return f"""The supervisor has integrated and pushed commit {commit} to the default branch.
 The coding and verification phase is complete. Now deploy this completed task before reporting
@@ -297,6 +320,7 @@ def execute_job(
     worktree: Path | None = None
     deployment_lock_acquired = False
     try:
+        follow_up = bool(job.get("follow_up"))
         existing_worktree = Path(job["worktree"]) if job.get("worktree") else None
         if existing_worktree and existing_worktree.exists() and job.get("branch"):
             branch = job["branch"]
@@ -320,9 +344,16 @@ current worktree state. Continue autonomously until the task is committed and ve
                 database, job_id, "worktree", f"{branch} を {worktree} に作成しました"
             )
             thread_id = None
-            prompt = _initial_prompt(job["prompt"], job.get("mode", "execute"))
+            prompt = (
+                ""
+                if follow_up
+                else _initial_prompt(job["prompt"], job.get("mode", "execute"))
+            )
         attached = take_pending_instructions(database, job_id)
-        if attached:
+        if follow_up:
+            prompt = _follow_up_prompt(job["prompt"], job.get("summary", ""), attached)
+            append_event(database, job_id, "follow-up", "完了内容を確認しています")
+        elif attached:
             prompt = f"{prompt}\n\n{_attached_prompt(attached)}"
         final_result: dict[str, Any] = {}
         for attempt in range(1, MAX_TURNS + 1):
@@ -341,16 +372,18 @@ current worktree state. Continue autonomously until the task is committed and ve
             update_job(database, job_id, attempts=attempt, phase=f"Codex実行中（{attempt}回目）")
             thread_id, result, messages = run_codex_turn(worktree, schema, prompt, thread_id)
             final_result = result
-            update_job(
-                database,
-                job_id,
-                thread_id=thread_id,
-                summary=result["summary"],
-            )
+            update_fields = {"thread_id": thread_id}
+            if not follow_up:
+                update_fields["summary"] = result["summary"]
+            update_job(database, job_id, **update_fields)
             append_event(database, job_id, "codex", messages or result["summary"])
             attached = take_pending_instructions(database, job_id)
             if attached:
-                prompt = _attached_prompt(attached)
+                prompt = (
+                    _follow_up_prompt(job["prompt"], job.get("summary", ""), attached)
+                    if follow_up
+                    else _attached_prompt(attached)
+                )
                 continue
             if result["state"] == "done":
                 break
@@ -367,6 +400,23 @@ current worktree state. Continue autonomously until the task is committed and ve
             prompt = _continue_prompt(result)
         else:
             raise RuntimeError(f"Codex did not finish within {MAX_TURNS} turns")
+
+        if follow_up:
+            status = run_command(["git", "status", "--porcelain"], worktree).stdout.strip()
+            if status:
+                raise RuntimeError("Codex changed files during a read-only follow-up")
+            cleanup_failed_worktree(repository, branch, worktree)
+            worktree = None
+            update_job(
+                database,
+                job_id,
+                status="completed",
+                phase="完了内容を確認済み",
+                follow_up=0,
+                worktree=None,
+                finished_at=datetime.now(UTC).isoformat(),
+            )
+            return
 
         DEPLOYMENT_LOCK.acquire()
         deployment_lock_acquired = True
@@ -446,9 +496,14 @@ clean. Return done only when the rebase and verification succeed."""
                 detail = deployment_result.get("next_action") or deployment_result["summary"]
                 raise RuntimeError(f"deployment did not complete: {detail}")
             append_event(database, job_id, "deployed", deployment_result["summary"])
-            summary = deployment_result.get("summary") or final_result.get(
-                "summary", "タスクが完了しました"
-            )
+            implementation_summary = final_result.get("summary", "タスクが完了しました")
+            deployment_summary = deployment_result.get("summary", "")
+            summary = implementation_summary
+            if deployment_summary and deployment_summary != implementation_summary:
+                summary = (
+                    f"実装・検証: {implementation_summary}\n\n"
+                    f"デプロイ確認: {deployment_summary}"
+                )
         else:
             summary = final_result.get("summary", "タスクが完了しました")
             append_event(

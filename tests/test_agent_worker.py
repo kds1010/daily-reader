@@ -4,6 +4,7 @@ from pathlib import Path
 from daily_reader.agent_worker import (
     _codex_command,
     _deployment_prompt,
+    _follow_up_prompt,
     _initial_prompt,
     _parse_codex_events,
     build_parser,
@@ -110,3 +111,17 @@ def test_deployment_prompt_requires_live_verification_before_done() -> None:
     assert "Read all applicable AGENTS.md deployment instructions again" in prompt
     assert "Return state=done only after deployment and live verification succeed" in prompt
     assert "runtime changes remain undeployed or unverified" in prompt
+
+
+def test_follow_up_prompt_is_read_only_and_uses_completion_context() -> None:
+    prompt = _follow_up_prompt(
+        "Add task summaries",
+        "Added a completion summary and verified the UI",
+        ["Which checks ran?"],
+    )
+
+    assert "Add task summaries" in prompt
+    assert "Added a completion summary and verified the UI" in prompt
+    assert "Which checks ran?" in prompt
+    assert "read-only confirmation conversation" in prompt
+    assert "do not edit files" in prompt

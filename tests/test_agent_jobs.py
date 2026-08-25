@@ -252,7 +252,38 @@ def test_blocked_job_can_resume_with_user_instruction(tmp_path: Path) -> None:
         "Use the compatible format"
     ]
     update_job(database, job["id"], status="completed")
-    assert not resume_job(database, job["id"], "too late")
+    assert resume_job(database, job["id"], "What changed?")
+    follow_up = claim_next_job(database)
+    assert follow_up is not None
+    assert follow_up["follow_up"] == 1
+    assert take_pending_instructions(database, job["id"]) == ["What changed?"]
+
+
+def test_completed_job_follow_up_preserves_summary(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(
+        database,
+        repositories(tmp_path),
+        {"repository": "repo", "prompt": "Do it"},
+    )
+    claim_next_job(database)
+    update_job(
+        database,
+        job["id"],
+        status="completed",
+        phase="完了",
+        summary="Implemented and verified the feature",
+    )
+
+    assert attach_to_job(database, job["id"], "How was it verified?")
+
+    stored = get_job(database, job["id"])
+    assert stored is not None
+    assert stored["status"] == "queued"
+    assert stored["phase"] == "確認待ち"
+    assert stored["summary"] == "Implemented and verified the feature"
+    assert stored["follow_up"] == 1
+    assert stored["events"][-1]["kind"] == "user"
 
 
 def test_running_job_accepts_attached_messages_in_order(tmp_path: Path) -> None:
