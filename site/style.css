@@ -67,7 +67,8 @@ main,
 }
 
 .agent-hero,
-.agent-section {
+.agent-section,
+.codex-usage {
   width: min(calc(100vw - 32px), 760px);
   margin: 0 auto 18px;
   padding: 18px;
@@ -75,6 +76,58 @@ main,
   border-radius: 18px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.codex-usage {
+  padding: 14px 18px;
+}
+
+.codex-usage .section-heading {
+  margin-bottom: 10px;
+}
+
+.codex-usage-limits {
+  display: grid;
+  gap: 11px;
+}
+
+.codex-limit-heading,
+.codex-limit-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.codex-limit-heading {
+  margin-bottom: 5px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.codex-limit-meta {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.codex-limit progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  accent-color: var(--accent);
+}
+
+.codex-limit progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.codex-limit progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--accent);
 }
 
 .agent-hero {

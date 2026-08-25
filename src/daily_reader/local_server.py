@@ -5,6 +5,7 @@ import functools
 import hmac
 import json
 import logging
+import select
 import subprocess
 import threading
 import urllib.parse
@@ -13,7 +14,7 @@ from datetime import UTC, datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from time import sleep
+from time import monotonic, sleep
 
 from daily_reader.agent_jobs import (
     attach_to_job,
@@ -54,6 +55,63 @@ READ_SURFACES = {
     "tech_pick",
     "article_feed",
 }
+
+
+def read_codex_rate_limits(timeout: float = 10) -> dict[str, object]:
+    """Read the signed-in Codex account's current limits from the app-server API."""
+    process = subprocess.Popen(
+        ["codex", "app-server", "--stdio"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    requests = (
+        {
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "clientInfo": {"name": "daily-reader", "version": "0.1"},
+                "capabilities": {"experimentalApi": True},
+            },
+        },
+        {"id": 2, "method": "account/rateLimits/read", "params": None},
+    )
+    try:
+        if process.stdin is None or process.stdout is None:
+            raise RuntimeError("Codex app server pipes are unavailable")
+        for request in requests:
+            process.stdin.write(json.dumps(request) + "\n")
+        process.stdin.flush()
+
+        deadline = monotonic() + timeout
+        while (remaining := deadline - monotonic()) > 0:
+            readable, _, _ = select.select([process.stdout], [], [], remaining)
+            if not readable:
+                break
+            line = process.stdout.readline()
+            if not line:
+                break
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise RuntimeError("Codex returned invalid JSON") from error
+            if message.get("id") != 2:
+                continue
+            if "error" in message:
+                raise RuntimeError("Codex rejected the rate-limit request")
+            result = message.get("result")
+            if not isinstance(result, dict):
+                raise RuntimeError("Codex returned an invalid rate-limit response")
+            return result
+        raise TimeoutError("Codex rate-limit request timed out")
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=1)
 
 
 def build_deployment_info(repository: Path, deployed_at: datetime) -> dict[str, str]:
@@ -259,6 +317,13 @@ def make_handler(
         def do_GET(self) -> None:  # noqa: N802
             if self.path == "/api/deployment":
                 self._send_json(200, deployment_info or {})
+                return
+            if self.path == "/api/codex-usage":
+                try:
+                    self._send_json(200, read_codex_rate_limits())
+                except (FileNotFoundError, OSError, RuntimeError, TimeoutError) as error:
+                    LOGGER.warning("Could not read Codex usage: %s", error)
+                    self._send_json(503, {"error": "Codexの使用状況を取得できませんでした"})
                 return
             if self.path == "/api/agent-jobs":
                 self._send_json(

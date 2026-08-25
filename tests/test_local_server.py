@@ -13,8 +13,48 @@ from daily_reader.local_server import (
     build_parser,
     build_update_stats,
     load_feedback_events,
+    read_codex_rate_limits,
     summarize_read_events,
 )
+
+
+class FakeCodexProcess:
+    def __init__(self) -> None:
+        import io
+
+        self.stdin = io.StringIO()
+        self.stdout = io.StringIO(
+            '{"id":1,"result":{}}\n'
+            '{"id":2,"result":{"rateLimits":{"planType":"pro"},'
+            '"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":18}}}}}\n'
+        )
+
+    def terminate(self) -> None:
+        pass
+
+    def wait(self, timeout: float) -> int:
+        return 0
+
+    def kill(self) -> None:
+        pass
+
+
+def test_codex_rate_limits_use_app_server_protocol(monkeypatch: pytest.MonkeyPatch) -> None:
+    process = FakeCodexProcess()
+    monkeypatch.setattr(
+        "daily_reader.local_server.subprocess.Popen",
+        lambda *args, **kwargs: process,
+    )
+    monkeypatch.setattr(
+        "daily_reader.local_server.select.select", lambda streams, *_: (streams, [], [])
+    )
+
+    result = read_codex_rate_limits()
+
+    requests = [json.loads(line) for line in process.stdin.getvalue().splitlines()]
+    assert requests[0]["method"] == "initialize"
+    assert requests[1] == {"id": 2, "method": "account/rateLimits/read", "params": None}
+    assert result["rateLimitsByLimitId"]["codex"]["primary"]["usedPercent"] == 18
 
 
 def test_deployment_info_includes_package_version_and_revision(

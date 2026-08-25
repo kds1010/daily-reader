@@ -73,6 +73,9 @@ const elements = {
   agentJobs: document.querySelector("#agent-jobs"),
   agentJobsSummary: document.querySelector("#agent-jobs-summary"),
   agentEmpty: document.querySelector("#agent-empty"),
+  codexUsageLimits: document.querySelector("#codex-usage-limits"),
+  codexUsagePlan: document.querySelector("#codex-usage-plan"),
+  codexUsageStatus: document.querySelector("#codex-usage-status"),
   deploymentVersion: document.querySelector("#deployment-version"),
   deploymentDate: document.querySelector("#deployment-date"),
   screenUpdatedAt: document.querySelector("#screen-updated-at"),
@@ -555,6 +558,66 @@ async function loadAgentJobs() {
   } catch (error) {
     state.agentStatus = `Agentタスクを読み込めませんでした：${error.message}`;
     if (currentView === "agent") elements.status.textContent = state.agentStatus;
+  }
+}
+
+function codexWindowLabel(minutes) {
+  if (minutes === 10080) return "週次";
+  if (minutes && minutes % 1440 === 0) return `${minutes / 1440}日`;
+  if (minutes && minutes % 60 === 0) return `${minutes / 60}時間`;
+  return minutes ? `${minutes}分` : "利用枠";
+}
+
+function renderCodexLimit(name, window) {
+  const item = document.createElement("div");
+  item.className = "codex-limit";
+  const heading = document.createElement("div");
+  heading.className = "codex-limit-heading";
+  const label = document.createElement("span");
+  label.textContent = `${name}・${codexWindowLabel(window.windowDurationMins)}`;
+  const percent = document.createElement("span");
+  percent.textContent = `${window.usedPercent}% 使用`;
+  heading.append(label, percent);
+  const progress = document.createElement("progress");
+  progress.max = 100;
+  progress.value = window.usedPercent;
+  progress.setAttribute("aria-label", `${label.textContent} ${percent.textContent}`);
+  const meta = document.createElement("div");
+  meta.className = "codex-limit-meta";
+  const remaining = document.createElement("span");
+  remaining.textContent = `残り ${Math.max(0, 100 - window.usedPercent)}%`;
+  const reset = document.createElement("span");
+  reset.textContent = window.resetsAt
+    ? `リセット ${formatAgentTime(new Date(window.resetsAt * 1000).toISOString())}`
+    : "リセット時刻不明";
+  meta.append(remaining, reset);
+  item.append(heading, progress, meta);
+  return item;
+}
+
+async function loadCodexUsage() {
+  try {
+    const response = await fetchWithTimeout("./api/codex-usage", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const limits = payload.rateLimitsByLimitId || {};
+    const entries = Object.entries(limits).flatMap(([limitId, limit]) => {
+      const name = limit.limitName || (limitId === "codex" ? "Codex" : limitId);
+      return [limit.primary, limit.secondary]
+        .filter(Boolean)
+        .map((window) => renderCodexLimit(name, window));
+    });
+    elements.codexUsageLimits.replaceChildren(...entries);
+    elements.codexUsageStatus.hidden = entries.length > 0;
+    elements.codexUsageStatus.textContent = entries.length
+      ? ""
+      : "現在の利用枠はありません。";
+    elements.codexUsagePlan.textContent = payload.rateLimits?.planType || "";
+  } catch {
+    elements.codexUsageLimits.replaceChildren();
+    elements.codexUsagePlan.textContent = "";
+    elements.codexUsageStatus.hidden = false;
+    elements.codexUsageStatus.textContent = "使用状況を取得できませんでした。";
   }
 }
 
@@ -1279,7 +1342,7 @@ elements.savedOnly.addEventListener("change", (event) => {
 });
 elements.refresh.addEventListener("click", async () => {
   if (currentView === "agent") {
-    await loadAgentJobs();
+    await Promise.all([loadAgentJobs(), loadCodexUsage()]);
   } else if (currentView === "email") {
     await loadEmailReminders();
   } else if (currentView === "today") {
@@ -1377,8 +1440,12 @@ loadFeedback().then(() => {
   }
 });
 loadAgentJobs();
+loadCodexUsage();
 loadDeploymentInfo();
 window.setInterval(() => {
   if (currentView === "agent") loadAgentJobs();
 }, 5000);
+window.setInterval(() => {
+  if (currentView === "agent") loadCodexUsage();
+}, 60000);
 switchView(currentView);

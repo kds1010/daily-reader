@@ -42,6 +42,15 @@
 
     <main>
       <div id="agent-view" class="app-view" role="tabpanel" aria-labelledby="agent-tab">
+        <section class="codex-usage" aria-labelledby="codex-usage-heading">
+          <div class="section-heading">
+            <h2 id="codex-usage-heading">Codex 使用状況</h2>
+            <span id="codex-usage-plan"></span>
+          </div>
+          <p id="codex-usage-status" class="compact-empty" aria-live="polite">使用状況を読み込んでいます…</p>
+          <div id="codex-usage-limits" class="codex-usage-limits"></div>
+        </section>
+
         <section class="agent-hero" aria-label="Agentタスクを依頼">
           <form id="agent-form" class="agent-form">
             <textarea id="agent-prompt" name="prompt" required maxlength="20000" rows="3"
