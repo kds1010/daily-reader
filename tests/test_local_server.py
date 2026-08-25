@@ -1,3 +1,5 @@
+import json
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -5,7 +7,9 @@ import pytest
 from daily_reader.local_server import (
     append_feedback_event,
     append_read_event,
+    append_update_stats,
     build_parser,
+    build_update_stats,
     load_feedback_events,
     summarize_read_events,
 )
@@ -19,10 +23,11 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.host == "127.0.0.1"
     assert args.port == 8787
     assert args.site == Path("site")
-    assert args.update_hours == "8,12,17,20"
+    assert args.update_hours == "8,10,12,17,20,22"
     assert args.read_log == Path("data/read-events.jsonl")
     assert args.feedback_log == Path("data/feedback-events.jsonl")
     assert args.selection_history == Path("data/selection-history.jsonl")
+    assert args.update_stats == Path("data/update-stats.jsonl")
     assert args.gmail_client_secret == Path("secrets/gmail-client.json")
     assert args.gmail_token == Path("secrets/gmail-token.json")
 
@@ -65,3 +70,30 @@ def test_feedback_events_are_appended_and_loaded(tmp_path: Path) -> None:
     assert len(events) == 1
     assert events[0]["article_id"] == "article-1"
     assert events[0]["feedback"] == "not_interested"
+
+
+def test_update_stats_compare_articles_and_highlights(tmp_path: Path) -> None:
+    generated_at = datetime.fromisoformat("2026-08-13T12:00:00+00:00")
+    stats = build_update_stats(
+        generated_at,
+        {"article-1", "article-2", "article-3"},
+        {"article-1", "article-2"},
+        {"article-2", "article-3"},
+        {"article-1", "article-2"},
+        True,
+    )
+
+    assert stats == {
+        "generated_at": "2026-08-13T12:00:00+00:00",
+        "new_articles": 1,
+        "total_articles": 3,
+        "new_articles_highlighted": 1,
+        "new_highlights": 1,
+        "kept_highlights": 1,
+        "total_highlights": 2,
+        "highlights_updated": True,
+    }
+
+    log_path = tmp_path / "update-stats.jsonl"
+    append_update_stats(log_path, stats)
+    assert json.loads(log_path.read_text(encoding="utf-8")) == stats

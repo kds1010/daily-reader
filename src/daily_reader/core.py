@@ -442,6 +442,7 @@ def write_output(
     articles: list[Article],
     errors: list[dict[str, str]],
     generated_at: datetime,
+    update_stats: dict[str, object] | None = None,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -450,6 +451,8 @@ def write_output(
         "errors": errors,
         "articles": [asdict(article) for article in articles],
     }
+    if update_stats is not None:
+        payload["update_stats"] = update_stats
     with tempfile.NamedTemporaryFile(
         "w", encoding="utf-8", dir=output_path.parent, delete=False
     ) as temporary_file:

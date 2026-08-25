@@ -6,6 +6,7 @@ __pycache__/
 data/read-events.jsonl
 data/feedback-events.jsonl
 data/selection-history.jsonl
+data/update-stats.jsonl
 data/assistant.sqlite3
 data/assistant.sqlite3-*
 data/planner.sqlite3

@@ -41,6 +41,7 @@ from daily_reader.highlights import generate_highlights
 LOGGER = logging.getLogger(__name__)
 READ_LOG_LOCK = threading.Lock()
 FEEDBACK_LOG_LOCK = threading.Lock()
+UPDATE_STATS_LOG_LOCK = threading.Lock()
 READ_SURFACES = {
     "field_highlight",
     "official_digest",
@@ -126,6 +127,58 @@ def load_feedback_events(log_path: Path) -> list[dict[str, object]]:
         ):
             events.append(event)
     return events
+
+
+def _load_article_ids(path: Path) -> set[str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return {
+            article["id"]
+            for article in payload.get("articles", [])
+            if isinstance(article.get("id"), str)
+        }
+    except (FileNotFoundError, json.JSONDecodeError, TypeError):
+        return set()
+
+
+def _load_highlight_ids(path: Path) -> set[str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return {
+            item["article_id"]
+            for field in payload.get("field_highlights", [])
+            for item in field.get("items", [])
+            if isinstance(item.get("article_id"), str)
+        }
+    except (FileNotFoundError, json.JSONDecodeError, TypeError):
+        return set()
+
+
+def build_update_stats(
+    generated_at: datetime,
+    current_article_ids: set[str],
+    previous_article_ids: set[str],
+    current_highlight_ids: set[str],
+    previous_highlight_ids: set[str],
+    highlights_updated: bool,
+) -> dict[str, object]:
+    new_article_ids = current_article_ids - previous_article_ids
+    return {
+        "generated_at": generated_at.isoformat(),
+        "new_articles": len(new_article_ids),
+        "total_articles": len(current_article_ids),
+        "new_articles_highlighted": len(new_article_ids & current_highlight_ids),
+        "new_highlights": len(current_highlight_ids - previous_highlight_ids),
+        "kept_highlights": len(current_highlight_ids & previous_highlight_ids),
+        "total_highlights": len(current_highlight_ids),
+        "highlights_updated": highlights_updated,
+    }
+
+
+def append_update_stats(log_path: Path, stats: dict[str, object]) -> None:
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with UPDATE_STATS_LOG_LOCK, log_path.open("a", encoding="utf-8") as log_file:
+        log_file.write(json.dumps(stats, ensure_ascii=False) + "\n")
 
 
 def make_handler(
@@ -342,23 +395,47 @@ def update_articles(
     output_path: Path,
     feedback_log_path: Path = Path("data/feedback-events.jsonl"),
     selection_history_path: Path = Path("data/selection-history.jsonl"),
+    update_stats_path: Path = Path("data/update-stats.jsonl"),
 ) -> None:
     now = datetime.now(UTC)
+    highlights_path = output_path.parent / "highlights.json"
+    previous_article_ids = _load_article_ids(output_path)
+    previous_highlight_ids = _load_highlight_ids(highlights_path)
     settings, feeds = load_config(feeds_path)
     keywords = load_keywords(keywords_path)
     articles, errors = collect(feeds, keywords, settings, now)
     if not articles and errors:
         LOGGER.error("All feeds failed; keeping the previous data file")
         return
-    write_output(output_path, articles, errors, now)
-    LOGGER.info("Updated %s with %d articles", output_path, len(articles))
-    generate_highlights(
+    highlights_updated = generate_highlights(
         articles,
-        output_path.parent / "highlights.json",
+        highlights_path,
         Path("config/highlight-schema.json"),
         now,
         feedback_log_path,
         selection_history_path,
+    )
+    current_article_ids = {article.id for article in articles}
+    stats = build_update_stats(
+        now,
+        current_article_ids,
+        previous_article_ids,
+        _load_highlight_ids(highlights_path),
+        previous_highlight_ids,
+        highlights_updated,
+    )
+    write_output(output_path, articles, errors, now, stats)
+    append_update_stats(update_stats_path, stats)
+    LOGGER.info(
+        "Updated %s: articles=%d new=%d highlighted_new_articles=%d "
+        "highlights=%d new_highlights=%d kept_highlights=%d",
+        output_path,
+        stats["total_articles"],
+        stats["new_articles"],
+        stats["new_articles_highlighted"],
+        stats["total_highlights"],
+        stats["new_highlights"],
+        stats["kept_highlights"],
     )
 
 
@@ -369,6 +446,7 @@ def run_scheduler(
     update_hours: set[int],
     feedback_log_path: Path,
     selection_history_path: Path,
+    update_stats_path: Path,
 ) -> None:
     update_articles(
         feeds_path,
@@ -376,6 +454,7 @@ def run_scheduler(
         output_path,
         feedback_log_path,
         selection_history_path,
+        update_stats_path,
     )
     started_at = datetime.now().astimezone()
     last_run: tuple[str, int] | None = (
@@ -392,6 +471,7 @@ def run_scheduler(
                 output_path,
                 feedback_log_path,
                 selection_history_path,
+                update_stats_path,
             )
             last_run = run_key
         sleep(60)
@@ -419,7 +499,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--site", type=Path, default=Path("site"))
     parser.add_argument("--feeds", type=Path, default=Path("config/feeds.toml"))
     parser.add_argument("--keywords", type=Path, default=Path("config/keywords.toml"))
-    parser.add_argument("--update-hours", default="8,12,17,20")
+    parser.add_argument("--update-hours", default="8,10,12,17,20,22")
     parser.add_argument("--read-log", type=Path, default=Path("data/read-events.jsonl"))
     parser.add_argument(
         "--feedback-log", type=Path, default=Path("data/feedback-events.jsonl")
@@ -428,6 +508,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--selection-history",
         type=Path,
         default=Path("data/selection-history.jsonl"),
+    )
+    parser.add_argument(
+        "--update-stats", type=Path, default=Path("data/update-stats.jsonl")
     )
     parser.add_argument("--assistant-db", type=Path, default=Path("data/assistant.sqlite3"))
     parser.add_argument("--planner-db", type=Path, default=Path("data/planner.sqlite3"))
@@ -472,6 +555,7 @@ def main() -> None:
             update_hours,
             args.feedback_log,
             args.selection_history,
+            args.update_stats,
         ),
         daemon=True,
     )

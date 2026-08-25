@@ -897,7 +897,11 @@ async function loadArticles() {
       minute: "2-digit",
     }).format(new Date(payload.generated_at));
     const errorNote = payload.errors.length ? `・取得失敗 ${payload.errors.length}件` : "";
-    state.newsStatus = `${generatedAt} 更新${errorNote}`;
+    const stats = payload.update_stats;
+    const statsNote = stats
+      ? `・新規 ${stats.new_articles}件（ハイライト採用 ${stats.new_articles_highlighted}件）・ハイライト新選 ${stats.new_highlights}件／継続 ${stats.kept_highlights}件`
+      : "";
+    state.newsStatus = `${generatedAt} 更新${statsNote}${errorNote}`;
     if (currentView === "news") elements.status.textContent = state.newsStatus;
     renderCategories();
     renderArticles();
@@ -949,6 +953,47 @@ elements.agentForm.addEventListener("submit", async (event) => {
   } catch (error) {
     state.agentStatus = `タスクを開始できませんでした：${error.message}`;
     elements.status.textContent = state.agentStatus;
+  } finally {
+    submit.disabled = false;
+  }
+});
+elements.taskForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(elements.taskForm);
+  const submit = elements.taskForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    await postJson("./api/tasks", {
+      title: form.get("title"),
+      due_date: form.get("due_date") || null,
+      priority: Number(form.get("priority")),
+      recurrence: form.get("recurrence"),
+    });
+    elements.taskForm.reset();
+    await loadToday();
+  } catch (error) {
+    state.todayStatus = `追加できませんでした：${error.message}`;
+    elements.status.textContent = state.todayStatus;
+  } finally {
+    submit.disabled = false;
+  }
+});
+elements.healthForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(elements.healthForm);
+  const submit = elements.healthForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    await postJson("./api/health/checkin", {
+      date: localDateString(),
+      fatigue: form.get("fatigue") ? Number(form.get("fatigue")) : null,
+      mood: form.get("mood") ? Number(form.get("mood")) : null,
+      note: form.get("note"),
+    });
+    await loadToday();
+  } catch (error) {
+    state.todayStatus = `体調を記録できませんでした：${error.message}`;
+    elements.status.textContent = state.todayStatus;
   } finally {
     submit.disabled = false;
   }

@@ -1,184 +1,183 @@
 {
-  "generated_at": "2026-08-13T01:12:44.220165+00:00",
-  "input_hash": "38968cad19c52af80a675c1210101f540eb3cbd3914645e86f80c9d631c3ea75",
-  "headline": "データ基盤の観測性・ガバナンス強化と、AI運用の実践知が中心",
-  "overview": "本日はdbt・Snowflake・Databricksのデータ基盤更新、AIエージェントの計装・評価、横浜の近日イベント、睡眠研究が主な動きです。地域条件に合う新店記事はありません。",
+  "generated_at": "2026-08-25T03:00:38.707602+00:00",
+  "input_hash": "a706e77f308214aef598f344ee3bcc2cb889694a20c66eeb51847bcca79e2791",
+  "headline": "データ基盤の運用改善と、実践的なAI活用が中心の更新です",
+  "overview": "Snowflake・Databricks・dbtでデータ基盤とAI運用に関する更新が続きました。技術記事では自動運転向けMLOps、Iceberg連携、AIエージェントの検証・監視が目立ちます。横浜では桜木町から徒歩圏の親子イベントや、みなとみらい周辺の今後の催しを確認できます。",
   "field_highlights": [
     {
       "field": "データ・AI",
-      "summary": "データ基盤の運用性とAIエージェントの観測性に注目が集まっています。",
+      "summary": "自動運転向けデータセット基盤やIceberg連携など、MLデータ管理とデータ基盤運用の実践例が中心です。",
       "items": [
         {
-          "article_id": "b282afca7ae4a347f117",
-          "label": "Snowflakeのデータ品質モニタリングダッシュボード",
-          "reason": "品質監視の可視化を強化する公式更新。データ品質の異常検知や運用レビューの起点にできます。",
-          "selection_status": "new",
+          "article_id": "a762aec21a99e77dfb2d",
+          "label": "Databricksで自動運転AIの学習データ基盤を構築",
+          "reason": "車載センサーデータをData Lakeへ収集し、ETLとDeclarative Automation Bundlesで学習データセット作成を自動化する構成を学べます。",
+          "selection_status": "continued",
           "article": {
-            "id": "b282afca7ae4a347f117",
-            "title": "Snowflake: data quality monitoring dashboard pupr",
-            "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-07-29-data-quality-monitoring-dashboard-pupr",
-            "source": "Snowflake Release Notes",
-            "published_at": "2026-07-29T00:00:00+00:00",
-            "summary": "Snowflake公式リリースノート",
-            "category": "データ基盤",
-            "score": 19,
-            "image_url": null
-          }
-        },
-        {
-          "article_id": "a6af201a1b2f923fe2d2",
-          "label": "AIエージェントをOpenTelemetryで計装しDatabricksに蓄積",
-          "reason": "ツール呼び出しや失敗箇所をトレースとして確認でき、まず小さなエージェントで再現できます。",
-          "selection_status": "new",
-          "article": {
-            "id": "a6af201a1b2f923fe2d2",
-            "title": "AIエージェントをOpenTelemetryで計装し、DatabricksのLakehouseにトレースを残してみた",
-            "url": "https://zenn.dev/babysteps/articles/databricks-opentelemetry-ai-agent-dabs",
+            "id": "a762aec21a99e77dfb2d",
+            "title": "Databricks の Declarative Automation Bundles を用いた機械学習データセット作成基盤の構築",
+            "url": "https://zenn.dev/turing_motors/articles/46b5560dce0e3a",
             "source": "Zenn / Databricks",
-            "published_at": "2026-08-10T12:20:05+00:00",
-            "summary": "AI エージェントは「考えて → ツールを呼んで → また考えて → 答える」ため、失敗したときに どこで詰まったのか が追いにくい。 今回は倉庫オペレーション用の小さなエージェントを OpenTelemetry（GenAI semantic conventions） で計装し、トレースを Databricks Unity Catalog に貯めて SQL で見るところまでやった。 デプロイはすべて Declarative Automation Bundles（旧 Databricks Asset Bundles / DABs）で行い、Serverle…",
+            "published_at": "2026-08-14T09:00:05+00:00",
+            "summary": "チューリングの MLOps エンジニアの岩政です。 チューリングでは、センサ入力から車両の将来の行動を一貫して推定する学習ベースのモデルとして End-to-End (E2E) 自動運転 AI を開発しています。E2E 自動運転 AI の学習にはデータセットが必要です。私の所属する MLOps チームが、これを作成するためのデータ基盤の開発を行っています。 MLOps チームでは車両に搭載したカメラなどのセンサから走行データを収集し、Data Lake に格納しています。更に ETL (Extract, Transform, Load) パイプラインを…",
             "category": "技術コミュニティ",
-            "score": 28,
-            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--jQR-avUf--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:AI%25E3%2582%25A8%25E3%2583%25BC%25E3%2582%25B8%25E3%2582%25A7%25E3%2583%25B3%25E3%2583%2588%25E3%2582%2592OpenTelemetry%25E3%2581%25A7%25E8%25A8%2588%25E8%25A3%2585%25E3%2581%2597%25E3%2580%2581Databricks%25E3%2581%25AELakehouse%25E3%2581%25AB%25E3%2583%2588%25E3%2583%25AC%25E3%2583%25BC%25E3%2582%25B9%25E3%2582%2592%25E6%25AE%258B%25E3%2581%2597%25E3%2581%25A6%25E3%2581%25BF%25E3%2581%259F%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:Taka%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jS3V1V3VscTVOcVA1T1F3OWxEVkRQbTNkQVZqUlpPZDYtZUZpckNQeGlOSVNRcz1zMjUwLWM=%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
+            "score": 36,
+            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--PRiA0xP4--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:Databricks%2520%25E3%2581%25AE%2520Declarative%2520Automation%2520Bundles%2520%25E3%2582%2592%25E7%2594%25A8%25E3%2581%2584%25E3%2581%259F%25E6%25A9%259F%25E6%25A2%25B0%25E5%25AD%25A6%25E7%25BF%2592%25E3%2583%2587%25E3%2583%25BC%25E3%2582%25BF%25E3%2582%25BB%25E3%2583%2583...%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_34:colum2131%2Cx_220%2Cy_108/bo_3px_solid_rgb:d6e3ed%2Cg_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyL2VhNmQ4MDk1OGQuanBlZw==%2Cr_20%2Cw_90%2Cx_92%2Cy_102/co_rgb:6e7b85%2Cg_south_west%2Cl_text:notosansjp-medium.otf_30:Tech%2520Blog%2520-%2520Turing%2Cx_220%2Cy_160/bo_4px_solid_white%2Cg_south_west%2Ch_50%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyL2RhZDZiMjhmMmEuanBlZw==%2Cr_max%2Cw_50%2Cx_139%2Cy_84/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
           }
         },
         {
-          "article_id": "d6608be294bfe13501da",
-          "label": "DatabricksのSDPとAuto Loaderによるデータロード",
-          "reason": "増分取り込みの構成を検証する実践記事で、データロードの初期設計に役立ちます。",
+          "article_id": "3eefaae85ddc45c7f033",
+          "label": "Confluent Cloudからwatsonx.dataへIceberg連携",
+          "reason": "Apache Iceberg Sink ConnectorとICOSを使ったストリーミング連携を再現でき、イベントデータ基盤の設計材料になります。",
           "selection_status": "new",
           "article": {
-            "id": "d6608be294bfe13501da",
-            "title": "Databricks～データロード SDP（Spark Declarative Pipeline）とAuto Loader",
-            "url": "https://qiita.com/mellowlaunch/items/d7335719ef6cded040f4",
-            "source": "Qiita / Databricks",
-            "published_at": "2026-08-12T21:16:58+00:00",
-            "summary": "6-2 データロード SDP（Spark Declarative Pipeline）とAuto Loader データロードはPoCの最初の検証ポイント Databricks PoCを進める際、最初に検証するのがデータロード（Data Ingestion）です。 どれほど...",
+            "id": "3eefaae85ddc45c7f033",
+            "title": "Apache Iceberg Sink Connectorを使ってConfluent Cloudのトピックデータをwatsonx.dataへ連携する",
+            "url": "https://qiita.com/nishikyon/items/562048fd42efb1ae0a6a",
+            "source": "Qiita / Iceberg",
+            "published_at": "2026-08-24T08:42:30+00:00",
+            "summary": "以下に記載されている「watsonx.dataへのConfluent Apache Iceberg Sink Connectorの統合」をやってみました!リンク先では S3 を利用した例が記載されていますが、本記事では ICOS を使って試してみます。またS3 の設定値につ...",
             "category": "技術コミュニティ",
             "score": 8,
-            "image_url": "https://qiita-user-contents.imgix.net/https%3A%2F%2Fqiita-user-contents.imgix.net%2Fhttps%253A%252F%252Fcdn.qiita.com%252Fassets%252Fpublic%252Farticle-ogp-background-afbab5eb44e0b055cce1258705637a91.png%3Fixlib%3Drb-4.1.1%26w%3D1200%26blend64%3DaHR0cHM6Ly9xaWl0YS11c2VyLXByb2ZpbGUtaW1hZ2VzLmltZ2l4Lm5ldC9odHRwcyUzQSUyRiUyRnFpaXRhLWltYWdlLXN0b3JlLnMzLmFwLW5vcnRoZWFzdC0xLmFtYXpvbmF3cy5jb20lMkYwJTJGNDEwNTY2NiUyRnByb2ZpbGUtaW1hZ2VzJTJGMTc0OTAzNzIyNT9peGxpYj1yYi00LjEuMSZhcj0xJTNBMSZmaXQ9Y3JvcCZtYXNrPWVsbGlwc2UmYmc9RkZGRkZGJmZtPXBuZzMyJnM9MDhmYjk5MGE2N2UxYmUyZWQ5NDk2NjY2M2EyZjZlYjM%26blend-x%3D120%26blend-y%3D467%26blend-w%3D82%26blend-h%3D82%26blend-mode%3Dnormal%26s%3Db321d4effd68ba1c7ef7e0da36b2a023?ixlib=rb-4.1.1&w=1200&fm=jpg&mark64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTk2MCZoPTMyNCZ0eHQ9RGF0YWJyaWNrcyVFRiVCRCU5RSVFMyU4MyU4NyVFMyU4MyVCQyVFMyU4MiVCRiVFMyU4MyVBRCVFMyU4MyVCQyVFMyU4MyU4OSUyMFNEUCVFRiVCQyU4OFNwYXJrJTIwRGVjbGFyYXRpdmUlMjBQaXBlbGluZSVFRiVCQyU4OSVFMyU4MSVBOEF1dG8lMjBMb2FkZXImdHh0LWFsaWduPWxlZnQlMkN0b3AmdHh0LWNvbG9yPSUyMzFFMjEyMSZ0eHQtZm9udD1IaXJhZ2lubyUyMFNhbnMlMjBXNiZ0eHQtc2l6ZT01NiZ0eHQtcGFkPTAmcz1kYTg5MWI0Yzk0NzU5NGNhOTQwOTMyYjgxZmVlMzgxMw&mark-x=120&mark-y=112&blend64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTgzOCZoPTU4JnR4dD0lNDBtZWxsb3dsYXVuY2gmdHh0LWNvbG9yPSUyMzFFMjEyMSZ0eHQtZm9udD1IaXJhZ2lubyUyMFNhbnMlMjBXNiZ0eHQtc2l6ZT0zNiZ0eHQtcGFkPTAmcz1kYWMzY2MzMzU0YmQxMjNjZThjNjYwZmZmODY1Y2E3Yg&blend-x=242&blend-y=480&blend-w=838&blend-h=46&blend-fit=crop&blend-crop=left%2Cbottom&blend-mode=normal&s=2a8ab97f9c380f9ad231d10934a4d539"
+            "image_url": "https://qiita-user-contents.imgix.net/https%3A%2F%2Fqiita-user-contents.imgix.net%2Fhttps%253A%252F%252Fcdn.qiita.com%252Fassets%252Fpublic%252Farticle-ogp-background-afbab5eb44e0b055cce1258705637a91.png%3Fixlib%3Drb-4.1.1%26w%3D1200%26blend64%3DaHR0cHM6Ly9xaWl0YS11c2VyLXByb2ZpbGUtaW1hZ2VzLmltZ2l4Lm5ldC9odHRwcyUzQSUyRiUyRnFpaXRhLWltYWdlLXN0b3JlLnMzLmFtYXpvbmF3cy5jb20lMkYwJTJGMjk0NTE2JTJGcHJvZmlsZS1pbWFnZXMlMkYxNTM3NzA2ODQxP2l4bGliPXJiLTQuMS4xJmFyPTElM0ExJmZpdD1jcm9wJm1hc2s9ZWxsaXBzZSZiZz1GRkZGRkYmZm09cG5nMzImcz03ZGNkN2U5MWU3ODI4MGZkMmEzNjc5MzBjODYyZGJmMg%26blend-x%3D120%26blend-y%3D462%26blend-w%3D90%26blend-h%3D90%26blend-mode%3Dnormal%26mark64%3DaHR0cHM6Ly9xaWl0YS1vcmdhbml6YXRpb24taW1hZ2VzLmltZ2l4Lm5ldC9odHRwcyUzQSUyRiUyRnMzLWFwLW5vcnRoZWFzdC0xLmFtYXpvbmF3cy5jb20lMkZxaWl0YS1vcmdhbml6YXRpb24taW1hZ2UlMkY2NjEzM2RhN2UyMmY1OGYxNzk1Y2UwMDBmYjE2ZDE5NjZmZTI0Mzc4JTJGb3JpZ2luYWwuanBnJTNGMTY2Njc4NDg4Nz9peGxpYj1yYi00LjEuMSZ3PTQ0Jmg9NDQmZml0PWNyb3AmbWFzaz1jb3JuZXJzJmNvcm5lci1yYWRpdXM9OCZiZz1GRkZGRkYmYm9yZGVyPTIlMkNGRkZGRkYmZm09cG5nMzImcz02ZGFhNTViMzM1MGU5YjhkZDM2YjVkY2IxM2UxNmQ5Ng%26mark-x%3D186%26mark-y%3D515%26mark-w%3D40%26mark-h%3D40%26s%3D94e8d811e9df7f090fc8218b733832bd?ixlib=rb-4.1.1&w=1200&fm=jpg&mark64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTk2MCZoPTMyNCZ0eHQ9QXBhY2hlJTIwSWNlYmVyZyUyMFNpbmslMjBDb25uZWN0b3IlRTMlODIlOTIlRTQlQkQlQkYlRTMlODElQTMlRTMlODElQTZDb25mbHVlbnQlMjBDbG91ZCVFMyU4MSVBRSVFMyU4MyU4OCVFMyU4MyU5NCVFMyU4MyU4MyVFMyU4MiVBRiVFMyU4MyU4NyVFMyU4MyVCQyVFMyU4MiVCRiVFMyU4MiU5MndhdHNvbnguZGF0YSVFMyU4MSVCOCVFOSU4MCVBMyVFMiU4MCVBNiZ0eHQtYWxpZ249bGVmdCUyQ3RvcCZ0eHQtY29sb3I9JTIzMUUyMTIxJnR4dC1mb250PUhpcmFnaW5vJTIwU2FucyUyMFc2JnR4dC1zaXplPTU2JnR4dC1wYWQ9MCZzPTI1MDdlMDg0YjhmYzI3MWJkMjdiZmRiNDUwODA3ZDQz&mark-x=120&mark-y=112&blend64=aHR0cHM6Ly9xaWl0YS11c2VyLWNvbnRlbnRzLmltZ2l4Lm5ldC9-dGV4dD9peGxpYj1yYi00LjEuMSZ3PTgzOCZoPTU4JnR4dD0lNDBuaXNoaWt5b24mdHh0LWNvbG9yPSUyMzFFMjEyMSZ0eHQtZm9udD1IaXJhZ2lubyUyMFNhbnMlMjBXNiZ0eHQtc2l6ZT0zNiZ0eHQtcGFkPTAmcz1lY2U3Y2Q2NWE5OWIxNDVkNTU0MzgzZTRjOGJjNTc0NQ&blend-x=242&blend-y=454&blend-w=838&blend-h=46&blend-fit=crop&blend-crop=left%2Cbottom&blend-mode=normal&txt64=SUJN&txt-x=242&txt-y=539&txt-width=838&txt-clip=end%2Cellipsis&txt-color=%231E2121&txt-font=Hiragino%20Sans%20W6&txt-size=28&s=81306e651398fcf3d7d0f5a629d7095b"
+          }
+        },
+        {
+          "article_id": "e60c20f3c1490662d2c7",
+          "label": "Snowflake外部API接続のIP許可設計",
+          "reason": "固定IPではなくCIDR範囲を許可リストへ登録する考え方と、AWS環境での確認手順を試せます。",
+          "selection_status": "new",
+          "article": {
+            "id": "e60c20f3c1490662d2c7",
+            "title": "IP 許可制の外部 API を Snowflake から叩く — 固定 IP は出ないが範囲は取れる",
+            "url": "https://zenn.dev/mochitec_tech/articles/0dd0380bf8dbd3",
+            "source": "Zenn / Snowflake",
+            "published_at": "2026-08-24T09:07:21+00:00",
+            "summary": "はじめに 外部 SaaS の API を Snowflake から叩こうとしたら、相手が IP 許可制でした。許可リストに登録する固定 IP を探しましたが、Snowflake が出すのは期限つきの CIDR 範囲だけです。 確認したのは AWS Commercial です。公式が対象として挙げているのもここだけですが [1]、関数のリファレンスには Azure の出力例もあるので、Azure なら自分の環境で確かめてください [2]。 何に効くのか 出口 IP が関係するのは、Snowflake から外に出る通信です。対象は 3 つです [1]。 U…",
+            "category": "技術コミュニティ",
+            "score": 8,
+            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--FSKLOIcD--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:IP%2520%25E8%25A8%25B1%25E5%258F%25AF%25E5%2588%25B6%25E3%2581%25AE%25E5%25A4%2596%25E9%2583%25A8%2520API%2520%25E3%2582%2592%2520Snowflake%2520%25E3%2581%258B%25E3%2582%2589%25E5%258F%25A9%25E3%2581%258F%2520%25E2%2580%2594%2520%25E5%259B%25BA%25E5%25AE%259A%2520IP%2520%25E3%2581%25AF%25E5%2587%25BA%25E3%2581%25AA%25E3%2581%2584%25E3%2581%258C%25E7%25AF%2584%25E5%259B%25B2%25E3%2581%25AF%25E5%258F%2596%25E3%2582%258C%25E3%2582%258B%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_34:Ruuuhs%2Cx_220%2Cy_108/bo_3px_solid_rgb:d6e3ed%2Cg_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyL2EwYzI5ZDcyMGQuanBlZw==%2Cr_20%2Cw_90%2Cx_92%2Cy_102/co_rgb:6e7b85%2Cg_south_west%2Cl_text:notosansjp-medium.otf_30:MOCHITEC%2520TECH%2Cx_220%2Cy_160/bo_4px_solid_white%2Cg_south_west%2Ch_50%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyLzkyYjM2NGFiYWEuanBlZw==%2Cr_max%2Cw_50%2Cx_139%2Cy_84/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
           }
         }
       ]
     },
     {
       "field": "データマネジメント・エンジニアリング書籍",
-      "summary": "メタデータ管理に直接焦点を当てた近刊があります。データエンジニアリング専門の新刊は入力中に確認できません。",
-      "items": [
-        {
-          "article_id": "4104275d7092511d9ee1",
-          "label": "『メタデータ管理入門』",
-          "reason": "2026年8月25日発売予定。メタデータリポジトリ統合やデータ探索チーム構築を扱い、カタログ・ガバナンス設計の全体像を学べます。",
-          "selection_status": "new",
-          "article": {
-            "id": "4104275d7092511d9ee1",
-            "title": "メタデータ管理入門",
-            "url": "http://www.oreilly.co.jp/books/9784814401765/",
-            "source": "O'Reilly Japan 新刊・近刊",
-            "published_at": "2026-08-25T15:00:00+00:00",
-            "summary": "本書は、乱立するメタデータリポジトリを統合・調整し、組織的なデータ管理の課題を解決するため、「メタグリッド」によるリポジトリ管理やデータ探索チームの構築手法など、経営層からアーキテクトまでが押さえるべき戦略を網羅しています。一見、大企業向けの抽象的な理論に見えますが、本書の本質は、EMS、IR、IAMといった「管理のための仕組み」がなぜ存在するのかを、現場のエンジニア視点でも納得させてくれる点にあります。データ民主化やセキュリティ強化を支える基盤の全体像を一通り頭に入れることで、日々の開発の背景にある「組織の意図」が理解できるようになります。エンジニア…",
-            "category": "データ関連書籍",
-            "score": 8,
-            "image_url": "https://www.oreilly.co.jp/books/images/picture_large978-4-8144-0176-5.jpeg"
-          }
-        }
-      ]
+      "summary": "指定条件に合うデータエンジニアリング系の新刊は入力にありません。",
+      "items": []
     },
     {
       "field": "生成AI活用・テクニック",
-      "summary": "AIを業務へ安全に組み込むための運用設計と検証ゲートが中心です。",
+      "summary": "AIエージェントの検証、コンテキスト設計、トークン削減など、実測を伴う記事が中心です。",
       "items": [
         {
-          "article_id": "845586e5f6fa2506cf79",
-          "label": "AI生成文章の事実確認ゲート",
-          "reason": "主張・一次情報・確認者・状態を記録する小さなゲートを実装でき、公開前の誤情報混入を減らせます。",
+          "article_id": "e0c6b804e6cf33611fa6",
+          "label": "敵対的検証をLLMコードレビューに組み込む",
+          "reason": "レビュー役と検証監視役を分ける構成を試し、AIレビューの見落としや過信を減らす設計を検討できます。",
           "selection_status": "new",
           "article": {
-            "id": "845586e5f6fa2506cf79",
-            "title": "AI生成文章を公開する前の事実確認ゲートを設計する",
-            "url": "https://zenn.dev/miraigent/articles/ai-generated-text-fact-check-gate",
-            "source": "Zenn / 生成AI",
-            "published_at": "2026-08-12T20:36:16+00:00",
-            "summary": "生成AIでブログ、FAQ、営業資料の下書きを作ると、文章の作成時間は短くできます。一方で、公開前に確認すべき事実・日付・数値・固有名詞・引用元が増えることがあります。 この記事では、AI生成文章をそのまま公開せず、**主張ごとに根拠と確認状態を持たせる「事実確認ゲート」**を小さく実装します。対象読者は、AIで公開文書を作り始めた小規模チームの開発者、編集担当者、業務責任者です。 完成状態は、次の4点を一つの記録で説明できることです。 文章のどこに、どんな主張があるか その主張を支える一次情報は何か 誰が、いつ、どの観点を確認したか 未確認の主張を含む…",
-            "category": "生成AI活用",
-            "score": 8,
-            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--MOJFKgrt--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:AI%25E7%2594%259F%25E6%2588%2590%25E6%2596%2587%25E7%25AB%25A0%25E3%2582%2592%25E5%2585%25AC%25E9%2596%258B%25E3%2581%2599%25E3%2582%258B%25E5%2589%258D%25E3%2581%25AE%25E4%25BA%258B%25E5%25AE%259F%25E7%25A2%25BA%25E8%25AA%258D%25E3%2582%25B2%25E3%2583%25BC%25E3%2583%2588%25E3%2582%2592%25E8%25A8%25AD%25E8%25A8%2588%25E3%2581%2599%25E3%2582%258B%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:Kirisaki%2520Kazuya%2520%257C%2520...%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyL2U5ODBhNjQwODEuanBlZw==%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
-          }
-        },
-        {
-          "article_id": "3ea582b72047180a4e82",
-          "label": "Claude Codeの実装プランをCodexで自動レビュー",
-          "reason": "実装前に別エージェントで計画を検査する流れを試せます。レビュー漏れの削減に有効です。",
-          "selection_status": "new",
-          "article": {
-            "id": "3ea582b72047180a4e82",
-            "title": "Claude Codeが立てた実装プランを、承認前にCodexへ自動レビューさせる",
-            "url": "https://zenn.dev/tamat_llc/articles/claude-code-codex-cross-review",
+            "id": "e0c6b804e6cf33611fa6",
+            "title": "敵対的検証をLLMコードレビューで試すと何が起きるのか",
+            "url": "https://zenn.dev/knowledgesense/articles/0cb441713c9fee",
             "source": "Zenn / LLM",
-            "published_at": "2026-08-12T07:35:58+00:00",
-            "summary": "こんにちは、TamaT の 増田 です。 TamaT は顧客提案から要件定義、設計、開発までを一気通貫で担う少数精鋭の開発会社です。 バイブコーディングでプランを立ててから実装を始める重要性は言うまでもないですが、各エージェントが立てるプランは意外に穴があります。 今まではプランが妥当か手動でAIにレビューさせていましたが、チケットが多いとそれも手間になりキリがないので、自動化するフローを組み込んでいます。 色々やり方はありますが、今回はClaude CodeのCUI内で完結させる方法を紹介します。 TL;DR Claude Code のプランモードで…",
+            "published_at": "2026-08-25T01:13:08+00:00",
+            "summary": "導入 こんにちは、株式会社ナレッジセンスの須藤英寿です。 AIでコードのレビューをする際に敵対的検証をすることで性能が上がるとされています。そこにさらに、その検証を監視する役を付けることでレビューの精度を上げる手法「Adversarial Review」について紹介します。 https://arxiv.org/pdf/2608.18167 サマリー 最近、敵対的検証という言葉を耳にすることが増えました。AnthropicもClaude Codeのワークフローの一つとして紹介しており、エージェントの出力を、別のエージェントに基準を与えて敵対的に検証させる…",
             "category": "生成AI活用",
             "score": 10,
-            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--IpKzb6Hs--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:Claude%2520Code%25E3%2581%258C%25E7%25AB%258B%25E3%2581%25A6%25E3%2581%259F%25E5%25AE%259F%25E8%25A3%2585%25E3%2583%2597%25E3%2583%25A9%25E3%2583%25B3%25E3%2582%2592%25E3%2580%2581%25E6%2589%25BF%25E8%25AA%258D%25E5%2589%258D%25E3%2581%25ABCodex%25E3%2581%25B8%25E8%2587%25AA%25E5%258B%2595%25E3%2583%25AC%25E3%2583%2593%25E3%2583%25A5%25E3%2583%25BC%25E3%2581%2595%25E3%2581%259B%25E3%2582%258B%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_34:%25E3%2582%2586%25E3%2581%2586%25E3%2581%2584%25E3%2581%25A1%25E3%2582%258D%25E3%2581%2586%2Cx_220%2Cy_108/bo_3px_solid_rgb:d6e3ed%2Cg_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyLzFiMjM4N2RmOTIuanBlZw==%2Cr_20%2Cw_90%2Cx_92%2Cy_102/co_rgb:6e7b85%2Cg_south_west%2Cl_text:notosansjp-medium.otf_30:TamaT%2520LLC%2Cx_220%2Cy_160/bo_4px_solid_white%2Cg_south_west%2Ch_50%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyLzI3NzdiNzBkYTguanBlZw==%2Cr_max%2Cw_50%2Cx_139%2Cy_84/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
+            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--Ve3Ie_yU--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:%25E6%2595%25B5%25E5%25AF%25BE%25E7%259A%2584%25E6%25A4%259C%25E8%25A8%25BC%25E3%2582%2592LLM%25E3%2582%25B3%25E3%2583%25BC%25E3%2583%2589%25E3%2583%25AC%25E3%2583%2593%25E3%2583%25A5%25E3%2583%25BC%25E3%2581%25A7%25E8%25A9%25A6%25E3%2581%2599%25E3%2581%25A8%25E4%25BD%2595%25E3%2581%258C%25E8%25B5%25B7%25E3%2581%258D%25E3%2582%258B%25E3%2581%25AE%25E3%2581%258B%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_34:sasakuna%2Cx_220%2Cy_108/bo_3px_solid_rgb:d6e3ed%2Cg_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly96ZW5uLmRldi9pbWFnZXMvZGVmYXVsdC1wdWJsaWNhdGlvbi1hdmF0YXIucG5n%2Cr_20%2Cw_90%2Cx_92%2Cy_102/co_rgb:6e7b85%2Cg_south_west%2Cl_text:notosansjp-medium.otf_30:%25E3%2583%258A%25E3%2583%25AC%25E3%2583%2583%25E3%2582%25B8%25E3%2582%25BB%25E3%2583%25B3%25E3%2582%25B9%2520-%2520%25E7%2594%259F%25E6%2588%2590AI%25E3%2581%25A8RAG%25E3%2581%25AE%25E5%25AE%259F%25E8%25A3%2585...%2Cx_220%2Cy_160/bo_4px_solid_white%2Cg_south_west%2Ch_50%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyL2ZkMzU2MDA4YWUuanBlZw==%2Cr_max%2Cw_50%2Cx_139%2Cy_84/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
           }
         },
         {
-          "article_id": "d031e79f4510ebde0f13",
-          "label": "AIエージェントの「完了報告」を検証する",
-          "reason": "子エージェントの能力・実行環境・成果物を分けて確認する必要性が分かり、完了条件の設計に役立ちます。",
+          "article_id": "5e32603925fd5ab7958a",
+          "label": "OpenVikingの階層コンテキストを実測",
+          "reason": "全文投入とのコスト・探索量を比較し、文書規模に応じて階層ロードとベクトル検索を選ぶ判断ができます。",
           "selection_status": "new",
           "article": {
-            "id": "d031e79f4510ebde0f13",
-            "title": "AIが「完了しました」と報告したタスクが、実は終わっていなかった話",
-            "url": "https://zenn.dev/maysun/articles/9468721e105843",
-            "source": "Zenn / 生成AI",
-            "published_at": "2026-08-12T12:43:11+00:00",
-            "summary": "タスクを任せた子エージェントが「完了」と報告したのに、実は完了していなかった——同じ午後に2回、こうしてタスクが静かに消えていた。エラーも出ず、「できません」とすら言わずに。 1つ目：以前メインのセッションはブラウザ自動化ツール＋ログイン済みセッションを使ってLinkedInに実際投稿していた（投稿記録あり）。後日、似た作業をバックグラウンドの子エージェントに任せたところ、「LinkedIn自動化は設定されていません」と返ってきた——これ自体は事実だが、その子エージェントの実行環境にはブラウザツールもログインセッションも存在しなかっただけで、「能力が消…",
+            "id": "5e32603925fd5ab7958a",
+            "title": "OpenVikingの3階層コンテキストは本当にトークンを削るのか実測した",
+            "url": "https://zenn.dev/genelab_999/articles/7b2c5b5210fdf9",
+            "source": "Zenn / LLM",
+            "published_at": "2026-08-24T23:37:00+00:00",
+            "summary": "TL;DR OpenVikingの階層ロードは、コーパスが2.64倍になってもコストが11.7%しか増えなかった。全文投入は素直に2.64倍になる 「棚を特定してから本を開く」ため、1ホップで探索対象チャンクが69.6%落ちる ただし依存パッケージ167個、仮想環境1.2GB。文書が数十件の規模なら、フラットなベクトル検索のほうが合理的 システムPythonに直接入れるとDebian系ではPyJWTで壊れる。venv必須 計測ツールと生ログはGitHubに置いた: context-tier-bench 背景: 「トークンを削減する」の中身が知りたかった…",
+            "category": "生成AI活用",
+            "score": 7,
+            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--HF0vN3Vq--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:OpenViking%25E3%2581%25AE3%25E9%259A%258E%25E5%25B1%25A4%25E3%2582%25B3%25E3%2583%25B3%25E3%2583%2586%25E3%2582%25AD%25E3%2582%25B9%25E3%2583%2588%25E3%2581%25AF%25E6%259C%25AC%25E5%25BD%2593%25E3%2581%25AB%25E3%2583%2588%25E3%2583%25BC%25E3%2582%25AF%25E3%2583%25B3%25E3%2582%2592%25E5%2589%258A%25E3%2582%258B%25E3%2581%25AE%25E3%2581%258B%25E5%25AE%259F%25E6%25B8%25AC%25E3%2581%2597%25E3%2581%259F%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:GeneLab%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyL2Q2NmE1YjM1M2IuanBlZw==%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
+          }
+        },
+        {
+          "article_id": "5f364b694342fd6dc8ec",
+          "label": "AIエージェント常時稼働の費用対効果を再検討",
+          "reason": "常時実行を前提にせず、タスク頻度・失敗監視・モデル費用から運用設計を見直す材料になります。",
+          "selection_status": "new",
+          "article": {
+            "id": "5f364b694342fd6dc8ec",
+            "title": "AIは回せば回すほど凄いのか ―「常時稼働」という設計の敗北",
+            "url": "https://zenn.dev/eggletric/articles/4ea81df765fb66",
+            "source": "Zenn / LLM",
+            "published_at": "2026-08-24T22:20:05+00:00",
+            "summary": "SNSに溢れる「AI常時ぶん回し」への違和感 近年、SNSでこういう投稿をよく見かけます。 「AIエージェントを24時間動かして開発を完全自動化しました」 「寝ている間もAIがコードを書き続けています」 「AI社員を常時稼働させて、プロダクトを量産中です」 一見すると、とても先進的で凄そうに見えます。 実際、こうした投稿は伸びやすく、「これからはこういう時代だ」という空気も感じます。 ただ、現役の開発者としてAIを日常的に使っている立場から、どうしても引っかかることがあります。 本当に、そんなに回す必要があるのでしょうか? 後述しますが、コストの面でも…",
             "category": "生成AI活用",
             "score": 10,
-            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--fQZproXk--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:AI%25E3%2581%258C%25E3%2580%258C%25E5%25AE%258C%25E4%25BA%2586%25E3%2581%2597%25E3%2581%25BE%25E3%2581%2597%25E3%2581%259F%25E3%2580%258D%25E3%2581%25A8%25E5%25A0%25B1%25E5%2591%258A%25E3%2581%2597%25E3%2581%259F%25E3%2582%25BF%25E3%2582%25B9%25E3%2582%25AF%25E3%2581%258C%25E3%2580%2581%25E5%25AE%259F%25E3%2581%25AF%25E7%25B5%2582%25E3%2582%258F%25E3%2581%25A3%25E3%2581%25A6%25E3%2581%2584%25E3%2581%25AA%25E3%2581%258B%25E3%2581%25A3%25E3%2581%259F%25E8%25A9%25B1%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:maysunAI%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jSmVUTlliS1l2cHdQVmlfSzZ0S1h3MFZvN2g3ZW5tNE5FM1RNb1BGTnc2cF9pN1Z3PXMyNTAtYw==%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
+            "image_url": "https://res.cloudinary.com/zenn/image/upload/s--YyAT8snO--/c_fit%2Cg_north_west%2Cl_text:notosansjp-medium.otf_55:AI%25E3%2581%25AF%25E5%259B%259E%25E3%2581%259B%25E3%2581%25B0%25E5%259B%259E%25E3%2581%2599%25E3%2581%25BB%25E3%2581%25A9%25E5%2587%2584%25E3%2581%2584%25E3%2581%25AE%25E3%2581%258B%2520%25E2%2580%2595%25E3%2580%258C%25E5%25B8%25B8%25E6%2599%2582%25E7%25A8%25BC%25E5%2583%258D%25E3%2580%258D%25E3%2581%25A8%25E3%2581%2584%25E3%2581%2586%25E8%25A8%25AD%25E8%25A8%2588%25E3%2581%25AE%25E6%2595%2597%25E5%258C%2597%2Cw_1010%2Cx_90%2Cy_100/g_south_west%2Cl_text:notosansjp-medium.otf_37:Eggletric%2Cx_203%2Cy_121/g_south_west%2Ch_90%2Cl_fetch:aHR0cHM6Ly9zdGF0aWMuemVubi5zdHVkaW8vdXNlci11cGxvYWQvYXZhdGFyLzVlNTExNjkyOTAuanBlZw==%2Cr_max%2Cw_90%2Cx_87%2Cy_95/v1627283836/default/og-base-w1200-v2.png?_a=BACMTiAE"
           }
         }
       ]
     },
     {
       "field": "CLI・ターミナル生産性",
-      "summary": "安定版で日常操作を大きく改善する候補は少なく、Codex Security CLI関連を中心に選定しました。",
+      "summary": "Yaziやcmuxなど、ファイル操作とエージェント併用を効率化する安定版更新があります。",
       "items": [
         {
-          "article_id": "b84885324d45a1f73bf3",
-          "label": "Codex Security CLIのオープンソース化",
-          "reason": "CLIで脆弱性の発見・検証・修正を行え、開発時のセキュリティ確認を自動化する候補です。",
+          "article_id": "50d959e8e6b2e3a12072",
+          "label": "Yazi v26.8.15",
+          "reason": "ターミナル上のファイル閲覧・移動を高速化でき、macOSやNix環境で既存のFinder中心の操作を置き換える候補です。",
           "selection_status": "new",
           "article": {
-            "id": "b84885324d45a1f73bf3",
-            "title": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に - GIGAZINE",
-            "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTE41X2RxeWpvX01ZazE4R0dzU2M5cjdDMHI1eVBPdWxmTFdlcUpicHk2SFl3S00yc3VEM3hSbGM4SnVkT3hoM0VOdFVNU1o3VFE2NUZxeUlpa25XdTJ0bFV2RHRvdGt1V0VrXzZGS00yaHRza2py?oc=5",
-            "source": "CLI・ターミナルツール発見",
-            "published_at": "2026-07-29T07:00:00+00:00",
-            "summary": "セキュリティレビューAIの「Codex Security CLI」がオープンソース化、GitHubからダウンロード可能に GIGAZINE",
+            "id": "50d959e8e6b2e3a12072",
+            "title": "v26.8.15",
+            "url": "https://github.com/sxyazi/yazi/releases/tag/v26.8.15",
+            "source": "Yazi Releases",
+            "published_at": "2026-08-15T08:15:56+00:00",
+            "summary": "See https://github.com/sxyazi/yazi/blob/main/CHANGELOG.md#v26815 for the changelog.",
             "category": "CLI生産性",
-            "score": 10,
-            "image_url": null
+            "score": 7,
+            "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+          }
+        },
+        {
+          "article_id": "e10f42a4f347de01ffdd",
+          "label": "cmux v0.64.22",
+          "reason": "シェル統合やエージェント復元まわりの不具合が修正され、複数エージェントをターミナルセッションで運用しやすくなります。",
+          "selection_status": "new",
+          "article": {
+            "id": "e10f42a4f347de01ffdd",
+            "title": "v0.64.22",
+            "url": "https://github.com/manaflow-ai/cmux/releases/tag/v0.64.22",
+            "source": "cmux Releases",
+            "published_at": "2026-08-03T08:06:36+00:00",
+            "summary": "What's Changed Fix noclobber 'cannot overwrite existing file' error from bash shell integration by @austinywang in #9420 Preserve CLAUDE_SECURESTORAGE_CONFIG_DIR across agent restore by @austinywang in #9419 Clear Dock notifications when focused by @austinywang in #9418 Fix cmux…",
+            "category": "CLI生産性",
+            "score": 3,
+            "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
           }
         }
       ]
     },
     {
       "field": "業務改善・QOL",
-      "summary": "充電と周辺機器接続を一体化する新ガジェットが、配線と持ち運びの手間を減らします。",
+      "summary": "デスク環境の配置改善と、充電・接続をまとめる周辺機器が実用的です。",
       "items": [
         {
           "article_id": "9575ea5c497b1292b6f7",
-          "label": "エレコムのUSBハブ一体型PC充電ケーブル",
-          "reason": "充電ケーブルとUSBハブを1本にまとめ、外出先やドックのない机で周辺機器を接続しやすくします。",
-          "selection_status": "new",
+          "label": "エレコムのUSBハブ機能付き充電ケーブル",
+          "reason": "充電ケーブルとUSBハブを一体化し、出先や狭い机で周辺機器の接続と持ち運びを減らせます。",
+          "selection_status": "continued",
           "article": {
             "id": "9575ea5c497b1292b6f7",
             "title": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは - GoodsPress Web",
             "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE51MS01MXdJOHB1Q2IzRFpCY1NVMXJGaC1ha2x4XzJ6S3FEZVdFZjhLcHdfM1o1NURCSmtXZE1yNVZtdXQ1WFMwcTNKVU9tM1E?oc=5",
             "source": "デスクツアー・作業環境",
-            "published_at": "2026-08-10T21:00:00+00:00",
+            "published_at": "2026-08-11T07:00:00+00:00",
             "summary": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは GoodsPress Web",
             "category": "業務改善・QOL",
             "score": 17,
@@ -189,18 +188,18 @@
     },
     {
       "field": "子育て",
-      "summary": "桜木町から徒歩圏の野毛で、乳幼児向けの近日開催イベントがあります。",
+      "summary": "桜木町駅から徒歩圏の野毛地区センターで、乳幼児向けの近日開催イベントがあります。",
       "items": [
         {
           "article_id": "6ef9fac963f054249770",
-          "label": "野毛地区センター（野毛）「ぽっぽっぽっ」とあそぼう!",
-          "reason": "8月28日開催。桜木町駅から徒歩圏の野毛地区センターで、遊びとお話会を親子で楽しめます。",
-          "selection_status": "new",
+          "label": "野毛地区センター（野毛）の「ぽっぽっぽっ」とあそぼう！",
+          "reason": "桜木町駅から徒歩圏の野毛地区センターで8月28日開催。1歳半前後の子どもと参加しやすい遊びとお話会です。",
+          "selection_status": "continued",
           "article": {
             "id": "6ef9fac963f054249770",
             "title": "「ぽっぽっぽっ」とあそぼう!",
             "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=110186",
-            "source": "横浜市中区親子イベント",
+            "source": "横浜市親子イベント",
             "published_at": "2026-08-28T00:00:00+00:00",
             "summary": "いっぱい遊んだ後、お話会に参加しよう。・場所: 野毛地区センター ( 中区 )",
             "category": "子育て",
@@ -212,81 +211,115 @@
     },
     {
       "field": "横浜イベント",
-      "summary": "桜木町から行きやすいみなとみらいで、今後開催の盆踊りがあります。",
+      "summary": "今後開催される、桜木町から行きやすいみなとみらい・赤レンガ周辺の催しを選びました。",
       "items": [
         {
-          "article_id": "3e70d5f570b43720de36",
-          "label": "みなとみらい大盆踊り（みなとみらい・臨港パーク）",
-          "reason": "8月28〜29日開催予定。桜木町から徒歩または短距離移動で行きやすく、家族で参加しやすい屋外イベントです。",
+          "article_id": "7770dfce114e4a4265df",
+          "label": "みなとみらい・パシフィコ横浜のTokyo Gendai",
+          "reason": "桜木町駅から徒歩または短距離移動で行きやすいパシフィコ横浜で9月11日から開催される屋内アートフェアです。",
           "selection_status": "new",
           "article": {
-            "id": "3e70d5f570b43720de36",
-            "title": "みなとみらい大盆踊り",
-            "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw10025",
+            "id": "7770dfce114e4a4265df",
+            "title": "世界⽔準の国際アートフェア 「Tokyo Gendai」in パシフィコ横浜",
+            "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw10561",
             "source": "横浜市公式観光イベント",
-            "published_at": "2026-08-28T00:00:00+00:00",
-            "summary": "こども向け、イベント、屋外（雨天変更）・こども向け イベント 屋外（雨天変更） みなとみらい大盆踊り エリア みなとみらい21 開催日程 2026年8月28日(金)・8月29日(… 住所 臨港パーク・プラザ広場（パシフィコ横浜隣接・横浜市西区みなとみらい1） もっとみる",
+            "published_at": "2026-09-11T00:00:00+00:00",
+            "summary": "学習・体験、アート・芸術、イベント、屋内（雨天OK）・学習・体験 アート・芸術 イベント 屋内（雨天OK） 世界⽔準の国際アートフェア 「Tokyo Gendai」in パシフィコ横浜 エリア みなとみらい21 開催日程 2026年9月11日(金) ～9月13日… 住所 横浜国際平和会議場(パシフィコ横浜) 展示ホール C/D もっとみる",
             "category": "横浜イベント",
-            "score": 18,
-            "image_url": "https://ycvb.yokohama/img_data/yw10025_1.jpg"
+            "score": 9,
+            "image_url": "https://ycvb.yokohama/img_data/yw10561_1.jpg"
+          }
+        },
+        {
+          "article_id": "ec68a4742fa0e392c7ce",
+          "label": "みなとみらい・横浜赤レンガ倉庫のオクトーバーフェスト",
+          "reason": "桜木町から徒歩圏の赤レンガ倉庫で9月18日から開催。家族で立ち寄りやすいグルメイベントです。",
+          "selection_status": "continued",
+          "article": {
+            "id": "ec68a4742fa0e392c7ce",
+            "title": "横浜オクトーバーフェスト 2026",
+            "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw9060",
+            "source": "横浜市公式観光イベント",
+            "published_at": "2026-09-18T00:00:00+00:00",
+            "summary": "学習・体験、こども向け、イベント、グルメ、屋内（雨天OK）・学習・体験 こども向け イベント グルメ 屋内（雨天OK） 横浜オクトーバーフェスト 2026 エリア みなとみらい21 開催日程 開催日程：2026年9月18日(金)～1… 住所 横浜赤レンガ倉庫 イベント広場 もっとみる",
+            "category": "横浜イベント",
+            "score": 11,
+            "image_url": "https://ycvb.yokohama/img_data/yw9060_1.png"
+          }
+        },
+        {
+          "article_id": "94f982925be069ddcaf5",
+          "label": "みなとみらい・横浜赤レンガ倉庫のおいも万博",
+          "reason": "桜木町から徒歩圏の赤レンガ倉庫で10月9日から開催される屋外グルメイベントです。",
+          "selection_status": "new",
+          "article": {
+            "id": "94f982925be069ddcaf5",
+            "title": "横浜赤レンガ倉庫「横浜おいも万博 2026」",
+            "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw12626",
+            "source": "横浜市公式観光イベント",
+            "published_at": "2026-10-09T00:00:00+00:00",
+            "summary": "イベント、グルメ、屋外（雨天変更）・イベント グルメ 屋外（雨天変更） 横浜赤レンガ倉庫「横浜おいも万博 2026」 エリア みなとみらい21 開催日程 開催日程：2026年10月9日(金)～1… 住所 横浜赤レンガ倉庫 イベント広場 もっとみる",
+            "category": "横浜イベント",
+            "score": 5,
+            "image_url": "https://ycvb.yokohama/img_data/yw12626_1.png"
           }
         }
       ]
     },
     {
       "field": "街の新店",
-      "summary": "桜木町駅から徒歩圏で、条件に合う新規開店・移転・リニューアル記事はありません。",
+      "summary": "桜木町駅徒歩圏で、開店日やリニューアル日を確認できる適格記事はありません。",
       "items": []
     },
     {
       "field": "睡眠",
-      "summary": "睡眠デバイスの評価指標に関する製品記事と、オレキシン系を扱うNature研究を確認できます。",
+      "summary": "睡眠製品と研究紹介はありますが、入力内にNature等の一次研究を確認できる記事はありません。製品の効果は断定せず、測定精度や利用目的に注意が必要です。",
       "items": [
         {
-          "article_id": "adf10594a9459736aeab",
-          "label": "Sleepisol＋のNSF SleepMark取得",
-          "reason": "睡眠デバイスの第三者評価に関する話題。認証は効果保証ではないため、購入時の品質確認材料として扱うべきです。",
+          "article_id": "79754fd8836c84a1e5a2",
+          "label": "NELLの枕・マットレス変更後の睡眠データ比較",
+          "reason": "日本睡眠学会発表の比較データを紹介。枕で入眠時間が延び、マットレスで短縮した結果ですが、対象・条件を確認し個人差を考慮してください。",
           "selection_status": "new",
           "article": {
-            "id": "adf10594a9459736aeab",
-            "title": "睡眠デバイスを選ぶ「物差し」はできるのか｜韓国LEESOLの「Sleepisol＋」が米NSFのSleepMarkを日本初取得、ただし効果の保証ではない - Smart Watch Life",
-            "url": "https://news.google.com/rss/articles/CBMiTEFVX3lxTE9BWndvcHpoQnRkRVlUcE9yQkd4LVNvd1RKWC1JNnh1eERXdEc4bTZZREhvSFE5akZHTzg2OFRDSzhSVXF1NTl5eWhqWDk?oc=5",
+            "id": "79754fd8836c84a1e5a2",
+            "title": "【日本睡眠学会で発表】睡眠ブランドNELL、枕・マットレス変更後の睡眠データを比較。入眠までの時間は枕変更で約10分延長、マットレス変更で約2分短縮 - 毎日キレイ",
+            "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTE5wcHdZd3JxRkVQSWl6MllCRUt3YkZYMEFfc213SzhKS3JnRzdFNWRMVVdwTnYzMDZZbGstaFFraHdtNW5HaXAwbC05Qm1BaktRRkp0YlljUFctdzJRMGI2SDdhYkl1YkR4ZnUtZFpSekFodmM5RGRCZVNn?oc=5",
             "source": "睡眠製品ニュース",
-            "published_at": "2026-08-06T02:04:34+00:00",
-            "summary": "睡眠デバイスを選ぶ「物差し」はできるのか｜韓国LEESOLの「Sleepisol＋」が米NSFのSleepMarkを日本初取得、ただし効果の保証ではない Smart Watch Life",
+            "published_at": "2026-07-28T07:00:00+00:00",
+            "summary": "【日本睡眠学会で発表】睡眠ブランドNELL、枕・マットレス変更後の睡眠データを比較。入眠までの時間は枕変更で約10分延長、マットレス変更で約2分短縮 毎日キレイ",
             "category": "睡眠",
             "score": 21,
             "image_url": null
           }
         },
         {
-          "article_id": "7d32029b44e702a0ed6d",
-          "label": "オレキシン系を標的とする睡眠障害治療の可能性",
-          "reason": "Natureの研究レビュー。睡眠・覚醒制御に関わる機序を整理できますが、治療効果は個別に判断が必要です。",
+          "article_id": "69c4def1a8744b9c89b8",
+          "label": "Oura Ringの睡眠精度評価を再検討",
+          "reason": "ウェアラブルの「睡眠精度」表示をそのまま診断と受け取らず、医療検査との差やグレーゾーンを確認できます。",
           "selection_status": "new",
           "article": {
-            "id": "7d32029b44e702a0ed6d",
-            "title": "Therapeutic potential of targeting the orexin (hypocretin) system in sleep disorders",
-            "url": "https://www.nature.com/articles/s41574-026-01277-2",
-            "source": "Nature / Sleep Research",
-            "published_at": "2026-07-30T00:00:00+00:00",
-            "summary": "",
+            "id": "69c4def1a8744b9c89b8",
+            "title": "Oura Ringの「睡眠精度95%」に待った。ウェアラブルのグレーゾーン問題 - Gizmodo",
+            "url": "https://news.google.com/rss/articles/CBMiggFBVV95cUxPRFlYVzlpWGJRZkxMNXhKeTFIa19Wd3gtUmhHTjJJMFZlRHBhYm1MaE5JaWpfQlEtcUFvMURIem5ELUM0Nk9NbjB0TnU3SVBkUXFOcnBhQzdIU1pkMUZRUjBJMmRJZUcyc1U0dHJGU0xPT2RpSkh1UWlQWnh1WmFNc3Vn?oc=5",
+            "source": "睡眠研究ニュース",
+            "published_at": "2026-08-24T13:00:00+00:00",
+            "summary": "Oura Ringの「睡眠精度95%」に待った。ウェアラブルのグレーゾーン問題 Gizmodo",
             "category": "睡眠",
-            "score": 13,
-            "image_url": "https://media.springernature.com/m685/springer-static/image/art%3A10.1038%2Fs41574-026-01277-2/MediaObjects/41574_2026_1277_Fig1_HTML.png"
+            "score": 14,
+            "image_url": null
           }
         }
       ]
     },
     {
       "field": "筋トレ",
-      "summary": "筋力・筋肥大では重量だけでなく、総負荷や実施条件の設計が重要だとする解説です。",
+      "summary": "新しい適格記事はありません。ACSMの記事は継続掲載ですが、他の候補が入力されていないため参考として残します。",
       "items": [
         {
           "article_id": "3066811d8dd8cef92340",
-          "label": "ACSM：レジスタンストレーニングは負荷だけが本質ではない",
-          "reason": "重量以外の刺激条件にも注目する内容。種目・回数・可動域・疲労度を合わせて記録する改善材料になります。",
-          "selection_status": "new",
+          "label": "ACSM：筋力・筋肥大では負荷だけが全てではない",
+          "reason": "重量の大小だけでなく、トレーニング刺激全体を考える視点を提供します。継続選択が続いているため、代替研究があれば次回はそちらを優先します。",
+          "selection_status": "continued",
           "article": {
             "id": "3066811d8dd8cef92340",
             "title": "Active Voice | With Resistance Training, Load is Only Half the Story",
@@ -304,86 +337,68 @@
   ],
   "official_digest": [
     {
-      "product": "dbt Core",
-      "summary": "1.12.2、1.12.1、1.11.13、1.10.23が更新されました。",
-      "changes": [
-        "非推奨バージョン使用時の警告を追加",
-        "Databricks adapter設定のスキーマ検証を改善",
-        "OpenTelemetryによるノード・フック実行計装を追加（既定では無効）",
-        "バージョン付きモデルのunit testにおける断続的な解析エラーを修正"
-      ],
-      "article_ids": [
-        "54ab90e049fb0b604c22",
-        "583aab297dae31a77f01",
-        "bb7a4f2063237a14b145",
-        "976e062789dc25c47b1e"
-      ],
-      "articles": [
-        {
-          "id": "54ab90e049fb0b604c22",
-          "title": "dbt-core v1.12.2",
-          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.12.2",
-          "source": "dbt Core Releases",
-          "published_at": "2026-08-12T19:27:40+00:00",
-          "summary": "dbt-core 1.12.2 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 ) Fixes Recognize Databricks adapter config keys ( query_tags , zorder , options , unique_tmp_table_suffix , skip_optimize ) in jsonschema validation so they no longer raise…",
-          "category": "リリース速報",
-          "score": 18,
-          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
-        },
-        {
-          "id": "583aab297dae31a77f01",
-          "title": "dbt-core v1.10.23",
-          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.10.23",
-          "source": "dbt Core Releases",
-          "published_at": "2026-08-12T16:28:10+00:00",
-          "summary": "dbt-core 1.10.23 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 )",
-          "category": "リリース速報",
-          "score": 6,
-          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
-        },
-        {
-          "id": "bb7a4f2063237a14b145",
-          "title": "dbt-core v1.11.13",
-          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.11.13",
-          "source": "dbt Core Releases",
-          "published_at": "2026-08-12T15:48:56+00:00",
-          "summary": "dbt-core 1.11.13 - August 12, 2026 Features Warn users if they are using a deprecated dbt version ( #15964 ) Fixes Fix intermittent \"references a model that does not exist\" parsing error when unit testing versioned models, caused by non-deterministic filesystem parse order ( #11…",
-          "category": "リリース速報",
-          "score": 6,
-          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
-        },
-        {
-          "id": "976e062789dc25c47b1e",
-          "title": "dbt-core v1.12.1",
-          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.12.1",
-          "source": "dbt Core Releases",
-          "published_at": "2026-08-12T10:43:22+00:00",
-          "summary": "dbt-core 1.12.1 - August 12, 2026 Features Add OpenTelemetry span instrumentation for node and hook execution, gated behind the --snowflake-projects-otel flag (off by default) ( #11367 ) Fixes Fix dbt build node count (\"X of Y\") being inflated when unit tests are selected, by ad…",
-          "category": "リリース速報",
-          "score": 14,
-          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
-        }
-      ]
-    },
-    {
       "product": "Snowflake",
-      "summary": "Iceberg連携、AIエージェント、データ品質監視、AIセキュリティなどの機能が拡充されています。",
+      "summary": "組織横断の利用状況、Cortexのコード自動化・エージェント評価、Iceberg連携、データ移動・分類などの機能拡張が進んでいます。",
       "changes": [
-        "Amazon S3 TablesのIceberg REST Catalog連携がGA",
-        "データ品質モニタリングダッシュボードがPublic Preview",
-        "Native AppsのAgents MCPがGA",
-        "Trust CenterのAI SecurityがGA",
-        "AIエージェントのインベントリ管理やアクセス履歴項目を追加"
+        "組織利用状況やコマンドセンター関連の可視化を拡張",
+        "Cortex Agentsのコード実行・評価機能を強化",
+        "S3 TablesのIceberg REST Catalog IntegrationがGA",
+        "データ移動ポリシーやAIによる機密データ分類を拡張"
       ],
       "article_ids": [
+        "fa0614cab7457c939a84",
+        "ac49dca5fa422d372334",
+        "991a0c18f214bcc7f681",
+        "cb01adc2499c98faa3d9",
         "774affd2857e742e5ee5",
-        "b282afca7ae4a347f117",
-        "c73cd5b2670a4e33cf9c",
-        "3e421e6d45173944f60e",
-        "e389a5a631f806834fbf",
-        "5897aca97cfe89ee72bb"
+        "e2aae5aeffad16f00053",
+        "af22e40ab45ce2041843"
       ],
       "articles": [
+        {
+          "id": "fa0614cab7457c939a84",
+          "title": "Snowflake: organization usage premium views latency",
+          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-24-organization-usage-premium-views-latency",
+          "source": "Snowflake Release Notes",
+          "published_at": "2026-08-24T00:00:00+00:00",
+          "summary": "Snowflake公式リリースノート",
+          "category": "データ基盤",
+          "score": 6,
+          "image_url": null
+        },
+        {
+          "id": "ac49dca5fa422d372334",
+          "title": "Snowflake: cortex code automations preview",
+          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-21-cortex-code-automations-preview",
+          "source": "Snowflake Release Notes",
+          "published_at": "2026-08-21T00:00:00+00:00",
+          "summary": "Snowflake公式リリースノート",
+          "category": "データ基盤",
+          "score": 12,
+          "image_url": null
+        },
+        {
+          "id": "991a0c18f214bcc7f681",
+          "title": "Snowflake: cortex agent eval version targeting ga",
+          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-21-cortex-agent-eval-version-targeting-ga",
+          "source": "Snowflake Release Notes",
+          "published_at": "2026-08-21T00:00:00+00:00",
+          "summary": "Snowflake公式リリースノート",
+          "category": "データ基盤",
+          "score": 8,
+          "image_url": null
+        },
+        {
+          "id": "cb01adc2499c98faa3d9",
+          "title": "Snowflake: externally managed iceberg tables horizon irc preview",
+          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-18-externally-managed-iceberg-tables-horizon-irc-preview",
+          "source": "Snowflake Release Notes",
+          "published_at": "2026-08-18T00:00:00+00:00",
+          "summary": "Snowflake公式リリースノート",
+          "category": "データ基盤",
+          "score": 14,
+          "image_url": null
+        },
         {
           "id": "774affd2857e742e5ee5",
           "title": "Snowflake: amazon s3 tables iceberg rest catalog integration ga",
@@ -396,109 +411,112 @@
           "image_url": null
         },
         {
-          "id": "b282afca7ae4a347f117",
-          "title": "Snowflake: data quality monitoring dashboard pupr",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-07-29-data-quality-monitoring-dashboard-pupr",
+          "id": "e2aae5aeffad16f00053",
+          "title": "Snowflake: data movement policies ga",
+          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-19-data-movement-policies-ga",
           "source": "Snowflake Release Notes",
-          "published_at": "2026-07-29T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 19,
-          "image_url": null
-        },
-        {
-          "id": "c73cd5b2670a4e33cf9c",
-          "title": "Snowflake: native apps agents mcp ga",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-07-native-apps-agents-mcp-ga",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-08-07T00:00:00+00:00",
+          "published_at": "2026-08-19T00:00:00+00:00",
           "summary": "Snowflake公式リリースノート",
           "category": "データ基盤",
           "score": 8,
           "image_url": null
         },
         {
-          "id": "3e421e6d45173944f60e",
-          "title": "Snowflake: trust center ai security ga",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-03-trust-center-ai-security-ga",
+          "id": "af22e40ab45ce2041843",
+          "title": "Snowflake: sensitive data classification ai mode preview",
+          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-17-sensitive-data-classification-ai-mode-preview",
           "source": "Snowflake Release Notes",
-          "published_at": "2026-08-03T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 12,
-          "image_url": null
-        },
-        {
-          "id": "e389a5a631f806834fbf",
-          "title": "Snowflake: trust center ai agents inventory preview",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-03-trust-center-ai-agents-inventory-preview",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-08-03T00:00:00+00:00",
+          "published_at": "2026-08-17T00:00:00+00:00",
           "summary": "Snowflake公式リリースノート",
           "category": "データ基盤",
           "score": 10,
-          "image_url": null
-        },
-        {
-          "id": "5897aca97cfe89ee72bb",
-          "title": "Snowflake: access history agents info column",
-          "url": "https://docs.snowflake.com/en/release-notes/2026/other/2026-08-03-access-history-agents-info-column",
-          "source": "Snowflake Release Notes",
-          "published_at": "2026-08-03T00:00:00+00:00",
-          "summary": "Snowflake公式リリースノート",
-          "category": "データ基盤",
-          "score": 8,
           "image_url": null
         }
       ]
     },
     {
-      "product": "Databricks Lakeflow",
-      "summary": "Gmail取り込み、JARタスク、GPU用Webターミナルなど、取り込み・ジョブ・運用機能が広がっています。",
+      "product": "Databricks",
+      "summary": "Teams上のGenie接続簡素化、LakebaseのPostgres更新、Supervisor APIの終了予定が告知されています。",
       "changes": [
-        "Gmail mailboxのメッセージやラベルをLakeflow Connectへ取り込み可能（Beta）",
-        "Serverless Compute上のJARタスクがGA",
-        "Serverless GPU Compute用WebターミナルがPublic Preview",
-        "GPU使用率確認、ライブラリ導入、ファイル管理をノートブックから実行可能"
+        "Genieアプリでworkspace URLによる接続が可能に",
+        "LakebaseのPostgres対応バージョンを更新",
+        "Supervisor APIは2026年9月30日に終了予定。Custom Agentsへの移行が必要"
       ],
       "article_ids": [
         "d8d8c584b7a5537ec950",
-        "a7254e120b6ba2d8028b",
-        "da587e70c663d35c46fa"
+        "a6b5d4f7d26429e24149",
+        "c54ddc401b7d4aaf4540"
       ],
       "articles": [
         {
           "id": "d8d8c584b7a5537ec950",
-          "title": "Gmail connector in Lakeflow Connect (Beta)",
+          "title": "Connect to the Databricks Genie app in Microsoft Teams with your workspace URL (Public Preview)",
           "url": "https://docs.databricks.com/aws/en/release-notes/product/2026/august",
           "source": "Databricks Release Notes",
-          "published_at": "2026-08-13T00:00:00+00:00",
-          "summary": "You can now ingest data from a Gmail mailbox into Databricks using the managed Gmail connector in Lakeflow Connect. The connector ingests messages, labels, drafts, filters, and profile data using a Google service account, and syncs the messages and message_labels tables incremen…",
+          "published_at": "2026-08-24T00:00:00+00:00",
+          "summary": "When you sign in to the Databricks Genie app in Microsoft Teams, you can now enter your workspace URL instead of a server hostname to connect to your Databricks account. See Databricks Genie app in Microsoft Teams .",
+          "category": "リリース速報",
+          "score": 6,
+          "image_url": null
+        },
+        {
+          "id": "a6b5d4f7d26429e24149",
+          "title": "Postgres minor version updates",
+          "url": "https://docs.databricks.com/aws/en/release-notes/lakebase",
+          "source": "Databricks Release Notes",
+          "published_at": "2026-08-24T00:00:00+00:00",
+          "summary": "Lakebase updated its supported Postgres versions to 16.15, 17.11, and 18.6. These minor releases bring you the latest upstream Postgres fixes and security patches. When a new minor version is available, Lakebase applies it the next time your compute restarts. See Manage updates .",
+          "category": "リリース速報",
+          "score": 4,
+          "image_url": null
+        },
+        {
+          "id": "c54ddc401b7d4aaf4540",
+          "title": "Upcoming end of life for the Supervisor API",
+          "url": "https://docs.databricks.com/aws/en/release-notes/whats-coming",
+          "source": "Databricks Release Notes",
+          "published_at": "2026-08-21T00:00:00+00:00",
+          "summary": "The Supervisor API (Beta) reaches end of life on September 30, 2026. After that date, the API is no longer available. Databricks recommends migrating to custom agents on Databricks Apps . See Supervisor API (Beta) (deprecated) .",
           "category": "リリース速報",
           "score": 10,
           "image_url": null
-        },
+        }
+      ]
+    },
+    {
+      "product": "dbt Core",
+      "summary": "Azure Blobへの成果物アップロード修正や依存関係のセキュリティ対応、複数旧系列への修正版が公開されています。",
+      "changes": [
+        "Azure Blobの署名付きURLへの成果物アップロードを修正",
+        "sqlparse更新により複数のDoS脆弱性へ対応",
+        "利用中のdbt系列に応じて修正版へ更新"
+      ],
+      "article_ids": [
+        "90590037380e62cb7404",
+        "8f2c906a4575e9b43275"
+      ],
+      "articles": [
         {
-          "id": "a7254e120b6ba2d8028b",
-          "title": "JAR tasks on serverless compute are now generally available",
-          "url": "https://docs.databricks.com/aws/en/release-notes/serverless",
-          "source": "Databricks Release Notes",
-          "published_at": "2026-08-06T00:00:00+00:00",
-          "summary": "Package Scala or Java code as a JAR and run it as a task in a Lakeflow Job on serverless compute. Your JAR must match the Scala, Java Development Kit (JDK), and Databricks Connect versions of your serverless environment version. See Create and run JARs on serverless compute .",
+          "id": "90590037380e62cb7404",
+          "title": "dbt-core v1.12.3",
+          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.12.3",
+          "source": "dbt Core Releases",
+          "published_at": "2026-08-21T00:28:55+00:00",
+          "summary": "dbt-core 1.12.3 - August 20, 2026 Fixes Send the x-ms-blob-type: BlockBlob header and accept 201 Created when uploading artifacts to an Azure Blob Storage signed URL, so artifact ingestion no longer fails with 400 MissingRequiredHeader on Azure-hosted regions. Upload errors now…",
           "category": "リリース速報",
           "score": 12,
-          "image_url": null
+          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
         },
         {
-          "id": "da587e70c663d35c46fa",
-          "title": "Web terminal on serverless GPU compute (AI Runtime) is in Public Preview",
-          "url": "https://docs.databricks.com/aws/en/release-notes/product/2026/july",
-          "source": "Databricks Release Notes",
-          "published_at": "2026-07-31T00:00:00+00:00",
-          "summary": "The web terminal in notebooks connected to serverless GPU compute (AI Runtime) is now in Public Preview . Use it to run shell commands, monitor GPU usage with nvidia-smi , install libraries, and manage files directly on the compute. This requires serverless GPU environment versi…",
+          "id": "8f2c906a4575e9b43275",
+          "title": "dbt-core v1.11.14",
+          "url": "https://github.com/dbt-labs/dbt-core/releases/tag/v1.11.14",
+          "source": "dbt Core Releases",
+          "published_at": "2026-08-20T15:48:47+00:00",
+          "summary": "dbt-core 1.11.14 - August 20, 2026 Dependencies Require sqlparse>=0.5.5,<0.7.0 , sqlparse 0.6.0 is the fixed release for CVE-2026-54284 , CVE-2026-59893 , CVE-2026-59894 and CVE-2026-71491 (parser denial-of-service). ( #15988 ) Contributors @ulixius9 ( #15988 )",
           "category": "リリース速報",
           "score": 8,
-          "image_url": null
+          "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
         }
       ]
     }
@@ -506,11 +524,11 @@
   "gadget_digest": [
     {
       "theme": "新しいPC周辺機器",
-      "summary": "エレコムのUSBハブ一体型充電ケーブルが登場しています。",
+      "summary": "エレコムのUSBハブ機能付き充電ケーブルは、充電と周辺機器接続を1本にまとめる製品です。",
       "benefits": [
-        "充電とUSB機器接続を1本化できる",
-        "ドックを持ち歩かずに外出先で作業しやすい",
-        "ポート不足のノートPC利用者や配線を減らしたい人に向く"
+        "ノートPC周辺のケーブル本数を減らせる",
+        "外出先や狭い机でUSB機器を接続しやすい",
+        "ドックを持ち歩くほどではない利用者に向く"
       ],
       "article_ids": [
         "9575ea5c497b1292b6f7"
@@ -521,7 +539,7 @@
           "title": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは - GoodsPress Web",
           "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE51MS01MXdJOHB1Q2IzRFpCY1NVMXJGaC1ha2x4XzJ6S3FEZVdFZjhLcHdfM1o1NURCSmtXZE1yNVZtdXQ1WFMwcTNKVU9tM1E?oc=5",
           "source": "デスクツアー・作業環境",
-          "published_at": "2026-08-10T21:00:00+00:00",
+          "published_at": "2026-08-11T07:00:00+00:00",
           "summary": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは GoodsPress Web",
           "category": "業務改善・QOL",
           "score": 17,
@@ -532,10 +550,27 @@
   ],
   "tech_picks": [
     {
+      "article_id": "a762aec21a99e77dfb2d",
+      "label": "自動運転AIの学習データセット基盤",
+      "insight": "センサーデータ収集からETL、データセット生成、IaC運用までを一続きのMLOps基盤として設計しています。",
+      "why_read": "自動車領域の品質要求を踏まえた、実運用に近い学習データ管理の構成を学べます。",
+      "article": {
+        "id": "a762aec21a99e77dfb2d",
+        "title": "Databricks の Declarative Automation Bundles を用いた機械学習データセット作成基盤の構築",
+        "url": "https://zenn.dev/turing_motors/articles/46b5560dce0e3a",
+        "source": "Zenn / Databricks",
+        "published_at": "2026-08-14T09:00:05+00:00",
+        "summary": "チューリングの MLOps エンジニアの岩政です。 チューリングでは、センサ入力から車両の将来の行動を一貫して推定する学習ベースのモデルとして End-to-End (E2E) 自動運転 AI を開発しています。E2E 自動運転 AI の学習にはデータセットが必要です。私の所属する MLOps チームが、これを作成するためのデータ基盤の開発を行っています。 MLOps チームでは車両に搭載したカメラなどのセンサから走行データを収集し、Data Lake に格納しています。更に ETL (Extract, Transform, Load) パイプラインを…",
+        "category": "技術コミュニティ",
+        "score": 36,
+        "image_url": null
+      }
+    },
+    {
       "article_id": "a6af201a1b2f923fe2d2",
       "label": "AIエージェントをOpenTelemetryで計装",
-      "insight": "エージェントの推論・ツール呼び出し・失敗をトレースし、Databricks Lakehouseで分析する設計を実践しています。",
-      "why_read": "AIエージェントを本番運用する際の障害切り分けと監視設計を具体化できます。",
+      "insight": "ツール呼び出しや失敗箇所をトレースし、Databricks Unity Catalogに蓄積してSQLで分析します。",
+      "why_read": "エージェントの評価・障害調査を勘に頼らず、観測可能性で運用する具体例です。",
       "article": {
         "id": "a6af201a1b2f923fe2d2",
         "title": "AIエージェントをOpenTelemetryで計装し、DatabricksのLakehouseにトレースを残してみた",
@@ -549,53 +584,53 @@
       }
     },
     {
-      "article_id": "d91ed34cf3270b44fb30",
-      "label": "OpenTelemetryでLLM比較と失敗スパンアラート",
-      "insight": "複数LLMのコスト・レイテンシ・失敗スパンを比較し、アラートまでつなげています。",
-      "why_read": "モデル選択と運用監視を実測値で改善する方法が分かります。",
+      "article_id": "e60c20f3c1490662d2c7",
+      "label": "SnowflakeからIP許可制APIへ接続",
+      "insight": "Snowflakeの外向き通信で得られるCIDR範囲を使い、外部SaaSの許可リストを設計します。",
+      "why_read": "ネットワーク制約のあるデータ連携を、実際の設定確認と注意点付きで検証できます。",
       "article": {
-        "id": "d91ed34cf3270b44fb30",
-        "title": "OpenTelemetryでAIエージェントのLLM比較と失敗スパンアラートまでやってみた",
-        "url": "https://zenn.dev/babysteps/articles/databricks-otel-llm-compare-alert",
-        "source": "Zenn / Databricks",
-        "published_at": "2026-08-10T13:00:05+00:00",
-        "summary": "前回の記事（AIエージェントをOpenTelemetryで計装し、DatabricksのLakehouseにトレースを残してみた）では、倉庫オペレーション用エージェントを OpenTelemetry（GenAI semconv）で計装し、Unity Catalog にスパンを残すところまでやった。 ただ、そこまではほぼ mock LLM だった。mock だと「動いた」は見えるが、コスト（トークン）とレイテンシの本番感は隠れる。また、ERROR スパンが UC に残っても、人が SQL を見に行かない限り気づけない。 今回はその続きとして、 同じ質問で…",
+        "id": "e60c20f3c1490662d2c7",
+        "title": "IP 許可制の外部 API を Snowflake から叩く — 固定 IP は出ないが範囲は取れる",
+        "url": "https://zenn.dev/mochitec_tech/articles/0dd0380bf8dbd3",
+        "source": "Zenn / Snowflake",
+        "published_at": "2026-08-24T09:07:21+00:00",
+        "summary": "はじめに 外部 SaaS の API を Snowflake から叩こうとしたら、相手が IP 許可制でした。許可リストに登録する固定 IP を探しましたが、Snowflake が出すのは期限つきの CIDR 範囲だけです。 確認したのは AWS Commercial です。公式が対象として挙げているのもここだけですが [1]、関数のリファレンスには Azure の出力例もあるので、Azure なら自分の環境で確かめてください [2]。 何に効くのか 出口 IP が関係するのは、Snowflake から外に出る通信です。対象は 3 つです [1]。 U…",
         "category": "技術コミュニティ",
-        "score": 22,
+        "score": 8,
         "image_url": null
       }
     },
     {
-      "article_id": "c6b505b58abf61320e0a",
-      "label": "dbt CI/CDとLakeflow JobsのDABs管理",
-      "insight": "dbtのCI/CD、定期実行、Declarative Automation Bundlesによる環境分離とデプロイを整理しています。",
-      "why_read": "複数事業・環境をまたぐデータ基盤の運用改善に直結します。",
+      "article_id": "3eefaae85ddc45c7f033",
+      "label": "Confluent CloudとIcebergの連携検証",
+      "insight": "ストリーミングトピックをIceberg Sink Connectorでwatsonx.dataへ書き込む構成を試しています。",
+      "why_read": "ストリーミングとオープンテーブル形式を組み合わせる際の実装手順を確認できます。",
       "article": {
-        "id": "c6b505b58abf61320e0a",
-        "title": "dbtのCI/CDとLakeflow Jobsによる定期実行のDABs管理",
-        "url": "https://zenn.dev/genda_jp/articles/29d1ffe3546d4f",
-        "source": "Zenn / dbt",
-        "published_at": "2026-07-31T00:00:30+00:00",
-        "summary": "こんにちは、データマネジメント部でデータエンジニアをしています。山城です。 今回はデータチームで管理しているdbtのCI/CDや、定期実行用Lakeflow Jobsについて実際に行っている下記の取り組みについてまとめます。GENDAの場合だと、複数の事業・グループ企業があるため、それぞれの管理や環境を分ける部分に注力して作成しました。 dbtのCI/CD dbtの定期実行用Lakeflow JobsのDeclarative Automation Bundles (DABs) によるIaC化 Lakeflow JobsのCD 前提 簡単に取り組み前の状…",
+        "id": "3eefaae85ddc45c7f033",
+        "title": "Apache Iceberg Sink Connectorを使ってConfluent Cloudのトピックデータをwatsonx.dataへ連携する",
+        "url": "https://qiita.com/nishikyon/items/562048fd42efb1ae0a6a",
+        "source": "Qiita / Iceberg",
+        "published_at": "2026-08-24T08:42:30+00:00",
+        "summary": "以下に記載されている「watsonx.dataへのConfluent Apache Iceberg Sink Connectorの統合」をやってみました!リンク先では S3 を利用した例が記載されていますが、本記事では ICOS を使って試してみます。またS3 の設定値につ...",
         "category": "技術コミュニティ",
-        "score": 21,
+        "score": 8,
         "image_url": null
       }
     },
     {
-      "article_id": "5b5071fe24f124a20de1",
-      "label": "SnowflakeのML/AI Observability検証",
-      "insight": "Model MonitorやAI Observabilityを本番相当ワークロードで構築し、ドリフトやトークン数を測定しています。",
-      "why_read": "ML・LLMの品質、コスト、ドリフトを同時に見る設計の参考になります。",
+      "article_id": "e9796d593b388f91bcf6",
+      "label": "dbt Projects on Snowflakeの権限設計",
+      "insight": "SYSADMIN中心で開発・デプロイ・実行・監視を構成し、必要な追加権限を切り分けています。",
+      "why_read": "ACCOUNTADMIN依存を避けたdbt運用と、権限上の制約を具体的に理解できます。",
       "article": {
-        "id": "5b5071fe24f124a20de1",
-        "title": "SnowflakeのML/AI Observabilityを本番目線で検証する",
-        "url": "https://zenn.dev/snowflakejp/articles/301a3bc2027544",
-        "source": "Zenn / MLOps",
-        "published_at": "2026-07-17T01:04:35+00:00",
-        "summary": "! 著者はSnowflakeに所属しておりますが、本記事は個人の見解であり、所属する組織の公式見解ではありません。 ! 本記事はSnowflakeが提供する AI Observability（Cortex）と ML Observability（Model Registry / model monitor）を、架空SaaS企業の本番同等ワークロードを題材に実際に構築・検証したテックブログです。掲載しているスコア・ドリフト値・トークン数はすべて Snowflake 上で実行して得た実測値ですが、同じ数値と効果が得られることを保証するものではありません。 は…",
+        "id": "e9796d593b388f91bcf6",
+        "title": "dbt Projects on Snowflake の動かしてみた — ROLEを意識して —",
+        "url": "https://zenn.dev/ase_dataeng/articles/20260814-dbt-projects-snowflake-no-accountadmin",
+        "source": "Zenn / Snowflake",
+        "published_at": "2026-08-23T05:53:03+00:00",
+        "summary": "はじめに 私はデータ基盤の運用保守に携わっており、主にバッチ処理まわりの保守や追加開発を担っています。 結論から言うと、dbt Projects on Snowflake は SYSADMIN だけで、開発・デプロイ・実行・スケジュール実行・監視まで一通り動きました。ACCOUNTADMIN は一度も使っていません。 権限がなくできなかったことは2つだけです。イベントテーブルへのログ出力（MODIFY LOG LEVEL が要る）と、GitHub 連携（CREATE INTEGRATION が要る）。どちらもアカウントレベルの権限で、前者は監視の必須条…",
         "category": "技術コミュニティ",
-        "score": 25,
+        "score": 17,
         "image_url": null
       }
     }

@@ -10,7 +10,7 @@
 - Mac miniの `127.0.0.1:8787` だけでホストし、Tailscale Serve経由でtailnet内に限定公開する。
 - 公開URL: `https://sk-mins-mac-mini.tailc193b2.ts.net/`
 - 外部サーバー、DB、有料ホスティングは使わない。
-- 起動時とローカル時刻の8時、12時、17時、20時に更新する。
+- 起動時とローカル時刻の8時、10時、12時、17時、20時、22時に更新する。
 - Codex CLIを1更新につき最大1回呼び、低コストモデルで全ハイライトをまとめて生成する。
 
 ## 主要ファイル
@@ -30,6 +30,7 @@
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
 - `data/selection-history.jsonl`: 分野別ハイライトの連続掲載履歴。Git管理対象外。
+- `data/update-stats.jsonl`: 更新ごとの新規記事数、ハイライト採用数、継続数。Git管理対象外。
 - `data/assistant.sqlite3`: メール判定と対応状態。Mac mini内だけに保持しGit管理対象外。
 - `data/planner.sqlite3`: タスク、日別ルーティン完了、健康日次集計。Mac mini内だけに保持しGit管理対象外。
 - `data/agent.sqlite3`: Codexタスク、実行状態、イベント。Mac mini内だけに保持しGit管理対象外。
@@ -115,6 +116,7 @@
 - 分野別の選定履歴を `data/selection-history.jsonl` に保存し、2回連続掲載済みの記事は代替候補がある限り次回掲載しない。
 - 適格な代替候補がない分野では継続掲載を許可し、空欄を低品質な新着で埋めない。
 - UIでは初掲載を「新着」、前回からの掲載を「継続」と表示する。
+- 更新時は前回スナップショットと比較し、新規記事数、新規記事からのハイライト採用数、ハイライトの新選・継続数を画面と`data/update-stats.jsonl`へ記録する。
 
 ## 開発・検証
 
