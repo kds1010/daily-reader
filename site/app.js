@@ -75,9 +75,22 @@ const elements = {
   agentEmpty: document.querySelector("#agent-empty"),
   deploymentVersion: document.querySelector("#deployment-version"),
   deploymentDate: document.querySelector("#deployment-date"),
+  screenUpdatedAt: document.querySelector("#screen-updated-at"),
 };
 
 let currentView = "agent";
+
+function updateScreenUpdatedAt(date = new Date()) {
+  const formatted = new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+  elements.screenUpdatedAt.dateTime = date.toISOString();
+  elements.screenUpdatedAt.textContent = `画面更新 ${formatted}`;
+}
 
 function switchView(view) {
   currentView = view;
@@ -1181,16 +1194,17 @@ elements.savedOnly.addEventListener("change", (event) => {
   state.savedOnly = event.target.checked;
   renderArticles();
 });
-elements.refresh.addEventListener("click", () => {
+elements.refresh.addEventListener("click", async () => {
   if (currentView === "agent") {
-    loadAgentJobs();
+    await loadAgentJobs();
   } else if (currentView === "email") {
-    loadEmailReminders();
+    await loadEmailReminders();
   } else if (currentView === "today") {
-    loadToday();
+    await loadToday();
   } else {
-    loadArticles();
+    await loadArticles();
   }
+  updateScreenUpdatedAt();
 });
 elements.agentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1264,6 +1278,7 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
 }
 
+updateScreenUpdatedAt();
 loadArticles();
 loadHighlights();
 loadEmailReminders();
