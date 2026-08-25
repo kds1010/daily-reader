@@ -92,6 +92,7 @@ class GmailThreadRecord:
     due_date: str | None
     status: str
     status_source: str
+    is_unread: bool = True
 
 
 def clean_message_text(value: str, max_length: int = 1200) -> str:
@@ -185,10 +186,18 @@ def initialize_database(path: Path) -> None:
                 importance TEXT NOT NULL, importance_score INTEGER NOT NULL,
                 reason TEXT NOT NULL, required_action TEXT NOT NULL, due_date TEXT,
                 status TEXT NOT NULL, status_source TEXT NOT NULL, remind_after TEXT,
+                is_unread INTEGER NOT NULL DEFAULT 1,
                 updated_at TEXT NOT NULL
             )
             """
         )
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(email_threads)")
+        }
+        if "is_unread" not in columns:
+            connection.execute(
+                "ALTER TABLE email_threads ADD COLUMN is_unread INTEGER NOT NULL DEFAULT 1"
+            )
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS gmail_sync_state (
@@ -214,11 +223,11 @@ def upsert_thread(path: Path, record: GmailThreadRecord, now: datetime) -> None:
             INSERT INTO email_threads (
                 thread_id, latest_message_id, account_email, subject, sender, received_at,
                 snippet, gmail_url, importance, importance_score, reason, required_action,
-                due_date, status, status_source, updated_at
+                due_date, status, status_source, is_unread, updated_at
             ) VALUES (
                 :thread_id, :latest_message_id, :account_email, :subject, :sender, :received_at,
                 :snippet, :gmail_url, :importance, :importance_score, :reason, :required_action,
-                :due_date, :status, :status_source, :updated_at
+                :due_date, :status, :status_source, :is_unread, :updated_at
             )
             ON CONFLICT(thread_id) DO UPDATE SET
                 latest_message_id=excluded.latest_message_id, subject=excluded.subject,
@@ -226,6 +235,7 @@ def upsert_thread(path: Path, record: GmailThreadRecord, now: datetime) -> None:
                 gmail_url=excluded.gmail_url, importance=excluded.importance,
                 importance_score=excluded.importance_score, reason=excluded.reason,
                 required_action=excluded.required_action, due_date=excluded.due_date,
+                is_unread=excluded.is_unread,
                 status=CASE WHEN email_threads.status_source IN
                     ('marked_done', 'snoozed', 'dismissed')
                     AND email_threads.latest_message_id = excluded.latest_message_id
@@ -253,6 +263,7 @@ def list_reminders(path: Path, period: str, now: datetime) -> list[dict[str, Any
             """
             SELECT * FROM email_threads
             WHERE status IN ('open', 'awaiting_reply', 'snoozed')
+              AND is_unread = 1
               AND importance IN ('high', 'medium')
               AND (remind_after IS NULL OR remind_after <= ?)
               AND (received_at >= ? OR due_date IS NOT NULL OR status = 'awaiting_reply')
@@ -438,6 +449,9 @@ def sync_gmail(
                 due_date=assessment.due_date,
                 status="awaiting_reply" if from_user else "open",
                 status_source="replied_by_user" if from_user else "classified",
+                is_unread=any(
+                    "UNREAD" in message.get("labelIds", []) for message in messages
+                ),
             ),
             now,
         )

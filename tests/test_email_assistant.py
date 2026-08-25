@@ -73,6 +73,20 @@ def test_reminder_status_workflow(tmp_path: Path) -> None:
     assert list_reminders(database, "daily", NOW) == []
 
 
+def test_read_thread_is_not_listed_as_a_reminder(tmp_path: Path) -> None:
+    database = tmp_path / "assistant.sqlite3"
+    record = GmailThreadRecord(
+        "thread-read", "message-1", "me@example.com", "本人確認が必要です",
+        "service@example.com", NOW.isoformat(), "本人確認を行ってください",
+        "https://example.com", "high", 7, "本人確認", "本人確認を行う",
+        None, "open", "classified", is_unread=False,
+    )
+
+    upsert_thread(database, record, NOW)
+
+    assert list_reminders(database, "daily", NOW) == []
+
+
 def test_manual_done_is_preserved_until_a_new_message_arrives(tmp_path: Path) -> None:
     database = tmp_path / "assistant.sqlite3"
     original = GmailThreadRecord(
