@@ -21,7 +21,7 @@
 - `src/daily_reader/core.py`: 収集、各種パーサー、正規化、重複排除、画像抽出、新店日付検証。
 - `src/daily_reader/highlights.py`: 候補選定、Codexプロンプト、出力検証、OG画像補完。
 - `src/daily_reader/local_server.py`: ローカルHTTPサーバー、更新スケジューラー、閲覧・不要フィードバック・メールAPI。
-- `src/daily_reader/email_assistant.py`: Gmail読み取り専用OAuth、重要度判定、SQLite状態管理。
+- `src/daily_reader/email_assistant.py`: Gmail読み取り・既読反映OAuth、重要度判定、SQLite状態管理。
 - `src/daily_reader/daily_planner.py`: タスク、繰り返しルーティン、健康チェックインのSQLite状態管理。
 - `src/daily_reader/agent_jobs.py`: Agentタスクキュー、イベント、状態のSQLite永続化。
 - `src/daily_reader/agent_worker.py`: 専用worktreeでCodexを反復実行し、検証済み変更をmainへ統合する常駐ワーカー。
@@ -38,7 +38,7 @@
 - `data/planner.sqlite3`: タスク、日別ルーティン完了、健康日次集計。Mac mini内だけに保持しGit管理対象外。
 - `data/agent.sqlite3`: Codexタスク、実行状態、イベント。Mac mini内だけに保持しGit管理対象外。
 - HTTPサーバーを先に起動可能な状態にし、ニュース更新とGmail同期は別々のバックグラウンドスレッドで実行する。
-- Gmailは起動直後と15分ごとに同期し、重要な未読メールだけを表示する。Gmailで既読にしたメールは次回同期後に一覧から外れる。ニュース・Gmailの同期中もHTTP応答をブロックしない。
+- Gmailは起動直後と15分ごとに同期し、重要な未読メールだけを表示する。アプリの「既読」はGmailのスレッドから`UNREAD`ラベルを外し、Gmailで既読にしたメールも次回同期後に一覧から外れる。ニュース・Gmailの同期中もHTTP応答をブロックしない。
 - 初期画面は「Agent」。通常タスク、日別ルーティン、健康チェックインは「今日」に表示し、HealthKit集計は専用トークン付きAPIで受け取る。
 - 画面下部には、稼働中のパッケージ版とGitコミットを組み合わせたデプロイバージョン、およびサーバー起動日時を表示する。
 - Agentタスクは待機中・実行中・判断待ちのカードに現在フェーズと直近3件のイベントを常時表示し、5秒ごとに自動更新する。カードから全履歴も展開でき、待機中・実行中・判断待ち、および作業環境を保持した失敗状態へ追加指示を送れる。実行中の指示は次のCodexターンで同じスレッドへ渡す。

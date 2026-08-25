@@ -4,6 +4,7 @@ import argparse
 import base64
 import email.utils
 import html
+import json
 import os
 import re
 import sqlite3
@@ -18,7 +19,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 TAG_PATTERN = re.compile(r"<[^>]+>")
 SPACE_PATTERN = re.compile(r"\s+")
 HTML_IGNORED_PATTERN = re.compile(
@@ -322,17 +323,53 @@ def update_status(path: Path, thread_id: str, action: str, now: datetime) -> boo
     return cursor.rowcount == 1
 
 
+def mark_gmail_thread_read(
+    database: Path,
+    client_secret: Path,
+    token_path: Path,
+    thread_id: str,
+    now: datetime,
+) -> bool:
+    initialize_database(database)
+    with sqlite3.connect(database) as connection:
+        stored = connection.execute(
+            "SELECT 1 FROM email_threads WHERE thread_id = ?", (thread_id,)
+        ).fetchone()
+    if stored is None:
+        return False
+
+    credentials = load_credentials(client_secret, token_path, interactive=False)
+    service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
+    service.users().threads().modify(
+        userId="me",
+        id=thread_id,
+        body={"removeLabelIds": ["UNREAD"]},
+    ).execute()
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE email_threads SET is_unread=0, updated_at=? WHERE thread_id=?",
+            (now.isoformat(), thread_id),
+        )
+    return True
+
+
 def load_credentials(client_secret: Path, token_path: Path, interactive: bool) -> Credentials:
     credentials = None
     if token_path.exists():
-        credentials = Credentials.from_authorized_user_file(token_path, [GMAIL_READONLY_SCOPE])
+        token = json.loads(token_path.read_text(encoding="utf-8"))
+        if GMAIL_MODIFY_SCOPE in token.get("scopes", []):
+            credentials = Credentials.from_authorized_user_info(
+                token, [GMAIL_MODIFY_SCOPE]
+            )
     if credentials and credentials.expired and credentials.refresh_token:
         credentials.refresh(Request())
     if not credentials or not credentials.valid:
         if not interactive:
             raise RuntimeError("Gmail authorization required: run daily-reader-gmail auth")
-        flow = InstalledAppFlow.from_client_secrets_file(client_secret, [GMAIL_READONLY_SCOPE])
-        credentials = flow.run_local_server(host="127.0.0.1", port=0, open_browser=True)
+        flow = InstalledAppFlow.from_client_secrets_file(client_secret, [GMAIL_MODIFY_SCOPE])
+        credentials = flow.run_local_server(
+            host="127.0.0.1", port=0, open_browser=True, prompt="consent"
+        )
     token_path.parent.mkdir(parents=True, exist_ok=True)
     token_path.write_text(credentials.to_json(), encoding="utf-8")
     os.chmod(token_path, 0o600)

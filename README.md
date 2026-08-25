@@ -28,7 +28,7 @@ Codexへの自律タスク投入、今日やること、重要メール、関心
 - 不要とした記事をMac mini内の`data/feedback-events.jsonl`へ記録し、同一記事の除外と類似傾向の減点に利用
 - localhostへの限定バインド
 - Gmailの未読重要メール抽出、返信状況の追跡、日次・週次リマインド
-- Gmailスレッドへのリンクと、対応済み・保留・対応不要の記録
+- Gmailスレッドへのリンク、Gmailへ反映される既読操作、対応済み・保留・対応不要の記録
 - 「今日」画面でのタスク、期限、優先度、毎日・平日・毎週のルーティン管理
 - 疲労度・気分・体調メモと、iPhoneショートカットから同期したHealthKit日次集計の表示
 
@@ -64,7 +64,8 @@ Content-Type: application/json
 ## Gmailアシスタント
 
 Google Cloudでデスクトップアプリ用OAuthクライアントを作成し、JSONを
-`secrets/gmail-client.json`へ配置します。権限はGmailの読み取り専用だけです。
+`secrets/gmail-client.json`へ配置します。権限はGmailの読み取り・ラベル変更に必要な
+`gmail.modify`を使用します。
 
 ```bash
 uv run --frozen daily-reader-gmail auth
@@ -73,7 +74,9 @@ uv run --frozen daily-reader-gmail sync
 
 認証トークンとSQLiteデータベースはMac mini内だけに保存され、Git管理されません。
 初回認証後、常駐サーバーが15分ごとにGmailを自動同期します。Daily Readerの先頭に
-重要な未読メールが表示されます。Gmailで既読にすると次回同期後に一覧から外れます。返信したスレッドは
+重要な未読メールが表示されます。アプリの「既読」はGmailのスレッドを既読にして即座に一覧から外し、
+Gmailで既読にした場合も次回同期後に一覧から外れます。以前の読み取り専用権限で認証済みの場合は、
+`uv run --frozen daily-reader-gmail auth`を再実行して権限を更新してください。返信したスレッドは
 「返信待ち」になり、Web操作や電話で対応した項目は画面の「対応済み」で完了できます。
 日次表示は直近1日、週次表示は直近7日を基本とし、期限付きと返信待ちは期間外でも残ります。
 

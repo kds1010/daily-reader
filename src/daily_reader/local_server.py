@@ -37,6 +37,7 @@ from daily_reader.email_assistant import (
     fetch_gmail_thread_content,
     get_gmail_sync_state,
     list_reminders,
+    mark_gmail_thread_read,
     sync_gmail,
     update_status,
 )
@@ -409,6 +410,22 @@ def make_handler(
                     )
                     return
                 if self.path == "/api/email-status":
+                    if request.get("action") == "read":
+                        try:
+                            updated = mark_gmail_thread_read(
+                                assistant_db,
+                                gmail_client_secret,
+                                gmail_token,
+                                request["thread_id"],
+                                now,
+                            )
+                        except RuntimeError as error:
+                            self._send_json(503, {"error": str(error)})
+                            return
+                        if not updated:
+                            raise ValueError("invalid email thread")
+                        self._send_json(202, {"updated": True})
+                        return
                     if not update_status(
                         assistant_db,
                         request["thread_id"],

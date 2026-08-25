@@ -8,6 +8,7 @@ from daily_reader.email_assistant import (
     get_gmail_sync_state,
     gmail_thread_url,
     list_reminders,
+    mark_gmail_thread_read,
     reconcile_unread_threads,
     update_status,
     upsert_thread,
@@ -86,6 +87,70 @@ def test_read_thread_is_not_listed_as_a_reminder(tmp_path: Path) -> None:
     upsert_thread(database, record, NOW)
 
     assert list_reminders(database, "daily", NOW) == []
+
+
+def test_mark_gmail_thread_read_updates_gmail_and_local_state(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    database = tmp_path / "assistant.sqlite3"
+    record = GmailThreadRecord(
+        "thread-1", "message-1", "me@example.com", "本人確認が必要です",
+        "service@example.com", NOW.isoformat(), "本人確認を行ってください",
+        "https://example.com", "high", 7, "本人確認", "本人確認を行う",
+        None, "open", "classified",
+    )
+    upsert_thread(database, record, NOW)
+    executed = []
+
+    class Request:
+        def execute(self):
+            executed.append(True)
+
+    class Threads:
+        def modify(self, **kwargs):
+            assert kwargs == {
+                "userId": "me",
+                "id": "thread-1",
+                "body": {"removeLabelIds": ["UNREAD"]},
+            }
+            return Request()
+
+    class Users:
+        def threads(self):
+            return Threads()
+
+    class Service:
+        def users(self):
+            return Users()
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.load_credentials",
+        lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr("daily_reader.email_assistant.build", lambda *args, **kwargs: Service())
+
+    assert mark_gmail_thread_read(
+        database, tmp_path / "client.json", tmp_path / "token.json", "thread-1", NOW
+    )
+    assert executed == [True]
+    assert list_reminders(database, "daily", NOW) == []
+
+
+def test_mark_gmail_thread_read_rejects_unknown_thread(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.load_credentials",
+        lambda *args: (_ for _ in ()).throw(AssertionError("must not authenticate")),
+    )
+
+    assert not mark_gmail_thread_read(
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "client.json",
+        tmp_path / "token.json",
+        "unknown",
+        NOW,
+    )
 
 
 def test_threads_missing_from_latest_sync_are_not_listed(tmp_path: Path) -> None:

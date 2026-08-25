@@ -544,7 +544,7 @@ async function loadEmailReminders(period = "daily") {
         }
       });
       controls.append(showContent);
-      for (const [value, label] of [["done", "対応済み"], ["snooze", "明日"], ["dismiss", "対応不要"]]) {
+      for (const [value, label] of [["read", "既読"], ["done", "対応済み"], ["snooze", "明日"], ["dismiss", "対応不要"]]) {
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = label;
