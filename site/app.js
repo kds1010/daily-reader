@@ -73,6 +73,8 @@ const elements = {
   agentJobs: document.querySelector("#agent-jobs"),
   agentJobsSummary: document.querySelector("#agent-jobs-summary"),
   agentEmpty: document.querySelector("#agent-empty"),
+  deploymentVersion: document.querySelector("#deployment-version"),
+  deploymentDate: document.querySelector("#deployment-date"),
 };
 
 let currentView = "agent";
@@ -1004,6 +1006,26 @@ async function loadArticles() {
   }
 }
 
+async function loadDeploymentInfo() {
+  try {
+    const response = await fetchWithTimeout("./api/deployment", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const deployedAt = new Intl.DateTimeFormat("ja-JP", {
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(payload.deployed_at));
+    elements.deploymentVersion.textContent = `バージョン ${payload.version}`;
+    elements.deploymentDate.textContent = `デプロイ ${deployedAt}`;
+  } catch {
+    elements.deploymentVersion.textContent = "デプロイ情報を取得できませんでした";
+    elements.deploymentDate.textContent = "";
+  }
+}
+
 elements.search.addEventListener("input", (event) => {
   state.query = event.target.value.trim();
   renderArticles();
@@ -1114,6 +1136,7 @@ loadFeedback().then(() => {
   }
 });
 loadAgentJobs();
+loadDeploymentInfo();
 window.setInterval(() => {
   if (currentView === "agent") loadAgentJobs();
 }, 5000);

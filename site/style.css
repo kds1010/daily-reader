@@ -39,9 +39,20 @@ select {
 
 .masthead,
 main,
-.app-tabs {
+.app-tabs,
+.deployment-footer {
   width: min(100% - 32px, 760px);
   margin-inline: auto;
+}
+
+.deployment-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  padding: 12px 0 calc(20px + env(safe-area-inset-bottom));
+  color: var(--muted);
+  font-size: 0.7rem;
 }
 
 .app-tabs {

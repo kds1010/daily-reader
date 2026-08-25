@@ -1,4 +1,5 @@
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -8,11 +9,30 @@ from daily_reader.local_server import (
     append_feedback_event,
     append_read_event,
     append_update_stats,
+    build_deployment_info,
     build_parser,
     build_update_stats,
     load_feedback_events,
     summarize_read_events,
 )
+
+
+def test_deployment_info_includes_package_version_and_revision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deployed_at = datetime.fromisoformat("2026-08-25T01:23:45+00:00")
+    monkeypatch.setattr("daily_reader.local_server.version", lambda _: "0.1.0")
+    monkeypatch.setattr(
+        "daily_reader.local_server.subprocess.run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0, "abc123def456\n", ""),
+    )
+
+    info = build_deployment_info(Path("/repo"), deployed_at)
+
+    assert info == {
+        "version": "0.1.0+abc123def456",
+        "deployed_at": "2026-08-25T01:23:45+00:00",
+    }
 
 
 def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:

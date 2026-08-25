@@ -5,11 +5,13 @@ import functools
 import hmac
 import json
 import logging
+import subprocess
 import threading
 import urllib.parse
 from collections import Counter
 from datetime import UTC, datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from time import sleep
 
@@ -51,6 +53,30 @@ READ_SURFACES = {
     "tech_pick",
     "article_feed",
 }
+
+
+def build_deployment_info(repository: Path, deployed_at: datetime) -> dict[str, str]:
+    try:
+        package_version = version("daily-reader")
+    except PackageNotFoundError:
+        package_version = "unknown"
+    try:
+        revision = subprocess.run(
+            ["git", "-C", str(repository), "rev-parse", "--short=12", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout.strip()
+    except (FileNotFoundError, subprocess.SubprocessError):
+        revision = "unknown"
+    deployment_version = package_version
+    if revision != "unknown":
+        deployment_version = f"{package_version}+{revision}"
+    return {
+        "version": deployment_version,
+        "deployed_at": deployed_at.isoformat(),
+    }
 
 
 def health_sync_authorized(token_path: Path, authorization: str) -> bool:
@@ -195,6 +221,7 @@ def make_handler(
     health_sync_token: Path = Path("secrets/health-sync-token.txt"),
     agent_db: Path = Path("data/agent.sqlite3"),
     agent_repositories: dict[str, dict[str, str]] | None = None,
+    deployment_info: dict[str, str] | None = None,
 ):
     repositories = agent_repositories or {}
 
@@ -229,6 +256,9 @@ def make_handler(
             )
 
         def do_GET(self) -> None:  # noqa: N802
+            if self.path == "/api/deployment":
+                self._send_json(200, deployment_info or {})
+                return
             if self.path == "/api/agent-jobs":
                 self._send_json(
                     200,
@@ -569,6 +599,7 @@ def main() -> None:
     if args.gmail_sync_minutes < 1:
         raise SystemExit("--gmail-sync-minutes must be at least 1")
     agent_repositories = load_repositories(args.agent_repositories)
+    deployment_info = build_deployment_info(Path.cwd(), datetime.now(UTC))
 
     scheduler = threading.Thread(
         target=run_scheduler,
@@ -608,6 +639,7 @@ def main() -> None:
         args.health_sync_token,
         args.agent_db,
         agent_repositories,
+        deployment_info,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)
