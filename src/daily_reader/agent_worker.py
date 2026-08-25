@@ -419,39 +419,48 @@ clean. Return done only when the rebase and verification succeed."""
         if not commit:
             raise RuntimeError("main changed repeatedly while the task was being integrated")
         sync_default_worktree(repository, commit)
-        update_job(database, job_id, phase="デプロイ・実環境確認中")
-        append_event(
-            database,
-            job_id,
-            "deploying",
-            f"{commit} のデプロイと実環境確認を開始しました",
-        )
-        thread_id, deployment_result, messages = run_deployment_turn(
-            worktree, schema, _deployment_prompt(commit)
-        )
-        update_job(
-            database,
-            job_id,
-            thread_id=thread_id,
-            summary=deployment_result["summary"],
-        )
-        append_event(
-            database,
-            job_id,
-            "codex",
-            messages or deployment_result["summary"],
-        )
-        if deployment_result["state"] != "done":
-            detail = deployment_result.get("next_action") or deployment_result["summary"]
-            raise RuntimeError(f"deployment did not complete: {detail}")
-        append_event(database, job_id, "deployed", deployment_result["summary"])
+        if repository.get("deploy", True):
+            update_job(database, job_id, phase="デプロイ・実環境確認中")
+            append_event(
+                database,
+                job_id,
+                "deploying",
+                f"{commit} のデプロイと実環境確認を開始しました",
+            )
+            thread_id, deployment_result, messages = run_deployment_turn(
+                worktree, schema, _deployment_prompt(commit)
+            )
+            update_job(
+                database,
+                job_id,
+                thread_id=thread_id,
+                summary=deployment_result["summary"],
+            )
+            append_event(
+                database,
+                job_id,
+                "codex",
+                messages or deployment_result["summary"],
+            )
+            if deployment_result["state"] != "done":
+                detail = deployment_result.get("next_action") or deployment_result["summary"]
+                raise RuntimeError(f"deployment did not complete: {detail}")
+            append_event(database, job_id, "deployed", deployment_result["summary"])
+            summary = deployment_result.get("summary") or final_result.get(
+                "summary", "タスクが完了しました"
+            )
+        else:
+            summary = final_result.get("summary", "タスクが完了しました")
+            append_event(
+                database,
+                job_id,
+                "deployment-skipped",
+                f"{commit} をpushしました（このリポジトリはデプロイ対象外です）",
+            )
         cleanup_worktree(repository, branch, worktree)
         worktree = None
         DEPLOYMENT_LOCK.release()
         deployment_lock_acquired = False
-        summary = deployment_result.get("summary") or final_result.get(
-            "summary", "タスクが完了しました"
-        )
         update_job(
             database,
             job_id,

@@ -216,6 +216,26 @@ path = "~/repos/second"
     assert list(configured) == ["first", "second"]
     assert configured["first"]["path"] == str(first)
     assert configured["second"]["path"] == str(second)
+    assert configured["first"]["deploy"] is True
+
+
+def test_repository_configuration_can_skip_deployment(tmp_path: Path) -> None:
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    (repository / ".git").mkdir()
+    config = tmp_path / "config" / "agent-repositories.toml"
+    config.parent.mkdir()
+    config.write_text(
+        """[[repositories]]
+name = "repo"
+label = "Repository"
+path = "repo"
+deploy = false
+""",
+        encoding="utf-8",
+    )
+
+    assert load_repositories(config)["repo"]["deploy"] is False
 
 
 def test_blocked_job_can_resume_with_user_instruction(tmp_path: Path) -> None:

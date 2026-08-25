@@ -15,3 +15,4 @@ name = "tonoi"
 label = "宿直 (tonoi)"
 path = "~/ghq/github.com/kds1010/tonoi"
 default_branch = "main"
+deploy = false

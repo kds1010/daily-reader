@@ -19,6 +19,7 @@ def load_repositories(path: Path) -> dict[str, dict[str, str]]:
         label = item.get("label")
         repository_path = item.get("path")
         default_branch = item.get("default_branch", "main")
+        deploy = item.get("deploy", True)
         if not all(isinstance(value, str) and value.strip() for value in (
             name,
             label,
@@ -26,6 +27,8 @@ def load_repositories(path: Path) -> dict[str, dict[str, str]]:
             default_branch,
         )):
             raise ValueError("invalid agent repository configuration")
+        if not isinstance(deploy, bool):
+            raise ValueError("invalid agent repository deploy configuration")
         if name in repositories:
             raise ValueError(f"duplicate agent repository: {name}")
         configured_path = Path(repository_path).expanduser()
@@ -39,6 +42,7 @@ def load_repositories(path: Path) -> dict[str, dict[str, str]]:
             "label": label,
             "path": str(resolved),
             "default_branch": default_branch,
+            "deploy": deploy,
         }
     if not repositories:
         raise ValueError("at least one agent repository is required")
