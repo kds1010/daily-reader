@@ -171,6 +171,48 @@ main,
   color: var(--ink);
 }
 
+.agent-conversation {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.agent-conversation summary {
+  min-height: 32px;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 32px;
+}
+
+.agent-events {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.agent-event {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.agent-event.event-user {
+  border-left: 3px solid var(--accent);
+}
+
+.agent-event p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.agent-event p:first-child {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+
 .agent-cancel {
   margin-top: 10px;
   padding: 6px 10px;

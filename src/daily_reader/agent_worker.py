@@ -15,6 +15,7 @@ from daily_reader.agent_jobs import (
     claim_next_job,
     get_job,
     load_repositories,
+    take_pending_instructions,
     update_job,
 )
 
@@ -158,6 +159,20 @@ verified. Do not ask the user unless the configured high-risk blocker criteria a
 """
 
 
+def _attached_prompt(instructions: list[str]) -> str:
+    messages = "\n\n".join(
+        f"User message {index}:\n{instruction}"
+        for index, instruction in enumerate(instructions, start=1)
+    )
+    return f"""The user attached to this task with additional instructions:
+
+{messages}
+
+Apply these instructions to the original task and current worktree state. Continue
+autonomously until the task is committed and verified.
+"""
+
+
 def push_and_cleanup_worktree(
     repository: dict[str, str], branch: str, worktree: Path
 ) -> str | None:
@@ -229,6 +244,9 @@ current worktree state. Continue autonomously until the task is committed and ve
             )
             thread_id = None
             prompt = _initial_prompt(job["prompt"])
+        attached = take_pending_instructions(database, job_id)
+        if attached:
+            prompt = f"{prompt}\n\n{_attached_prompt(attached)}"
         final_result: dict[str, Any] = {}
         for attempt in range(1, MAX_TURNS + 1):
             current = get_job(database, job_id)
@@ -253,6 +271,10 @@ current worktree state. Continue autonomously until the task is committed and ve
                 summary=result["summary"],
             )
             append_event(database, job_id, "codex", messages or result["summary"])
+            attached = take_pending_instructions(database, job_id)
+            if attached:
+                prompt = _attached_prompt(attached)
+                continue
             if result["state"] == "done":
                 break
             if result["state"] == "blocked" and result["human_input_required"]:

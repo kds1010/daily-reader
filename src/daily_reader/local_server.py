@@ -14,6 +14,7 @@ from pathlib import Path
 from time import sleep
 
 from daily_reader.agent_jobs import (
+    attach_to_job,
     create_job,
     get_job,
     list_jobs,
@@ -300,6 +301,7 @@ def make_handler(
                 "/api/health/sync",
                 "/api/agent-jobs",
                 "/api/agent-jobs/cancel",
+                "/api/agent-jobs/attach",
                 "/api/agent-jobs/resume",
             }
             if self.path not in {
@@ -330,6 +332,15 @@ def make_handler(
                     ):
                         raise ValueError("invalid agent job response")
                     self._send_json(202, {"resumed": True})
+                    return
+                if self.path == "/api/agent-jobs/attach":
+                    if not attach_to_job(
+                        agent_db,
+                        request.get("job_id", ""),
+                        request.get("instruction"),
+                    ):
+                        raise ValueError("invalid agent job message")
+                    self._send_json(202, {"attached": True})
                     return
                 if self.path == "/api/tasks":
                     self._send_json(201, create_task(planner_db, request, now))

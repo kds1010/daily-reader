@@ -73,10 +73,19 @@ def initialize_database(path: Path) -> None:
                 kind TEXT NOT NULL,
                 message TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS agent_instructions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id TEXT NOT NULL REFERENCES agent_jobs(id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                instruction TEXT NOT NULL,
+                delivered_at TEXT
+            );
             CREATE INDEX IF NOT EXISTS agent_jobs_status_created
                 ON agent_jobs(status, created_at);
             CREATE INDEX IF NOT EXISTS agent_events_job_id
                 ON agent_events(job_id, id);
+            CREATE INDEX IF NOT EXISTS agent_instructions_pending
+                ON agent_instructions(job_id, delivered_at, id);
             """
         )
         connection.execute("PRAGMA foreign_keys = ON")
@@ -187,21 +196,30 @@ def request_cancel(path: Path, job_id: str) -> bool:
     return True
 
 
-def resume_job(path: Path, job_id: str, instruction: object) -> bool:
+def attach_to_job(path: Path, job_id: str, instruction: object) -> bool:
     if not isinstance(instruction, str) or not instruction.strip() or len(instruction) > 10_000:
         return False
     initialize_database(path)
     now = _now()
     with sqlite3.connect(path) as connection:
         row = connection.execute(
-            "SELECT status FROM agent_jobs WHERE id = ?", (job_id,)
+            "SELECT status, worktree FROM agent_jobs WHERE id = ?", (job_id,)
         ).fetchone()
-        if row is None or row[0] != "blocked":
+        if row is None or row[0] in {"completed", "cancelled"}:
             return False
+        if row[0] == "failed" and not row[1]:
+            return False
+        next_status = "queued" if row[0] in {"blocked", "failed"} else row[0]
+        next_phase = "再開待ち" if next_status == "queued" and row[0] != "queued" else None
         connection.execute(
-            """UPDATE agent_jobs SET status='queued', phase='再開待ち',
-            prompt=prompt || ?, cancel_requested=0, updated_at=? WHERE id=?""",
-            (f"\n\nUser clarification:\n{instruction.strip()}", now, job_id),
+            """UPDATE agent_jobs SET status=?, phase=COALESCE(?, phase),
+            cancel_requested=0, finished_at=NULL, updated_at=? WHERE id=?""",
+            (next_status, next_phase, now, job_id),
+        )
+        connection.execute(
+            """INSERT INTO agent_instructions (job_id, created_at, instruction)
+            VALUES (?, ?, ?)""",
+            (job_id, now, instruction.strip()),
         )
         connection.execute(
             """INSERT INTO agent_events (job_id, created_at, kind, message)
@@ -209,6 +227,31 @@ def resume_job(path: Path, job_id: str, instruction: object) -> bool:
             (job_id, now, instruction.strip()),
         )
     return True
+
+
+def resume_job(path: Path, job_id: str, instruction: object) -> bool:
+    """Backward-compatible name for attaching a user instruction to a job."""
+    return attach_to_job(path, job_id, instruction)
+
+
+def take_pending_instructions(path: Path, job_id: str) -> list[str]:
+    initialize_database(path)
+    now = _now()
+    with sqlite3.connect(path, timeout=30) as connection:
+        connection.row_factory = sqlite3.Row
+        connection.execute("BEGIN IMMEDIATE")
+        rows = connection.execute(
+            """SELECT id, instruction FROM agent_instructions
+            WHERE job_id = ? AND delivered_at IS NULL ORDER BY id""",
+            (job_id,),
+        ).fetchall()
+        if rows:
+            connection.executemany(
+                "UPDATE agent_instructions SET delivered_at = ? WHERE id = ?",
+                ((now, row["id"]) for row in rows),
+            )
+        connection.commit()
+    return [row["instruction"] for row in rows]
 
 
 def claim_next_job(path: Path) -> dict[str, Any] | None:

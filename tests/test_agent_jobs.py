@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from daily_reader.agent_jobs import (
+    attach_to_job,
     claim_next_job,
     create_job,
     get_job,
@@ -10,6 +11,7 @@ from daily_reader.agent_jobs import (
     load_repositories,
     request_cancel,
     resume_job,
+    take_pending_instructions,
     update_job,
 )
 
@@ -145,5 +147,30 @@ def test_blocked_job_can_resume_with_user_instruction(tmp_path: Path) -> None:
     assert resume_job(database, job["id"], "Use the compatible format")
     resumed = claim_next_job(database)
     assert resumed is not None
-    assert "Use the compatible format" in resumed["prompt"]
-    assert not resume_job(database, job["id"], "second response")
+    assert take_pending_instructions(database, job["id"]) == [
+        "Use the compatible format"
+    ]
+    update_job(database, job["id"], status="completed")
+    assert not resume_job(database, job["id"], "too late")
+
+
+def test_running_job_accepts_attached_messages_in_order(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    configured = repositories(tmp_path)
+    job = create_job(database, configured, {"repository": "repo", "prompt": "Do it"})
+    claim_next_job(database)
+
+    assert attach_to_job(database, job["id"], "First addition")
+    assert attach_to_job(database, job["id"], "Second addition")
+    assert take_pending_instructions(database, job["id"]) == [
+        "First addition",
+        "Second addition",
+    ]
+    assert take_pending_instructions(database, job["id"]) == []
+    stored = get_job(database, job["id"])
+    assert stored is not None
+    assert stored["status"] == "running"
+    assert [event["message"] for event in stored["events"] if event["kind"] == "user"] == [
+        "First addition",
+        "Second addition",
+    ]

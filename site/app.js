@@ -143,30 +143,68 @@ function renderAgentJob(job) {
     summary.textContent = job.summary;
     card.append(summary);
   }
-  if (job.status === "blocked") {
+  const conversation = document.createElement("details");
+  conversation.className = "agent-conversation";
+  const conversationSummary = document.createElement("summary");
+  conversationSummary.textContent = "やりとりを表示";
+  const eventList = document.createElement("div");
+  eventList.className = "agent-events";
+  conversation.addEventListener("toggle", async () => {
+    if (!conversation.open || eventList.dataset.loaded) return;
+    eventList.textContent = "読み込んでいます…";
+    try {
+      const response = await fetchWithTimeout(`./api/agent-jobs/${encodeURIComponent(job.id)}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      eventList.replaceChildren(...payload.events.map((event) => {
+        const item = document.createElement("div");
+        item.className = `agent-event event-${event.kind}`;
+        const meta = document.createElement("p");
+        meta.textContent = `${formatAgentTime(event.created_at)}・${event.kind === "user" ? "あなた" : "Agent"}`;
+        const message = document.createElement("p");
+        message.textContent = event.message;
+        item.append(meta, message);
+        return item;
+      }));
+      eventList.dataset.loaded = "true";
+    } catch (error) {
+      eventList.textContent = `やりとりを読み込めませんでした：${error.message}`;
+    }
+  });
+  conversation.append(conversationSummary, eventList);
+  card.append(conversation);
+  const canAttach = ["queued", "running", "blocked"].includes(job.status)
+    || (job.status === "failed" && job.worktree);
+  if (canAttach) {
     const responseForm = document.createElement("form");
     responseForm.className = "agent-response-form";
     const instruction = document.createElement("textarea");
     instruction.required = true;
     instruction.maxLength = 10000;
     instruction.rows = 3;
-    instruction.placeholder = "必要な判断や追加情報だけ入力してください";
-    instruction.setAttribute("aria-label", "Agentへの回答");
+    instruction.placeholder = job.status === "blocked"
+      ? "必要な判断や追加情報を入力してください"
+      : "このタスクへの追加指示を入力してください";
+    instruction.setAttribute("aria-label", "Agentへのメッセージ");
     const resume = document.createElement("button");
     resume.type = "submit";
     resume.className = "primary-button";
-    resume.textContent = "回答して再開";
+    resume.textContent = job.status === "blocked" || job.status === "failed"
+      ? "送信して再開"
+      : "タスクへ送信";
     responseForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       resume.disabled = true;
       try {
-        await postJson("./api/agent-jobs/resume", {
+        await postJson("./api/agent-jobs/attach", {
           job_id: job.id,
           instruction: instruction.value,
         });
         await loadAgentJobs();
       } catch (error) {
-        state.agentStatus = `タスクを再開できませんでした：${error.message}`;
+        state.agentStatus = `メッセージを送信できませんでした：${error.message}`;
         elements.status.textContent = state.agentStatus;
         resume.disabled = false;
       }
