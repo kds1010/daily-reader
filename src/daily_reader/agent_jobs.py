@@ -66,6 +66,7 @@ def initialize_database(path: Path) -> None:
                 cancel_requested INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
+                hidden_at TEXT,
                 finished_at TEXT
             );
             CREATE TABLE IF NOT EXISTS agent_events (
@@ -97,6 +98,8 @@ def initialize_database(path: Path) -> None:
             connection.execute(
                 "ALTER TABLE agent_jobs ADD COLUMN mode TEXT NOT NULL DEFAULT 'execute'"
             )
+        if "hidden_at" not in columns:
+            connection.execute("ALTER TABLE agent_jobs ADD COLUMN hidden_at TEXT")
         connection.execute("PRAGMA foreign_keys = ON")
 
 
@@ -158,7 +161,7 @@ def list_jobs(path: Path, limit: int = 50) -> list[dict[str, Any]]:
     with sqlite3.connect(path) as connection:
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
-            """SELECT * FROM agent_jobs
+            """SELECT * FROM agent_jobs WHERE hidden_at IS NULL
             ORDER BY CASE status
                 WHEN 'running' THEN 0 WHEN 'blocked' THEN 1 WHEN 'queued' THEN 2 ELSE 3 END,
                 created_at DESC LIMIT ?""",
@@ -198,13 +201,13 @@ def request_cancel(path: Path, job_id: str) -> bool:
         if row[0] == "queued":
             connection.execute(
                 """UPDATE agent_jobs SET status='cancelled', phase='キャンセル済み',
-                cancel_requested=1, updated_at=?, finished_at=? WHERE id=?""",
+                cancel_requested=1, updated_at=?, hidden_at=NULL, finished_at=? WHERE id=?""",
                 (now, now, job_id),
             )
         else:
             connection.execute(
                 """UPDATE agent_jobs SET cancel_requested=1, phase='停止処理中',
-                updated_at=? WHERE id=?""",
+                updated_at=?, hidden_at=NULL WHERE id=?""",
                 (now, job_id),
             )
         connection.execute(
@@ -213,6 +216,19 @@ def request_cancel(path: Path, job_id: str) -> bool:
             (job_id, now),
         )
     return True
+
+
+def hide_job(path: Path, job_id: str) -> bool:
+    """Hide a job until its next update."""
+    if not isinstance(job_id, str) or not job_id:
+        return False
+    initialize_database(path)
+    with sqlite3.connect(path) as connection:
+        cursor = connection.execute(
+            "UPDATE agent_jobs SET hidden_at = ? WHERE id = ?",
+            (_now(), job_id),
+        )
+    return cursor.rowcount == 1
 
 
 def attach_to_job(path: Path, job_id: str, instruction: object) -> bool:
@@ -232,7 +248,7 @@ def attach_to_job(path: Path, job_id: str, instruction: object) -> bool:
         next_phase = "再開待ち" if next_status == "queued" and row[0] != "queued" else None
         connection.execute(
             """UPDATE agent_jobs SET status=?, phase=COALESCE(?, phase),
-            cancel_requested=0, finished_at=NULL, updated_at=? WHERE id=?""",
+            cancel_requested=0, finished_at=NULL, updated_at=?, hidden_at=NULL WHERE id=?""",
             (next_status, next_phase, now, job_id),
         )
         connection.execute(
@@ -288,7 +304,7 @@ def claim_next_job(path: Path) -> dict[str, Any] | None:
             return None
         connection.execute(
             """UPDATE agent_jobs SET status='running', phase='作業環境を準備中',
-            updated_at=? WHERE id=?""",
+            updated_at=?, hidden_at=NULL WHERE id=?""",
             (now, row["id"]),
         )
         connection.commit()
@@ -311,6 +327,7 @@ def update_job(path: Path, job_id: str, **fields: object) -> None:
     if not values:
         return
     values["updated_at"] = _now()
+    values["hidden_at"] = None
     assignments = ", ".join(f"{name} = ?" for name in values)
     initialize_database(path)
     with sqlite3.connect(path) as connection:
@@ -322,9 +339,14 @@ def update_job(path: Path, job_id: str, **fields: object) -> None:
 
 def append_event(path: Path, job_id: str, kind: str, message: str) -> None:
     initialize_database(path)
+    now = _now()
     with sqlite3.connect(path) as connection:
         connection.execute(
             """INSERT INTO agent_events (job_id, created_at, kind, message)
             VALUES (?, ?, ?, ?)""",
-            (job_id, _now(), kind, message[:20_000]),
+            (job_id, now, kind, message[:20_000]),
+        )
+        connection.execute(
+            "UPDATE agent_jobs SET updated_at = ?, hidden_at = NULL WHERE id = ?",
+            (now, job_id),
         )

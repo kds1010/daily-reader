@@ -17,6 +17,7 @@ from daily_reader.agent_jobs import (
     attach_to_job,
     create_job,
     get_job,
+    hide_job,
     list_jobs,
     load_repositories,
     request_cancel,
@@ -301,6 +302,7 @@ def make_handler(
                 "/api/health/sync",
                 "/api/agent-jobs",
                 "/api/agent-jobs/cancel",
+                "/api/agent-jobs/hide",
                 "/api/agent-jobs/attach",
                 "/api/agent-jobs/resume",
             }
@@ -323,6 +325,11 @@ def make_handler(
                     if not request_cancel(agent_db, request.get("job_id", "")):
                         raise ValueError("invalid agent job")
                     self._send_json(202, {"cancel_requested": True})
+                    return
+                if self.path == "/api/agent-jobs/hide":
+                    if not hide_job(agent_db, request.get("job_id", "")):
+                        raise ValueError("invalid agent job")
+                    self._send_json(202, {"hidden": True})
                     return
                 if self.path == "/api/agent-jobs/resume":
                     if not resume_job(

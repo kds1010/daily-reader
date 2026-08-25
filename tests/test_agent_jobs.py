@@ -4,10 +4,12 @@ from pathlib import Path
 import pytest
 
 from daily_reader.agent_jobs import (
+    append_event,
     attach_to_job,
     claim_next_job,
     create_job,
     get_job,
+    hide_job,
     list_jobs,
     load_repositories,
     request_cancel,
@@ -58,6 +60,32 @@ def test_agent_job_lifecycle(tmp_path: Path) -> None:
     assert stored["phase"] == "Codex実行中"
     assert stored["attempts"] == 1
     assert stored["events"][0]["kind"] == "queued"
+
+
+def test_hidden_job_returns_to_list_after_an_update(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(
+        database,
+        repositories(tmp_path),
+        {"repository": "repo", "prompt": "Hide this task"},
+    )
+
+    assert hide_job(database, job["id"])
+    assert list_jobs(database) == []
+    assert get_job(database, job["id"]) is not None
+
+    update_job(database, job["id"], phase="更新されました")
+
+    assert [item["id"] for item in list_jobs(database)] == [job["id"]]
+
+    assert hide_job(database, job["id"])
+    append_event(database, job["id"], "progress", "新しい進捗")
+
+    assert [item["id"] for item in list_jobs(database)] == [job["id"]]
+
+
+def test_hide_job_rejects_unknown_job(tmp_path: Path) -> None:
+    assert not hide_job(tmp_path / "agent.sqlite3", "missing")
 
 
 def test_agent_job_validates_repository_and_prompt(tmp_path: Path) -> None:

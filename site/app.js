@@ -232,6 +232,24 @@ function renderAgentJob(job) {
     });
     card.append(cancel);
   }
+  const hide = document.createElement("button");
+  hide.type = "button";
+  hide.className = "agent-hide";
+  hide.textContent = "非表示";
+  hide.setAttribute("aria-label", `「${job.prompt}」を非表示`);
+  hide.addEventListener("click", async () => {
+    hide.disabled = true;
+    try {
+      await postJson("./api/agent-jobs/hide", { job_id: job.id });
+      card.remove();
+      await loadAgentJobs();
+    } catch (error) {
+      state.agentStatus = `タスクを非表示にできませんでした：${error.message}`;
+      elements.status.textContent = state.agentStatus;
+      hide.disabled = false;
+    }
+  });
+  card.append(hide);
   return card;
 }
 

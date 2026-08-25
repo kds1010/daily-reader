@@ -163,6 +163,18 @@ main,
 .agent-job.status-failed { border-left-color: #b43a32; }
 .agent-job.status-completed { border-left-color: #6a8a79; }
 
+.agent-hide {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font-size: .72rem;
+}
+
+.agent-cancel + .agent-hide { margin-left: 8px; }
+
 .agent-job-heading {
   display: flex;
   justify-content: space-between;
