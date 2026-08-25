@@ -133,6 +133,14 @@ def run_codex_turn(
         output_path.unlink(missing_ok=True)
 
 
+def run_deployment_turn(
+    worktree: Path, schema: Path, prompt: str
+) -> tuple[str | None, dict[str, Any], str]:
+    # `codex exec resume` cannot accept `--approve-for-me`. Start deployment in a
+    # fresh session so launchctl and live checks can use automatic approval review.
+    return run_codex_turn(worktree, schema, prompt, None)
+
+
 def _initial_prompt(task: str, mode: str = "execute") -> str:
     if mode == "requirements":
         return f"""Deepen the requirements for the following proposed coding task before
@@ -418,8 +426,8 @@ clean. Return done only when the rebase and verification succeed."""
             "deploying",
             f"{commit} のデプロイと実環境確認を開始しました",
         )
-        thread_id, deployment_result, messages = run_codex_turn(
-            worktree, schema, _deployment_prompt(commit), thread_id
+        thread_id, deployment_result, messages = run_deployment_turn(
+            worktree, schema, _deployment_prompt(commit)
         )
         update_job(
             database,

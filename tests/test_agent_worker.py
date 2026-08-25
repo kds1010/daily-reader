@@ -7,6 +7,7 @@ from daily_reader.agent_worker import (
     _initial_prompt,
     _parse_codex_events,
     build_parser,
+    run_deployment_turn,
 )
 
 
@@ -64,6 +65,23 @@ def test_initial_codex_command_uses_automatic_workspace_approval() -> None:
 
     assert "--approve-for-me" in command
     assert "--sandbox" not in command
+
+
+def test_deployment_starts_fresh_automatic_approval_session(monkeypatch) -> None:
+    calls = []
+
+    def fake_run_codex_turn(worktree, schema, prompt, thread_id):
+        calls.append((worktree, schema, prompt, thread_id))
+        return "deployment-thread", {"state": "done"}, "deployed"
+
+    monkeypatch.setattr(
+        "daily_reader.agent_worker.run_codex_turn", fake_run_codex_turn
+    )
+
+    result = run_deployment_turn(Path("/tmp/worktree"), Path("schema.json"), "Deploy")
+
+    assert calls == [(Path("/tmp/worktree"), Path("schema.json"), "Deploy", None)]
+    assert result[0] == "deployment-thread"
 
 
 def test_requirements_prompt_requires_discovery_before_implementation() -> None:
