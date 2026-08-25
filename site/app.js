@@ -443,22 +443,23 @@ function renderAgentJob(job) {
   let offsetX = 0;
   let horizontalSwipe = false;
   let suppressClick = false;
-  cardSummary.addEventListener("click", (event) => {
+  card.addEventListener("click", (event) => {
     if (!suppressClick) return;
     event.preventDefault();
     event.stopPropagation();
     suppressClick = false;
-  });
-  cardSummary.addEventListener("pointerdown", (event) => {
+  }, true);
+  card.addEventListener("pointerdown", (event) => {
     if (event.pointerType === "mouse" || hiding) return;
+    if (event.target.closest("button, input, textarea, select, a, label")) return;
     pointerId = event.pointerId;
     startX = event.clientX;
     startY = event.clientY;
     offsetX = 0;
     horizontalSwipe = false;
-    cardSummary.setPointerCapture(event.pointerId);
+    card.setPointerCapture(event.pointerId);
   });
-  cardSummary.addEventListener("pointermove", (event) => {
+  card.addEventListener("pointermove", (event) => {
     if (event.pointerId !== pointerId) return;
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
@@ -468,9 +469,10 @@ function renderAgentJob(job) {
       return;
     }
     horizontalSwipe = true;
-    offsetX = Math.max(-120, Math.min(0, deltaX));
+    offsetX = Math.max(-120, Math.min(120, deltaX));
     card.style.transform = `translateX(${offsetX}px)`;
-    swipeContainer.classList.toggle("is-swiping", offsetX < 0);
+    swipeContainer.classList.add("is-swiping");
+    swipeContainer.classList.toggle("swipe-right", offsetX > 0);
   });
   const finishSwipe = (event) => {
     if (event.pointerId !== pointerId) return;
@@ -478,14 +480,15 @@ function renderAgentJob(job) {
     swipeContainer.classList.remove("is-swiping");
     suppressClick = horizontalSwipe;
     setTimeout(() => { suppressClick = false; }, 0);
-    if (horizontalSwipe && offsetX <= -72) {
+    if (horizontalSwipe && Math.abs(offsetX) >= 72) {
+      swipeContainer.classList.toggle("hide-right", offsetX > 0);
       hideJob(true);
       return;
     }
     card.style.removeProperty("transform");
   };
-  cardSummary.addEventListener("pointerup", finishSwipe);
-  cardSummary.addEventListener("pointercancel", (event) => {
+  card.addEventListener("pointerup", finishSwipe);
+  card.addEventListener("pointercancel", (event) => {
     if (event.pointerId !== pointerId) return;
     pointerId = null;
     swipeContainer.classList.remove("is-swiping");

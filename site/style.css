@@ -159,6 +159,8 @@ main,
   font-weight: 800;
 }
 
+.agent-swipe-container.swipe-right .agent-swipe-action { inset: 0 auto 0 16px; }
+
 .agent-swipe-container .agent-job {
   position: relative;
   margin: 0;
@@ -169,7 +171,9 @@ main,
 
 .agent-swipe-container.is-hiding .agent-job { transform: translateX(-105%); }
 
-.agent-job-overview { touch-action: pan-y; }
+.agent-swipe-container.is-hiding.hide-right .agent-job { transform: translateX(105%); }
+
+.agent-job { touch-action: pan-y; }
 
 .agent-status-icon {
   display: grid;
