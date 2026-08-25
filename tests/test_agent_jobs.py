@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from daily_reader.agent_jobs import (
     create_job,
     get_job,
     hide_job,
+    list_archived_jobs,
     list_jobs,
     load_repositories,
     recover_interrupted_jobs,
@@ -110,6 +112,7 @@ def test_hidden_job_returns_to_list_after_an_update(tmp_path: Path) -> None:
 
     assert hide_job(database, job["id"])
     assert list_jobs(database) == []
+    assert [item["id"] for item in list_archived_jobs(database)] == [job["id"]]
     assert get_job(database, job["id"]) is not None
 
     update_job(database, job["id"], phase="更新されました")
@@ -124,6 +127,34 @@ def test_hidden_job_returns_to_list_after_an_update(tmp_path: Path) -> None:
 
 def test_hide_job_rejects_unknown_job(tmp_path: Path) -> None:
     assert not hide_job(tmp_path / "agent.sqlite3", "missing")
+
+
+def test_archived_job_is_deleted_after_seven_days(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(
+        database,
+        repositories(tmp_path),
+        {"repository": "repo", "prompt": "Delete this archive later"},
+    )
+    assert hide_job(database, job["id"])
+    archived_at = datetime(2026, 8, 1, tzinfo=UTC)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE agent_jobs SET hidden_at = ? WHERE id = ?",
+            (archived_at.isoformat(), job["id"]),
+        )
+        connection.execute(
+            """INSERT INTO agent_instructions (job_id, created_at, instruction)
+            VALUES (?, ?, 'pending')""",
+            (job["id"], archived_at.isoformat()),
+        )
+
+    assert list_archived_jobs(database, now=archived_at + timedelta(days=6))
+    assert list_archived_jobs(database, now=archived_at + timedelta(days=7)) == []
+    assert get_job(database, job["id"]) is None
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("SELECT count(*) FROM agent_events").fetchone()[0] == 0
+        assert connection.execute("SELECT count(*) FROM agent_instructions").fetchone()[0] == 0
 
 
 def test_agent_job_validates_repository_and_prompt(tmp_path: Path) -> None:

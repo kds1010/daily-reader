@@ -3,12 +3,13 @@ from __future__ import annotations
 import sqlite3
 import tomllib
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 FINAL_STATES = {"completed", "blocked", "failed", "cancelled"}
 JOB_MODES = {"execute", "requirements"}
+ARCHIVE_RETENTION = timedelta(days=7)
 
 
 def load_repositories(path: Path) -> dict[str, dict[str, str]]:
@@ -187,6 +188,51 @@ def list_jobs(path: Path, limit: int = 50) -> list[dict[str, Any]]:
     return jobs
 
 
+def list_archived_jobs(
+    path: Path, limit: int = 50, now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """List archived jobs after permanently removing archives older than seven days."""
+    initialize_database(path)
+    cutoff = (now or datetime.now(UTC)) - ARCHIVE_RETENTION
+    with sqlite3.connect(path) as connection:
+        connection.row_factory = sqlite3.Row
+        expired_ids = [
+            row["id"]
+            for row in connection.execute(
+                "SELECT id FROM agent_jobs WHERE hidden_at <= ?",
+                (cutoff.isoformat(),),
+            )
+        ]
+        if expired_ids:
+            placeholders = ", ".join("?" for _ in expired_ids)
+            connection.execute(
+                f"DELETE FROM agent_events WHERE job_id IN ({placeholders})",  # noqa: S608
+                expired_ids,
+            )
+            connection.execute(
+                f"DELETE FROM agent_instructions WHERE job_id IN ({placeholders})",  # noqa: S608
+                expired_ids,
+            )
+            connection.execute(
+                f"DELETE FROM agent_jobs WHERE id IN ({placeholders})",  # noqa: S608
+                expired_ids,
+            )
+        rows = connection.execute(
+            """SELECT * FROM agent_jobs WHERE hidden_at IS NOT NULL
+            ORDER BY hidden_at DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        jobs = [dict(row) for row in rows]
+        for job in jobs:
+            events = connection.execute(
+                """SELECT created_at, kind, message FROM agent_events
+                WHERE job_id = ? ORDER BY id DESC LIMIT 3""",
+                (job["id"],),
+            ).fetchall()
+            job["recent_events"] = [dict(event) for event in reversed(events)]
+    return jobs
+
+
 def get_job(path: Path, job_id: str) -> dict[str, Any] | None:
     initialize_database(path)
     with sqlite3.connect(path) as connection:
@@ -236,7 +282,7 @@ def request_cancel(path: Path, job_id: str) -> bool:
 
 
 def hide_job(path: Path, job_id: str) -> bool:
-    """Hide a job until its next update."""
+    """Archive a job until its next update or the retention period expires."""
     if not isinstance(job_id, str) or not job_id:
         return False
     initialize_database(path)

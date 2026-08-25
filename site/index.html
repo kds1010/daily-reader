@@ -8,7 +8,7 @@
     <title>Daily Reader</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="./style.css?v=47">
+    <link rel="stylesheet" href="./style.css?v=48">
   </head>
   <body>
     <header class="masthead">
@@ -67,6 +67,11 @@
           </div>
           <p id="agent-empty" class="compact-empty" hidden>Agentタスクはまだありません。</p>
           <div id="agent-jobs" class="agent-jobs"></div>
+          <details id="agent-archive" class="agent-archive" hidden>
+            <summary>アーカイブ（<span id="agent-archive-count">0</span>件）</summary>
+            <p class="agent-archive-help">アーカイブから7日後に自動で削除されます。</p>
+            <div id="agent-archived-jobs" class="agent-jobs"></div>
+          </details>
         </section>
       </div>
 
@@ -250,6 +255,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=47" defer></script>
+    <script src="./app.js?v=48" defer></script>
   </body>
 </html>

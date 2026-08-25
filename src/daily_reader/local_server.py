@@ -21,6 +21,7 @@ from daily_reader.agent_jobs import (
     create_job,
     get_job,
     hide_job,
+    list_archived_jobs,
     list_jobs,
     load_repositories,
     request_cancel,
@@ -334,6 +335,7 @@ def make_handler(
                             for item in repositories.values()
                         ],
                         "jobs": list_jobs(agent_db),
+                        "archived_jobs": list_archived_jobs(agent_db),
                     },
                 )
                 return
@@ -425,7 +427,7 @@ def make_handler(
                 if self.path == "/api/agent-jobs/hide":
                     if not hide_job(agent_db, request.get("job_id", "")):
                         raise ValueError("invalid agent job")
-                    self._send_json(202, {"hidden": True})
+                    self._send_json(202, {"archived": True})
                     return
                 if self.path == "/api/agent-jobs/resume":
                     if not resume_job(

@@ -73,6 +73,9 @@ const elements = {
   agentJobs: document.querySelector("#agent-jobs"),
   agentJobsSummary: document.querySelector("#agent-jobs-summary"),
   agentEmpty: document.querySelector("#agent-empty"),
+  agentArchive: document.querySelector("#agent-archive"),
+  agentArchiveCount: document.querySelector("#agent-archive-count"),
+  agentArchivedJobs: document.querySelector("#agent-archived-jobs"),
   codexUsageLimits: document.querySelector("#codex-usage-limits"),
   codexUsagePlan: document.querySelector("#codex-usage-plan"),
   codexUsageStatus: document.querySelector("#codex-usage-status"),
@@ -247,13 +250,15 @@ function formatAgentTime(value) {
   }).format(new Date(value));
 }
 
-function renderAgentJob(job) {
-  const swipeContainer = document.createElement("div");
-  swipeContainer.className = "agent-swipe-container";
-  const swipeAction = document.createElement("span");
-  swipeAction.className = "agent-swipe-action";
-  swipeAction.textContent = "非表示";
-  swipeAction.setAttribute("aria-hidden", "true");
+function renderAgentJob(job, archived = false) {
+  const swipeContainer = archived ? null : document.createElement("div");
+  const swipeAction = archived ? null : document.createElement("span");
+  if (swipeContainer && swipeAction) {
+    swipeContainer.className = "agent-swipe-container";
+    swipeAction.className = "agent-swipe-action";
+    swipeAction.textContent = "アーカイブ";
+    swipeAction.setAttribute("aria-hidden", "true");
+  }
   const card = document.createElement("details");
   card.className = `agent-job status-${job.status}`;
   card.open = openAgentJobs.has(job.id);
@@ -357,8 +362,8 @@ function renderAgentJob(job) {
   });
   conversation.append(conversationSummary, eventList);
   body.append(conversation);
-  const canAttach = ["queued", "running", "blocked", "completed"].includes(job.status)
-    || (job.status === "failed" && job.worktree);
+  const canAttach = !archived && (["queued", "running", "blocked", "completed"].includes(job.status)
+    || (job.status === "failed" && job.worktree));
   if (canAttach) {
     const responseForm = document.createElement("form");
     responseForm.className = "agent-response-form";
@@ -398,7 +403,7 @@ function renderAgentJob(job) {
     responseForm.append(instruction, resume);
     body.append(responseForm);
   }
-  if (["queued", "running"].includes(job.status)) {
+  if (!archived && ["queued", "running"].includes(job.status)) {
     const cancel = document.createElement("button");
     cancel.type = "button";
     cancel.className = "agent-cancel";
@@ -416,11 +421,12 @@ function renderAgentJob(job) {
     });
     body.append(cancel);
   }
+  if (archived) return card;
   const hide = document.createElement("button");
   hide.type = "button";
   hide.className = "agent-hide";
-  hide.textContent = "非表示";
-  hide.setAttribute("aria-label", `「${job.prompt}」を非表示`);
+  hide.textContent = "アーカイブ";
+  hide.setAttribute("aria-label", `「${job.prompt}」をアーカイブ`);
   let hiding = false;
   const hideJob = async (swiped = false) => {
     if (hiding) return;
@@ -432,7 +438,7 @@ function renderAgentJob(job) {
       swipeContainer.remove();
       await loadAgentJobs();
     } catch (error) {
-      state.agentStatus = `タスクを非表示にできませんでした：${error.message}`;
+      state.agentStatus = `タスクをアーカイブできませんでした：${error.message}`;
       elements.status.textContent = state.agentStatus;
       hide.disabled = false;
       hiding = false;
@@ -507,13 +513,17 @@ function renderAgentJob(job) {
 
 function isAgentInteractionActive() {
   const activeElement = document.activeElement;
-  if (activeElement === elements.agentRepository || elements.agentJobs.contains(activeElement)) {
+  if (activeElement === elements.agentRepository
+      || elements.agentJobs.contains(activeElement)
+      || elements.agentArchivedJobs.contains(activeElement)) {
     return true;
   }
   const selection = window.getSelection?.();
   if (!selection || selection.isCollapsed) return false;
   return elements.agentJobs.contains(selection.anchorNode)
-    || elements.agentJobs.contains(selection.focusNode);
+    || elements.agentJobs.contains(selection.focusNode)
+    || elements.agentArchivedJobs.contains(selection.anchorNode)
+    || elements.agentArchivedJobs.contains(selection.focusNode);
 }
 
 function updateAgentRepositories(repositories) {
@@ -544,6 +554,12 @@ async function loadAgentJobs() {
     if (!interactionActive) {
       updateAgentRepositories(payload.repositories);
       elements.agentJobs.replaceChildren(...payload.jobs.map(renderAgentJob));
+      const archivedJobs = payload.archived_jobs || [];
+      elements.agentArchivedJobs.replaceChildren(
+        ...archivedJobs.map((job) => renderAgentJob(job, true)),
+      );
+      elements.agentArchiveCount.textContent = String(archivedJobs.length);
+      elements.agentArchive.hidden = archivedJobs.length === 0;
     }
     elements.agentEmpty.hidden = payload.jobs.length !== 0;
     const active = payload.jobs.filter((job) => ["queued", "running"].includes(job.status)).length;
