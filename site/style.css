@@ -114,6 +114,31 @@ main,
   font: inherit;
 }
 
+.agent-submit-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.agent-submit-actions button {
+  min-height: 44px;
+}
+
+.agent-submit-actions .secondary-button {
+  border: 1px solid rgb(255 255 255 / 45%);
+  border-radius: 999px;
+  color: #f4fbf7;
+  background: rgb(255 255 255 / 8%);
+  font-weight: 800;
+}
+
+.agent-mode-help {
+  margin: -2px 0 0;
+  color: rgb(244 251 247 / 68%);
+  font-size: .72rem;
+  line-height: 1.5;
+}
+
 .agent-form textarea {
   min-height: 132px;
   resize: vertical;

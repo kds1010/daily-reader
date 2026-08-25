@@ -131,7 +131,27 @@ def run_codex_turn(
         output_path.unlink(missing_ok=True)
 
 
-def _initial_prompt(task: str) -> str:
+def _initial_prompt(task: str, mode: str = "execute") -> str:
+    if mode == "requirements":
+        return f"""Deepen the requirements for the following proposed coding task before
+implementing it.
+
+Proposed task:
+{task}
+
+You are already running in a dedicated task worktree and branch. Inspect all applicable
+AGENTS.md files and the relevant existing implementation, but do not change files or commit
+anything in this first turn. Identify material ambiguities, hidden constraints, expected user
+experience, acceptance criteria, and verification needs. Then ask a concise, prioritized set
+of questions through next_action and return state=blocked with human_input_required=true.
+
+After the user answers, continue requirement discovery in the same thread if material
+ambiguities remain. Once the requirements are sufficiently concrete, summarize the agreed
+requirements in an event message, implement them autonomously, run the relevant verification,
+and commit only task-scoped changes. Do not merge, push, remove the worktree, or delete the
+branch; the external supervisor performs those steps. Return state=done only after the
+implementation is committed and verification succeeds.
+"""
     return f"""Complete the following coding task autonomously.
 
 Task:
@@ -244,7 +264,7 @@ current worktree state. Continue autonomously until the task is committed and ve
                 database, job_id, "worktree", f"{branch} を {worktree} に作成しました"
             )
             thread_id = None
-            prompt = _initial_prompt(job["prompt"])
+            prompt = _initial_prompt(job["prompt"], job.get("mode", "execute"))
         attached = take_pending_instructions(database, job_id)
         if attached:
             prompt = f"{prompt}\n\n{_attached_prompt(attached)}"

@@ -1,7 +1,12 @@
 import json
 from pathlib import Path
 
-from daily_reader.agent_worker import _codex_command, _parse_codex_events, build_parser
+from daily_reader.agent_worker import (
+    _codex_command,
+    _initial_prompt,
+    _parse_codex_events,
+    build_parser,
+)
 
 
 def test_agent_worker_defaults(monkeypatch) -> None:
@@ -58,3 +63,11 @@ def test_initial_codex_command_uses_automatic_workspace_approval() -> None:
 
     assert "--approve-for-me" in command
     assert "--sandbox" not in command
+
+
+def test_requirements_prompt_requires_discovery_before_implementation() -> None:
+    prompt = _initial_prompt("Add a better workflow", "requirements")
+
+    assert "do not change files" in prompt
+    assert "return state=blocked" in prompt
+    assert "After the user answers" in prompt

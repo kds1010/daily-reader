@@ -1,3 +1,4 @@
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -67,6 +68,50 @@ def test_agent_job_validates_repository_and_prompt(tmp_path: Path) -> None:
         create_job(database, configured, {"repository": "missing", "prompt": "x"})
     with pytest.raises(ValueError, match="prompt"):
         create_job(database, configured, {"repository": "repo", "prompt": ""})
+    with pytest.raises(ValueError, match="mode"):
+        create_job(
+            database,
+            configured,
+            {"repository": "repo", "prompt": "x", "mode": "unknown"},
+        )
+
+
+def test_requirements_job_persists_mode_and_distinct_event(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    configured = repositories(tmp_path)
+
+    job = create_job(
+        database,
+        configured,
+        {"repository": "repo", "prompt": "Build it", "mode": "requirements"},
+    )
+
+    stored = get_job(database, job["id"])
+    assert stored is not None
+    assert stored["mode"] == "requirements"
+    assert stored["events"][0]["message"] == "要件の深掘りを受け付けました"
+
+
+def test_existing_agent_database_is_migrated_with_execute_mode(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """CREATE TABLE agent_jobs (
+            id TEXT PRIMARY KEY, repository TEXT NOT NULL, prompt TEXT NOT NULL,
+            status TEXT NOT NULL, phase TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '',
+            thread_id TEXT, branch TEXT, worktree TEXT, attempts INTEGER NOT NULL DEFAULT 0,
+            cancel_requested INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL, finished_at TEXT
+            )"""
+        )
+
+    create_job(
+        database,
+        repositories(tmp_path),
+        {"repository": "repo", "prompt": "New task"},
+    )
+
+    assert list_jobs(database)[0]["mode"] == "execute"
 
 
 def test_queued_job_can_be_cancelled(tmp_path: Path) -> None:

@@ -8,7 +8,7 @@
     <title>Daily Reader</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="./style.css?v=39">
+    <link rel="stylesheet" href="./style.css?v=40">
   </head>
   <body>
     <header class="masthead">
@@ -49,7 +49,11 @@
               <textarea id="agent-prompt" name="prompt" required maxlength="20000" rows="6"
                 placeholder="実現したい結果を書いてください。実装方法や細かな手順はAgentが判断します。"></textarea>
             </label>
-            <button type="submit" class="primary-button">タスクを開始</button>
+            <div class="agent-submit-actions wide-field">
+              <button type="submit" name="mode" value="execute" class="primary-button">すぐに依頼</button>
+              <button type="submit" name="mode" value="requirements" class="secondary-button">要件を深掘りして依頼</button>
+            </div>
+            <p class="agent-mode-help wide-field">要件を深掘りすると、Agentが実装前にリポジトリを確認して質問します。回答はタスクの「やりとり」から送れます。</p>
           </form>
         </section>
 
@@ -243,6 +247,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=39" defer></script>
+    <script src="./app.js?v=40" defer></script>
   </body>
 </html>

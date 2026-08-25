@@ -129,7 +129,9 @@ function renderAgentJob(job) {
   status.className = "agent-status";
   status.textContent = agentStatusLabels[job.status] || job.status;
   const repository = document.createElement("span");
-  repository.textContent = job.repository;
+  repository.textContent = job.mode === "requirements"
+    ? `${job.repository}・要件深掘り`
+    : job.repository;
   heading.append(status, repository);
   const title = document.createElement("h3");
   title.textContent = job.prompt;
@@ -979,12 +981,13 @@ elements.refresh.addEventListener("click", () => {
 elements.agentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(elements.agentForm);
-  const submit = elements.agentForm.querySelector("button[type='submit']");
-  submit.disabled = true;
+  const submits = [...elements.agentForm.querySelectorAll("button[type='submit']")];
+  submits.forEach((button) => { button.disabled = true; });
   try {
     await postJson("./api/agent-jobs", {
       repository: form.get("repository"),
       prompt: form.get("prompt"),
+      mode: event.submitter?.value || "execute",
     });
     document.querySelector("#agent-prompt").value = "";
     await loadAgentJobs();
@@ -992,7 +995,7 @@ elements.agentForm.addEventListener("submit", async (event) => {
     state.agentStatus = `タスクを開始できませんでした：${error.message}`;
     elements.status.textContent = state.agentStatus;
   } finally {
-    submit.disabled = false;
+    submits.forEach((button) => { button.disabled = false; });
   }
 });
 elements.taskForm.addEventListener("submit", async (event) => {

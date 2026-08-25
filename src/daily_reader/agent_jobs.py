@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 FINAL_STATES = {"completed", "blocked", "failed", "cancelled"}
+JOB_MODES = {"execute", "requirements"}
 
 
 def load_repositories(path: Path) -> dict[str, dict[str, str]]:
@@ -54,6 +55,7 @@ def initialize_database(path: Path) -> None:
                 id TEXT PRIMARY KEY,
                 repository TEXT NOT NULL,
                 prompt TEXT NOT NULL,
+                mode TEXT NOT NULL DEFAULT 'execute',
                 status TEXT NOT NULL,
                 phase TEXT NOT NULL,
                 summary TEXT NOT NULL DEFAULT '',
@@ -88,6 +90,13 @@ def initialize_database(path: Path) -> None:
                 ON agent_instructions(job_id, delivered_at, id);
             """
         )
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(agent_jobs)")
+        }
+        if "mode" not in columns:
+            connection.execute(
+                "ALTER TABLE agent_jobs ADD COLUMN mode TEXT NOT NULL DEFAULT 'execute'"
+            )
         connection.execute("PRAGMA foreign_keys = ON")
 
 
@@ -102,15 +111,19 @@ def create_job(
 ) -> dict[str, Any]:
     repository = payload.get("repository")
     prompt = payload.get("prompt")
+    mode = payload.get("mode", "execute")
     if repository not in repositories:
         raise ValueError("invalid repository")
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 20_000:
         raise ValueError("invalid prompt")
+    if mode not in JOB_MODES:
+        raise ValueError("invalid mode")
     now = _now()
     job = {
         "id": uuid.uuid4().hex,
         "repository": repository,
         "prompt": prompt.strip(),
+        "mode": mode,
         "status": "queued",
         "phase": "待機中",
         "created_at": now,
@@ -120,16 +133,22 @@ def create_job(
     with sqlite3.connect(path) as connection:
         connection.execute(
             """INSERT INTO agent_jobs (
-                id, repository, prompt, status, phase, created_at, updated_at
+                id, repository, prompt, mode, status, phase, created_at, updated_at
             ) VALUES (
-                :id, :repository, :prompt, :status, :phase, :created_at, :updated_at
+                :id, :repository, :prompt, :mode, :status, :phase, :created_at, :updated_at
             )""",
             job,
         )
         connection.execute(
             """INSERT INTO agent_events (job_id, created_at, kind, message)
-            VALUES (?, ?, 'queued', 'タスクを受け付けました')""",
-            (job["id"], now),
+            VALUES (?, ?, 'queued', ?)""",
+            (
+                job["id"],
+                now,
+                "要件の深掘りを受け付けました"
+                if mode == "requirements"
+                else "タスクを受け付けました",
+            ),
         )
     return job
 
