@@ -323,10 +323,16 @@ function renderAgentJob(job) {
   conversation.className = "agent-conversation";
   conversation.open = openAgentConversations.has(job.id);
   const conversationSummary = document.createElement("summary");
-  conversationSummary.textContent = "やりとりを表示";
+  const updateConversationSummary = () => {
+    conversationSummary.textContent = conversation.open
+      ? "やりとりを非表示"
+      : "やりとりを表示";
+  };
+  updateConversationSummary();
   const eventList = document.createElement("div");
   eventList.className = "agent-events";
   conversation.addEventListener("toggle", async () => {
+    updateConversationSummary();
     if (conversation.open) openAgentConversations.add(job.id);
     else openAgentConversations.delete(job.id);
     if (!conversation.open || eventList.dataset.loaded) return;
