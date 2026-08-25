@@ -46,7 +46,7 @@ main,
 
 .app-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   margin-bottom: 20px;
   padding: 4px;
@@ -54,6 +54,149 @@ main,
   border-radius: 16px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.agent-hero,
+.agent-section {
+  width: min(calc(100vw - 32px), 760px);
+  margin: 0 auto 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.agent-hero {
+  color: #f4fbf7;
+  background: linear-gradient(135deg, #102d27, #146c55);
+}
+
+.agent-hero .eyebrow {
+  color: #a9dec9;
+}
+
+.agent-hero h2 {
+  margin-bottom: 8px;
+  font-family: Georgia, "Yu Mincho", serif;
+  font-size: 1.55rem;
+  font-weight: 500;
+}
+
+.agent-hero > p:not(.eyebrow) {
+  color: rgb(244 251 247 / 78%);
+  font-size: .82rem;
+  line-height: 1.6;
+}
+
+.agent-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.agent-form label {
+  display: grid;
+  gap: 5px;
+  color: rgb(244 251 247 / 78%);
+  font-size: .76rem;
+}
+
+.agent-form select,
+.agent-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 11px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+
+.agent-form textarea {
+  min-height: 132px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.agent-jobs {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-job {
+  position: relative;
+  padding: 14px;
+  border-left: 4px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.agent-job.status-running { border-left-color: var(--accent); }
+.agent-job.status-blocked { border-left-color: #b58b25; }
+.agent-job.status-failed { border-left-color: #b43a32; }
+.agent-job.status-completed { border-left-color: #6a8a79; }
+
+.agent-job-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.agent-status {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.agent-job h3 {
+  margin: 8px 0 5px;
+  overflow-wrap: anywhere;
+  font-size: .98rem;
+  line-height: 1.5;
+}
+
+.agent-phase,
+.agent-summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.55;
+}
+
+.agent-summary {
+  margin-top: 8px;
+  color: var(--ink);
+}
+
+.agent-cancel {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font-size: .72rem;
+}
+
+.agent-response-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.agent-response-form textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
 }
 
 .app-tabs button {

@@ -14,6 +14,7 @@ dependencies = [
 daily-reader = "daily_reader.cli:main"
 daily-reader-local = "daily_reader.local_server:main"
 daily-reader-gmail = "daily_reader.email_assistant:main"
+daily-reader-agent-worker = "daily_reader.agent_worker:main"
 
 [dependency-groups]
 dev = [

@@ -1,9 +1,11 @@
 # Daily Reader
 
-関心のあるニュースやブログをRSS/Atomから集め、iPhoneで読みやすい画面として表示する個人用リーダーです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部公開用サーバーやデータベースは必要ありません。
+Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部公開用サーバーやデータベースは必要ありません。起動時はAgentタブを最初に表示します。
 
 ## 主な機能
 
+- AgentタブからCodexへタスクを投入し、専用worktreeで実装・検証・main反映まで継続
+- Agentタスクの待機、実行、判断待ち、完了、失敗状態をiPhoneから確認
 - RSS/Atomフィードの定期取得
 - URL正規化による重複除去
 - キーワードによる注目度スコア
@@ -78,6 +80,14 @@ uv run --frozen daily-reader-gmail sync
 uv sync --frozen
 uv run daily-reader-local
 ```
+
+別のターミナルまたはLaunchAgentでAgentワーカーを起動します。
+
+```bash
+uv run --frozen daily-reader-agent-worker
+```
+
+Agentが操作できるリポジトリは`config/agent-repositories.toml`の明示的な許可リストに限定されます。ワーカーはタスクごとに専用branchとworktreeを作り、Codexを構造化出力付きで反復実行します。検証済みの変更は最新`main`へrebaseしてpushし、成功後に作業環境を削除します。競合は同じCodexセッションへ戻して解決と再検証を行います。
 
 ブラウザで <http://127.0.0.1:8787> を開きます。起動時に記事を取得し、その後は毎日8時、12時、17時、20時に更新します。サーバーは`127.0.0.1`だけで待ち受けるため、LANへ直接公開されません。
 

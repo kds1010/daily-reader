@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "state": {
+      "type": "string",
+      "enum": ["continue", "done", "blocked"]
+    },
+    "summary": {"type": "string"},
+    "next_action": {"type": "string"},
+    "human_input_required": {"type": "boolean"},
+    "verification": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "required": [
+    "state",
+    "summary",
+    "next_action",
+    "human_input_required",
+    "verification"
+  ],
+  "additionalProperties": false
+}

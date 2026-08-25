@@ -1,0 +1,5 @@
+[[repositories]]
+name = "daily-reader"
+label = "Daily Reader"
+path = "."
+default_branch = "main"

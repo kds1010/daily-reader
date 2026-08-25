@@ -13,6 +13,14 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from time import sleep
 
+from daily_reader.agent_jobs import (
+    create_job,
+    get_job,
+    list_jobs,
+    load_repositories,
+    request_cancel,
+    resume_job,
+)
 from daily_reader.core import collect, load_config, load_keywords, write_output
 from daily_reader.daily_planner import (
     create_task,
@@ -130,7 +138,11 @@ def make_handler(
     gmail_token: Path,
     planner_db: Path = Path("data/planner.sqlite3"),
     health_sync_token: Path = Path("secrets/health-sync-token.txt"),
+    agent_db: Path = Path("data/agent.sqlite3"),
+    agent_repositories: dict[str, dict[str, str]] | None = None,
 ):
+    repositories = agent_repositories or {}
+
     class DailyReaderHandler(SimpleHTTPRequestHandler):
         def _send_json(self, status: int, payload: object) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode()
@@ -156,6 +168,26 @@ def make_handler(
             )
 
         def do_GET(self) -> None:  # noqa: N802
+            if self.path == "/api/agent-jobs":
+                self._send_json(
+                    200,
+                    {
+                        "repositories": [
+                            {"name": item["name"], "label": item["label"]}
+                            for item in repositories.values()
+                        ],
+                        "jobs": list_jobs(agent_db),
+                    },
+                )
+                return
+            if self.path.startswith("/api/agent-jobs/"):
+                job_id = urllib.parse.unquote(self.path.rsplit("/", 1)[-1])
+                job = get_job(agent_db, job_id)
+                if job is None:
+                    self._send_json(404, {"error": "agent job not found"})
+                else:
+                    self._send_json(200, job)
+                return
             if self.path == "/api/today":
                 self._send_json(200, list_today(planner_db, datetime.now().astimezone().date()))
                 return
@@ -207,6 +239,9 @@ def make_handler(
                 "/api/tasks/delete",
                 "/api/health/checkin",
                 "/api/health/sync",
+                "/api/agent-jobs",
+                "/api/agent-jobs/cancel",
+                "/api/agent-jobs/resume",
             }
             if self.path not in {
                 "/api/read",
@@ -220,6 +255,23 @@ def make_handler(
                 request = self._read_json()
                 now = datetime.now(UTC)
                 local_day = datetime.now().astimezone().date()
+                if self.path == "/api/agent-jobs":
+                    self._send_json(201, create_job(agent_db, repositories, request))
+                    return
+                if self.path == "/api/agent-jobs/cancel":
+                    if not request_cancel(agent_db, request.get("job_id", "")):
+                        raise ValueError("invalid agent job")
+                    self._send_json(202, {"cancel_requested": True})
+                    return
+                if self.path == "/api/agent-jobs/resume":
+                    if not resume_job(
+                        agent_db,
+                        request.get("job_id", ""),
+                        request.get("instruction"),
+                    ):
+                        raise ValueError("invalid agent job response")
+                    self._send_json(202, {"resumed": True})
+                    return
                 if self.path == "/api/tasks":
                     self._send_json(201, create_task(planner_db, request, now))
                     return
@@ -379,6 +431,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--assistant-db", type=Path, default=Path("data/assistant.sqlite3"))
     parser.add_argument("--planner-db", type=Path, default=Path("data/planner.sqlite3"))
+    parser.add_argument("--agent-db", type=Path, default=Path("data/agent.sqlite3"))
+    parser.add_argument(
+        "--agent-repositories",
+        type=Path,
+        default=Path("config/agent-repositories.toml"),
+    )
     parser.add_argument(
         "--health-sync-token",
         type=Path,
@@ -403,6 +461,7 @@ def main() -> None:
         raise SystemExit("--update-hours must contain hours from 0 to 23")
     if args.gmail_sync_minutes < 1:
         raise SystemExit("--gmail-sync-minutes must be at least 1")
+    agent_repositories = load_repositories(args.agent_repositories)
 
     scheduler = threading.Thread(
         target=run_scheduler,
@@ -439,6 +498,8 @@ def main() -> None:
         args.gmail_token,
         args.planner_db,
         args.health_sync_token,
+        args.agent_db,
+        agent_repositories,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)

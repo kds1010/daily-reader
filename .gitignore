@@ -9,5 +9,7 @@ data/selection-history.jsonl
 data/assistant.sqlite3
 data/assistant.sqlite3-*
 data/planner.sqlite3
+data/agent.sqlite3
+data/agent.sqlite3-*
 data/planner.sqlite3-*
 secrets/

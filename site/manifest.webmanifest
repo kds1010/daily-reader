@@ -1,7 +1,7 @@
 {
   "name": "Daily Reader",
   "short_name": "Reader",
-  "description": "気になるニュースを静かにまとめる個人用リーダー",
+  "description": "Codexタスク、今日やること、メール、ニュースをまとめる個人用ダッシュボード",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",

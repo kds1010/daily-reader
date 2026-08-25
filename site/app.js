@@ -20,6 +20,7 @@ const state = {
   newsStatus: "ニュースを読み込んでいます…",
   emailStatus: "メールを読み込んでいます…",
   todayStatus: "今日の予定を読み込んでいます…",
+  agentStatus: "Agentタスクを読み込んでいます…",
 };
 
 const elements = {
@@ -65,24 +66,166 @@ const elements = {
   healthSynced: document.querySelector("#health-synced"),
   todayEmailItems: document.querySelector("#today-email-items"),
   todayEmailEmpty: document.querySelector("#today-email-empty"),
+  agentView: document.querySelector("#agent-view"),
+  agentCount: document.querySelector("#agent-count"),
+  agentForm: document.querySelector("#agent-form"),
+  agentRepository: document.querySelector("#agent-repository"),
+  agentJobs: document.querySelector("#agent-jobs"),
+  agentJobsSummary: document.querySelector("#agent-jobs-summary"),
+  agentEmpty: document.querySelector("#agent-empty"),
 };
 
-const storedView = localStorage.getItem("daily-reader:view");
-let currentView = ["today", "news", "email"].includes(storedView) ? storedView : "today";
+let currentView = "agent";
 
 function switchView(view) {
   currentView = view;
-  localStorage.setItem("daily-reader:view", view);
+  elements.agentView.hidden = view !== "agent";
   elements.newsView.hidden = view !== "news";
   elements.emailView.hidden = view !== "email";
   elements.todayView.hidden = view !== "today";
   document.querySelectorAll("[data-app-view]").forEach((button) => {
     button.setAttribute("aria-selected", String(button.dataset.appView === view));
   });
-  const labels = { today: "今日を再読み込み", email: "メールを再読み込み", news: "ニュースを再読み込み" };
-  const statuses = { today: state.todayStatus, email: state.emailStatus, news: state.newsStatus };
+  const labels = {
+    agent: "Agentタスクを再読み込み",
+    today: "今日を再読み込み",
+    email: "メールを再読み込み",
+    news: "ニュースを再読み込み",
+  };
+  const statuses = {
+    agent: state.agentStatus,
+    today: state.todayStatus,
+    email: state.emailStatus,
+    news: state.newsStatus,
+  };
   elements.refresh.setAttribute("aria-label", labels[view]);
   elements.status.textContent = statuses[view];
+}
+
+const agentStatusLabels = {
+  queued: "待機中",
+  running: "実行中",
+  blocked: "判断待ち",
+  completed: "完了",
+  failed: "失敗",
+  cancelled: "キャンセル済み",
+};
+
+function formatAgentTime(value) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function renderAgentJob(job) {
+  const card = document.createElement("article");
+  card.className = `agent-job status-${job.status}`;
+  const heading = document.createElement("div");
+  heading.className = "agent-job-heading";
+  const status = document.createElement("span");
+  status.className = "agent-status";
+  status.textContent = agentStatusLabels[job.status] || job.status;
+  const repository = document.createElement("span");
+  repository.textContent = job.repository;
+  heading.append(status, repository);
+  const title = document.createElement("h3");
+  title.textContent = job.prompt;
+  const phase = document.createElement("p");
+  phase.className = "agent-phase";
+  phase.textContent = `${job.phase}・${formatAgentTime(job.updated_at)}`;
+  card.append(heading, title, phase);
+  if (job.summary) {
+    const summary = document.createElement("p");
+    summary.className = "agent-summary";
+    summary.textContent = job.summary;
+    card.append(summary);
+  }
+  if (job.status === "blocked") {
+    const responseForm = document.createElement("form");
+    responseForm.className = "agent-response-form";
+    const instruction = document.createElement("textarea");
+    instruction.required = true;
+    instruction.maxLength = 10000;
+    instruction.rows = 3;
+    instruction.placeholder = "必要な判断や追加情報だけ入力してください";
+    instruction.setAttribute("aria-label", "Agentへの回答");
+    const resume = document.createElement("button");
+    resume.type = "submit";
+    resume.className = "primary-button";
+    resume.textContent = "回答して再開";
+    responseForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      resume.disabled = true;
+      try {
+        await postJson("./api/agent-jobs/resume", {
+          job_id: job.id,
+          instruction: instruction.value,
+        });
+        await loadAgentJobs();
+      } catch (error) {
+        state.agentStatus = `タスクを再開できませんでした：${error.message}`;
+        elements.status.textContent = state.agentStatus;
+        resume.disabled = false;
+      }
+    });
+    responseForm.append(instruction, resume);
+    card.append(responseForm);
+  }
+  if (["queued", "running"].includes(job.status)) {
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "agent-cancel";
+    cancel.textContent = "停止";
+    cancel.addEventListener("click", async () => {
+      cancel.disabled = true;
+      try {
+        await postJson("./api/agent-jobs/cancel", { job_id: job.id });
+        await loadAgentJobs();
+      } catch (error) {
+        state.agentStatus = `停止を要求できませんでした：${error.message}`;
+        elements.status.textContent = state.agentStatus;
+        cancel.disabled = false;
+      }
+    });
+    card.append(cancel);
+  }
+  return card;
+}
+
+async function loadAgentJobs() {
+  try {
+    const response = await fetchWithTimeout("./api/agent-jobs", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const selected = elements.agentRepository.value;
+    elements.agentRepository.replaceChildren();
+    for (const repository of payload.repositories) {
+      const option = document.createElement("option");
+      option.value = repository.name;
+      option.textContent = repository.label;
+      elements.agentRepository.append(option);
+    }
+    if ([...elements.agentRepository.options].some((option) => option.value === selected)) {
+      elements.agentRepository.value = selected;
+    }
+    elements.agentJobs.replaceChildren(...payload.jobs.map(renderAgentJob));
+    elements.agentEmpty.hidden = payload.jobs.length !== 0;
+    const active = payload.jobs.filter((job) => ["queued", "running"].includes(job.status)).length;
+    const blocked = payload.jobs.filter((job) => job.status === "blocked").length;
+    elements.agentCount.textContent = String(active + blocked);
+    elements.agentCount.hidden = active + blocked === 0;
+    elements.agentJobsSummary.textContent = `実行・待機 ${active}件${blocked ? `・判断待ち ${blocked}件` : ""}`;
+    state.agentStatus = active
+      ? `${active}件のAgentタスクが進行中です`
+      : blocked ? `${blocked}件が判断待ちです` : "Agentは待機中です";
+    if (currentView === "agent") elements.status.textContent = state.agentStatus;
+  } catch (error) {
+    state.agentStatus = `Agentタスクを読み込めませんでした：${error.message}`;
+    if (currentView === "agent") elements.status.textContent = state.agentStatus;
+  }
 }
 
 async function fetchWithTimeout(url, options = {}, timeout = 10000) {
@@ -781,10 +924,33 @@ elements.savedOnly.addEventListener("change", (event) => {
   renderArticles();
 });
 elements.refresh.addEventListener("click", () => {
-  if (currentView === "email") {
+  if (currentView === "agent") {
+    loadAgentJobs();
+  } else if (currentView === "email") {
     loadEmailReminders();
+  } else if (currentView === "today") {
+    loadToday();
   } else {
     loadArticles();
+  }
+});
+elements.agentForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(elements.agentForm);
+  const submit = elements.agentForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    await postJson("./api/agent-jobs", {
+      repository: form.get("repository"),
+      prompt: form.get("prompt"),
+    });
+    document.querySelector("#agent-prompt").value = "";
+    await loadAgentJobs();
+  } catch (error) {
+    state.agentStatus = `タスクを開始できませんでした：${error.message}`;
+    elements.status.textContent = state.agentStatus;
+  } finally {
+    submit.disabled = false;
   }
 });
 document.querySelectorAll("[data-app-view]").forEach((button) => {
@@ -812,4 +978,8 @@ loadFeedback().then(() => {
     renderArticles();
   }
 });
+loadAgentJobs();
+window.setInterval(() => {
+  if (currentView === "agent") loadAgentJobs();
+}, 5000);
 switchView(currentView);

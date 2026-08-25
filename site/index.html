@@ -8,20 +8,23 @@
     <title>Daily Reader</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="./style.css?v=38">
+    <link rel="stylesheet" href="./style.css?v=39">
   </head>
   <body>
     <header class="masthead">
       <div>
         <p class="eyebrow">YOUR DAILY SIGNAL</p>
         <h1>Daily Reader</h1>
-        <p id="status" class="status" aria-live="polite">ニュースを読み込んでいます…</p>
+        <p id="status" class="status" aria-live="polite">Agentタスクを読み込んでいます…</p>
       </div>
       <button id="refresh" class="icon-button" type="button" aria-label="再読み込み">↻</button>
     </header>
 
     <nav class="app-tabs" aria-label="表示する情報">
-      <button id="today-tab" type="button" role="tab" aria-controls="today-view" aria-selected="true" data-app-view="today">
+      <button id="agent-tab" type="button" role="tab" aria-controls="agent-view" aria-selected="true" data-app-view="agent">
+        Agent <span id="agent-count" class="tab-count" hidden></span>
+      </button>
+      <button id="today-tab" type="button" role="tab" aria-controls="today-view" aria-selected="false" data-app-view="today">
         今日 <span id="today-count" class="tab-count" hidden></span>
       </button>
       <button id="news-tab" type="button" role="tab" aria-controls="news-view" aria-selected="false" data-app-view="news">
@@ -33,7 +36,34 @@
     </nav>
 
     <main>
-      <div id="today-view" class="app-view" role="tabpanel" aria-labelledby="today-tab">
+      <div id="agent-view" class="app-view" role="tabpanel" aria-labelledby="agent-tab">
+        <section class="agent-hero" aria-labelledby="agent-heading">
+          <p class="eyebrow">AUTONOMOUS CODEX</p>
+          <h2 id="agent-heading">何を完了させますか？</h2>
+          <p>要件を一度渡すと、専用worktreeで実装・検証・main反映まで継続します。</p>
+          <form id="agent-form" class="agent-form">
+            <label>リポジトリ
+              <select id="agent-repository" name="repository" required></select>
+            </label>
+            <label class="wide-field">タスク
+              <textarea id="agent-prompt" name="prompt" required maxlength="20000" rows="6"
+                placeholder="実現したい結果を書いてください。実装方法や細かな手順はAgentが判断します。"></textarea>
+            </label>
+            <button type="submit" class="primary-button">タスクを開始</button>
+          </form>
+        </section>
+
+        <section class="agent-section" aria-labelledby="agent-jobs-heading">
+          <div class="section-heading">
+            <h2 id="agent-jobs-heading">タスク</h2>
+            <span id="agent-jobs-summary"></span>
+          </div>
+          <p id="agent-empty" class="compact-empty" hidden>Agentタスクはまだありません。</p>
+          <div id="agent-jobs" class="agent-jobs"></div>
+        </section>
+      </div>
+
+      <div id="today-view" class="app-view" role="tabpanel" aria-labelledby="today-tab" hidden>
         <section class="today-hero" aria-labelledby="today-heading">
           <p class="eyebrow">TODAY</p>
           <h2 id="today-heading">今日を整える</h2>
@@ -213,6 +243,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=38" defer></script>
+    <script src="./app.js?v=39" defer></script>
   </body>
 </html>
