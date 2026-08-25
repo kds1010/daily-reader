@@ -28,7 +28,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -1365,4 +1366,11 @@ h1 {
 
 .task-composer[open] > summary {
   padding: 0 0 14px;
+}
+
+/* iOS Safari zooms the page when a focused form control is smaller than 16px. */
+input:not([type="checkbox"]),
+select,
+textarea {
+  font-size: 1rem;
 }
