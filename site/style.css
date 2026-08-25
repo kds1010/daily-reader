@@ -208,6 +208,49 @@ main,
   color: var(--ink);
 }
 
+.agent-live {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+.agent-live-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+  font-size: .72rem;
+}
+
+.agent-live-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent);
+  animation: agent-pulse 1.8s ease-out infinite;
+}
+
+.status-blocked .agent-live-pulse {
+  color: #b58b25;
+  animation: none;
+}
+
+.agent-live-events {
+  margin-top: 8px;
+}
+
+@keyframes agent-pulse {
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-live-pulse { animation: none; }
+}
+
 .agent-conversation {
   margin-top: 10px;
   color: var(--muted);

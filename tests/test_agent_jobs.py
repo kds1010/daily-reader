@@ -47,7 +47,15 @@ def test_agent_job_lifecycle(tmp_path: Path) -> None:
     )
 
     assert job["status"] == "queued"
-    assert list_jobs(database)[0]["id"] == job["id"]
+    listed = list_jobs(database)[0]
+    assert listed["id"] == job["id"]
+    assert listed["recent_events"] == [
+        {
+            "created_at": job["created_at"],
+            "kind": "queued",
+            "message": "タスクを受け付けました",
+        }
+    ]
     claimed = claim_next_job(database)
     assert claimed is not None
     assert claimed["id"] == job["id"]
@@ -244,6 +252,11 @@ def test_running_job_accepts_attached_messages_in_order(tmp_path: Path) -> None:
     assert stored is not None
     assert stored["status"] == "running"
     assert [event["message"] for event in stored["events"] if event["kind"] == "user"] == [
+        "First addition",
+        "Second addition",
+    ]
+    assert [event["message"] for event in list_jobs(database)[0]["recent_events"]] == [
+        "タスクを受け付けました",
         "First addition",
         "Second addition",
     ]

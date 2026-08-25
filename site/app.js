@@ -111,6 +111,25 @@ const agentStatusLabels = {
   cancelled: "キャンセル済み",
 };
 
+const openAgentConversations = new Set();
+
+function agentEventSpeaker(kind) {
+  if (kind === "user") return "あなた";
+  if (kind === "codex") return "Agent";
+  return "進捗";
+}
+
+function renderAgentEvent(event) {
+  const item = document.createElement("div");
+  item.className = `agent-event event-${event.kind}`;
+  const meta = document.createElement("p");
+  meta.textContent = `${formatAgentTime(event.created_at)}・${agentEventSpeaker(event.kind)}`;
+  const message = document.createElement("p");
+  message.textContent = event.message;
+  item.append(meta, message);
+  return item;
+}
+
 function formatAgentTime(value) {
   return new Intl.DateTimeFormat("ja-JP", {
     month: "numeric",
@@ -145,13 +164,34 @@ function renderAgentJob(job) {
     summary.textContent = job.summary;
     card.append(summary);
   }
+  if (["queued", "running", "blocked"].includes(job.status)) {
+    const live = document.createElement("section");
+    live.className = "agent-live";
+    live.setAttribute("aria-label", "現在の進捗");
+    const liveHeading = document.createElement("div");
+    liveHeading.className = "agent-live-heading";
+    const pulse = document.createElement("span");
+    pulse.className = "agent-live-pulse";
+    pulse.setAttribute("aria-hidden", "true");
+    const liveTitle = document.createElement("strong");
+    liveTitle.textContent = job.status === "blocked" ? "回答を待っています" : "進捗を自動更新中";
+    liveHeading.append(pulse, liveTitle);
+    const recentEvents = document.createElement("div");
+    recentEvents.className = "agent-events agent-live-events";
+    recentEvents.replaceChildren(...(job.recent_events || []).map(renderAgentEvent));
+    live.append(liveHeading, recentEvents);
+    card.append(live);
+  }
   const conversation = document.createElement("details");
   conversation.className = "agent-conversation";
+  conversation.open = openAgentConversations.has(job.id);
   const conversationSummary = document.createElement("summary");
   conversationSummary.textContent = "やりとりを表示";
   const eventList = document.createElement("div");
   eventList.className = "agent-events";
   conversation.addEventListener("toggle", async () => {
+    if (conversation.open) openAgentConversations.add(job.id);
+    else openAgentConversations.delete(job.id);
     if (!conversation.open || eventList.dataset.loaded) return;
     eventList.textContent = "読み込んでいます…";
     try {
@@ -160,16 +200,7 @@ function renderAgentJob(job) {
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
-      eventList.replaceChildren(...payload.events.map((event) => {
-        const item = document.createElement("div");
-        item.className = `agent-event event-${event.kind}`;
-        const meta = document.createElement("p");
-        meta.textContent = `${formatAgentTime(event.created_at)}・${event.kind === "user" ? "あなた" : "Agent"}`;
-        const message = document.createElement("p");
-        message.textContent = event.message;
-        item.append(meta, message);
-        return item;
-      }));
+      eventList.replaceChildren(...payload.events.map(renderAgentEvent));
       eventList.dataset.loaded = "true";
     } catch (error) {
       eventList.textContent = `やりとりを読み込めませんでした：${error.message}`;

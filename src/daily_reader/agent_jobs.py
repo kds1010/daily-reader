@@ -167,7 +167,15 @@ def list_jobs(path: Path, limit: int = 50) -> list[dict[str, Any]]:
                 created_at DESC LIMIT ?""",
             (limit,),
         ).fetchall()
-    return [dict(row) for row in rows]
+        jobs = [dict(row) for row in rows]
+        for job in jobs:
+            events = connection.execute(
+                """SELECT created_at, kind, message FROM agent_events
+                WHERE job_id = ? ORDER BY id DESC LIMIT 3""",
+                (job["id"],),
+            ).fetchall()
+            job["recent_events"] = [dict(event) for event in reversed(events)]
+    return jobs
 
 
 def get_job(path: Path, job_id: str) -> dict[str, Any] | None:
