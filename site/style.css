@@ -185,6 +185,35 @@ main,
 
 .agent-job-overview::-webkit-details-marker { display: none; }
 
+.agent-swipe-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #b43a32;
+}
+
+.agent-swipe-action {
+  position: absolute;
+  inset: 0 16px 0 auto;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: .76rem;
+  font-weight: 800;
+}
+
+.agent-swipe-container .agent-job {
+  position: relative;
+  margin: 0;
+  transition: transform .18s ease;
+}
+
+.agent-swipe-container.is-swiping .agent-job { transition: none; }
+
+.agent-swipe-container.is-hiding .agent-job { transform: translateX(-105%); }
+
+.agent-job-overview { touch-action: pan-y; }
+
 .agent-status-icon {
   display: grid;
   width: 26px;

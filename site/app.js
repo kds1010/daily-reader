@@ -245,6 +245,12 @@ function formatAgentTime(value) {
 }
 
 function renderAgentJob(job) {
+  const swipeContainer = document.createElement("div");
+  swipeContainer.className = "agent-swipe-container";
+  const swipeAction = document.createElement("span");
+  swipeAction.className = "agent-swipe-action";
+  swipeAction.textContent = "非表示";
+  swipeAction.setAttribute("aria-hidden", "true");
   const card = document.createElement("details");
   card.className = `agent-job status-${job.status}`;
   card.open = openAgentJobs.has(job.id);
@@ -403,20 +409,85 @@ function renderAgentJob(job) {
   hide.className = "agent-hide";
   hide.textContent = "非表示";
   hide.setAttribute("aria-label", `「${job.prompt}」を非表示`);
-  hide.addEventListener("click", async () => {
+  let hiding = false;
+  const hideJob = async (swiped = false) => {
+    if (hiding) return;
+    hiding = true;
     hide.disabled = true;
+    swipeContainer.classList.toggle("is-hiding", swiped);
     try {
       await postJson("./api/agent-jobs/hide", { job_id: job.id });
-      card.remove();
+      swipeContainer.remove();
       await loadAgentJobs();
     } catch (error) {
       state.agentStatus = `タスクを非表示にできませんでした：${error.message}`;
       elements.status.textContent = state.agentStatus;
       hide.disabled = false;
+      hiding = false;
+      swipeContainer.classList.remove("is-hiding");
+      card.style.removeProperty("transform");
     }
-  });
+  };
+  hide.addEventListener("click", () => hideJob());
   body.append(hide);
-  return card;
+
+  let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let offsetX = 0;
+  let horizontalSwipe = false;
+  let suppressClick = false;
+  cardSummary.addEventListener("click", (event) => {
+    if (!suppressClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClick = false;
+  });
+  cardSummary.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" || hiding) return;
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    offsetX = 0;
+    horizontalSwipe = false;
+    cardSummary.setPointerCapture(event.pointerId);
+  });
+  cardSummary.addEventListener("pointermove", (event) => {
+    if (event.pointerId !== pointerId) return;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (!horizontalSwipe && Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
+    if (!horizontalSwipe && Math.abs(deltaY) >= Math.abs(deltaX)) {
+      pointerId = null;
+      return;
+    }
+    horizontalSwipe = true;
+    offsetX = Math.max(-120, Math.min(0, deltaX));
+    card.style.transform = `translateX(${offsetX}px)`;
+    swipeContainer.classList.toggle("is-swiping", offsetX < 0);
+  });
+  const finishSwipe = (event) => {
+    if (event.pointerId !== pointerId) return;
+    pointerId = null;
+    swipeContainer.classList.remove("is-swiping");
+    suppressClick = horizontalSwipe;
+    setTimeout(() => { suppressClick = false; }, 0);
+    if (horizontalSwipe && offsetX <= -72) {
+      hideJob(true);
+      return;
+    }
+    card.style.removeProperty("transform");
+  };
+  cardSummary.addEventListener("pointerup", finishSwipe);
+  cardSummary.addEventListener("pointercancel", (event) => {
+    if (event.pointerId !== pointerId) return;
+    pointerId = null;
+    swipeContainer.classList.remove("is-swiping");
+    card.style.removeProperty("transform");
+  });
+
+  swipeContainer.append(swipeAction, card);
+  return swipeContainer;
 }
 
 function isAgentInteractionActive() {
