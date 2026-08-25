@@ -334,6 +334,34 @@ def claim_next_job(path: Path) -> dict[str, Any] | None:
     return dict(row)
 
 
+def recover_interrupted_jobs(path: Path) -> int:
+    """Mark jobs left running by a previous worker process as resumable failures."""
+    initialize_database(path)
+    now = _now()
+    message = "Agentワーカーの再起動により処理が中断されました。追加指示から再開できます。"
+    with sqlite3.connect(path, timeout=30) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        rows = connection.execute(
+            "SELECT id FROM agent_jobs WHERE status='running'"
+        ).fetchall()
+        if not rows:
+            connection.commit()
+            return 0
+        job_ids = [row[0] for row in rows]
+        connection.executemany(
+            """UPDATE agent_jobs SET status='failed', phase='ワーカー再起動で中断',
+            summary=?, updated_at=?, hidden_at=NULL, finished_at=? WHERE id=?""",
+            ((message, now, now, job_id) for job_id in job_ids),
+        )
+        connection.executemany(
+            """INSERT INTO agent_events (job_id, created_at, kind, message)
+            VALUES (?, ?, 'failed', ?)""",
+            ((job_id, now, message) for job_id in job_ids),
+        )
+        connection.commit()
+    return len(job_ids)
+
+
 def update_job(path: Path, job_id: str, **fields: object) -> None:
     allowed = {
         "status",

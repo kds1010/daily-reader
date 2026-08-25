@@ -17,6 +17,7 @@ from daily_reader.agent_jobs import (
     claim_next_job,
     get_job,
     load_repositories,
+    recover_interrupted_jobs,
     take_pending_instructions,
     update_job,
 )
@@ -607,7 +608,12 @@ def main() -> None:
         raise SystemExit("--poll-seconds must be at least 1")
     if args.max_workers < 1:
         raise SystemExit("--max-workers must be at least 1")
+    args.database = args.database.expanduser().resolve()
+    args.repositories = args.repositories.expanduser().resolve()
     args.schema = resolve_schema_path(args.schema)
+    recovered = recover_interrupted_jobs(args.database)
+    if recovered:
+        LOGGER.warning("Recovered %s jobs interrupted by a worker restart", recovered)
     repositories = load_repositories(args.repositories)
     args.worktree_root.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(

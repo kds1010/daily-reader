@@ -12,6 +12,7 @@ from daily_reader.agent_jobs import (
     hide_job,
     list_jobs,
     load_repositories,
+    recover_interrupted_jobs,
     request_cancel,
     resume_job,
     take_pending_instructions,
@@ -68,6 +69,35 @@ def test_agent_job_lifecycle(tmp_path: Path) -> None:
     assert stored["phase"] == "Codex実行中"
     assert stored["attempts"] == 1
     assert stored["events"][0]["kind"] == "queued"
+
+
+def test_running_jobs_are_recovered_after_worker_restart(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(
+        database,
+        repositories(tmp_path),
+        {"repository": "repo", "prompt": "Resume this task"},
+    )
+    claim_next_job(database)
+    update_job(
+        database,
+        job["id"],
+        phase="Codex実行中",
+        worktree=str(tmp_path / "worktree"),
+    )
+    hide_job(database, job["id"])
+
+    assert recover_interrupted_jobs(database) == 1
+    assert recover_interrupted_jobs(database) == 0
+
+    stored = get_job(database, job["id"])
+    assert stored is not None
+    assert stored["status"] == "failed"
+    assert stored["phase"] == "ワーカー再起動で中断"
+    assert stored["finished_at"] is not None
+    assert stored["hidden_at"] is None
+    assert stored["events"][-1]["kind"] == "failed"
+    assert "追加指示から再開できます" in stored["summary"]
 
 
 def test_hidden_job_returns_to_list_after_an_update(tmp_path: Path) -> None:
