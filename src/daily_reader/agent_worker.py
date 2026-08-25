@@ -532,6 +532,10 @@ def run_worker(
         sleep(args.poll_seconds)
 
 
+def resolve_schema_path(schema: Path) -> Path:
+    return schema.expanduser().resolve()
+
+
 def main() -> None:
     args = build_parser().parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -539,6 +543,7 @@ def main() -> None:
         raise SystemExit("--poll-seconds must be at least 1")
     if args.max_workers < 1:
         raise SystemExit("--max-workers must be at least 1")
+    args.schema = resolve_schema_path(args.schema)
     repositories = load_repositories(args.repositories)
     args.worktree_root.mkdir(parents=True, exist_ok=True)
     with ThreadPoolExecutor(

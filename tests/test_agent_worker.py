@@ -7,6 +7,7 @@ from daily_reader.agent_worker import (
     _initial_prompt,
     _parse_codex_events,
     build_parser,
+    resolve_schema_path,
     run_deployment_turn,
 )
 
@@ -32,6 +33,16 @@ def test_agent_worker_accepts_configured_parallelism(monkeypatch) -> None:
     args = build_parser().parse_args()
 
     assert args.max_workers == 4
+
+
+def test_schema_path_is_resolved_before_using_external_worktree(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    schema = Path("config/agent-result-schema.json")
+
+    assert resolve_schema_path(schema) == tmp_path / schema
+    assert resolve_schema_path(schema).is_absolute()
 
 
 def test_parse_codex_events_extracts_thread_and_messages() -> None:
