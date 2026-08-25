@@ -340,6 +340,10 @@ main,
   line-height: 32px;
 }
 
+.agent-conversation[open] > .agent-events {
+  cursor: pointer;
+}
+
 .agent-events {
   display: grid;
   gap: 8px;

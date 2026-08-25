@@ -331,6 +331,9 @@ function renderAgentJob(job) {
   updateConversationSummary();
   const eventList = document.createElement("div");
   eventList.className = "agent-events";
+  eventList.addEventListener("click", () => {
+    conversation.open = false;
+  });
   conversation.addEventListener("toggle", async () => {
     updateConversationSummary();
     if (conversation.open) openAgentConversations.add(job.id);
