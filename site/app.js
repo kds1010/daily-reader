@@ -114,6 +114,16 @@ const agentStatusLabels = {
 };
 
 const openAgentConversations = new Set();
+const openAgentJobs = new Set();
+
+const agentStatusIcons = {
+  queued: "◷",
+  running: "●",
+  blocked: "!",
+  completed: "✓",
+  failed: "×",
+  cancelled: "−",
+};
 
 function agentEventSpeaker(kind) {
   if (kind === "user") return "あなた";
@@ -222,9 +232,22 @@ function formatAgentTime(value) {
 }
 
 function renderAgentJob(job) {
-  const card = document.createElement("article");
+  const card = document.createElement("details");
   card.className = `agent-job status-${job.status}`;
-  const heading = document.createElement("div");
+  card.open = openAgentJobs.has(job.id);
+  card.addEventListener("toggle", () => {
+    if (card.open) openAgentJobs.add(job.id);
+    else openAgentJobs.delete(job.id);
+  });
+  const cardSummary = document.createElement("summary");
+  cardSummary.className = "agent-job-overview";
+  const icon = document.createElement("span");
+  icon.className = "agent-status-icon";
+  icon.textContent = agentStatusIcons[job.status] || "•";
+  icon.setAttribute("aria-hidden", "true");
+  const overviewText = document.createElement("span");
+  overviewText.className = "agent-overview-text";
+  const heading = document.createElement("span");
   heading.className = "agent-job-heading";
   const status = document.createElement("span");
   status.className = "agent-status";
@@ -234,17 +257,25 @@ function renderAgentJob(job) {
     ? `${job.repository}・要件深掘り`
     : job.repository;
   heading.append(status, repository);
-  const title = document.createElement("h3");
+  const title = document.createElement("span");
+  title.className = "agent-job-title";
   title.textContent = job.prompt;
-  const phase = document.createElement("p");
+  const phase = document.createElement("span");
   phase.className = "agent-phase";
   phase.textContent = `${job.phase}・${formatAgentTime(job.updated_at)}`;
-  card.append(heading, title, phase);
+  overviewText.append(heading, title, phase);
+  const chevron = document.createElement("span");
+  chevron.className = "agent-job-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  cardSummary.append(icon, overviewText, chevron);
+  const body = document.createElement("div");
+  body.className = "agent-job-body";
+  card.append(cardSummary, body);
   if (job.summary) {
     const summary = document.createElement("p");
     summary.className = "agent-summary";
     summary.textContent = job.summary;
-    card.append(summary);
+    body.append(summary);
   }
   if (["queued", "running", "blocked"].includes(job.status)) {
     const live = document.createElement("section");
@@ -262,7 +293,7 @@ function renderAgentJob(job) {
     recentEvents.className = "agent-events agent-live-events";
     recentEvents.replaceChildren(...(job.recent_events || []).map(renderAgentEvent));
     live.append(liveHeading, recentEvents);
-    card.append(live);
+    body.append(live);
   }
   const conversation = document.createElement("details");
   conversation.className = "agent-conversation";
@@ -289,7 +320,7 @@ function renderAgentJob(job) {
     }
   });
   conversation.append(conversationSummary, eventList);
-  card.append(conversation);
+  body.append(conversation);
   const canAttach = ["queued", "running", "blocked"].includes(job.status)
     || (job.status === "failed" && job.worktree);
   if (canAttach) {
@@ -325,7 +356,7 @@ function renderAgentJob(job) {
       }
     });
     responseForm.append(instruction, resume);
-    card.append(responseForm);
+    body.append(responseForm);
   }
   if (["queued", "running"].includes(job.status)) {
     const cancel = document.createElement("button");
@@ -343,7 +374,7 @@ function renderAgentJob(job) {
         cancel.disabled = false;
       }
     });
-    card.append(cancel);
+    body.append(cancel);
   }
   const hide = document.createElement("button");
   hide.type = "button";
@@ -362,7 +393,7 @@ function renderAgentJob(job) {
       hide.disabled = false;
     }
   });
-  card.append(hide);
+  body.append(hide);
   return card;
 }
 

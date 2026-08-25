@@ -161,7 +161,6 @@ main,
 
 .agent-job {
   position: relative;
-  padding: 14px;
   border-left: 4px solid var(--line);
   border-radius: 12px;
   background: var(--paper);
@@ -171,6 +170,59 @@ main,
 .agent-job.status-blocked { border-left-color: #b58b25; }
 .agent-job.status-failed { border-left-color: #b43a32; }
 .agent-job.status-completed { border-left-color: #6a8a79; }
+
+.agent-job-overview {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 18px;
+  gap: 9px;
+  align-items: center;
+  min-height: 76px;
+  padding: 11px 12px 11px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.agent-job-overview::-webkit-details-marker { display: none; }
+
+.agent-status-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+.status-running .agent-status-icon {
+  color: var(--accent);
+  font-size: .52rem;
+  animation: agent-icon-pulse 1.8s ease-in-out infinite;
+}
+
+.status-blocked .agent-status-icon { color: #9a7215; }
+.status-completed .agent-status-icon { color: #527461; }
+.status-failed .agent-status-icon { color: #b43a32; }
+
+.agent-overview-text { min-width: 0; }
+
+.agent-job-chevron::before {
+  content: "›";
+  display: block;
+  color: var(--muted);
+  font-size: 1.25rem;
+  transform: rotate(90deg);
+  transition: transform .15s ease;
+}
+
+.agent-job[open] .agent-job-chevron::before { transform: rotate(-90deg); }
+
+.agent-job-body {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--line);
+}
 
 .agent-hide {
   margin-top: 10px;
@@ -197,11 +249,19 @@ main,
   font-weight: 800;
 }
 
-.agent-job h3 {
-  margin: 8px 0 5px;
+.agent-job-title {
+  display: block;
+  margin: 4px 0 2px;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: .98rem;
   line-height: 1.5;
+}
+
+.agent-job[open] .agent-job-title {
+  white-space: normal;
 }
 
 .agent-phase,
@@ -256,8 +316,13 @@ main,
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 
+@keyframes agent-icon-pulse {
+  50% { opacity: .35; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .agent-live-pulse { animation: none; }
+  .agent-live-pulse,
+  .status-running .agent-status-icon { animation: none; }
 }
 
 .agent-conversation {
