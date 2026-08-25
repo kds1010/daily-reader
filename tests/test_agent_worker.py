@@ -18,7 +18,7 @@ def test_agent_worker_defaults(monkeypatch) -> None:
     assert args.repositories == Path("config/agent-repositories.toml")
     assert args.schema == Path("config/agent-result-schema.json")
     assert args.poll_seconds == 5
-    assert args.max_workers == 2
+    assert args.max_workers == 10
     assert not args.once
 
 

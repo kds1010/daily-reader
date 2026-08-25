@@ -90,7 +90,7 @@ uv run daily-reader-local
 uv run --frozen daily-reader-agent-worker
 ```
 
-Agentワーカーは既定で最大2件のタスクを並列実行します。端末の負荷やCodexの利用枠に
+Agentワーカーは既定で最大10件のタスクを並列実行します。端末の負荷やCodexの利用枠に
 合わせて変更する場合は、`--max-workers 4`のように指定します。各タスクは専用worktree
 で実行され、同じキュー項目が複数ワーカーに取得されることはありません。
 

@@ -410,8 +410,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--max-workers",
         type=int,
-        default=2,
-        help="Maximum number of Agent tasks to run concurrently (default: 2)",
+        default=10,
+        help="Maximum number of Agent tasks to run concurrently (default: 10)",
     )
     parser.add_argument("--once", action="store_true")
     return parser
