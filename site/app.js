@@ -286,23 +286,46 @@ function renderAgentJob(job) {
   return card;
 }
 
+function isAgentInteractionActive() {
+  const activeElement = document.activeElement;
+  if (activeElement === elements.agentRepository || elements.agentJobs.contains(activeElement)) {
+    return true;
+  }
+  const selection = window.getSelection?.();
+  if (!selection || selection.isCollapsed) return false;
+  return elements.agentJobs.contains(selection.anchorNode)
+    || elements.agentJobs.contains(selection.focusNode);
+}
+
+function updateAgentRepositories(repositories) {
+  const current = [...elements.agentRepository.options].map((option) => ({
+    name: option.value,
+    label: option.textContent,
+  }));
+  if (JSON.stringify(current) === JSON.stringify(repositories)) return;
+  const selected = elements.agentRepository.value;
+  elements.agentRepository.replaceChildren();
+  for (const repository of repositories) {
+    const option = document.createElement("option");
+    option.value = repository.name;
+    option.textContent = repository.label;
+    elements.agentRepository.append(option);
+  }
+  if ([...elements.agentRepository.options].some((option) => option.value === selected)) {
+    elements.agentRepository.value = selected;
+  }
+}
+
 async function loadAgentJobs() {
   try {
     const response = await fetchWithTimeout("./api/agent-jobs", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
-    const selected = elements.agentRepository.value;
-    elements.agentRepository.replaceChildren();
-    for (const repository of payload.repositories) {
-      const option = document.createElement("option");
-      option.value = repository.name;
-      option.textContent = repository.label;
-      elements.agentRepository.append(option);
+    const interactionActive = isAgentInteractionActive();
+    if (!interactionActive) {
+      updateAgentRepositories(payload.repositories);
+      elements.agentJobs.replaceChildren(...payload.jobs.map(renderAgentJob));
     }
-    if ([...elements.agentRepository.options].some((option) => option.value === selected)) {
-      elements.agentRepository.value = selected;
-    }
-    elements.agentJobs.replaceChildren(...payload.jobs.map(renderAgentJob));
     elements.agentEmpty.hidden = payload.jobs.length !== 0;
     const active = payload.jobs.filter((job) => ["queued", "running"].includes(job.status)).length;
     const blocked = payload.jobs.filter((job) => job.status === "blocked").length;
