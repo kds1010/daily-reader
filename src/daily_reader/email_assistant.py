@@ -290,6 +290,19 @@ def get_gmail_sync_state(path: Path) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def reconcile_unread_threads(path: Path, synchronized_thread_ids: set[str]) -> None:
+    initialize_database(path)
+    with sqlite3.connect(path) as connection:
+        if synchronized_thread_ids:
+            placeholders = ",".join("?" for _ in synchronized_thread_ids)
+            connection.execute(
+                f"UPDATE email_threads SET is_unread=0 WHERE thread_id NOT IN ({placeholders})",
+                tuple(synchronized_thread_ids),
+            )
+        else:
+            connection.execute("UPDATE email_threads SET is_unread=0")
+
+
 def update_status(path: Path, thread_id: str, action: str, now: datetime) -> bool:
     initialize_database(path)
     mapping = {
@@ -410,6 +423,7 @@ def sync_gmail(
     response = service.users().threads().list(userId="me", q=query, maxResults=100).execute()
     now = datetime.now(UTC)
     count = 0
+    synchronized_thread_ids: set[str] = set()
     for item in response.get("threads", []):
         thread = service.users().threads().get(userId="me", id=item["id"], format="full").execute()
         messages = sorted(thread.get("messages", []), key=lambda value: int(value["internalDate"]))
@@ -455,7 +469,9 @@ def sync_gmail(
             ),
             now,
         )
+        synchronized_thread_ids.add(thread["id"])
         count += 1
+    reconcile_unread_threads(database, synchronized_thread_ids)
     with sqlite3.connect(database) as connection:
         connection.execute(
             """

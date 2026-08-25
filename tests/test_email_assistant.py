@@ -8,6 +8,7 @@ from daily_reader.email_assistant import (
     get_gmail_sync_state,
     gmail_thread_url,
     list_reminders,
+    reconcile_unread_threads,
     update_status,
     upsert_thread,
 )
@@ -85,6 +86,27 @@ def test_read_thread_is_not_listed_as_a_reminder(tmp_path: Path) -> None:
     upsert_thread(database, record, NOW)
 
     assert list_reminders(database, "daily", NOW) == []
+
+
+def test_threads_missing_from_latest_sync_are_not_listed(tmp_path: Path) -> None:
+    database = tmp_path / "assistant.sqlite3"
+    records = [
+        GmailThreadRecord(
+            f"thread-{index}", f"message-{index}", "me@example.com", "要確認",
+            "service@example.com", NOW.isoformat(), "確認してください",
+            "https://example.com", "high", 5, "ご確認ください", "確認する",
+            None, "open", "classified",
+        )
+        for index in (1, 2)
+    ]
+    for record in records:
+        upsert_thread(database, record, NOW)
+
+    reconcile_unread_threads(database, {"thread-2"})
+
+    assert [item["thread_id"] for item in list_reminders(database, "daily", NOW)] == [
+        "thread-2"
+    ]
 
 
 def test_manual_done_is_preserved_until_a_new_message_arrives(tmp_path: Path) -> None:
