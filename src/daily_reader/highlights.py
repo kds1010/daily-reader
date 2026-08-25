@@ -10,6 +10,7 @@ import shutil
 import socket
 import subprocess
 import tempfile
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -21,7 +22,7 @@ from pathlib import Path
 from daily_reader.core import Article
 
 LOGGER = logging.getLogger(__name__)
-PROMPT_VERSION = "selection-source-quality-v26"
+PROMPT_VERSION = "selection-source-quality-diversity-v27"
 FOCUS_CATEGORIES = {
     "データマネジメント",
     "データ基盤",
@@ -109,6 +110,29 @@ STORE_OPENING_KEYWORDS = {
 STORE_EXCLUDED_KEYWORDS = {"閉店", "セール", "求人", "スタッフ募集"}
 CLI_RELEASE_SOURCES = {"eza Releases", "fzf Releases", "Yazi Releases", "cmux Releases"}
 CLI_EXCLUDED_TITLES = {"nightly", "nightly build", "issue report assets"}
+CLI_DISCOVERY_KEYWORDS = {
+    "cli",
+    "tui",
+    "command line",
+    "terminal emulator",
+    "コマンドライン",
+    "ターミナルエミュレータ",
+    "シェル",
+    "eza",
+    "fzf",
+    "yazi",
+    "cmux",
+}
+PROMOTIONAL_KEYWORDS = {
+    "セール",
+    "sale",
+    "値引き",
+    "割引",
+    "クーポン",
+    "ポイント還元",
+    "%off",
+    "％off",
+}
 OG_IMAGE_PATTERN = re.compile(
     r'<meta[^>]+(?:property|name)=["\']og:image(?::secure_url)?["\'][^>]+content=["\'](?P<url>[^"\']+)',
     re.I,
@@ -179,9 +203,16 @@ def _is_local_store_opening(article: Article) -> bool:
 
 
 def _is_cli_productivity_article(article: Article) -> bool:
-    if article.source not in CLI_RELEASE_SOURCES:
-        return True
-    return article.title.strip().casefold() not in CLI_EXCLUDED_TITLES
+    title = article.title.strip().casefold()
+    if article.source in CLI_RELEASE_SOURCES:
+        return title not in CLI_EXCLUDED_TITLES
+    searchable = f"{article.title} {article.summary}".casefold()
+    return any(keyword in searchable for keyword in CLI_DISCOVERY_KEYWORDS)
+
+
+def _is_non_promotional_article(article: Article) -> bool:
+    searchable = f"{article.title} {article.summary}".casefold().replace(" ", "")
+    return not any(keyword in searchable for keyword in PROMOTIONAL_KEYWORDS)
 
 
 def _is_public_web_url(url: str) -> bool:
@@ -278,6 +309,60 @@ def _candidate_rank(
     return adjusted_score, article.published_at
 
 
+def _normalized_title(title: str) -> str:
+    normalized = unicodedata.normalize("NFKC", title).casefold()
+    return "".join(character for character in normalized if character.isalnum())
+
+
+def _diverse_articles(
+    articles: list[Article],
+    limit: int,
+    *,
+    deduplicate_titles: bool = True,
+    max_per_source: int = 3,
+) -> list[Article]:
+    """Keep one story from dominating a candidate quota through mirrors or one feed."""
+    selected: list[Article] = []
+    seen_titles: set[str] = set()
+    source_counts: dict[str, int] = {}
+    for article in articles:
+        title_key = _normalized_title(article.title)
+        if deduplicate_titles and title_key in seen_titles:
+            continue
+        if source_counts.get(article.source, 0) >= max_per_source:
+            continue
+        selected.append(article)
+        seen_titles.add(title_key)
+        source_counts[article.source] = source_counts.get(article.source, 0) + 1
+        if len(selected) == limit:
+            break
+    return selected
+
+
+def _has_fresh_alternative(
+    article: Article,
+    field: str,
+    candidates: list[Article],
+    generated_at: datetime,
+) -> bool:
+    if field in {
+        "データマネジメント・エンジニアリング書籍",
+        "子育て",
+        "横浜イベント",
+        "街の新店",
+    }:
+        return False
+    return any(
+        candidate.id != article.id
+        and _suggested_field(candidate) == field
+        and candidate.published_at_verified
+        and timedelta(0)
+        <= generated_at - datetime.fromisoformat(candidate.published_at)
+        <= timedelta(days=7)
+        for candidate in candidates
+    )
+
+
 def _candidate_articles(
     articles: list[Article],
     limit: int = 105,
@@ -296,11 +381,14 @@ def _candidate_articles(
         key=lambda article: article.published_at,
         reverse=True,
     )[:12]
-    ranked = sorted(
-        focused,
-        key=lambda article: _candidate_rank(article, previous_ids, generated_at),
-        reverse=True,
-    )[:limit]
+    ranked = _diverse_articles(
+        sorted(
+            focused,
+            key=lambda article: _candidate_rank(article, previous_ids, generated_at),
+            reverse=True,
+        ),
+        limit,
+    )
     official = sorted(
         [article for article in articles if article.source in OFFICIAL_RELEASE_SOURCES],
         key=lambda article: article.published_at,
@@ -366,6 +454,15 @@ def _candidate_articles(
                 key=lambda article: _candidate_rank(article, previous_ids, generated_at),
                 reverse=True,
             )
+        elif field in {"業務改善・QOL", "睡眠"}:
+            field_articles = [
+                article for article in field_articles if _is_non_promotional_article(article)
+            ]
+            field_articles = sorted(
+                field_articles,
+                key=lambda article: _candidate_rank(article, previous_ids, generated_at),
+                reverse=True,
+            )
         else:
             field_articles = sorted(
                 field_articles,
@@ -383,29 +480,25 @@ def _candidate_articles(
                 for article in field_articles
                 if article.source != "Nature / Sleep Research"
             ]
-            field_articles = [*primary_research[:6], *other_articles]
-        if field == "業務改善・QOL":
-            desk_articles = [
-                article
-                for article in field_articles
-                if article.source in {"デスクツアー・作業環境", "Desk Setup / Global"}
-                or any(
-                    keyword in f"{article.title} {article.summary}".casefold()
-                    for keyword in ("デスクツアー", "デスク環境", "desk setup")
-                )
-            ]
-            other_articles = [
-                article for article in field_articles if article not in desk_articles
-            ]
-            field_articles = [*desk_articles[:8], *other_articles]
-        balanced.extend(field_articles[:8])
+            field_articles = [*primary_research[:3], *other_articles]
+        balanced.extend(
+            _diverse_articles(
+                field_articles,
+                8,
+                deduplicate_titles=field not in {"子育て", "横浜イベント"},
+            )
+        )
     # Reserve useful candidates for every field before broad official/ranked pools
     # consume the context budget. In particular, data/AI used to have no balanced
     # quota, so its newest articles often never reached Codex.
     candidates = {
         article.id: article for article in [*balanced, *newest, *official, *ranked]
     }
-    return list(candidates.values())[:limit]
+    return _diverse_articles(
+        list(candidates.values()),
+        limit,
+        max_per_source=limit,
+    )
 
 
 def _input_hash(articles: list[Article]) -> str:
@@ -730,6 +823,7 @@ def generate_highlights(
         )
         result = json.loads(result_path.read_text(encoding="utf-8"))
         article_by_id = {article.id: article for article in articles}
+        candidate_by_id = {article.id: article for article in candidates}
         highlight_article_ids = {
             item["article_id"]
             for field in result["field_highlights"]
@@ -746,7 +840,7 @@ def generate_highlights(
             }
             valid_items = []
             for item in field["items"]:
-                article = article_by_id.get(item["article_id"])
+                article = candidate_by_id.get(item["article_id"])
                 is_local_event = (
                     field["field"] not in {"子育て", "横浜イベント", "街の新店"}
                     or (
@@ -774,11 +868,19 @@ def generate_highlights(
                 streak = _selection_streak(item["article_id"], field["field"], selection_runs)
                 has_alternative = bool(field_candidate_ids - {item["article_id"]})
                 within_repeat_limit = streak < 2 or not has_alternative
+                within_freshness_limit = article is not None and not (
+                    generated_at - datetime.fromisoformat(article.published_at)
+                    > timedelta(days=14)
+                    and _has_fresh_alternative(
+                        article, field["field"], candidates, generated_at
+                    )
+                )
                 if (
                     article is not None
                     and is_local_event
                     and is_valid_cli_article
                     and within_repeat_limit
+                    and within_freshness_limit
                 ):
                     article_data = asdict(article)
                     article_data["image_url"] = highlight_images.get(article.id)
