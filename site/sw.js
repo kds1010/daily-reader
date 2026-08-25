@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-reader-v48";
+const CACHE_NAME = "daily-reader-v49";
 const APP_ASSETS = ["./", "./index.html", "./style.css?v=45", "./app.js?v=45", "./icons/icon.svg"];
 
 async function cacheSuccessfulResponse(request, response) {
