@@ -21,7 +21,7 @@ from pathlib import Path
 from daily_reader.core import Article
 
 LOGGER = logging.getLogger(__name__)
-PROMPT_VERSION = "selection-freshness-v24"
+PROMPT_VERSION = "selection-freshness-interest-v25"
 FOCUS_CATEGORIES = {
     "データマネジメント",
     "データ基盤",
@@ -255,8 +255,24 @@ def _candidate_rank(
     article: Article, previous_ids: set[str], generated_at: datetime
 ) -> tuple[int, str]:
     published_at = datetime.fromisoformat(article.published_at)
-    fresh = generated_at - timedelta(hours=24) <= published_at <= generated_at
-    adjusted_score = article.score + (6 if fresh else 0) - (6 if article.id in previous_ids else 0)
+    age = generated_at - published_at
+    if age < timedelta(0):
+        freshness_adjustment = 0
+    elif age <= timedelta(hours=24):
+        freshness_adjustment = 12
+    elif age <= timedelta(days=3):
+        freshness_adjustment = 7
+    elif age <= timedelta(days=7):
+        freshness_adjustment = 3
+    elif age > timedelta(days=14):
+        freshness_adjustment = -6
+    else:
+        freshness_adjustment = 0
+    adjusted_score = (
+        article.score
+        + freshness_adjustment
+        - (10 if article.id in previous_ids else 0)
+    )
     return adjusted_score, article.published_at
 
 
@@ -285,8 +301,9 @@ def _candidate_articles(
         reverse=True,
     )[:30]
     balanced = []
-    today = datetime.now().astimezone().date()
+    today = generated_at.astimezone().date()
     for field in (
+        "データ・AI",
         "データマネジメント・エンジニアリング書籍",
         "生成AI活用・テクニック",
         "CLI・ターミナル生産性",
@@ -376,8 +393,11 @@ def _candidate_articles(
             ]
             field_articles = [*desk_articles[:8], *other_articles]
         balanced.extend(field_articles[:8])
+    # Reserve useful candidates for every field before broad official/ranked pools
+    # consume the context budget. In particular, data/AI used to have no balanced
+    # quota, so its newest articles often never reached Codex.
     candidates = {
-        article.id: article for article in [*official, *balanced, *newest, *ranked]
+        article.id: article for article in [*balanced, *newest, *official, *ranked]
     }
     return list(candidates.values())[:limit]
 
@@ -546,6 +566,13 @@ def generate_highlights(
                 <= generated_at
                 else "existing"
             ),
+            "age_hours": max(
+                0,
+                round(
+                    (generated_at - datetime.fromisoformat(article.published_at)).total_seconds()
+                    / 3600
+                ),
+            ),
             "previously_selected": article.id in previous_ids,
             "consecutive_selections": _selection_streak(
                 article.id, _suggested_field(article) or "", selection_runs
@@ -642,7 +669,14 @@ def generate_highlights(
         "同一記事は候補から除外済みです。タイトル、情報元、カテゴリに繰り返し現れる傾向を"
         "選定の減点材料にしてください。ただし、少数の例からカテゴリ全体を除外せず、明示された"
         "優先分野や地域ルールを上書きしないでください。\n\n"
-        "鮮度についてはfreshness=newの記事を優先し、previously_selected=trueの記事は減点して"
+        "各分野では最初に『今この更新で読む理由』を比較してください。新しい事実、具体的な"
+        "検証結果、失敗からの学び、実務への大きな影響、意外性のいずれもない総論や似た記事は"
+        "選ばないでください。タイトルの派手さではなく、summaryから確認できる具体性で判断し、"
+        "同じ話題の言い換えより、未掲載の新しい動きや視点を優先してください。"
+        "鮮度についてはfreshness=newの記事を最優先し、age_hoursが72以下の記事を先に検討して"
+        "ください。7日を超える記事は、直近の記事より明確に重要で今日も有効な理由がreasonに"
+        "書ける場合だけ選んでください。14日を超える記事は、同じ分野に7日以内の適格候補が"
+        "ある場合は選ばないでください。previously_selected=trueの記事は強く減点して"
         "ください。consecutive_selectionsが2以上の記事は、その分野に他の適格候補がある限り"
         "field_highlightsへ選ばないでください。適格な新着・代替候補がない分野だけ継続掲載を"
         "許可します。単に新しいだけの低品質記事で埋めず、該当なしなら空配列にしてください。\n\n"

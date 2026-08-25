@@ -3,6 +3,7 @@ from pathlib import Path
 
 from daily_reader.core import Article
 from daily_reader.highlights import (
+    _candidate_articles,
     _candidate_rank,
     _feedback_examples,
     _is_cli_productivity_article,
@@ -72,8 +73,60 @@ def test_candidate_rank_boosts_fresh_and_penalizes_previous() -> None:
     fresh = Article(**{**_event("fresh").__dict__, "published_at": "2026-08-12T12:00:00+00:00"})
     old = Article(**{**_event("old").__dict__, "published_at": "2026-08-01T12:00:00+00:00"})
 
-    assert _candidate_rank(fresh, set(), generated_at)[0] == fresh.score + 6
-    assert _candidate_rank(old, {old.id}, generated_at)[0] == old.score - 6
+    assert _candidate_rank(fresh, set(), generated_at)[0] == fresh.score + 12
+    assert _candidate_rank(old, {old.id}, generated_at)[0] == old.score - 10
+
+
+def test_candidate_rank_decays_as_article_ages() -> None:
+    generated_at = datetime.fromisoformat("2026-08-13T00:00:00+00:00")
+
+    def article_at(article_id: str, published_at: str) -> Article:
+        return Article(
+            **{**_event(article_id).__dict__, "id": article_id, "published_at": published_at}
+        )
+
+    one_day = article_at("one-day", "2026-08-12T01:00:00+00:00")
+    three_days = article_at("three-days", "2026-08-10T01:00:00+00:00")
+    seven_days = article_at("seven-days", "2026-08-06T01:00:00+00:00")
+    stale = article_at("stale", "2026-07-20T00:00:00+00:00")
+
+    assert [_candidate_rank(article, set(), generated_at)[0] for article in (
+        one_day,
+        three_days,
+        seven_days,
+        stale,
+    )] == [17, 12, 8, -1]
+
+
+def test_candidates_reserve_fresh_data_ai_before_other_pools() -> None:
+    generated_at = datetime.fromisoformat("2026-08-13T00:00:00+00:00")
+    fresh_data = Article(
+        id="fresh-data",
+        title="Fresh data governance finding",
+        url="https://example.com/fresh-data",
+        source="Data source",
+        published_at="2026-08-12T18:00:00+00:00",
+        summary="metadata lineage",
+        category="データマネジメント",
+        score=3,
+    )
+    books = [
+        Article(
+            **{
+                **_event(f"book-{index}").__dict__,
+                "id": f"book-{index}",
+                "category": "データ関連書籍",
+                "published_at": f"2026-09-{index + 1:02d}T00:00:00+00:00",
+            }
+        )
+        for index in range(8)
+    ]
+
+    candidates = _candidate_articles(
+        [*books, fresh_data], limit=3, generated_at=generated_at
+    )
+
+    assert fresh_data in candidates
 
 
 def test_selection_streak_counts_only_consecutive_runs() -> None:
