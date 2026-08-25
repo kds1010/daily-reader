@@ -1,21 +1,25 @@
 {
-  "generated_at": "2026-08-25T03:00:38.707602+00:00",
+  "generated_at": "2026-08-25T10:07:37.825724+00:00",
   "article_count": 500,
   "errors": [
     {
-      "source": "eza Releases",
+      "source": "横浜市公式観光イベント",
       "message": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
     },
     {
-      "source": "OpenAI Official",
+      "source": "DAMA International",
       "message": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
     },
     {
-      "source": "横浜市こどもイベント",
+      "source": "Apple Newsroom",
+      "message": "<urlopen error [Errno 65] No route to host>"
+    },
+    {
+      "source": "ACSM",
       "message": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
     },
     {
-      "source": "O'Reilly Japan 新刊・近刊",
+      "source": "Sleep Foundation",
       "message": "<urlopen error [Errno 8] nodename nor servname provided, or not known>"
     },
     {
@@ -77,6 +81,28 @@
       "summary": "TL;DR Lakebaseは、Databricksに統合されたPostgreSQL互換のOLTP Database Databricksは、Data Lake / Data Warehouse / AIをLakehouseとしてまとめて扱うData + AI Platform Azureで考えると、ADLS + Data Engineering + Analytics + AIの領域をDatabricksが広くカバーする Lakebaseが入ることで、Application DB（OLTP）とLakehouse（OLAP / AI）を同じPlatfo…",
       "category": "技術コミュニティ",
       "score": 26,
+      "image_url": null
+    },
+    {
+      "id": "c109d0b94f23d629cf84",
+      "title": "Rovoエージェント × Jira自動化ルールで業務ワークフローを自動化してみた",
+      "url": "https://qiita.com/yawano1/items/6887f76b78ef57ce2d77",
+      "source": "Qiita / 生成AI",
+      "published_at": "2026-08-25T06:03:05+00:00",
+      "summary": "背景 BIPROGYでは現在、生成AI活用による業務効率化に全社的に取り組んでいます。 その一環として、Atlassian社の『Rovo』を活用したツール作成に取り組んでいます。 後述しますが、Rovoは同じくAtlassian製品であるJiraやConfluenceに蓄...",
+      "category": "生成AI活用",
+      "score": 25,
+      "image_url": null
+    },
+    {
+      "id": "0cd0532bdc19b73e0d37",
+      "title": "Snowflake CoCoでdbtモデル生成を試す：自然言語・設計情報・実装ルールで何が変わるか",
+      "url": "https://zenn.dev/nttdata_tech/articles/5dc08d3837b383",
+      "source": "Zenn / Snowflake",
+      "published_at": "2026-08-25T01:00:05+00:00",
+      "summary": "株式会社NTTデータの久我です。 Snowflake Summit 2026では、開発者向けのAIコーディングエージェントである Snowflake CoCo のアップデートが紹介されました。 CoCoは、従来Cortex Codeと呼ばれていた開発者向けAIコーディングエージェントで、dbtやデータパイプライン開発などを支援するものとして位置付けられています。 CoCoの登場により、単にSQLを補完するためだけに生成AIを用いるのではなく、自然言語で処理の意図を伝えることで、データパイプラインやdbtモデルを生成できる世界が見えてきました。 一方で、…",
+      "category": "技術コミュニティ",
+      "score": 24,
       "image_url": null
     },
     {
@@ -201,6 +227,17 @@
       "image_url": null
     },
     {
+      "id": "a3b9cdbdc52e3c944aec",
+      "title": "眠りは【枕】で変わる！ 新感覚商品で夏の睡眠を一新50代女性に捧ぐ「睡眠ヘルスケア大賞」受賞商品 | ラナーヌ - ママテナ",
+      "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1ZT1FRN0FvbTNzMXFvU2xaOEdENjhmTXM3N1FKeGU4UjhtSGV5VXFMS0M0R2hyTm1oNGNISVEySzVjclBJb1lYWWZtbXRpLU5hV2puOS0wbllHemxxT2FsbUNJU1JsNUc5?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-08-16T15:00:37+00:00",
+      "summary": "眠りは【枕】で変わる！ 新感覚商品で夏の睡眠を一新50代女性に捧ぐ「睡眠ヘルスケア大賞」受賞商品 | ラナーヌ ママテナ",
+      "category": "睡眠",
+      "score": 20,
+      "image_url": null
+    },
+    {
       "id": "08cc6e43fab9a32770b4",
       "title": "Amazon S3 TablesとSnowflakeを連携する（S3 Tables Iceberg RESTエンドポイント経由）",
       "url": "https://zenn.dev/penginpenguin/articles/fcfb6fa2320976",
@@ -241,28 +278,6 @@
       "published_at": "2026-08-25T00:23:00+00:00",
       "summary": "Amazon.co.jpのタイムセールにて、イエローカラーのシングルモニターアーム「Pixio モニターアーム PS1S Wave」が12％オフの7900円で販売中だ。17型から32型までのディスプレイに対応する。",
       "category": "業務改善・QOL",
-      "score": 19,
-      "image_url": null
-    },
-    {
-      "id": "8e7fd4df1e1637ef3e16",
-      "title": "手首の負担を軽減する「フィリップス トラックボールマウス」がセールで4742円に",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news067.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T00:41:00+00:00",
-      "summary": "Amazon.co.jpのタイムセールにて、長時間のデスクワークに適した「フィリップス トラックボールマウス」が、定価から19％オフの4742円で販売されている。手首への負担を減らすエルゴノミクス設計が特徴だ。",
-      "category": "業務改善・QOL",
-      "score": 19,
-      "image_url": null
-    },
-    {
-      "id": "f2546154219246587d24",
-      "title": "The DAMA-DMBOK 2.0 Revised Edition is now available in 7 languages",
-      "url": "https://dama.org/2026/08/21/dama-dmbok-2-revised-edition-7-languages/",
-      "source": "DAMA International",
-      "published_at": "2026-08-21T01:02:55+00:00",
-      "summary": "The DAMA-DMBOK 2.0 Revised Edition is now available in 7 languages The DAMA-DMBOK® 2.0 Revised Edition is now available in 7 languages. Five are on sale today at our publisher, Technics Publications, in print and as a PDF download: Italian, Spanish, Portuguese (Brazilian), Frenc…",
-      "category": "データマネジメント",
       "score": 19,
       "image_url": null
     },
@@ -322,17 +337,6 @@
       "image_url": null
     },
     {
-      "id": "3e70d5f570b43720de36",
-      "title": "みなとみらい大盆踊り",
-      "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw10025",
-      "source": "横浜市公式観光イベント",
-      "published_at": "2026-08-28T00:00:00+00:00",
-      "summary": "こども向け、イベント、屋外（雨天変更）・こども向け イベント 屋外（雨天変更） みなとみらい大盆踊り エリア みなとみらい21 開催日程 2026年8月28日(金)・8月29日(… 住所 臨港パーク・プラザ広場（パシフィコ横浜隣接・横浜市西区みなとみらい1） もっとみる",
-      "category": "横浜イベント",
-      "score": 18,
-      "image_url": null
-    },
-    {
       "id": "842e47dbfe67067c9aa1",
       "title": "乳幼児親子対象イベント",
       "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=111067",
@@ -356,7 +360,7 @@
     },
     {
       "id": "e9796d593b388f91bcf6",
-      "title": "dbt Projects on Snowflake の動かしてみた — ROLEを意識して —",
+      "title": "dbt Projects on Snowflake を動かしてみた — ROLEを意識して —",
       "url": "https://zenn.dev/ase_dataeng/articles/20260814-dbt-projects-snowflake-no-accountadmin",
       "source": "Zenn / Snowflake",
       "published_at": "2026-08-23T05:53:03+00:00",
@@ -374,17 +378,6 @@
       "summary": "PCの充電ケーブルがUSBハブになった!? これ1台あればデスク環境が爆上がりなエレコムの新ガジェットとは GoodsPress Web",
       "category": "業務改善・QOL",
       "score": 17,
-      "image_url": null
-    },
-    {
-      "id": "08eba187e10a234954e2",
-      "title": "ポインティングスティック搭載モデルなどHHKBキーボードが最大8%オフ！Amazon暮らし応援夏祭りセール",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/sale/online_shopping/2134384.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-24T03:30:00+00:00",
-      "summary": "Amazon.co.jpにて、「スマイルSALE」が8月28日（金）9:00～9月3日（木）23:59の期間で開催予定。先行して「暮らし応援夏祭りSALE」が8月28日（金）8:59で開催されています。",
-      "category": "業務改善・QOL",
-      "score": 16,
       "image_url": null
     },
     {
@@ -417,17 +410,6 @@
       "published_at": "2026-08-21T09:53:43+00:00",
       "summary": "はじめに データ活用が進む中で、Power BIやTableauなどのBIツールを導入する企業は増えています。 しかし、BIツールを導入しただけですぐにデータ活用がうまくいくわけではありません。 例えば、次のような課題に心当たりはないでしょうか。 システムごとにデータが...",
       "category": "技術コミュニティ",
-      "score": 16,
-      "image_url": null
-    },
-    {
-      "id": "68e09b19b590d0928d27",
-      "title": "From Messy Data to Scalable Analytics: DAMA Toronto’s Data Foundations Workshop",
-      "url": "https://dama.org/2026/08/20/from-messy-data-to-scalable-analytics-dama-torontos-data-foundations-workshop/",
-      "source": "DAMA International",
-      "published_at": "2026-08-20T16:06:33+00:00",
-      "summary": "From Messy Data to Scalable Analytics: DAMA Toronto’s Data Foundations Workshop DAMA Toronto is hosting a special, in-person, all-day workshop and networking event focused on the core building blocks of modern data foundations. The workshop will explore data architecture, modell…",
-      "category": "データマネジメント",
       "score": 16,
       "image_url": null
     },
@@ -597,23 +579,34 @@
       "image_url": null
     },
     {
+      "id": "4ef4b26d9ebdab2061de",
+      "title": "入門 Python 3 第3版",
+      "url": "http://www.oreilly.co.jp/books/9784814401642/",
+      "source": "O'Reilly Japan 新刊・近刊",
+      "published_at": "2026-06-15T15:00:00+00:00",
+      "summary": "データサイエンス、Web開発、セキュリティなど幅広い分野で人気が高まるPython。本書はベストセラー入門書『入門 Python 3』の、5年ぶりの改訂版です。Pythonプログラミングの基礎から、Web、データベース、ネットワーク、並行処理といった応用まで、実務を見据えた内容を明快かつ丁寧に解説します。Pythonの機能を一通り網羅しており、リファレンスとしても有用です。生成AI全盛の今こそ、必要な基本を学べる一冊です。Python 3.14対応。",
+      "category": "データ関連書籍",
+      "score": 15,
+      "image_url": null
+    },
+    {
+      "id": "bd9e8551228a82313116",
+      "title": "エージェンティックメッシュ",
+      "url": "http://www.oreilly.co.jp/books/9784814401758/",
+      "source": "O'Reilly Japan 新刊・近刊",
+      "published_at": "2026-09-01T15:00:00+00:00",
+      "summary": "自律型エージェントの台頭に伴い、これからの課題は個々のエージェントの構築方法から、エコシステム全体の管理へと移行しています。本書は、相互に接続されたエージェントが自律的に協調し、トランザクションを実行し、タスクを遂行する次世代の技術領域について探求します。APIサービスメッシュやデータメッシュで確立された概念を基盤とし、急速に拡大するエージェント群を安全かつ大規模に管理するための革新的なアーキテクチャを提案しています。また、エージェントの登録機構やマーケットプレイス、ガバナンス、ヒューマンインザループによる監視といった主要な構成要素を丁寧に解き明かし、…",
+      "category": "データ関連書籍",
+      "score": 14,
+      "image_url": null
+    },
+    {
       "id": "f81b3caf0fc0ae8f8b57",
       "title": "青色光は本当に不眠症の主な原因なのでしょうか？ - Vietnam.vn",
       "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxNRjBSb3VTRGEyRnpaamgteVZURF9DQ2lvbnhBTlNMRVgyMlpPaHZhWkF0a0VqRV9Nc1JvZGg5S1N6UE1UOGd6UG9GbW10OFJTZWxqeHRseU00RnBGc285cWttelNxSTlLRzc3ZVFrSWxmNG1sa180bWY1Mjd1T1o0MFh4ZFB0elQ2SlkzRmNqblZ1eG1ZM3c?oc=5",
       "source": "睡眠研究ニュース",
       "published_at": "2026-08-25T02:27:42+00:00",
       "summary": "青色光は本当に不眠症の主な原因なのでしょうか？ Vietnam.vn",
-      "category": "睡眠",
-      "score": 14,
-      "image_url": null
-    },
-    {
-      "id": "69c4def1a8744b9c89b8",
-      "title": "Oura Ringの「睡眠精度95%」に待った。ウェアラブルのグレーゾーン問題 - Gizmodo",
-      "url": "https://news.google.com/rss/articles/CBMiggFBVV95cUxPRFlYVzlpWGJRZkxMNXhKeTFIa19Wd3gtUmhHTjJJMFZlRHBhYm1MaE5JaWpfQlEtcUFvMURIem5ELUM0Nk9NbjB0TnU3SVBkUXFOcnBhQzdIU1pkMUZRUjBJMmRJZUcyc1U0dHJGU0xPT2RpSkh1UWlQWnh1WmFNc3Vn?oc=5",
-      "source": "睡眠研究ニュース",
-      "published_at": "2026-08-24T13:00:00+00:00",
-      "summary": "Oura Ringの「睡眠精度95%」に待った。ウェアラブルのグレーゾーン問題 Gizmodo",
       "category": "睡眠",
       "score": 14,
       "image_url": null
@@ -652,17 +645,6 @@
       "image_url": null
     },
     {
-      "id": "7319cb4a4a2fb15d3413",
-      "title": "1Uトラックボールやロータリーエンコーダー搭載の分割キーボード自作キット「LiNEA40」が登場、ワイヤレス接続対応",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2134790.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-24T01:05:00+00:00",
-      "summary": "トラックボールやロータリーエンコーダーを搭載した小型分割キーボード自作キット「LiNEA40」の取り扱いが、遊舎工房で始まっている。",
-      "category": "業務改善・QOL",
-      "score": 14,
-      "image_url": null
-    },
-    {
       "id": "8b2e0241d486a60507ba",
       "title": "モニターアームにノートPCを設置できる17インチまで対応のトレイ、サンワサプライが発売",
       "url": "https://internet.watch.impress.co.jp/docs/news/2134285.html",
@@ -674,9 +656,9 @@
       "image_url": null
     },
     {
-      "id": "686e65a55d472cec85eb",
+      "id": "794a2d754177bf339099",
       "title": "「やっとしっくり感じる枕に出会えました」 ニトリの“自分好みに高さ調整できるまくら”が好評 「こんなに寝つきが違うものかと驚き」「枕難民脱出です」の声（1/3） | ライフ ねとらぼリサーチ - ねとらぼ",
-      "url": "https://news.google.com/rss/articles/CBMiY0FVX3lxTE1HVWpYMHlsZC1SZkpUYU8zUUIzTVdlc2xkRmZhQlV3c2xta0c2TE5XZ2V1WTF0UHY4RlRzSjVQQzdaMVh3czlZc3VycUtTWDVTZWJVamt4Zkg0U3ZUVVJybzh4TQ?oc=5",
+      "url": "https://news.google.com/rss/articles/CBMiY0FVX3lxTE1HVWpYMHlsZC1SZkpUYU8zUUIzTVdlc2xkRmZhQlV3c2xta0c2TE5XZ2V1WTF0UHY4RlRzSjVQQzdaMVh3czlZc3VycUtTWDVTZWJVamt4Zkg0U3ZUVVJybzh4TdIBaEFVX3lxTFBxbkRXdjdpY1lPYXdhNDZZOE5GaUN3Q1RrME40bk1FZ2ZtUzBBRm9VNFVJMEJnempDX0Z4Vnc4LWhwYjhYTWV1UlB6RmVsMllOaTc4Tk02eGlJQVhPT0dUUUFSX3h1RkNB?oc=5",
       "source": "睡眠製品ニュース",
       "published_at": "2026-08-22T05:40:00+00:00",
       "summary": "「やっとしっくり感じる枕に出会えました」 ニトリの“自分好みに高さ調整できるまくら”が好評 「こんなに寝つきが違うものかと驚き」「枕難民脱出です」の声（1/3） | ライフ ねとらぼリサーチ ねとらぼ",
@@ -850,6 +832,17 @@
       "image_url": null
     },
     {
+      "id": "7cc0385328730c57bf84",
+      "title": "「枕が変わると眠れない」は本当だった──約8割が旅先で睡眠の質低下を実感、最大の原因は「枕」にあり - 西日本新聞me",
+      "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE44SEw4Q2ZtYW5fb2d6Nk9QWkd6azJGazZNaWthS2YxYW1NckFIWlRDLWFvQnA5MXBQdzU1aWUtWDdod0p5WDdhaGRNVHVrNkZYQ2FReDFn?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-08-06T07:00:00+00:00",
+      "summary": "「枕が変わると眠れない」は本当だった──約8割が旅先で睡眠の質低下を実感、最大の原因は「枕」にあり 西日本新聞me",
+      "category": "睡眠",
+      "score": 14,
+      "image_url": null
+    },
+    {
       "id": "a539627fff448c9d0eca",
       "title": "日本の睡眠文化を変える、新たな挑戦！「睡眠の質※1は、枕で変わる。」 - 毎日キレイ",
       "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTE02MnZTMWN4ZlUxQnZOMlNSbzk3cm9RRFpHcnNkQWZNU2hnaEQ0TXo0eWthcE9rTzV2SFMyck1VajREcnRZbkNOY0lsV0hKeUI2d1U3TDdlSmp2ZlVCcjNXMWQ0dEJuRUpsclBxMDJJNFUtM0ROUmpFQkR3?oc=5",
@@ -938,6 +931,17 @@
       "image_url": null
     },
     {
+      "id": "1bf014c135221fff9baf",
+      "title": "INNOCN、IPSパネルを採用した32型4K液晶ディスプレイ",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/25/news069.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-25T03:10:00+00:00",
+      "summary": "INNOCNは、クリエイター／ビジネスユーザー向けとなる32型4K液晶ディスプレイ「CB32U1」を発表した。",
+      "category": "業務改善・QOL",
+      "score": 12,
+      "image_url": null
+    },
+    {
       "id": "c6e98a740631de0b9e8c",
       "title": "舞岡)乳幼児発育測定会",
       "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=110918",
@@ -966,17 +970,6 @@
       "source": "Qiita / Iceberg",
       "published_at": "2026-08-22T22:58:50+00:00",
       "summary": "はじめに これまでの記事では、自宅 HDFS 上の Apache Iceberg を Source of Truth として残し、AWS 側に S3 + Glue Data Catalog + Athena の分析用コピーを作りました。 自宅HDFS上のApache I...",
-      "category": "技術コミュニティ",
-      "score": 12,
-      "image_url": null
-    },
-    {
-      "id": "7093d7ff1c502a194289",
-      "title": "LangChainの良さが分からなかった私が、MLflowで初めて腑に落ちた話",
-      "url": "https://qiita.com/yomogi_enginner/items/7d8ca57dc45bf1cc23c3",
-      "source": "Qiita / Databricks",
-      "published_at": "2026-08-22T03:06:21+00:00",
-      "summary": "エグゼクティブサマリ Databricks上でRAGチャットボットを開発する中でLangChainを採用した 採用理由は、Databricksの研修で触れており認知負荷が低く、Azure OpenAIとの親和性も高かったため 一方で、開発当初は「LangChainを使う...",
       "category": "技術コミュニティ",
       "score": 12,
       "image_url": null
@@ -1026,17 +1019,6 @@
       "image_url": null
     },
     {
-      "id": "306452fc8866e124ca66",
-      "title": "AWS S3上のApache IcebergをAthena経由で可視化する【発展編】",
-      "url": "https://qiita.com/naritomo08/items/48f6e29c32071a5a0b28",
-      "source": "Qiita / Iceberg",
-      "published_at": "2026-08-19T14:25:46+00:00",
-      "summary": "はじめに 前回までの記事で、自宅 HDFS 上の Apache Iceberg を Source of Truth として残し、AWS 側に S3 + Glue Data Catalog + Athena の分析用コピーを作りました。 自宅HDFS上のApache Ic...",
-      "category": "技術コミュニティ",
-      "score": 12,
-      "image_url": null
-    },
-    {
       "id": "a292c7aee00ea8b985e5",
       "title": "Snowflakeのコスト異常検知をスコープ別に設定できるようになった——Anomaly Monitors（Preview）を実機検証",
       "url": "https://zenn.dev/inoway/articles/i249-anomaly-monitors-cost-scope",
@@ -1079,17 +1061,6 @@
       "category": "技術コミュニティ",
       "score": 12,
       "image_url": null
-    },
-    {
-      "id": "82172c36513c75a8088c",
-      "title": "Apple opens Advanced Manufacturing Center in Houston",
-      "url": "https://www.apple.com/newsroom/2026/08/apple-opens-advanced-manufacturing-center-in-houston/",
-      "source": "Apple Newsroom",
-      "published_at": "2026-08-13T18:30:29+00:00",
-      "summary": "Apple opened its new Advanced Manufacturing Center in Houston, offering free training and educational sessions for small- and medium-sized businesses.",
-      "category": "業務改善・QOL",
-      "score": 12,
-      "image_url": "https://www.apple.com/newsroom/images/2026/08/apple-opens-advanced-manufacturing-center-in-houston/tile/Apple-Advanced-Manufacturing-Center-Houston-hero-lp.jpg.og.jpg"
     },
     {
       "id": "daa3a17de153dfeab222",
@@ -1224,34 +1195,12 @@
       "image_url": null
     },
     {
-      "id": "ec68a4742fa0e392c7ce",
-      "title": "横浜オクトーバーフェスト 2026",
-      "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw9060",
-      "source": "横浜市公式観光イベント",
-      "published_at": "2026-09-18T00:00:00+00:00",
-      "summary": "学習・体験、こども向け、イベント、グルメ、屋内（雨天OK）・学習・体験 こども向け イベント グルメ 屋内（雨天OK） 横浜オクトーバーフェスト 2026 エリア みなとみらい21 開催日程 開催日程：2026年9月18日(金)～1… 住所 横浜赤レンガ倉庫 イベント広場 もっとみる",
-      "category": "横浜イベント",
-      "score": 11,
-      "image_url": null
-    },
-    {
-      "id": "ae32d56875867dcd62e0",
-      "title": "マウス、約95万円のRyzen AI Max+搭載ミニPC「DAIV CX-A9A60」発売",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2134937.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-24T03:20:51+00:00",
-      "summary": "比較的大きいモデルをローカルで実行できる環境としてRyzen AI Max+ 395を搭載したPCが人気だが、マウスコンピューターもついにこの市場に参入した。製品名は「DAIV CX-A9A60」で、価格は94万9,800円から、現在販売中だ。",
-      "category": "業務改善・QOL",
-      "score": 11,
-      "image_url": null
-    },
-    {
-      "id": "81acefdbe37681cc03dc",
-      "title": "高血圧や睡眠時無呼吸の兆候を検知できる「Apple Watch Series 11」が14％オフの6万5800円に",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news069.html",
+      "id": "962e8cf4989a3b087cd5",
+      "title": "Elgato Stream Deckが統合された16ボタンゲーミングマウス「CORSAIR SCIMITAR ELITE WIRELESS SE」が31％オフの1万5091円に",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/25/news087.html",
       "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T00:48:00+00:00",
-      "summary": "「Apple Watch Series 11」が、Amazonのタイムセールで14％オフのお買い得価格となっている。睡眠や心電図の記録にとどまらず、高血圧や睡眠時無呼吸の兆候まで検知する優れた製品だ。",
+      "published_at": "2026-08-25T07:14:00+00:00",
+      "summary": "CORSAIRのMMO向けワイヤレスゲーミングマウス「SCIMITAR ELITE WIRELESS SE」が、Amazon.co.jpにて定価の31％オフとなる1万5091円で販売中だ。16個のプログラム可能なボタンを搭載し、ゲームや作業の効率を大幅に引き上げてくれる。",
       "category": "業務改善・QOL",
       "score": 11,
       "image_url": null
@@ -1312,6 +1261,17 @@
       "image_url": null
     },
     {
+      "id": "9b54a38fa1b1a3f1fc1f",
+      "title": "Wire It, Run It, Deploy It: AI Workflows in Gradio",
+      "url": "https://huggingface.co/blog/gradio-workflow-guide",
+      "source": "Hugging Face Blog",
+      "published_at": "2026-08-25T00:00:00+00:00",
+      "summary": "",
+      "category": "生成AI活用",
+      "score": 10,
+      "image_url": null
+    },
+    {
       "id": "5f364b694342fd6dc8ec",
       "title": "AIは回せば回すほど凄いのか ―「常時稼働」という設計の敗北",
       "url": "https://zenn.dev/eggletric/articles/4ea81df765fb66",
@@ -1352,6 +1312,28 @@
       "published_at": "2026-08-21T00:00:00+00:00",
       "summary": "The Supervisor API (Beta) reaches end of life on September 30, 2026. After that date, the API is no longer available. Databricks recommends migrating to custom agents on Databricks Apps . See Supervisor API (Beta) (deprecated) .",
       "category": "リリース速報",
+      "score": 10,
+      "image_url": null
+    },
+    {
+      "id": "fc1a9abd82b35a9c86d5",
+      "title": "Introducing AI Futures",
+      "url": "https://openai.com/index/introducing-ai-futures",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-20T07:00:00+00:00",
+      "summary": "Introducing AI Futures, a new OpenAI blog exploring how transformative AI could reshape power, governance, the economy, and individual freedom.",
+      "category": "生成AI活用",
+      "score": 10,
+      "image_url": null
+    },
+    {
+      "id": "9c25f4ae7a186d68926f",
+      "title": "Pacing model development in an era of cyber-critical capabilities",
+      "url": "https://openai.com/index/pacing-model-development-cyber-capabilities",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-18T11:00:00+00:00",
+      "summary": "OpenAI is strengthening monitoring, alignment, and security for frontier AI models. See how new safeguards are guiding the pace of model development.",
+      "category": "生成AI活用",
       "score": 10,
       "image_url": null
     },
@@ -1455,17 +1437,6 @@
       "image_url": null
     },
     {
-      "id": "7770dfce114e4a4265df",
-      "title": "世界⽔準の国際アートフェア 「Tokyo Gendai」in パシフィコ横浜",
-      "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw10561",
-      "source": "横浜市公式観光イベント",
-      "published_at": "2026-09-11T00:00:00+00:00",
-      "summary": "学習・体験、アート・芸術、イベント、屋内（雨天OK）・学習・体験 アート・芸術 イベント 屋内（雨天OK） 世界⽔準の国際アートフェア 「Tokyo Gendai」in パシフィコ横浜 エリア みなとみらい21 開催日程 2026年9月11日(金) ～9月13日… 住所 横浜国際平和会議場(パシフィコ横浜) 展示ホール C/D もっとみる",
-      "category": "横浜イベント",
-      "score": 9,
-      "image_url": null
-    },
-    {
       "id": "870f27e839465e47966f",
       "title": "NEC「Aterm」シリーズのWi-Fiルーターが暮らし応援夏祭りSaleに Wi-Fi 6E対応「AM-AX5400T6」は2万4730円",
       "url": "https://internet.watch.impress.co.jp/docs/shopping/2135225.html",
@@ -1554,13 +1525,13 @@
       "image_url": null
     },
     {
-      "id": "3066811d8dd8cef92340",
-      "title": "Active Voice | With Resistance Training, Load is Only Half the Story",
-      "url": "https://acsm.org/active-voice-with-resistance-training-load-is-only-half-the-story/",
-      "source": "ACSM",
-      "published_at": "2026-08-10T20:11:41+00:00",
-      "summary": "For decades, one question has dominated resistance-training research: How much weight should we lift? Many studies have compared heavy and light loads to identify the optimal stimulus for maximizing strength and muscle hypertrophy. These investigations have shaped coaching pract…",
-      "category": "筋トレ",
+      "id": "7347f06e7c916544f6e9",
+      "title": "How HSP GRUPPE builds AI capabilities for tax advisory",
+      "url": "https://openai.com/index/hsp-gruppe",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-07T09:00:00+00:00",
+      "summary": "Discover how HSP GRUPPE uses ChatGPT Enterprise to boost productivity, improve work quality, and create more capacity for tax advisory and client service.",
+      "category": "生成AI活用",
       "score": 9,
       "image_url": null
     },
@@ -1605,6 +1576,28 @@
       "published_at": "2026-09-02T15:00:00+00:00",
       "summary": "解けば解くほど，AIを使った仕事が圧倒的に早くなる！ 遊び感覚でどんどん解ける，新感覚のChatGPTドリル 「日々の仕事が忙しくて，AIを試す余裕なんてない」 「難しそうで，なんだか使うのが怖い」 「プロンプトの本を買ったけど，コピペするだけで身に付かない」 そんな声から生まれた，遊び感覚で問題を解くだけで「仕事で使えるAIスキル」が身に付くドリルが登場。 本書は，解説中心の入門書やプロンプト集とは異なり，ビジネスの現場を再現した問題に，ゲーム感覚でチャレンジする形式。だから，解いたその日から，コピペでは身に付かなかった「実務で使いこなす力」が自然と…",
       "category": "データ関連書籍",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "4104275d7092511d9ee1",
+      "title": "メタデータ管理入門",
+      "url": "http://www.oreilly.co.jp/books/9784814401765/",
+      "source": "O'Reilly Japan 新刊・近刊",
+      "published_at": "2026-08-25T15:00:00+00:00",
+      "summary": "本書は、乱立するメタデータリポジトリを統合・調整し、組織的なデータ管理の課題を解決するため、「メタグリッド」によるリポジトリ管理やデータ探索チームの構築手法など、経営層からアーキテクトまでが押さえるべき戦略を網羅しています。一見、大企業向けの抽象的な理論に見えますが、本書の本質は、EMS、IR、IAMといった「管理のための仕組み」がなぜ存在するのかを、現場のエンジニア視点でも納得させてくれる点にあります。データ民主化やセキュリティ強化を支える基盤の全体像を一通り頭に入れることで、日々の開発の背景にある「組織の意図」が理解できるようになります。エンジニア…",
+      "category": "データ関連書籍",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "daa31e8d6d7e197a674f",
+      "title": "Databricks Managed OmnigentをSandboxホストで試す ― 起動からテスト完走、共有まで",
+      "url": "https://qiita.com/taka_yayoi/items/eba094424c08c01898b6",
+      "source": "Qiita / Databricks",
+      "published_at": "2026-08-25T06:33:49+00:00",
+      "summary": "はじめに 2026年7月に、Databricks上のOmnigentのドキュメントが公開されました。OmnigentのOSS版はこれまでの記事で何度か動かしてきましたが、Databricksがフルマネージドで提供する版は、ドキュメントを読んで配置図を描いたところで止まって...",
+      "category": "技術コミュニティ",
       "score": 8,
       "image_url": null
     },
@@ -1671,17 +1664,6 @@
       "published_at": "2026-08-24T06:45:38+00:00",
       "summary": "具体と抽象 細谷功氏の『具体と抽象』はソフトウェアエンジニアを中心にさまざまな人から紹介されているのを目にしており、そしてAudibleで扱いがあったので、軽い気持ちで通勤中や寝る前に聞いてみました。 本書は分かりにくい本、簡単ではない本という説明ではじまりますが、難しいテーマを、多くの人にとって分かりやすく解説しており、新社会人向けの教材として最適だと感じました。漢字さえ読めれば、子どもにも良い本だと思います。[1] Kindle版も購入しました。 この本は生成AIが社会に浸透する前の2014年に発売され、社会的背景としてはまだホワイトカラー職・デス…",
       "category": "生成AI活用",
-      "score": 8,
-      "image_url": null
-    },
-    {
-      "id": "7a2963a30aeff09e8362",
-      "title": "【やじうまPC Watch】100万円超のDGX Spark、価格 .comでジャンル別売れ筋ランキング首位に",
-      "url": "https://pc.watch.impress.co.jp/docs/news/yajiuma/2134985.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-24T04:37:29+00:00",
-      "summary": "ローカルAIへの投資がついに日本でも過熱し始めた。価格比較サイト「価格.com」にて、デスクトップPCの人気売れ筋ランキングで「DGX Spark」がトップとなっており、SNSなどで話題となっている。",
-      "category": "業務改善・QOL",
       "score": 8,
       "image_url": null
     },
@@ -1847,17 +1829,6 @@
       "published_at": "2026-08-20T00:00:00+00:00",
       "summary": "Snowflake公式リリースノート",
       "category": "データ基盤",
-      "score": 8,
-      "image_url": null
-    },
-    {
-      "id": "94e2ce9d54ffbc00f17d",
-      "title": "生成AI画像で“架空の女性”に成り済まして政治投稿か 立憲栃木県連の男性党員 一部報道",
-      "url": "https://www.itmedia.co.jp/news/article/2608/19/2000000632/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-19T11:21:49+00:00",
-      "summary": "立憲民主党栃木県連に党員登録している男性が、架空の女性に成り済ましてXで選挙や政治活動について投稿していたことが8月19日までに分かった。女性の画像は生成AIで作成したとみられ、アカウントは既に凍結されている。",
-      "category": "テクノロジー",
       "score": 8,
       "image_url": null
     },
@@ -2060,6 +2031,17 @@
       "image_url": null
     },
     {
+      "id": "5d3aff0aba5d0b8a3f2e",
+      "title": "Daybreak models are now available on AWS",
+      "url": "https://openai.com/index/daybreak-models-are-now-available-on-aws",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-11T10:00:00+00:00",
+      "summary": "OpenAI and AWS are making Daybreak cybersecurity capabilities available through Amazon Bedrock to support enterprise security workflows.",
+      "category": "生成AI活用",
+      "score": 8,
+      "image_url": null
+    },
+    {
       "id": "b0d964fe4cbf8a8afb17",
       "title": "dbtを使って見えてきた、管理・運用しやすいデータ基盤の考え",
       "url": "https://zenn.dev/seasea/articles/b1ce0af627220e",
@@ -2080,17 +2062,6 @@
       "category": "データ基盤",
       "score": 8,
       "image_url": null
-    },
-    {
-      "id": "9d76cfef41abffc99124",
-      "title": "俺の家、カラオケ天国。ボーカルを消せるスピーカーと高音質マイクが楽しすぎて、家で永久に歌ってます",
-      "url": "https://ascii.jp/elem/000/004/423/4423159/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-05T09:00:00+00:00",
-      "summary": "ボーカルのみを消せるってマジか！ スマホやストリーミングサービスで聴いている原曲からカラオケが楽しめるAI搭載ワイヤレスマイクがすごくて推せる。",
-      "category": "業務改善・QOL",
-      "score": 8,
-      "image_url": "https://ascii.jp/img/2026/07/31/4507627/s/39e54f4ceb8545fd.jpg"
     },
     {
       "id": "6cb8cff27acc81952358",
@@ -2181,6 +2152,28 @@
       "image_url": null
     },
     {
+      "id": "f8ec64126bdac17b3b31",
+      "title": "Advancing responsible AI across Europe",
+      "url": "https://openai.com/index/advancing-responsible-ai-across-europe",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-31T15:00:00+00:00",
+      "summary": "OpenAI shares how its safety, security, transparency, and provenance practices support responsible AI governance in Europe. The work will continue as the EU AI Act advances.",
+      "category": "生成AI活用",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "cd88270c00622dafecb0",
+      "title": "Univé builds an AI-ready workforce",
+      "url": "https://openai.com/index/unive",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-31T07:00:00+00:00",
+      "summary": "See how Univé built an AI-ready workforce with ChatGPT Enterprise by combining leadership, responsible governance, and employee-led innovation to transform work at scale.",
+      "category": "生成AI活用",
+      "score": 8,
+      "image_url": null
+    },
+    {
       "id": "da587e70c663d35c46fa",
       "title": "Web terminal on serverless GPU compute (AI Runtime) is in Public Preview",
       "url": "https://docs.databricks.com/aws/en/release-notes/product/2026/july",
@@ -2188,6 +2181,17 @@
       "published_at": "2026-07-31T00:00:00+00:00",
       "summary": "The web terminal in notebooks connected to serverless GPU compute (AI Runtime) is now in Public Preview . Use it to run shell commands, monitor GPU usage with nvidia-smi , install libraries, and manage files directly on the compute. This requires serverless GPU environment versi…",
       "category": "リリース速報",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "dca7adc62d79fe1cd1f1",
+      "title": "Advancing the price-performance frontier with GPT-5.6",
+      "url": "https://openai.com/index/advancing-the-price-performance-frontier-with-gpt-5-6",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-30T10:00:00+00:00",
+      "summary": "Explore lower GPT‑5.6 pricing for Luna and Terra—and how OpenAI’s more efficient models help enterprises deploy AI workflows at scale.",
+      "category": "生成AI活用",
       "score": 8,
       "image_url": null
     },
@@ -2210,6 +2214,17 @@
       "published_at": "2026-07-30T00:00:00+00:00",
       "summary": "Snowflake公式リリースノート",
       "category": "データ基盤",
+      "score": 8,
+      "image_url": null
+    },
+    {
+      "id": "eb71f165025c2507b7b7",
+      "title": "How GPT-5.6 fuses frontier intelligence with frontier efficiency",
+      "url": "https://openai.com/index/gpt-5-6-frontier-intelligence-efficiency",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-29T00:00:00+00:00",
+      "summary": "GPT-5.6 improves AI efficiency across models, inference, and agentic workflows, helping deliver more useful intelligence per dollar.",
+      "category": "生成AI活用",
       "score": 8,
       "image_url": null
     },
@@ -2258,13 +2273,79 @@
       "image_url": null
     },
     {
-      "id": "9cac840f25b242ef2dd5",
-      "title": "プロフェッショナルAI駆動開発 〜確率論から決定論へ AIの揺らぎを制御する開発フレームワーク〜",
-      "url": "https://gihyo.jp/book/2026/978-4-297-15788-3",
+      "id": "e87ea68936ff5b8288d8",
+      "title": "マルチモーダルモデル入門",
+      "url": "https://gihyo.jp/book/2026/978-4-297-15836-1",
       "source": "技術評論社 新刊",
-      "published_at": "2026-08-26T15:00:00+00:00",
-      "summary": "AIに指示すればコードは動く。だが同じ指示でも，返ってくるコードは毎回違う。LLMの出力は本質的に確率的です。この揺らぎを放置した結果，セキュリティ事故やデータ消失，誰も理解していないコードの蓄積が，現場で実際に起きています。 本書『プロフェッショナルAI駆動開発』は，この揺らぎを制御するフレームワーク「Y = F(X)」を軸に，AI駆動開発を再現性のあるプロセスとして体系化した実践書です。何を入力し（X），何をもって完成とし（Y），どのモデルにどう任せるか（F）。開発をこの3要素で捉え直すことで，感覚に頼っていた判断を手順として扱えるようにします。…",
+      "published_at": "2026-09-27T15:00:00+00:00",
+      "summary": "本書は，画像や音声，動画など複数の異なるデータを扱う「マルチモーダルモデル」の入門書です。 自動運転やロボット，AIエージェントといった存在が，実世界の複雑な情報を理解して人間と円滑にコミュニケーションをとるために必要とする最先端技術を，基礎知識からその仕組みまで体系的に解説します。共通基盤となるTransformerの基礎からはじめ，視覚・音声・動画・3次元データの各モデルにふれたうえで，画像・音声・自然言語の融合モデルを解説します。 マルチモーダルモデルを用いた研究や開発に応用できる確かな力が身につく一冊です。",
       "category": "データ関連書籍",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "e8de470636721b089d43",
+      "title": "2画面環境でも照らせるディスプレイライト「ScreenBar Max」と、iMacと一体化する「iScreenBar」がBenQから登場",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/25/news093.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-25T09:00:00+00:00",
+      "summary": "「ベンキュージャパン（BenQ）は、同社が展開するディスプレイライト「ScreenBar」シリーズの発売10周年を記念した新製品発表会を開催。デュアルディスプレイ環境特化の「ScreenBar Max」と、iMac向けに専用設計された「iScreenBar」が8月26日に発売される。",
+      "category": "業務改善・QOL",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "a53b8f4e1588b678663b",
+      "title": "必要ないけど欲しくなる！ 鞄につけたい左手キーボード、触ったらコトコト音ですごく良かった",
+      "url": "https://ascii.jp/elem/000/004/428/4428722/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T09:00:00+00:00",
+      "summary": "EPOMAKERの「HE30」は、HE30が簡単に説明すると、ゲーミングキーボードを縦に割って、左側だけにした製品です。FPS／TPS系のゲームに特化したキーボードといえます。",
+      "category": "業務改善・QOL",
+      "score": 7,
+      "image_url": "https://ascii.jp/img/2026/08/24/4516154/s/547c2089fe809a4a.jpg"
+    },
+    {
+      "id": "0383de7a8e36cf24ea1b",
+      "title": "Nightly Build",
+      "url": "https://github.com/sxyazi/yazi/releases/tag/nightly",
+      "source": "Yazi Releases",
+      "published_at": "2026-08-25T08:39:24+00:00",
+      "summary": "From commit: 4f6f918 Generated on: 2026-08-25 08:39 UTC Nightly changelog: https://github.com/sxyazi/yazi/blob/main/CHANGELOG.md#unreleased",
+      "category": "CLI生産性",
+      "score": 7,
+      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+    },
+    {
+      "id": "421fd6e9f11e345138f7",
+      "title": "【本日みつけたお買い得品】Xiaomiの240Hz/Fast IPSパネルのモニターが1,000円引きで1万6,980円",
+      "url": "https://pc.watch.impress.co.jp/docs/news/todays_sales/2135390.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-25T07:01:25+00:00",
+      "summary": "Amazonにおいて、Xiaomiのゲーミングモニター「Xiaomi G25i」が、直近価格から1,000円引きの1万6,980円で購入できる。",
+      "category": "業務改善・QOL",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "f42d12f42a9da40d5490",
+      "title": "Noctua×Pulsarコラボのファン内蔵ゲーミングマウスの取り扱いショップが増加",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2134794.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-25T06:05:00+00:00",
+      "summary": "Noctua製40mmファンを内蔵したPulsar Gaming Gearsのゲーミングマウス「Pulsar Feinmann F01 Noctua Edition」の取り扱いが、ツクモパソコン本店やTSUKUMO eX.、パソコンショップ アークなどで始まっている。",
+      "category": "業務改善・QOL",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "7162e1720080f122fbee",
+      "title": "テンキーレスラピトリキーボード「RAKKA 80 EDGE」に新色SIGMA WHITE",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2134642.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-25T04:05:00+00:00",
+      "summary": "ラピッドトリガー対応のキーボード「RAKKA 80 EDGE」に、新色SIGMA WHITEが登場。",
+      "category": "業務改善・QOL",
       "score": 7,
       "image_url": null
     },
@@ -2324,17 +2405,6 @@
       "image_url": null
     },
     {
-      "id": "01b8661b12790c4da888",
-      "title": "ローカルAIを動かすPCのスペックは？CPUのコア数は？ビデオカードって何枚必要なの？お悩みの方はまるっとサイコムに相談すると話が早いかも",
-      "url": "https://ascii.jp/elem/000/004/428/4428308/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-25T01:00:00+00:00",
-      "summary": "利用制限なしでセキュリティー対策もOKなローカルAIを運用するPCが欲しいけど、どんなスペックを選んだらいいかわからない。サイコムならそんなお悩みを気軽に相談できます！",
-      "category": "業務改善・QOL",
-      "score": 7,
-      "image_url": "https://ascii.jp/img/2026/08/21/4515255/s/4560eab411448da7.png"
-    },
-    {
       "id": "8460488d0301682737ae",
       "title": "睡眠不足だけでなく、過度な睡眠も脳をはじめとする身体全般の老化を加速させることができるという研究結果が出た。 - 매일경제",
       "url": "https://news.google.com/rss/articles/CBMiS0FVX3lxTE5KdGFzcDIxZGNzNHpOWUtVd1ZvY0dMNkptMm5kelVhS1dhNVBFTWtQeVRTZjFjU1NlLTJuRzlNUVF1c3hRbVhqLW9xOA?oc=5",
@@ -2379,17 +2449,6 @@
       "image_url": null
     },
     {
-      "id": "0383de7a8e36cf24ea1b",
-      "title": "Nightly Build",
-      "url": "https://github.com/sxyazi/yazi/releases/tag/nightly",
-      "source": "Yazi Releases",
-      "published_at": "2026-08-24T23:23:59+00:00",
-      "summary": "From commit: 9129ffd Generated on: 2026-08-24 23:23 UTC Nightly changelog: https://github.com/sxyazi/yazi/blob/main/CHANGELOG.md#unreleased",
-      "category": "CLI生産性",
-      "score": 7,
-      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
-    },
-    {
       "id": "8e337af8bcba4d06aaf7",
       "title": "レタスクラブ読者の睡眠のモヤモヤ、全部聞いてきました！柳沢先生の快眠Q＆A - Yahoo!ニュース",
       "url": "https://news.google.com/rss/articles/CBMif0FVX3lxTE5XVHM0RFlQTzRHTGhDZldmT29ENkx5cGJ2SVFSQmp5S2pob1d3YlhyYzl0U2hoclJKb3h3a2dxUzJkYWxOMjFseXZlYUVKZWs1M2owdWlaQXhFZDZGTHFTeGZhVDZJNi1VSVA1WlNNVC0yemwzc2ZIUWJmT0ZhZm8?oc=5",
@@ -2410,17 +2469,6 @@
       "category": "睡眠",
       "score": 7,
       "image_url": null
-    },
-    {
-      "id": "f69788e061dccda0f13d",
-      "title": "ゲームも仕事も一台のキーボードでこなしたい？ ならLogicool Gのテンキーレスが現在1万円ポッキリ！",
-      "url": "https://ascii.jp/elem/000/004/428/4428900/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-24T12:00:00+00:00",
-      "summary": "Amazon.co.jpにて、Logicool Gの有線ゲーミングキーボード「G413 TKL SE」が販売中だ。参考価格は1万1000円だが、執筆時点では9％オフの1万円で購入できる（8月24日時点）。",
-      "category": "業務改善・QOL",
-      "score": 7,
-      "image_url": "https://ascii.jp/img/2026/08/24/4516434/s/2d75848331a67018.jpg"
     },
     {
       "id": "b2fd2d8d1506425b2748",
@@ -2468,7 +2516,7 @@
     },
     {
       "id": "966e6334b2673e33e606",
-      "title": "中国Beifa製のメガネ型ウェアラブルデバイス「GE01-3」がMakuageで国内先行販売を開始",
+      "title": "中国Beifa製のメガネ型ウェアラブルデバイス「GE01-3」がMakuakeで国内先行販売を開始",
       "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news089.html",
       "source": "ITmedia PC USER",
       "published_at": "2026-08-24T06:25:00+00:00",
@@ -2507,17 +2555,6 @@
       "published_at": "2026-08-24T02:00:08+00:00",
       "summary": "床をふくだけで睡眠環境が整う⁈寝苦しい夜も“すやすや快眠”グッズ4選 美ST ONLINE",
       "category": "睡眠",
-      "score": 7,
-      "image_url": null
-    },
-    {
-      "id": "f0ec82d78478e761a743",
-      "title": "モジュラー設計のゲームパッド、通常スイッチの5倍の大きさの1キーキーボード、ハドソン伝説特別編 スターソルジャー40周年記念本、じゃんぱら 秋葉原3号店が近日移転 ほか 秋葉原の気になるニュース（8月17日～23日分）",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2134809.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-23T23:05:00+00:00",
-      "summary": "先週の気になる記事をピックアップ。",
-      "category": "業務改善・QOL",
       "score": 7,
       "image_url": null
     },
@@ -2621,17 +2658,6 @@
       "image_url": null
     },
     {
-      "id": "0e256d520c22c26df36a",
-      "title": "Apple Arcade levels up with Block Blast!+ and Art of Fauna: Cozy Puzzles+",
-      "url": "https://www.apple.com/newsroom/2026/08/apple-arcade-levels-up-with-block-blast-plus-and-art-of-fauna-cozy-puzzles-plus/",
-      "source": "Apple Newsroom",
-      "published_at": "2026-08-11T13:59:21+00:00",
-      "summary": "Apple Arcade upgrades its catalog of hit puzzle games with Block Blast+ and Art of Fauna: Cozy Puzzles+.",
-      "category": "業務改善・QOL",
-      "score": 7,
-      "image_url": "https://www.apple.com/newsroom/images/2026/08/apple-arcade-levels-up-with-block-blast-plus-and-art-of-fauna-cozy-puzzles-plus/tile/Apple-Arcade-Puzzle-lp.jpg.og.jpg"
-    },
-    {
       "id": "ce82a3998cf94d189453",
       "title": "「大学生の睡眠時間を意図的に増やす実験」で本当に学業成績が向上することが明らかに - au Webポータル",
       "url": "https://news.google.com/rss/articles/CBMieEFVX3lxTE1Ra1M5RXlyaW9DcEZsOFVDX0VYek1POTgtaktyWHVicWw4dE05alIwQUc3UDVmckNoWUt4NjhXQk1JdmZLbUtiQTF2aWR2UnNjX0phQ1NTTzhxc0x3ODhxSGVBTEtwZkkzczBUSjlMeVVaMEQ1WGRySg?oc=5",
@@ -2683,6 +2709,17 @@
       "published_at": "2026-08-04T07:00:00+00:00",
       "summary": "呼吸研究家・発──睡眠の質を下げる7つの原因を世界で初めて解明 Newscast.jp",
       "category": "睡眠",
+      "score": 7,
+      "image_url": null
+    },
+    {
+      "id": "4a9b73e77846b899c80a",
+      "title": "Apple is getting this wrong",
+      "url": "https://openai.com/index/apple-is-getting-this-wrong",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-03T22:00:00+00:00",
+      "summary": "OpenAI addresses Apple’s baseless lawsuit, corrects claims about its employees, and shares messages documenting what happened.",
+      "category": "生成AI活用",
       "score": 7,
       "image_url": null
     },
@@ -2742,6 +2779,17 @@
       "image_url": null
     },
     {
+      "id": "84386ff4e33ebe1a5c26",
+      "title": "AIがわかる数学入門",
+      "url": "http://www.oreilly.co.jp/books/9784814401666/",
+      "source": "O'Reilly Japan 新刊・近刊",
+      "published_at": "2026-07-14T15:00:00+00:00",
+      "summary": "本書は、特異値分解や最適化、グラフ理論といった数学的基礎から、自然言語処理、オペレーションズ・リサーチまで、AIを支える広範な数学を順を追って丁寧に解説します。実践的な応用例を補完する公開データセットとJupyter NotebookがGitHubに用意されており、理論と実践を行き来しながら理解を深めることができる構成になっています。",
+      "category": "データ関連書籍",
+      "score": 7,
+      "image_url": null
+    },
+    {
       "id": "77d294e5fd161303558f",
       "title": "おやこで遊ぼ!",
       "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=111357",
@@ -2760,17 +2808,6 @@
       "published_at": "2026-10-02T00:00:00+00:00",
       "summary": "場所: 軽井沢コミュニティハウス ( 西区 )",
       "category": "子育て",
-      "score": 6,
-      "image_url": null
-    },
-    {
-      "id": "d587fbb2e4369382fd7d",
-      "title": "秋の⾥⼭ガーデンフェスタ",
-      "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw6755",
-      "source": "横浜市公式観光イベント",
-      "published_at": "2026-09-05T00:00:00+00:00",
-      "summary": "学習・体験、こども向け、イベント、花、屋外（雨天変更）・学習・体験 こども向け イベント 花 屋外（雨天変更） 秋の⾥⼭ガーデンフェスタ エリア その他 開催日程 2026年9月5日(土)～9月27日(日… 住所 里山ガーデン（よこはま動物園ズーラシア隣接） もっとみる",
-      "category": "横浜イベント",
       "score": 6,
       "image_url": null
     },
@@ -2837,6 +2874,17 @@
       "published_at": "2026-08-28T00:00:00+00:00",
       "summary": "親子でのびのび体操あそび・場所: 踊場地区センター ( 戸塚区 )",
       "category": "子育て",
+      "score": 6,
+      "image_url": null
+    },
+    {
+      "id": "3b96f458f025907c8629",
+      "title": "【本日みつけたお買い得品】BenQのMacBook向け4Kモニターが約1万5千円引き",
+      "url": "https://pc.watch.impress.co.jp/docs/news/todays_sales/2135342.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-25T05:55:23+00:00",
+      "summary": "Amazonにて、ベンキュージャパンのMacBookユーザー向けの4Kモニター「MA」シリーズ3機種がセール価格で販売されている。",
+      "category": "業務改善・QOL",
       "score": 6,
       "image_url": null
     },
@@ -2914,6 +2962,17 @@
       "published_at": "2026-08-19T00:00:00+00:00",
       "summary": "Snowflake公式リリースノート",
       "category": "データ基盤",
+      "score": 6,
+      "image_url": null
+    },
+    {
+      "id": "baf07daff59f271b9079",
+      "title": "How NVIDIA scales expertise with ChatGPT Work",
+      "url": "https://openai.com/index/nvidia/chatgpt-work",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-18T00:00:00+00:00",
+      "summary": "NVIDIA teams use ChatGPT Work to reduce manual tasks, connect fast-moving signals, and scale successful workflows globally.",
+      "category": "生成AI活用",
       "score": 6,
       "image_url": null
     },
@@ -3012,6 +3071,17 @@
       "source": "CLI・ターミナルツール発見",
       "published_at": "2026-08-12T00:48:11+00:00",
       "summary": "仁川港初の完全自動化ターミナル、2028年稼働へ サイバーロジテックが運営システム受注 ニコニコニュース",
+      "category": "CLI生産性",
+      "score": 6,
+      "image_url": null
+    },
+    {
+      "id": "ba2fe01786109d850731",
+      "title": "仁川港初の完全自動化ターミナル、2028年稼働へ サイバーロジテックが運営システム受注 - zakⅡ",
+      "url": "https://news.google.com/rss/articles/CBMifkFVX3lxTE5RcXFqel84SzRFaVpBdTZSTnB0SkZDM1dFWDRSMll3cExaTF9hRkN6WjNYY1IweWlCd3VYM1Z2b2RXQjdIMW9GdE9OQ0FwRERqOHNTVXFpREVTeUd4bWg3Q2NaZ3JXbWkyZ3VTVUJpdFhpWHZVNUUtbnZWMVhMZw?oc=5",
+      "source": "CLI・ターミナルツール発見",
+      "published_at": "2026-08-12T00:27:00+00:00",
+      "summary": "仁川港初の完全自動化ターミナル、2028年稼働へ サイバーロジテックが運営システム受注 zakⅡ",
       "category": "CLI生産性",
       "score": 6,
       "image_url": null
@@ -3127,17 +3197,6 @@
       "image_url": null
     },
     {
-      "id": "94f982925be069ddcaf5",
-      "title": "横浜赤レンガ倉庫「横浜おいも万博 2026」",
-      "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw12626",
-      "source": "横浜市公式観光イベント",
-      "published_at": "2026-10-09T00:00:00+00:00",
-      "summary": "イベント、グルメ、屋外（雨天変更）・イベント グルメ 屋外（雨天変更） 横浜赤レンガ倉庫「横浜おいも万博 2026」 エリア みなとみらい21 開催日程 開催日程：2026年10月9日(金)～1… 住所 横浜赤レンガ倉庫 イベント広場 もっとみる",
-      "category": "横浜イベント",
-      "score": 5,
-      "image_url": null
-    },
-    {
       "id": "753ee7cfe7d5361395e3",
       "title": "ワクワク絵本の会",
       "url": "https://cgi.city.yokohama.lg.jp/common/event2/event_detail.html?id=109796",
@@ -3145,28 +3204,6 @@
       "published_at": "2026-08-26T00:00:00+00:00",
       "summary": "ワクワク絵本の会・場所: 杉田地区センター ( 磯子区 )",
       "category": "子育て",
-      "score": 5,
-      "image_url": null
-    },
-    {
-      "id": "36d6247d9ee49333449a",
-      "title": "横浜髙島屋 「バナナマンのせっかくグルメ！！博覧会」",
-      "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw11484",
-      "source": "横浜市公式観光イベント",
-      "published_at": "2026-08-26T00:00:00+00:00",
-      "summary": "イベント、グルメ、屋内（雨天OK）・イベント グルメ 屋内（雨天OK） 横浜髙島屋 「バナナマンのせっかくグルメ！！博覧会」 エリア 横浜駅周辺 開催日程 2026年8月26日(水)～9月7日(月… 住所 横浜髙島屋 8階会場 もっとみる",
-      "category": "横浜イベント",
-      "score": 5,
-      "image_url": null
-    },
-    {
-      "id": "363fab2ddef2fa0770de",
-      "title": "FLEXISPOTの天板付き電動昇降デスク「E7」がセールで25％オフの5万5125円に",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news071.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T00:52:00+00:00",
-      "summary": "長時間のデスクワークによる肩や首の凝りを軽減できるFLEXISPOTの電動昇降デスクが、Amazonのタイムセールで25％オフの5万5125円で販売中だ。メモリー機能や障害物検知も備えている。",
-      "category": "業務改善・QOL",
       "score": 5,
       "image_url": null
     },
@@ -3215,17 +3252,6 @@
       "image_url": null
     },
     {
-      "id": "8a998a4e1addc3df8a98",
-      "title": "横浜赤レンガ倉庫 「Red Brick Sunset 2026」",
-      "url": "https://www.welcome.city.yokohama.jp/eventinfo/ev_detail.php?bid=yw9993",
-      "source": "横浜市公式観光イベント",
-      "published_at": "2026-08-01T00:00:00+00:00",
-      "summary": "イベント、グルメ、屋外（雨天変更）・イベント グルメ 屋外（雨天変更） 横浜赤レンガ倉庫 「Red Brick Sunset 2026」 エリア みなとみらい21 開催日程 2026年8月1日(土)～8月30日(日… 住所 横浜赤レンガ倉庫 イベント広場 もっとみる",
-      "category": "横浜イベント",
-      "score": 5,
-      "image_url": null
-    },
-    {
       "id": "1a774cfcf7ef5bbbe41d",
       "title": "｢午後のコーヒー｣が睡眠の質を下げている...最新研究でわかった､23時に寝る人が｢最後に飲んでいい時間｣【カフェイン3選】 - PRESIDENT Online（プレジデントオンライン）",
       "url": "https://news.google.com/rss/articles/CBMiWEFVX3lxTE5qaTVlcktVUEhONUYxazkxOXdqdXptQ2dQZ2ZVRE5DdlZfM1d5WGNLT2tud2R4U2JfV25PSFhEeUZKMDc5SXN4cVh5VzRLYm9pNFZURzNwTlc?oc=5",
@@ -3246,17 +3272,6 @@
       "category": "業務改善・QOL",
       "score": 5,
       "image_url": "https://ascii.jp/img/2026/07/27/4505616/s/30430df5d1a5eef2.jpg"
-    },
-    {
-      "id": "ae3fb2fb7897f8139b13",
-      "title": "Apple Upgrade launches in the United States",
-      "url": "https://www.apple.com/newsroom/2026/07/apple-upgrade-launches-in-the-united-states/",
-      "source": "Apple Newsroom",
-      "published_at": "2026-07-28T12:20:23+00:00",
-      "summary": "Apple Upgrade — a new hardware leasing program — is now available on the Apple Store online, in the Apple Store app, and at Apple Store locations in the United States.",
-      "category": "業務改善・QOL",
-      "score": 5,
-      "image_url": "https://www.apple.com/newsroom/images/2026/07/apple-upgrade-launches-in-the-united-states/tile/Apple-Upgrade-lp.jpg.og.jpg"
     },
     {
       "id": "e61338be4bc3e98f233d",
@@ -3336,46 +3351,90 @@
       "image_url": null
     },
     {
-      "id": "631a314e219a902aaa1c",
-      "title": "AIと共に挑むLinuxカーネル：1か月で18本のパッチを投げて見えた「思考と方法論」",
-      "url": "https://qiita.com/faliye/items/2a1e081efb5d7f985c58",
-      "source": "Qiita / 生成AI",
-      "published_at": "2026-08-25T02:50:08+00:00",
-      "summary": "この記事は、Linuxカーネルへのパッチ投稿に興味がある方に向けて、私が経験したごく短いコードコントリビュートの記録を共有するものです。数字を並べたのは誇示するためではなく、開発プロセスの裏側にあるリアルを感じてほしいからです。この記事ではあえて技術的な詳細には触れません。...",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "272e725d99ecf3b66487",
-      "title": "「やだかわいいっっ」 シャープの“おれさま”AIロボが大反響",
-      "url": "https://ascii.jp/elem/000/004/428/4428984/?rss=",
+      "id": "88633bfcd4e8646a137b",
+      "title": "FPSも大作ゲームもこれ1台！ Ryzen 7 7800X3D×RX 9060 XT 16GBを30万円以内で",
+      "url": "https://ascii.jp/elem/000/004/429/4429227/?rss=",
       "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-25T02:40:00+00:00",
-      "summary": "シャープは8月25日、対話AIキャラクター「ポケとも」の第二弾として、ミーアキャットをモチーフにしたコンパニオンロボットSR-C02M-Hを発表した。",
+      "published_at": "2026-08-25T10:00:00+00:00",
+      "summary": "高fpsで遊びたいなら、GPUだけでなくCPU性能にもこだわりたい。Ryzen 7 7800X3DとRadeon RX 9060 XT 16GB、32GBメモリを搭載しながら28万9800円に収めたSTORMのゲーミングPCを紹介する。",
       "category": "業務改善・QOL",
       "score": 4,
-      "image_url": "https://ascii.jp/img/2026/08/25/4516857/s/188f6a9bf8b10bb9.jpg"
+      "image_url": "https://ascii.jp/img/2026/07/29/4507189/s/3288b8c583974ca6.png"
     },
     {
-      "id": "b347ba0212804bb0bf0e",
-      "title": "AI に答えを教えさせない ── Claude Code を「ソクラテス式チューター」に変える VS Code 拡張機能を作った",
-      "url": "https://qiita.com/The-Nori/items/12ecd798a5d506978e04",
-      "source": "Qiita / 生成AI",
-      "published_at": "2026-08-25T02:29:23+00:00",
-      "summary": "はじめに Socratic Tutor という VS Code 拡張機能を作って、Marketplace に公開しました。 Marketplace: https://marketplace.visualstudio.com/items?itemName=nsaito.s...",
+      "id": "2bf0b7030ae012c4af9c",
+      "title": "PCが高いので、長く使えることを目指したノート「LAVIE N16」",
+      "url": "https://pc.watch.impress.co.jp/docs/news/2135452.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-25T09:43:34+00:00",
+      "summary": "昨今のAI需要の高まりで、メモリを始めとする部材が高騰、結果的にPCも高騰している。こうした状況下、消費者として、もしPCを新調するとしたらなるべく長く使える製品がいい、というのは然るべき判断だろう。NECパーソナルコンピュータ(NEC PC)は、8月25日に発表した個人向け製品の2026年夏のラインナップで、こうしたニーズに応えていく。",
+      "category": "業務改善・QOL",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "b8d4e8abd297f48e29af",
+      "title": "AIエージェント運用のコスト管理 ― 実際にやらかした事故と、そこから作ったルール",
+      "url": "https://qiita.com/sh39/items/ee691faac2599834c693",
+      "source": "Qiita / LLM",
+      "published_at": "2026-08-25T09:00:27+00:00",
+      "summary": "はじめに Claude Codeのようなコーディングエージェントを日常的に使い始めると、最初にぶつかる壁は「動くかどうか」ではありません。数日〜数週間運用してから初めて直面するのは、「コストがどこでどう積み上がっているのか、実感として掴めない」という問題です。 個人で経...",
       "category": "生成AI活用",
       "score": 4,
       "image_url": null
     },
     {
-      "id": "11cca0c575fa946af7a2",
-      "title": "AIで文章は増えた。でも、面白さは増えただろうか",
-      "url": "https://qiita.com/archer2232/items/af6a91a0e083ce18f67e",
+      "id": "fe8eb1ecfdd38928912b",
+      "title": "Claude Coworkで手作業が激減した。任せてよかったリアルな実感",
+      "url": "https://www.lifehacker.jp/article/2608-matome-claude-code-tqn/",
+      "source": "ライフハッカー・ジャパン",
+      "published_at": "2026-08-25T09:00:00+00:00",
+      "summary": "いま注目したいのが、私たちの代わりに手を動かし、タスクを最初から最後まで完遂してくれる「AIエージェント」という存在。今回は、AnthropicのAI「Claude」に搭載された新機能「Claude Cowork（クロード・コワーク）」の実力と、それをビジネスや日常に組み込むためのリアルな活用術、そして私たちが意識すべき「境界線」についてお届けします。",
+      "category": "業務改善・QOL",
+      "score": 4,
+      "image_url": "https://media.loom-app.com/loom/2026/06/22/e1626712-4533-4271-86df-8bab567c2b5d/original.jpg?w=1200"
+    },
+    {
+      "id": "853d088d4d1ad1bf09df",
+      "title": "【第2回】Agent OrchestrationでQiita記事執筆が爆速になった話 [比較]Copilot Chat / Gemini",
+      "url": "https://qiita.com/Q-tsunagu/items/889853c987857379f8f1",
       "source": "Qiita / 生成AI",
-      "published_at": "2026-08-25T02:27:27+00:00",
-      "summary": "AIが人間を次へ進めるはずだったのに Xは、ほとんど眺めるだけです。 それでも最近、流れてくる文章に違和感を覚えることが増えました。 AIが書いた文章。 その文章に、AIが返したような返信。 文章同士は整っているのに、会話として見ると、どこか空っぽです。 少し前まで、AI...",
+      "published_at": "2026-08-25T07:15:37+00:00",
+      "summary": "Agent OrchestrationでQiita記事執筆が爆速になった話 ※検証環境を利用しています はじめに 前回の記事 （【第1回】Copilot Studio と Entra IDで、ユーザー認証情報の取得）を執筆する際、AI業務実行基盤「Agent Orche...",
       "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "64a25191b4d2cdbe00f3",
+      "title": "NECPC、Ryzen AI搭載モデルも用意した16型ノート「LAVIE N16」など2026年夏モデル6機種を発表",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/25/news082.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-25T05:58:00+00:00",
+      "summary": "NECパーソナルコンピュータは、個人向け16型ノートPC「LAVIE N16」など2026年夏モデル計6機種を発表した。",
+      "category": "業務改善・QOL",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "97d29bd615d5a4c15a10",
+      "title": "GLM-5.3が示す「モデル本体を変えずに能力を伸ばす」時代──企業はポストトレーニングをどう評価するか",
+      "url": "https://qiita.com/mhamadajp/items/b33fc2e72ffc3b9fecd1",
+      "source": "Qiita / 生成AI",
+      "published_at": "2026-08-25T05:37:11+00:00",
+      "summary": "AIモデルの新バージョンと聞くと、「より大きい基盤モデルを新しく学習した」と考えがちです。ところがZ.aiが公開したGLM-5.3は、GLM-5.2と同じ基盤モデルを使い、ポストトレーニングの規模拡大によって性能を伸ばしたと説明しています。Z.aiの技術発表 これは、単に一...",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "fb776a0f46fa77b32df0",
+      "title": "PFUのOCRソフト「給与支払報告書OCR」に新機能 要確認帳票の自動抽出が可能に",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/25/news071.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-25T04:14:00+00:00",
+      "summary": "PFUは、同社製オンプレミス型AI-OCRソフトウェア「DynaEye 給与支払報告書OCR」の機能向上を告知した。",
+      "category": "業務改善・QOL",
       "score": 4,
       "image_url": null
     },
@@ -3386,17 +3445,6 @@
       "source": "Zenn / LLM",
       "published_at": "2026-08-25T01:31:04+00:00",
       "summary": "はじめに こんにちは、ギックスでエンジニアをしています中島です。 旬が過ぎたかもですが、7月に中国新興企業 Moonshot AI が新LLMモデル Kimi K3 を発表しました。このモデルがオープンウェイトモデルでありながら、GPT-5.6 や Claudeといったクローズドモデルと一部ベンチマークで同じ土俵に乗っているということで大変話題となりました。 Kimi K3については仕様も論文として公開されています。ただ、いきなり論文に入ると「KDA」「Gated MLA」「MoE」といった用語が出てきて、どこが普通のLLMと違うのかが見えにくくなって…",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "feb9fe345467e0c158fe",
-      "title": "サーバスクリプトからAIを呼ぶ小ネタ3本",
-      "url": "https://qiita.com/pmc-ko/items/0fa6e6c147aa2d1d999b",
-      "source": "Qiita / 生成AI",
-      "published_at": "2026-08-25T01:08:45+00:00",
-      "summary": "はじめに これまで さくらのAI Engine を使って、 プリザンターに文法チェック・ベクトル検索・画像認識を足してきました。 どれも「1 記事分の分量がある」ネタでしたが、実際に業務で効くのは もっと小さくて地味なものだったりします。 この記事では、実装が 100 行...",
       "category": "生成AI活用",
       "score": 4,
       "image_url": null
@@ -3444,17 +3492,6 @@
       "category": "業務改善・QOL",
       "score": 4,
       "image_url": "https://media.loom-app.com/loom/2026/08/24/78b975da-6cad-49b9-8607-5b75a7c9642f/original.png?w=1200"
-    },
-    {
-      "id": "39188c2cb2a515782d38",
-      "title": "OpenVikingってなんだ？ — AIの記憶をlsとfindで辿るコンテキストDB",
-      "url": "https://qiita.com/GeneLab_999/items/8f4868b162510ec1e0d2",
-      "source": "Qiita / LLM",
-      "published_at": "2026-08-24T23:35:24+00:00",
-      "summary": "この記事の対象読者 RAGを触ったことがあり、ベクトルDBに文書を入れて検索した経験がある方 「チャンクを増やすほど検索精度が落ちる」現象に心当たりのある方 想定レベルはひとつに固定します。ベクトル検索の仕組みは知っているが、エージェント向けのコンテキスト管理は未経験...",
-      "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
     },
     {
       "id": "01f756729f8b745c8b60",
@@ -3622,17 +3659,6 @@
       "image_url": null
     },
     {
-      "id": "ee9214230b6a482a506e",
-      "title": "8GBのGPUで35Bモデルが高速動作！MoE特化の実行環境「FreeToken」",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2134988.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-24T05:04:19+00:00",
-      "summary": "「このモデル、メインメモリなら乗るんだけど、ビデオカードのVRAMが少ないから遅くて使えないんだよねぇ」など、ちょっと贅沢な悩みを抱えているユーザーは少なくないだろう。その解決策の1つとなりそうなのが、無料のAIモデル実行環境「FreeToken」だ。現在公式サイトから無料でダウンロードできるようになっており、ライセンスはApache 2.0となっている。",
-      "category": "業務改善・QOL",
-      "score": 4,
-      "image_url": null
-    },
-    {
       "id": "58f494c5e634b19896b6",
       "title": "AIに「最強のプロンプト」を設計させたら5回とも条件を満たした。同じ結果が、頼み方に1行足すだけで出た",
       "url": "https://zenn.dev/numarn/articles/ai-designed-prompt-two-stage-handson",
@@ -3662,17 +3688,6 @@
       "published_at": "2026-08-24T03:11:23+00:00",
       "summary": "いまどきのAIはリアルで高画質な画像を出力できるはずなのに、なぜ“不味そうな”POPができるのか、謎に思ったので、AI（ChatGPT Sol 高）に聞いてみた。",
       "category": "テクノロジー",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "549cf025475004a8b94f",
-      "title": "詫び石配布もう恒常化？Codexの非効率性で上限リセット",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2134922.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-24T03:06:20+00:00",
-      "summary": "OpenAIでは、ChatGPTやCodexに不具合が見つかると“詫び石”を配布する(=リセットする)という文化が定着したようだ。開発者のTibo氏によると、複数回圧縮を繰り返した長時間セッションで画像を使った際の効率の悪さ、Computer Historyの高い使用率、そして会話タイトルを生成する機能における想定以上の使用量消費の3つの不具合を発見した。これに伴い、有料サブスクリプションのすべてにおいて使用量を完全リセットした。",
-      "category": "業務改善・QOL",
       "score": 4,
       "image_url": null
     },
@@ -3728,17 +3743,6 @@
       "published_at": "2026-08-23T23:48:25+00:00",
       "summary": "ブラウザで完結するTransformers.jsを試した Transformers.jsを触ってみた。モデルの実行が全部ブラウザの中で完結するライブラリで、推論サーバーもAPIキーも要らん。題材は日本語の要約にした。 やる前は身構えてたけど、動かすだけなら想像の10倍簡単やった。2ファイルで動く。 ただ、そこから先が本題だった。ブラウザ内AIって、モデルがユーザーのブラウザのストレージに丸ごと落ちてくる。つまり2.65GBのモデルを選ぶと、ユーザーは2.65GBダウンロードして2.65GB保存することになる。この一点が、全部の判断に効いてくる。 そして…",
       "category": "生成AI活用",
-      "score": 4,
-      "image_url": null
-    },
-    {
-      "id": "b0cfd2e2f217fbdf291b",
-      "title": "オール光ネットワーク（APN）の知見や研究成果を体系化した設計指針が国際標準化、KDDI・NTTら7社が策定を主導 世界規模での相互接続性の実現を目指す",
-      "url": "https://internet.watch.impress.co.jp/docs/news/2134513.html",
-      "source": "INTERNET Watch",
-      "published_at": "2026-08-23T22:00:00+00:00",
-      "summary": "KDDI株式会社、NTT株式会社、1FINITY株式会社、日本電気株式会社（NEC）、楽天モバイル株式会社、沖電気工業株式会社、住友電気工業株式会社は8月21日、AI時代を支える低遅延・低消費電力なネットワークの設計指針が、8月13日に「ITU-T勧告Y.3335」として国際標準化されたと発表した。",
-      "category": "業務改善・QOL",
       "score": 4,
       "image_url": null
     },
@@ -3831,17 +3835,6 @@
       "image_url": "https://ascii.jp/img/2026/08/17/4513299/s/131e47855b2286c5.jpg"
     },
     {
-      "id": "0a4e48a915e916cb396b",
-      "title": "Stripe、AIモデルゲートウェイのOpenRouter買収 400以上のAIモデルを束ねる中立基盤は維持",
-      "url": "https://www.itmedia.co.jp/news/article/2608/20/2000000639/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-20T01:43:52+00:00",
-      "summary": "Stripeは、AIモデルのゲートウェイを手掛けるOpenRouterを買収することで合意したと発表した。報道による買収額は約75億ドル。OpenRouterは単一APIで400超のモデル切り替えを可能にする。Stripeはトークンコスト最適化を強化し、OpenRouterは買収後も中立的な運営を継続する。",
-      "category": "テクノロジー",
-      "score": 4,
-      "image_url": null
-    },
-    {
       "id": "bd81738c66c365108eb0",
       "title": "Dashboard enhancements and bug fixes",
       "url": "https://docs.databricks.com/aws/en/ai-bi/release-notes/2026",
@@ -3864,6 +3857,17 @@
       "image_url": null
     },
     {
+      "id": "f0aa91974e0ad6ca5868",
+      "title": "Strengthening democratic oversight in national security",
+      "url": "https://openai.com/index/strengthening-democratic-oversight-in-national-security",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-18T19:00:00+00:00",
+      "summary": "OpenAI launches an initiative to strengthen democratic oversight of AI in national security, supporting government institutions with tools, training, and expertise.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
       "id": "d35b660ffeef626d798f",
       "title": "16型で990gを実現した憧れのモバイルノート「Swift Air 16」の新モデル発表",
       "url": "https://ascii.jp/elem/000/004/427/4427585/?rss=",
@@ -3873,6 +3877,17 @@
       "category": "業務改善・QOL",
       "score": 4,
       "image_url": "https://ascii.jp/img/2026/08/18/4514173/s/fcebae39ef984071.png"
+    },
+    {
+      "id": "6023038a8912cd08a228",
+      "title": "Asana cleared 5 years of engineering work in 2 weeks with Codex",
+      "url": "https://openai.com/index/asana",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-18T07:00:00+00:00",
+      "summary": "Asana used OpenAI Codex to replace an outdated testing system in two weeks, completing work expected to take five years for about $12K.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
     },
     {
       "id": "eb04a14a9c2d8c1255b5",
@@ -3897,6 +3912,17 @@
       "image_url": null
     },
     {
+      "id": "1380f7766171a5a616fa",
+      "title": "The Defender’s Window",
+      "url": "https://openai.com/index/the-defenders-window",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-17T05:30:00+00:00",
+      "summary": "AI is reshaping cybersecurity for attackers and defenders alike. Learn how OpenAI is strengthening its defenses and what security teams can do now.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
       "id": "bd7cb23dcec65840ff6e",
       "title": "「KODAKのキーホルダーカメラ」で改めて気づいた、“平成レトロ”の底知れない魅力",
       "url": "https://ascii.jp/elem/000/004/424/4424916/?rss=",
@@ -3914,6 +3940,28 @@
       "source": "Hugging Face Blog",
       "published_at": "2026-08-13T17:16:04+00:00",
       "summary": "",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "6f8368ac763b73731923",
+      "title": "The builder’s guide to GPT‑5.6",
+      "url": "https://openai.com/index/builders-guide-to-gpt-5-6",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-13T11:00:00+00:00",
+      "summary": "Learn how startups use GPT-5.6 to build faster, more cost-efficient AI agents with smarter model selection and new Responses API capabilities.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "6eaab463a55def8752bc",
+      "title": "OpenAI appoints Dali Rajic as Chief Revenue Officer",
+      "url": "https://openai.com/index/dali-rajic-chief-revenue-officer",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-13T09:00:00+00:00",
+      "summary": "OpenAI appoints Dali Rajic as Chief Revenue Officer to lead its global revenue organization and help businesses realize the full value of AI.",
       "category": "生成AI活用",
       "score": 4,
       "image_url": null
@@ -3952,6 +4000,50 @@
       "image_url": "https://ascii.jp/img/2026/08/12/4512250/s/9aed77848c4de64f.jpg"
     },
     {
+      "id": "c8e6ab1530ab9d9f2562",
+      "title": "AIインターフェースデザイン",
+      "url": "http://www.oreilly.co.jp/books/9784814401772/",
+      "source": "O'Reilly Japan 新刊・近刊",
+      "published_at": "2026-08-11T15:00:00+00:00",
+      "summary": "AIプロダクト開発においてユーザーを代弁するデザイナーの役割と重要性を問い直す技術書。AIの急速な進化により、プロダクトデザイナーはこれまでにない課題に直面しています。本書では、GoogleのTensorFlowプロジェクトでの実務経験を持つ著者が、予測不可能で非決定論的なAIと、デザイナーはどのように向き合うべきかを、GUIやHCIの初期研究を踏まえながら丁寧に解説します。AIインターフェースのデザイン原則を体系的に整理しているので、従来の決定論的なソフトウェア設計に慣れたデザイナーはもちろん、AI技術の専門知識を持たないデザイナーでも安心して読み進…",
+      "category": "データ関連書籍",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "5367cc95a8fd98172eb1",
+      "title": "What building an AI-native finance function taught me",
+      "url": "https://openai.com/index/building-an-ai-native-finance-function",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-10T17:00:00+00:00",
+      "summary": "OpenAI CFO Sarah Friar shares five lessons for building an AI-native finance function, from automated forecasting to stronger controls and AI ROI.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "3d196224ab27a2df369c",
+      "title": "OpenAI’s letter to Governor Abbott on responsible AI infrastructure in Texas",
+      "url": "https://openai.com/index/responsible-ai-infrastructure-texas",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-10T14:00:00+00:00",
+      "summary": "OpenAI sent Governor Greg Abbott a letter outlining its commitment to responsible AI infrastructure in Texas. The letter supports reliable, transparent growth that benefits Texans.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "081601c279be28d3ef5a",
+      "title": "Expanding Daybreak as the Cyber Defense Window Narrows",
+      "url": "https://openai.com/index/expanding-daybreak-as-the-cyber-defense-window-narrows",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-10T10:00:00+00:00",
+      "summary": "Meet GPT-5.6-Cyber, OpenAI’s cybersecurity-specific model available through Daybreak Red for authorized vulnerability research, exploit validation, and security testing.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
       "id": "f8d2ab9efe2eb46de180",
       "title": "【BIツールぽちぽち、もう無理....】Dashboard as CodeのLightDashが好き過ぎるので良い所を書き連ねる",
       "url": "https://zenn.dev/enostech/articles/a043fd04f71ab2",
@@ -3959,6 +4051,39 @@
       "published_at": "2026-08-08T04:13:56+00:00",
       "summary": "はじめに 何かしらのBIツールを触っていて、こんな気持ちになったことはないでしょうか。 また画面から同じ指標を作っている 誰かが計算式を直したら、別のダッシュボードと数字が合わなくなった 本番のダッシュボードを直接編集するのが怖い 変更履歴はあるけれど、コードレビューのようには確認しづらい 自分はあります。かなりあります。 指標やダッシュボードが増えてくると、画面上の「ぽちぽち」だけで分析資産を管理することに限界も感じます。 加えて、コードやWebアプリをはじめ、あらゆるものをAIと一緒に作ることに慣れてしまったのも大きいです。以前は何とも思わなかった…",
       "category": "技術コミュニティ",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "0c4923a8268d927d5462",
+      "title": "Working with the American Psychological Association on youth mental health and AI",
+      "url": "https://openai.com/index/openai-and-apa-partner-to-advance-responsible-ai",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-06T06:00:00+00:00",
+      "summary": "OpenAI and the American Psychological Association advance evidence-based guidance, resources, and safeguards for responsible AI use and youth mental health.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "3763c3e63f841c3b3b74",
+      "title": "From asking to doing: How the world is putting ChatGPT to work",
+      "url": "https://openai.com/index/how-the-world-is-putting-chatgpt-to-work",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-06T00:00:00+00:00",
+      "summary": "New OpenAI Signals data shows how people use ChatGPT worldwide, with country-level insights on adoption, usage trends, and evolving behavior.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "c99ec862b4e71599bc42",
+      "title": "Third-party cyber evaluations involving OpenAI models",
+      "url": "https://openai.com/index/third-party-cyber-evaluations-involving-openai-models",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-04T19:00:00+00:00",
+      "summary": "OpenAI explains recent third-party cybersecurity evaluation incidents and outlines new safeguards to strengthen AI model testing and evaluation.",
+      "category": "生成AI活用",
       "score": 4,
       "image_url": null
     },
@@ -3974,6 +4099,17 @@
       "image_url": null
     },
     {
+      "id": "deec56a13e2b9b57f5b5",
+      "title": "How we built a realtime system for responsive voice AI in six months",
+      "url": "https://openai.com/index/continuous-voice-interaction-with-gpt-live",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-03T07:00:00+00:00",
+      "summary": "GPT-Live enables continuous voice interaction with AI, using a turnless speech model and low-latency architecture for faster, more natural conversations.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
       "id": "290765f63fb7166c6139",
       "title": "OpenAI、Codex SecurityのCLIとSDKをオープンソース化―HNで注目された「ハーネスこそ本体」論 - innovaTopia",
       "url": "https://news.google.com/rss/articles/CBMiU0FVX3lxTE9mcXZBcDV3Yl9Zd0RoS1Rydi1HNnptemFaVEZnLW8xQi12RDUxeVF4Y3dJbFhUV1dWcV9TS2RfRktwREZWNjU4ZUNjZ0RyN05iZmtJ?oc=5",
@@ -3981,6 +4117,17 @@
       "published_at": "2026-08-02T07:00:00+00:00",
       "summary": "OpenAI、Codex SecurityのCLIとSDKをオープンソース化―HNで注目された「ハーネスこそ本体」論 innovaTopia",
       "category": "CLI生産性",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "ff7c1653ce2eb767fcfc",
+      "title": "Disrupting a Criminal Scam Operation",
+      "url": "https://openai.com/index/disrupting-malicious-uses-of-ai-criminal-scam-operation",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-31T00:00:00+00:00",
+      "summary": "OpenAI disrupted a Cambodia-based scam operation using ChatGPT to support investment, romance, gambling, and impersonation schemes.",
+      "category": "生成AI活用",
       "score": 4,
       "image_url": null
     },
@@ -4007,6 +4154,17 @@
       "image_url": null
     },
     {
+      "id": "da425c76a8c018d071b2",
+      "title": "How avatarin built a 24/7 retail agent with GPT-Realtime",
+      "url": "https://openai.com/index/avatarin",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-30T00:00:00+00:00",
+      "summary": "avatarin uses OpenAI’s GPT-Realtime to give Yamada Denki shoppers 24/7 multilingual support. In two weeks, 30,000 people used the agent and 92% of survey responses were positive.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
       "id": "ea868bd7b86085b64c1c",
       "title": "【ClickHouse vs DuckDB】ローカルAgent分析基盤を実測で選ぶ — 決め手は速度ではなかった",
       "url": "https://zenn.dev/michy/articles/7b2c4e9a1f6d83",
@@ -4018,6 +4176,17 @@
       "image_url": null
     },
     {
+      "id": "47da73cdc4f72b4cf63e",
+      "title": "Accelerating scientific discovery with ChatGPT for Academic Researchers",
+      "url": "https://openai.com/index/chatgpt-for-academic-researchers",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-29T10:00:00+00:00",
+      "summary": "OpenAI is giving 100,000 academic researchers free access to ChatGPT's most advanced AI models to accelerate scientific research, collaboration, and discovery.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
       "id": "fe1bcbffa0b3d01a2b5c",
       "title": "OpenAI、脆弱性の発見・検証・修正を行う「Codex Security CLI」をオープンソース公開／CI/CDへ組み込むことも可能 - 窓の杜",
       "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE8xWUhoS2RMUlZJemljT3FYd2xFamZHZmlaWE5yM0tIVVRXWHNycVU4Tk95Uk5wZ3hXYWJQZHdoQXVSbDljbFJDdFMyRG45TThtV01MMUJPdTNNc1hUQzNjLW5tTHFYNHNu?oc=5",
@@ -4025,6 +4194,39 @@
       "published_at": "2026-07-29T07:00:00+00:00",
       "summary": "OpenAI、脆弱性の発見・検証・修正を行う「Codex Security CLI」をオープンソース公開／CI/CDへ組み込むことも可能 窓の杜",
       "category": "CLI生産性",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "824b5ba22f1e74f57103",
+      "title": "Scientific computing in the age of agentic AI",
+      "url": "https://openai.com/index/scientific-computing-agentic-ai",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-28T17:00:00+00:00",
+      "summary": "A new field report shows how scientists use AI coding agents to modernize scientific computing, accelerating software development and discovery in genomics and beyond.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "db9d0913513df69e6eee",
+      "title": "How AI is expanding what people do at work",
+      "url": "https://openai.com/index/how-ai-is-expanding-what-people-do-at-work",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-27T03:30:00+00:00",
+      "summary": "New OpenAI research shows how AI is expanding what workers do, with ChatGPT users taking on tasks across roles and reshaping job boundaries.",
+      "category": "生成AI活用",
+      "score": 4,
+      "image_url": null
+    },
+    {
+      "id": "bf8b9f7b42354f655780",
+      "title": "ドメイン駆動トランスフォーメーション",
+      "url": "http://www.oreilly.co.jp/books/9784814401727/",
+      "source": "O'Reilly Japan 新刊・近刊",
+      "published_at": "2026-06-18T15:00:00+00:00",
+      "summary": "本書は、老朽化した大規模なレガシーシステムを、マイクロサービスや保守性の高いモジュラーモノリスへと再生させるための実践的なガイドです。ドメイン駆動設計（DDD）を軸に、戦略、技術、組織という三つの視点から、アーキテクチャの劣化が進んだソフトウェアを刷新するアプローチを提示しています。ビジネスプロセスの分析を通じて境界づけられたコンテキストを特定し、アジャイルチーム内でドメイン駆動リファクタリングを適用する方法を学びます。また、モジュール性の健全度を測る指標を用いた現状分析や、チームトポロジーによる組織編成、イベントストーミングを用いた設計の可視化など、…",
+      "category": "データ関連書籍",
       "score": 4,
       "image_url": null
     },
@@ -4047,6 +4249,39 @@
       "published_at": "2026-09-06T15:00:00+00:00",
       "summary": "ゼロトラストとは，「Never trust, always verify（決して信頼せず，常に検証せよ）」という考え方のもと，「何も信頼しない」ことを前提にしたネットワークセキュリティのアプローチです。今までのような，自社ネットワークの外部と内部の境界を防御するだけでは，ランサムウェア攻撃や内部漏えいには対処できません。これからは，すべてのネットワークトラフィックとデバイスに対して信頼を前提とせず，常に検証を行うという原則に基づいてネットワークセキュリティを考えていく必要があります。本書では，そういったゼロトラストの基本的な考え方から，しくみと技術，導…",
       "category": "データ関連書籍",
+      "score": 3,
+      "image_url": null
+    },
+    {
+      "id": "95a193a59b5fa07c49f4",
+      "title": "新「マイナアプリ」登場、旧「マイナポータルアプリ」との違いは 一通り触ってみた",
+      "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000742/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-25T04:49:36+00:00",
+      "summary": "デジタル庁は8月25日、「マイナポータルアプリ」と「デジタル認証アプリ」を統合した新「マイナアプリ」の提供を始めた。移行にどれだけ手間がかかるのか、記者のiPhoneで実際に試した。",
+      "category": "テクノロジー",
+      "score": 3,
+      "image_url": null
+    },
+    {
+      "id": "388b40a527ca8710de7a",
+      "title": "パスポートのオンライン申請で「iPhoneのマイナカード」利用可能に 実物カードの読み取り不要",
+      "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000740/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-25T04:43:05+00:00",
+      "summary": "デジタル庁は8月25日、マイナポータルのパスポートオンライン申請機能を刷新し、「iPhoneのマイナンバーカード」に対応した。事前にマイナンバーカードをiPhoneへ追加しておけば、暗証番号の入力や実物のカードの読み取りに代わり、端末の顔認証や指紋認証を使ってオンライン申請できる。",
+      "category": "テクノロジー",
+      "score": 3,
+      "image_url": null
+    },
+    {
+      "id": "8d595fa2963247e10939",
+      "title": "IIJ、SCS評価制度★3・★4取得を支援する「IIJ SCS評価制度アセスメントソリューション」提供",
+      "url": "https://internet.watch.impress.co.jp/docs/news/2135274.html",
+      "source": "INTERNET Watch",
+      "published_at": "2026-08-25T04:00:00+00:00",
+      "summary": "株式会社インターネットイニシアティブ（IIJ）は8月25日、SCS評価制度（サプライチェーン強化に向けたセキュリティ対策評価制度）への対応を支援する「IIJ SCS評価制度アセスメントソリューション」の提供を開始した。",
+      "category": "業務改善・QOL",
       "score": 3,
       "image_url": null
     },
@@ -4161,67 +4396,34 @@
       "image_url": null
     },
     {
-      "id": "e966f1a31790f065d509",
-      "title": "Apple announces changes for apps in the European Union",
-      "url": "https://www.apple.com/newsroom/2026/08/apple-announces-changes-for-apps-in-the-european-union/",
-      "source": "Apple Newsroom",
-      "published_at": "2026-08-18T15:59:46+00:00",
-      "summary": "Apple today announced changes to its business terms for apps in the European Union, following close collaboration with the European Commission.",
-      "category": "業務改善・QOL",
-      "score": 3,
-      "image_url": "https://www.apple.com/newsroom/images/2026/08/apple-announces-changes-for-apps-in-the-european-union/tile/Apple-App-Store-compliance-hero-lp.jpg.og.jpg"
-    },
-    {
-      "id": "d8ba3bf45ec658216054",
-      "title": "Apple, MLB announce September “Friday Night Baseball” schedule",
-      "url": "https://www.apple.com/newsroom/2026/08/apple-mlb-announce-september-friday-night-baseball-schedule/",
-      "source": "Apple Newsroom",
-      "published_at": "2026-08-10T14:59:21+00:00",
-      "summary": "Apple and Major League Baseball unveiled the September schedule for “Friday Night Baseball.”",
-      "category": "業務改善・QOL",
-      "score": 3,
-      "image_url": "https://www.apple.com/newsroom/images/2026/08/apple-mlb-announce-september-friday-night-baseball-schedule/tile/Apple-Immersive-Friday-Night-Baseball-2026-hero-lp.jpg.og.jpg"
-    },
-    {
-      "id": "c19500a5328d5a2793eb",
-      "title": "Leagues Cup kicks off tomorrow, August 4, on Apple TV",
-      "url": "https://www.apple.com/newsroom/2026/08/leagues-cup-kicks-off-tomorrow-august-4-on-apple-tv/",
-      "source": "Apple Newsroom",
-      "published_at": "2026-08-03T14:59:10+00:00",
-      "summary": "The Concacaf-sanctioned competition featuring 18 clubs from Major League Soccer and 18 clubs from Liga MX — kicks off tomorrow, August 4, on Apple TV.",
-      "category": "業務改善・QOL",
-      "score": 3,
-      "image_url": "https://www.apple.com/newsroom/images/2026/08/leagues-cup-kicks-off-tomorrow-august-4-on-apple-tv/tile/Apple-TV-Leagues-Cup-2026-hero-lp.jpg.og.jpg"
-    },
-    {
-      "id": "e10f42a4f347de01ffdd",
-      "title": "v0.64.22",
-      "url": "https://github.com/manaflow-ai/cmux/releases/tag/v0.64.22",
-      "source": "cmux Releases",
-      "published_at": "2026-08-03T08:06:36+00:00",
-      "summary": "What's Changed Fix noclobber 'cannot overwrite existing file' error from bash shell integration by @austinywang in #9420 Preserve CLAUDE_SECURESTORAGE_CONFIG_DIR across agent restore by @austinywang in #9419 Clear Dock notifications when focused by @austinywang in #9418 Fix cmux…",
-      "category": "CLI生産性",
-      "score": 3,
-      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
-    },
-    {
-      "id": "04ef74017fda9e7ee41a",
-      "title": "Apple reports third quarter results",
-      "url": "https://www.apple.com/newsroom/2026/07/apple-reports-third-quarter-results/",
-      "source": "Apple Newsroom",
-      "published_at": "2026-07-30T20:30:21+00:00",
-      "summary": "Apple today announced financial results for its fiscal 2026 third quarter ended June 27, 2026.",
-      "category": "業務改善・QOL",
+      "id": "966cd163f8692d8ca443",
+      "title": "Building abundant intelligence",
+      "url": "https://openai.com/index/building-abundant-intelligence",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-31T15:00:00+00:00",
+      "summary": "A full-stack approach to making advanced AI more capable, more affordable, and more widely useful.",
+      "category": "生成AI活用",
       "score": 3,
       "image_url": null
     },
     {
-      "id": "3582a97e2eeee96089e6",
-      "title": "【JavaScript】LLMプロンプト投入前にAPIキーやSSH鍵の漏洩を防ぐ「シークレット情報スキャナー」を単一HTMLで作った",
-      "url": "https://qiita.com/b2b_tools/items/511e109507a828e006f2",
-      "source": "Qiita / LLM",
-      "published_at": "2026-08-25T00:22:23+00:00",
-      "summary": "概要 ChatGPTやClaudeなどのAIツールにコードや設定ファイルを投入する前に、APIキー・認証トークン・秘密鍵をローカルで検知・マスキングする単一HTML完結ツールです。 主な検知対象パターン AIサービス: OpenAI (sk-proj-...), Anthr...",
+      "id": "a8a5c8d334a08d22eb43",
+      "title": "【AI向け公式情報｜Product】",
+      "url": "https://qiita.com/bizwonder_lab/items/c88ef216601bb1b6e470",
+      "source": "Qiita / 生成AI",
+      "published_at": "2026-08-25T06:29:07+00:00",
+      "summary": "AI検索対策・SEO・SNSを統合管理するWeb戦略ツール「WEB戦略COCKPIT」を提供しています。 企業・事業者のWeb発信課題を解決すべく、AI Story Unitsを構築。Wonder Platformを基盤とし、作成からAI・一般向けSNS発信、観測までを「...",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "62003111f3b592c56acd",
+      "title": "Disrupting a new covert influence campaign from Russia",
+      "url": "https://openai.com/index/disrupting-malicious-uses-of-ai-influence-campaign-russia",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-25T00:00:00+00:00",
+      "summary": "OpenAI banned Russia-origin accounts using AI to promote a fake Israel-based think tank and a “sovereignty” index praising Russia and criticizing the West.",
       "category": "生成AI活用",
       "score": 2,
       "image_url": null
@@ -4238,24 +4440,68 @@
       "image_url": null
     },
     {
-      "id": "3f1e5da052691185319e",
-      "title": "Ankerの高性能な屋外用防犯カメラ「EufyeufyCam S4」がセールで15％オフの3万3990円に",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news074.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T00:56:00+00:00",
-      "summary": "Amazonのタイムセールで、Ankerのソーラーパネル搭載セキュリティカメラ「Anker Eufy eufyCam S4」が15％オフの3万3990円で販売中。4K固定と2K追尾の2つのカメラで死角のない監視を実現する。",
-      "category": "業務改善・QOL",
+      "id": "abd52c9f1dde403ea312",
+      "title": "Advancing price-performance for developers with GPT‑5.6 in Kiro",
+      "url": "https://openai.com/index/gpt-5-6-in-kiro",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-24T12:00:00+00:00",
+      "summary": "GPT‑5.6 is now available in Kiro, helping developers plan, build, review, and test software with better price-performance.",
+      "category": "生成AI活用",
       "score": 2,
       "image_url": null
     },
     {
-      "id": "f7ef595d9996fb7a6a4a",
-      "title": "Amazon、「Prime Air」を米500都市へ大幅拡大 ドローン配送を現在の6倍規模へ",
-      "url": "https://www.itmedia.co.jp/news/article/2608/20/2000000640/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-20T02:19:05+00:00",
-      "summary": "Amazonは、ドローン配送「Prime Air」を年内に約500都市へ拡大すると発表した。提供規模を現在の6倍に広げ、約2.3キロ以下の対象商品を最短30?60分で届ける。FAAの認証を受けた完全電動機体を用い、プライバシーや静音性に配慮しながら全米で数千万人規模への普及を図る。",
-      "category": "テクノロジー",
+      "id": "df8f12302a5b421ac186",
+      "title": "Offering Zero Data Retention for frontier models",
+      "url": "https://openai.com/index/offering-zero-data-retention-for-frontier-models",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-19T19:00:00+00:00",
+      "summary": "OpenAI reaffirms Zero Data Retention for eligible API customers and previews Private Safety Processing for advanced AI safety without compromising data privacy.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "6d4ec902c728a02128d0",
+      "title": "Partnering with CodeAI to prepare the first AI generation",
+      "url": "https://openai.com/index/partnering-with-codeai",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-18T11:00:00+00:00",
+      "summary": "OpenAI and CodeAI are partnering to help students build AI literacy, think critically about AI, and develop the skills to use and shape it responsibly.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "c3b0ed374d41680783fa",
+      "title": "Introducing ChatGPT for Teens: Built for learning, backed by protections",
+      "url": "https://openai.com/index/chatgpt-for-teens",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-18T11:00:00+00:00",
+      "summary": "ChatGPT for Teens helps teens learn, think critically, and use AI with confidence, with stronger built-in protections, healthy-use features, and additional controls for parents.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "22405ea1e27b33a112e5",
+      "title": "OpenAI joins PORTS-Pike project",
+      "url": "https://openai.com/index/openai-joins-ports-pike-project",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-17T05:00:00+00:00",
+      "summary": "OpenAI joins PORTS-Pike project, expanding community investment and supporting thousands of Southern Ohio jobs",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "3ff02964da6b7f4fea83",
+      "title": "New policy ideas for the Intelligence Age",
+      "url": "https://openai.com/index/new-policy-ideas-for-the-intelligence-age",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-17T03:15:00+00:00",
+      "summary": "OpenAI funds 14 independent projects exploring new AI policy ideas to expand economic opportunity and strengthen societal resilience in the Intelligence Age.",
+      "category": "生成AI活用",
       "score": 2,
       "image_url": null
     },
@@ -4278,6 +4524,127 @@
       "published_at": "2026-08-14T21:24:00+00:00",
       "summary": "Why do some AI deployments yield great successes while so many still crash and burn? The answer is in the data.",
       "category": "データマネジメント",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "c0986f6628d189a1ac37",
+      "title": "Previewing Ultrafast mode: GPT-5.6 Sol at up to 14X the speed",
+      "url": "https://openai.com/index/previewing-ultrafast",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-13T10:00:00+00:00",
+      "summary": "Preview Ultrafast, a new OpenAI API service tier that runs GPT-5.6 Sol up to 14× faster. Powered by Cerebras, it delivers up to 750 output tokens per second.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "e063daae6225e1569539",
+      "title": "From assistance to execution: How enterprises put AI to work",
+      "url": "https://openai.com/index/how-enterprises-put-ai-to-work",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-12T06:00:00+00:00",
+      "summary": "OpenAI research reveals how enterprises are adopting agentic AI, using ChatGPT and Codex, and how frontier firms are pulling ahead in AI adoption.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "9bafa93fe08b847d5d92",
+      "title": "How RingCentral builds AI-native work from engineering to ops",
+      "url": "https://openai.com/index/ringcentral",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-12T00:00:00+00:00",
+      "summary": "See how RingCentral uses ChatGPT Work and Codex to accelerate AI product development and centralize operational intelligence across engineering and operations.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "b19ec562c455e753267b",
+      "title": "Testing ads in ChatGPT",
+      "url": "https://openai.com/index/testing-ads-in-chatgpt",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-11T10:00:00+00:00",
+      "summary": "OpenAI begins testing ads in ChatGPT to support free access, with clear labeling, answer independence, strong privacy protections, and user control.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "29b0e61ec6cd1ed38342",
+      "title": "Putting frontier cyber models in more trusted hands",
+      "url": "https://openai.com/index/putting-frontier-cyber-models-in-more-trusted-hands",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-10T10:00:00+00:00",
+      "summary": "Approved Daybreak partners can use OpenAI’s frontier cyber models to deliver authorized, governed cybersecurity services to customers.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "6476741ad7bd8e8e5ea0",
+      "title": "How Zapier transformed core marketing processes with ChatGPT Work",
+      "url": "https://openai.com/index/zapier",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-10T00:00:00+00:00",
+      "summary": "The enterprise marketing team at Zapier uses ChatGPT Work to reduce the number of drop-offs in its lead funnel, build campaign assets, and automate reporting.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "e66cc71d0943fe40ad64",
+      "title": "Responding to the next frontier of critical cyber capabilities",
+      "url": "https://openai.com/index/responding-next-frontier-critical-cyber-capabilities",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-07T15:20:00+00:00",
+      "summary": "OpenAI is sharing preliminary cybersecurity evaluations for Astra and the steps we’re taking to strengthen safeguards and security controls.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "6a4333f0da0c5729327a",
+      "title": "Google CloudではじめるAI/ML入門",
+      "url": "http://www.oreilly.co.jp/books/9784814401741/",
+      "source": "O'Reilly Japan 新刊・近刊",
+      "published_at": "2026-08-06T15:00:00+00:00",
+      "summary": "本書は、Google Cloud上でAI、機械学習を用いた実用的なアプリケーションを構築するために必要となる知識を幅広くまとめた書籍です。 第Ⅰ部では、データ基盤の構築、分析からBigQuery、Gemini Enterprise Agent Platform、Agent Development KitといったGoogle Cloudでの製品、サービスの概要や利用方法を紹介します。第Ⅱ部では、それらの内容を踏まえて、探索的データ分析、ベイズ最適化、会話情報の分析、画像分析、GIS、データパイプライン、AIエージェントの品質評価など多様な利用方法を解説し…",
+      "category": "データ関連書籍",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "97e92714d577da88c6e3",
+      "title": "Circles powers telco personalization with OpenAI technology",
+      "url": "https://openai.com/index/circles",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-03T00:00:00+00:00",
+      "summary": "Circles uses the OpenAI API and Codex to power AI-native telco experiences, increasing ARPU by 22%, reducing churn by 9%, and improving development efficiency.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "e299630b866e2d7ebb7f",
+      "title": "Ten advances in mathematics and theoretical computer science",
+      "url": "https://openai.com/index/ten-advances-in-mathematics",
+      "source": "OpenAI Official",
+      "published_at": "2026-08-01T00:00:00+00:00",
+      "summary": "OpenAI shares new results on long-standing open problems in mathematics and theoretical computer science, including advances in geometry, cryptography, and complexity.",
+      "category": "生成AI活用",
+      "score": 2,
+      "image_url": null
+    },
+    {
+      "id": "265c6a0134aba9b6d5ff",
+      "title": "How enabling two settings tripled our scores on the ARC-AGI-3 benchmark",
+      "url": "https://openai.com/index/how-two-settings-tripled-our-arc-agi-3-scores",
+      "source": "OpenAI Official",
+      "published_at": "2026-07-29T15:00:00+00:00",
+      "summary": "How two API settings improved GPT-5.6 performance on ARC-AGI-3, boosting scores and efficiency by retaining reasoning and enabling compaction.",
+      "category": "生成AI活用",
       "score": 2,
       "image_url": null
     },
@@ -4348,15 +4715,15 @@
       "image_url": "https://cdn-images-1.medium.com/max/1024/1*LhF-4Ol7L9DIDZEnSYneyA.png"
     },
     {
-      "id": "b027dc8210093a56555c",
-      "title": "部屋の隅やカーペットの奥まで徹底清掃できる「ECOVACS DEEBOT T50S OMNI」が50％オフの5万4799円に",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news070.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T00:50:00+00:00",
-      "summary": "Amazonのタイムセールで、エコバックスの超薄型・全自動ロボット掃除機「ECOVACS DEEBOT T50S OMNI」が半額の5万4799円で販売中。強力な吸引と水拭き、全自動ステーションで床掃除の手間を大幅に削減できる。",
+      "id": "9ad92148693d19ee6a48",
+      "title": "「どうせグラボだけ……」じゃない！ バランス良くて手が届くミドルゲーミングノートPC発見",
+      "url": "https://ascii.jp/elem/000/004/428/4428966/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T09:00:00+00:00",
+      "summary": "マウスコンピューターの16型ゲーミングノートPC「G TUNE P6（P6I5G60BK3SIW1106AZ）」がAmazonでタイムセール対象。参考価格289,801円から10％オフの259,980円で販売中。RTX 5060と32GBメモリーを搭載し、WQXGA・180Hz対応液晶も備える。3年保証も付いた一台だ。",
       "category": "業務改善・QOL",
       "score": 1,
-      "image_url": null
+      "image_url": "https://ascii.jp/img/2026/08/25/4516792/s/0ccac0c0c6f9d758.jpg"
     },
     {
       "id": "209e4846b398f2285948",
@@ -4377,17 +4744,6 @@
       "published_at": "2026-08-20T18:36:11+00:00",
       "summary": "An update on the August 17 outage and the steps we're taking to improve reliability. The post The August 17 outage, and the work ahead appeared first on The GitHub Blog .",
       "category": "開発",
-      "score": 1,
-      "image_url": null
-    },
-    {
-      "id": "37ce21eafafe2447874a",
-      "title": "Google、大学生向けに「Google AI Plus」を1年間無料提供 「Gemini」アプリに学生向け新機能も",
-      "url": "https://www.itmedia.co.jp/news/article/2608/20/2000000634/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-19T22:58:36+00:00",
-      "summary": "Googleは米国の新学期に合わせ、大学生向けに「Google AI Plus」などを12カ月無料で提供するキャンペーンを発表した。あわせてGeminiアプリに学生向けハブを新設し、授業資料から学習プランを生成する学習ノートブックや、3Dモデルの表示、Gemini LiveでのDeep Researchなどの新機能の提供を開始した。",
-      "category": "テクノロジー",
       "score": 1,
       "image_url": null
     },
@@ -4535,6 +4891,17 @@
       "image_url": null
     },
     {
+      "id": "2aa074f65555d4e168fe",
+      "title": "ソフトウェアエンジニアリングの基礎",
+      "url": "http://www.oreilly.co.jp/books/9784814401789/",
+      "source": "O'Reilly Japan 新刊・近刊",
+      "published_at": "2026-09-15T15:00:00+00:00",
+      "summary": "ソフトウェアエンジニアとして成長するために必要なのは、アルゴリズムやプログラミングの知識だけではありません。学校のカリキュラムやブートキャンプでは教わらない、キャリア形成に直結する実践的なスキルこそが差を生みます。 実際の開発現場では、技術的負債を抱えた既存のシステムを保守・改善し、ソフトウェアを適切に設計・テストして品質を保ちながら安定してリリースするとともに、チームやステークホルダーと円滑にコミュニケーションを図る力が求められます。本書は、そうした現場で必要となる知識とスキルを、実践的かつ幅広く解説します。 ソフトウェアエンジニアリングとは何かとい…",
+      "category": "データ関連書籍",
+      "score": 0,
+      "image_url": null
+    },
+    {
       "id": "2c8eacc4f1fcf978e5a8",
       "title": "令和九年高島暦手帳2027",
       "url": "https://gihyo.jp/book/2026/978-4-297-15817-0",
@@ -4563,6 +4930,17 @@
       "source": "技術評論社 新刊",
       "published_at": "2026-09-14T15:00:00+00:00",
       "summary": "月のパワーを利用して開運しよう。本手帳は，月の満ち欠けと月が運行する星座を記載した見開き１週間タイプのスケジュール帳です。西洋占星術では「新月時に目標を立てると満月時に成就する」と考えます。月のサイクルを利用して開運できるよう，新月時・満月時の書き込み欄が設けられています。また月が入宮している星座名と，それにあわせた日替わりの行動指針，さらには物事がうまく運ばない時間帯といわれるボイドタイム入りの時刻，開けの時刻を掲載しています。さらに，月と主要な惑星との位置関係から，危険日，幸福日，祈願日といった特別な日を記しています。",
+      "category": "データ関連書籍",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "159f17200fee30e8f81d",
+      "title": "Ubuntu 26.04 LTS 活用ガイド ――Linuxの基本操作からサーバ構築まで",
+      "url": "https://gihyo.jp/book/2026/978-4-297-15854-5",
+      "source": "技術評論社 新刊",
+      "published_at": "2026-09-10T15:00:00+00:00",
+      "summary": "Ubuntu解説の決定版。個人で使う環境からネットワーク・インターネット環境まで，徹底解説。しかし難解ではなく，手順をおって丁寧に説明しているので，読む・試していくだけでUnixのコツがわかるようになります。エッセンシャルな技術知識をすいすい頭にインストール！ これでコンテナ技術も自宅サーバ技術もなっとくの実践体験。ITを理解するにはOSから。本質を学ぶ・試す・使うの完璧読本です！",
       "category": "データ関連書籍",
       "score": 0,
       "image_url": null
@@ -4656,13 +5034,354 @@
       "image_url": null
     },
     {
-      "id": "17c5c9f077d45a61a2e6",
-      "title": "QAエンジニア入門 〜チームで品質を高める連携のしかた",
-      "url": "https://gihyo.jp/book/2026/978-4-297-15832-3",
-      "source": "技術評論社 新刊",
-      "published_at": "2026-08-26T15:00:00+00:00",
-      "summary": "QAエンジニアの需要が高まる中，実際の経験にもとづいた知見・スキルが重要となるQA業界では，それらの言語化が難しく，体系的な情報として世にないのが現状です。本書では，QAエンジニアを目指す人，QAと協働して品質保証に取り組むべき開発者・PdM・デザイナーに向けて，次のようなQAエンジニアの業務や価値，基礎知識を現場の専門家が解説します。 QAエンジニアが担う「品質保証」や「ソフトウェアテスト」の背景 QAエンジニアの業務に必要となる知識や周辺の技術 現場がQAエンジニアに求めること，チームへの貢献のためにどうするべきか 具体的な課題やキャリアパス など…",
-      "category": "データ関連書籍",
+      "id": "cc2b5e9f737f924082b5",
+      "title": "2年愛用の「クリップ型」ベルトファンが今夏も大活躍！洋服内に風を送って、汗染みを予防",
+      "url": "https://www.lifehacker.jp/article/2608-korekai-elaice-handy-fan/",
+      "source": "ライフハッカー・ジャパン",
+      "published_at": "2026-08-25T10:00:00+00:00",
+      "summary": "ストラップとクリップの2wayで持てるベルトファンが今夏も大活躍。両手が空くので日傘やスマホのチェックといった動線もしやすく、上着に送風しやすいので汗染み予防ができて便利。両手を空けて快適に過ごしたい人におすすめです。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://media.loom-app.com/loom/2026/08/25/d0b7bc93-ec39-4654-aaad-bd9654fbb43c/original.png?w=1200"
+    },
+    {
+      "id": "0700c3a06cc2febee464",
+      "title": "Nightly",
+      "url": "https://github.com/manaflow-ai/cmux/releases/tag/nightly",
+      "source": "cmux Releases",
+      "published_at": "2026-08-25T09:59:18+00:00",
+      "summary": "Automated nightly build for 7fdcfa5 . cmux NIGHTLY is published as a universal app: bundle ID com.cmuxterm.app.nightly feed appcast.xml compatibility feed appcast-universal.xml for older universal nightlies Download cmux-nightly-macos.dmg",
+      "category": "CLI生産性",
+      "score": 0,
+      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+    },
+    {
+      "id": "415d1c3f35617b2ff595",
+      "title": "被害総額約2億円か 「中野ブロードウェイ」の時計店で窃盗、電動キックボードで逃走",
+      "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000766/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-25T09:56:44+00:00",
+      "summary": "8月25日午前11時55分ごろ、東京都中野区の商業施設「中野ブロードウェイ」にある時計店で「ショーケースを割って物を取って逃げている」と110番通報があった。捜査関係者によると、腕時計4本が盗まれ、被害総額は約2億円に上るとみられる。",
+      "category": "テクノロジー",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "11a52bd4a2d11272bdd0",
+      "title": "パソコン工房、数字が光るデジタル時計。日付/温度表示も対応",
+      "url": "https://pc.watch.impress.co.jp/docs/news/2135455.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-25T09:38:49+00:00",
+      "summary": "パソコン工房を運営するユニットコムは、スタイリッシュに数字が光る「デジタル時計」を2色展開で発売した。直販価格は1,680円。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "c7bacc581108c7ebb7e0",
+      "title": "パイオニア、Switch 2＆スマホ対応のポータブルゲーミングスピーカー「SOUND TECTOR」発表 これがあるだけでゲームの臨場感が変わる！",
+      "url": "https://ascii.jp/elem/000/004/429/4429245/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T09:30:00+00:00",
+      "summary": "パイオニアからSwitch 2やスマホに対応したポータブルスピーカーが9月中旬に発売されます。約160gと軽量で、USB-C端子に挿すだけの電池不要設計。「クロストークキャンセル」を用いたWIDEモードで圧倒的な臨場感を実現し、充電しながらのプレイも可能です。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/08/25/4517142/s/5112a9fac448f3df.jpg"
+    },
+    {
+      "id": "c09e194b0dc883aa1bd6",
+      "title": "東京23区で「徒歩10分以内」に駅がない地域はどこ？ 駅空白地帯マップが話題",
+      "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000759/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-25T09:15:41+00:00",
+      "summary": "東京23区周辺で「徒歩10分内に駅がない地域」を示した地図が、Xで注目を集めている。統計データの地図表示サービス「47maps」が公式Xアカウントで公開した。",
+      "category": "テクノロジー",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "2a88759bb97e4d78cf3d",
+      "title": "cmux-tui-v0.12.0",
+      "url": "https://github.com/manaflow-ai/cmux/releases/tag/cmux-tui-v0.12.0",
+      "source": "cmux Releases",
+      "published_at": "2026-08-25T08:56:09+00:00",
+      "summary": "cmux TUI 0.12.0",
+      "category": "CLI生産性",
+      "score": 0,
+      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
+    },
+    {
+      "id": "4b38a23dd0553b083d42",
+      "title": "楽天版SHEIN？ 若者向けプチプラ通販「ラクヨコ」開設 SNS感覚で数百円から商品探し",
+      "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000757/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-25T08:51:52+00:00",
+      "summary": "楽天グループは8月25日、低価格なファッションアイテムや雑貨などを集めたオンラインストア「楽天ラクヨコ」を開設した。若年層向けに約6万点の商品を数百円から販売する。品ぞろえは今後順次拡充する予定。",
+      "category": "テクノロジー",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "a1da3c68fda975393945",
+      "title": "さわってみよう Netezza #1 〜NPSaaS v11.3.1.3 新機能編 Part#1〜",
+      "url": "https://qiita.com/ibm_tk/items/bcae40876898b7888ece",
+      "source": "Qiita / Iceberg",
+      "published_at": "2026-08-25T08:37:15+00:00",
+      "summary": "IBM Netezzaは、大量のデータを高速に分析するために設計された、高性能なエンタープライズ向けデータウェアハウス（DWH）です。 下記の特長を持っています。 超並列処理（MPP）: 多数のプロセッサで同時にデータを処理するため、複雑なクエリや大規模な分析を高速に行えま...",
+      "category": "技術コミュニティ",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "d48df7e36e0d59e3c761",
+      "title": "VTuber向けトラッキングソフト「LuppetX」が無料化。サポート終了に伴い",
+      "url": "https://pc.watch.impress.co.jp/docs/news/2135440.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-25T08:32:02+00:00",
+      "summary": "ラペットテクノロジーズは8月23日、3D VTuber向けトラッキングシステム「LuppetX」のオフライン版「Ver.1.1.0」を提供開始した。料金は無料で、個人/法人を問わず制限なく利用でき、商用利用にも対応する。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "38d99755b3a1b90c74b8",
+      "title": "150W GaN電源を内蔵したUSBドック「TC-9411M」がSPARKLEから",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2135190.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-25T08:05:00+00:00",
+      "summary": "最大140W PD給電対応のUSBドック「TC-9411M」がSPARKLEから登場。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "26944b68e7ecf653209f",
+      "title": "GALLERIA、スト6のイラストをあしらったコラボモデル8機種",
+      "url": "https://pc.watch.impress.co.jp/docs/news/2135426.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-25T08:04:55+00:00",
+      "summary": "サードウェーブは8月25日、GALLERIAブランドにて、カプコンの対戦格闘ゲーム「ストリートファイター6」とのコラボモデルの受注を開始した。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "9d19deb3f5d42c898560",
+      "title": "MicrosoftがWindows PC草創期に「Office」の製品展開で行っていたこと",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/25/news086.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-25T08:00:00+00:00",
+      "summary": "今でこそクラウド前提の製品となった「Microsoft Office」だが、その黎明（れいめい）期にはいろいろな紆余曲折があった。かつてMicrosoftでOffice製品部門の責任者を務めたスティーブン・シノフスキー氏が、Xでその歴史を振り返るポストをしていたので紹介したい。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "95169b6e996aeaede093",
+      "title": "夏休みの枕作り体験を今年も開催！【昭和西川】湘南平塚店で小学生が睡眠について学ぶ - PR TIMES",
+      "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1BaDdXcEFzN2g3RlZJVjgwWFFCLW5vWE5KS1U5SG5DTTdnSUx1Z1I1bld0UThyU3ljaF9JOUFPdkd0Z19YOUxRVEFGT1h1NVh0UlVsN1Nta01ZNXF1MEFhODdxS09nWlliREE?oc=5",
+      "source": "睡眠製品ニュース",
+      "published_at": "2026-08-25T07:00:02+00:00",
+      "summary": "夏休みの枕作り体験を今年も開催！【昭和西川】湘南平塚店で小学生が睡眠について学ぶ PR TIMES",
+      "category": "睡眠",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "76ff83780dfceed76f67",
+      "title": "楽天版“Temu”？ 若者向けプチプラEC「楽天ラクヨコ」開始",
+      "url": "https://ascii.jp/elem/000/004/429/4429141/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T06:40:00+00:00",
+      "summary": "楽天グループは8月25日、ファッションや雑貨などのプチプラグッズを扱うオンラインストア「楽天ラクヨコ」を開設した。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/08/25/4517017/s/886ca05f75eb79b1.jpg"
+    },
+    {
+      "id": "d6a0345901ac7f366368",
+      "title": "ECSでの再学習パイプラインを実装する初心者向けハンズオン",
+      "url": "https://qiita.com/badorisu0555/items/2c046aa52fa564806316",
+      "source": "Qiita / MLOps",
+      "published_at": "2026-08-25T06:37:43+00:00",
+      "summary": "やりたいこと 現在構築しているのは、動画URLを渡すと乃木坂46メンバーのラベリング(誰が映っているか)を自動で付与する仕組みです。 こんな風に動画を送信すると、、、 以下のようにメンバーの顔の枠と、名前と信頼度を表示できるように。 簡単な仕組みとしては、、、 事前...",
+      "category": "技術コミュニティ",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "838c48f3a62dcd9a1136",
+      "title": "LM Studio + Qwen Code + DuckDuckGo MCPでWeb検索を実現する",
+      "url": "https://qiita.com/SK5uta/items/3340fa82c944849916db",
+      "source": "Qiita / LLM",
+      "published_at": "2026-08-25T06:35:03+00:00",
+      "summary": "はじめに LM StudioでローカルLLMを動かし、別PCのQwen Codeから利用する環境を構築していたところ、Web検索周りで少し分かりにくい問題に遭遇した。 LM StudioのChat上ではDuckDuckGo MCPを使ったWeb検索が正常に動作する。 とこ...",
+      "category": "生成AI活用",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "21e2d7c630e3737f3f3f",
+      "title": "パイオニアがSwitch 2／スマホに装着できるポータブルゲーミングスピーカーを発売",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/25/news085.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-25T06:34:00+00:00",
+      "summary": "パイオニアは、Switch 2およびスマートフォンに対応したポータブルゲーミングスピーカー「TQ-PG400」シリーズを発表した。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "128fb4adcfe446e12fa7",
+      "title": "RGB LED搭載PCなどで一部ゲームに不具合発生。8月のWindows更新が原因",
+      "url": "https://pc.watch.impress.co.jp/docs/news/2135367.html",
+      "source": "PC Watch",
+      "published_at": "2026-08-25T06:33:09+00:00",
+      "summary": "Microsoftは8月19日、Windows 11バージョン25H2/24H2向けの更新プログラム「KB5121003」を適用した環境で、特定のゲームが正常に動作しなくなる不具合が発生していると報告した。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "ff5ba6f3fb031e5a89a1",
+      "title": "格安SIM、どれが人気？ シェア1位はIIJmio、満足度1位は日本通信",
+      "url": "https://ascii.jp/elem/000/004/429/4429139/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T06:25:00+00:00",
+      "summary": "MMD研究所は8月25日、「2026年8月MVNOのシェア・満足度調査」を発表した。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/08/25/4517016/s/b70dd1cc201f15a6.png"
+    },
+    {
+      "id": "e5ea7a72465e044a7d98",
+      "title": "vLLMを用いたオープンソースLLMの推論高速化と、並行リクエスト処理のベンチマーク検証",
+      "url": "https://qiita.com/NKKTechGlobal/items/70dc341206a21c355a12",
+      "source": "Qiita / LLM",
+      "published_at": "2026-08-25T06:10:29+00:00",
+      "summary": "vLLMを用いたオープンソースLLMの推論高速化と、並行リクエスト処理のベンチマーク検証 はじめに こんにちは、NKKTech Global 技術チームです。 Llama 3やMistralなどのオープンソースLLMを商用サービスに組み込む際、エンジニアが直面する最も...",
+      "category": "生成AI活用",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "b94989456bda54ec187c",
+      "title": "povo、ついに「5G SA」対応 追加料金は当面無料",
+      "url": "https://ascii.jp/elem/000/004/429/4429138/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T06:10:00+00:00",
+      "summary": "KDDI、沖縄セルラー、KDDI Digital Lifeは8月25日、オンライン専用ブランド「povo2.0」の「通話＋データ」プラン向けに、5G SAの提供を開始した。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/08/25/4517014/s/fb0e81d31435dcf6.jpg"
+    },
+    {
+      "id": "4ec790f7cdfea7f9485f",
+      "title": "povo2.0で5G SAサービスがついに始まる SIMの再発行が必要",
+      "url": "https://ascii.jp/elem/000/004/429/4429136/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T06:00:00+00:00",
+      "summary": "povo2.0が5G SAのサービスを開始。5G SAではコア設備や基地局まですべて5G専用の技術と設備を用いることで、5Gならではの高速・大容量の通信が可能になる。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/08/25/4517010/s/ad6d19573c7eb3d6.png"
+    },
+    {
+      "id": "88bc462d29f04d19e580",
+      "title": "「そのうちキレイにするから」は今日で終わり。3680円クリーナーでサッとすっきり",
+      "url": "https://ascii.jp/elem/000/004/429/4429107/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T05:50:00+00:00",
+      "summary": "サンワサプライは8月25日、ハンディクリーナーと電動エアダスターを一体化した「200-CDVC002」を発売した。価格は3680円。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/08/25/4516990/s/7b02dfbc531a192b.jpg"
+    },
+    {
+      "id": "166496430aaf3000abc1",
+      "title": "エースが耐水ビジネスバッグ「ラグマスター2」に“ネイビー”カラーの新色モデルを追加",
+      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/25/news080.html",
+      "source": "ITmedia PC USER",
+      "published_at": "2026-08-25T05:15:00+00:00",
+      "summary": "エースは、耐水性を高めたビジネスバッグ「ラグマスター2」のラインアップに新色“ネイビー”モデルを追加した。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "d07e50a5afcf6fb518c6",
+      "title": "ARCTICの80mmファン「P8 PWM PST」に新リビジョン、回転数の制御幅が変更",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2134792.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-25T05:05:00+00:00",
+      "summary": "静圧性能を重視したARCTICの80mmケースファン「P8 PWM PST」の新リビジョンモデル「P8 PWM PST Rev.4」が登場。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "dd7ef615b3ad563a881d",
+      "title": "ネスカフェ専用コーヒーメーカーがスリム&静かに 深澤直人デザイン",
+      "url": "https://kaden.watch.impress.co.jp/docs/news/2135323.html",
+      "source": "家電 Watch",
+      "published_at": "2026-08-25T05:04:00+00:00",
+      "summary": "ネスレ日本は、ネスカフェ専用コーヒーメーカー「ネスカフェ ゴールドブレンド バリスタ kotone(コトネ)」を10月1日に発売する。8月25日より、Amazonを含む一部販売店にて先行予約を受け付ける。価格は22,000円。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "1565edbce95318577757",
+      "title": "「車に置きっぱなし」で大丈夫。温度変化にも耐えられる防災グッズ8点",
+      "url": "https://www.lifehacker.jp/article/2608-disaster-car-items/",
+      "source": "ライフハッカー・ジャパン",
+      "published_at": "2026-08-25T05:00:00+00:00",
+      "summary": "もしものとき、車内避難を選択される方は多いはず。また、ドライブ時のトラブルにも対策できる車載可能な防災グッズを集めてみました。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://media.loom-app.com/loom/2026/08/20/e32b784d-b58e-4c8d-be39-fe9f99471300/original.png?w=1200"
+    },
+    {
+      "id": "966370454cf2af830b97",
+      "title": "「スマホしまって楽しんで」テーマパークのカメラで来場者自動撮影、那須ハイ「プレスマ」話題",
+      "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000741/",
+      "source": "ITmedia NEWS",
+      "published_at": "2026-08-25T04:42:41+00:00",
+      "summary": "「すごく良いサービス」「親の写真がない、を救ってくれる」などと反響が広がっている。",
+      "category": "テクノロジー",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "6bfc9929ead2dacc0fdd",
+      "title": "はんだ付けに役立つLEDライト/UVライト搭載の卓上ファン",
+      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2135191.html",
+      "source": "AKIBA PC Hotline!",
+      "published_at": "2026-08-25T04:30:00+00:00",
+      "summary": "はんだ付け作業に役立つというUVライト付きの卓上ファン「FUL-4」がShigezoneに入荷。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": null
+    },
+    {
+      "id": "2e5eb3d8a623634c8096",
+      "title": "【今日から】「マイナポータル」変わる 「マイナアプリ」になった理由は？",
+      "url": "https://ascii.jp/elem/000/004/429/4429011/?rss=",
+      "source": "ASCII.jp デジタル",
+      "published_at": "2026-08-25T04:00:00+00:00",
+      "summary": "デジタル庁は8月25日、iOS／Android版「マイナアプリ」の提供を始めた。",
+      "category": "業務改善・QOL",
+      "score": 0,
+      "image_url": "https://ascii.jp/img/2026/08/25/4516905/s/78c599ec215fe4bd.png"
+    },
+    {
+      "id": "3dac8fb796cb0986b89a",
+      "title": "ピカチュウやイーブイがかわいい保冷ボトル、サーモス",
+      "url": "https://kaden.watch.impress.co.jp/docs/news/2134623.html",
+      "source": "家電 Watch",
+      "published_at": "2026-08-25T03:04:00+00:00",
+      "summary": "サーモスは、ポケモンデザインの「真空断熱ケータイマグ」やランチバッグなど4シリーズを8月21日に発売する。直販価格は2,750円～4,950円。",
+      "category": "業務改善・QOL",
       "score": 0,
       "image_url": null
     },
@@ -4685,17 +5404,6 @@
       "published_at": "2026-08-25T02:56:13+00:00",
       "summary": "世界地図をドラッグしつつ、国ごとの人口・死亡率・出生率の年齢別分布を見られるサイトが登場して人気となっている。",
       "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "9117c09be7deb7f1e99c",
-      "title": "FreeTokenってなんだ？ ─ 8GBノートPCで35Bを動かす判断基準",
-      "url": "https://qiita.com/GeneLab_999/items/92de6c45e3b8d2e615a7",
-      "source": "Qiita / LLM",
-      "published_at": "2026-08-25T02:43:34+00:00",
-      "summary": "なぜこの記事を書いたのか 手元のPCでMoEモデルを動かそうとして、llama.cppの --n-gpu-layers を何度も書き換えては速度を測り直す、という時間を筆者は何度も溶かしました。困ったのは、うまくいく設定が機械ごとに違うことです。同じ数字が別のマシンでは最...",
-      "category": "生成AI活用",
       "score": 0,
       "image_url": null
     },
@@ -4744,17 +5452,6 @@
       "image_url": null
     },
     {
-      "id": "852015f6d753fcd1f6cf",
-      "title": "9月1日「防災の日」を前に、アスクルなど3社が防災バックパック ラジオや保存水など13点入り",
-      "url": "https://ascii.jp/elem/000/004/428/4428979/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-25T02:10:00+00:00",
-      "summary": "アスクル、東京商工社、TRIFE DESIGNの3社は8月24日、共同開発した「防災バックパックセット」を発表した。8月26日からクラウドファンディングサイトのMakuakeで数量限定販売する。価格は2万5000円。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/25/4516847/s/37f0bda1835f8804.jpg"
-    },
-    {
       "id": "d3c8d4fd7fc0ccb71baf",
       "title": "保育園のお散歩カーをヤマハが電動アシスト化 避難時にも",
       "url": "https://kaden.watch.impress.co.jp/docs/news/2135003.html",
@@ -4799,28 +5496,6 @@
       "image_url": null
     },
     {
-      "id": "13ba2328148863886407",
-      "title": "ワークマンから4900円のカメラバッグ登場 普通のリュックみたいな見た目でかわいい",
-      "url": "https://ascii.jp/elem/000/004/428/4428976/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-25T01:35:00+00:00",
-      "summary": "ワークマンは8月24日、メディア「ヨムーノ」と共同開発した「ガバッと出せるインナーケース付きカメラバッグ」を発表した。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/25/4516839/s/97f2eb444fd8835c.png"
-    },
-    {
-      "id": "0700c3a06cc2febee464",
-      "title": "Nightly",
-      "url": "https://github.com/manaflow-ai/cmux/releases/tag/nightly",
-      "source": "cmux Releases",
-      "published_at": "2026-08-25T01:21:43+00:00",
-      "summary": "Automated nightly build for eb76c7c . cmux NIGHTLY is published as a universal app: bundle ID com.cmuxterm.app.nightly feed appcast.xml compatibility feed appcast-universal.xml for older universal nightlies Download cmux-nightly-macos.dmg",
-      "category": "CLI生産性",
-      "score": 0,
-      "image_url": "https://avatars.githubusercontent.com/in/15368?s=60&v=4"
-    },
-    {
       "id": "f39dbf38c3c00483f862",
       "title": "ボカコレ炎上、MVに「3DS」使った曲“ランキング除外”で 「基準あいまい」とクリエイター反発",
       "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000733/",
@@ -4843,17 +5518,6 @@
       "image_url": null
     },
     {
-      "id": "a3cf99e094786bb3e740",
-      "title": "楽天モバイル、iPhone 16を月500円に iPhone 17は月999円",
-      "url": "https://ascii.jp/elem/000/004/428/4428968/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-25T00:50:00+00:00",
-      "summary": "楽天モバイルは8月25日、「超おトク！『Rakuten最強プラン契約＆iPhone買い替え超トクプログラム利用』特価」キャンペーンの対象に、iPhone 16（128GB）とiPhone 17 （256GB）を追加した。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/25/4516838/s/f109cffe54755baf.png"
-    },
-    {
       "id": "bcfba4448b5d6bebc559",
       "title": "【本日みつけたお買い得品】約634gと超軽量な富士通モバイルノートが3万5千円オフ",
       "url": "https://pc.watch.impress.co.jp/docs/news/todays_sales/2135218.html",
@@ -4863,676 +5527,16 @@
       "category": "業務改善・QOL",
       "score": 0,
       "image_url": null
-    },
-    {
-      "id": "4ffd6ec068263c7f5d00",
-      "title": "【本日みつけたお買い得品】32GBメモリ/1TB SSDのCore Ultra 7 356H搭載ミニPCが約1万円オフ",
-      "url": "https://pc.watch.impress.co.jp/docs/news/todays_sales/2135210.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-25T00:31:32+00:00",
-      "summary": "Amazonにおいて、GEEKOMのミニPC「IT13」が直近価格から1万1円引きで、18万9,989円にて購入可能となっている。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "56e119704c23bd36c3a9",
-      "title": "2ビットKVキャッシュで長文検索を守るNOVA-KV、鍵はクエリが見る次元",
-      "url": "https://qiita.com/okssusucha/items/4e474083a840d58bbfca",
-      "source": "Qiita / LLM",
-      "published_at": "2026-08-25T00:09:54+00:00",
-      "summary": "Qwen3-8B は 12.8 万トークンの長文から目的の一文を 83% の精度で拾い出せる。ところが KV キャッシュを 2 ビットまで潰した瞬間、ある定番手法ではその精度が 0.0% に落ちる。モデルの重みは一切いじっていない。壊れたのはキャッシュの丸め方だけだ。この落...",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "19aea7cbbd475e7181cf",
-      "title": "[Agents on 16GB] 直そうとした失敗は、測ったら起きていなかった",
-      "url": "https://zenn.dev/bswebdev/articles/agents-16gb-failure-that-never-happened",
-      "source": "Zenn / LLM",
-      "published_at": "2026-08-25T00:00:05+00:00",
-      "summary": "Agents on 16GB — 16GBのMacBook1台で動かすマルチエージェント。API利用ゼロ、外に何も出さない。 小さいモデルに失望すると、人は大きいモデルに手を伸ばす。私もそうだった。8Bの失敗を判決として読んでいた——こういう仕事にはこれでは小さすぎる。 その判決をいったん取り下げて、qwen3:8b が実際にどこで壊れるのかを一通り測った。 先に結論を書いておく。 「小さすぎる」に見えた失敗の一部は、モデルを大きくせずに直った 一部は直らなかった。そこが本物の天井だ そしていちばん誇らしく直した失敗は、そもそも失敗ではなかった。 測っ…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "a093ac79ae1721972726",
-      "title": "Jackeryポタ電を使ったら、あると便利!?から「欲しい」に変わった! ペット防災にも[Sponsored]",
-      "url": "https://kaden.watch.impress.co.jp/docs/topic/special/2132600.html",
-      "source": "家電 Watch",
-      "published_at": "2026-08-25T00:00:00+00:00",
-      "summary": "アウトドアの趣味を楽しむ人たちや、災害への備えとして導入が進んでいるポータブル電源。自然災害の多い日本だけに、備えておきたいと考えていながらも、物価高が続くなか「今、買うべきなのか?」と迷っている人も少なくないでしょう。同様に「あったら便利だろうけど、今の私に必要なのか?」と感じている方にJackery Japan(ジャクリ)の最新ポータブル電源「Jackery ポータブル電源 1000 New V3」を使ってもらい、意識がどう変わったのかリアルなレポートをお届けします。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "8a1e69d4c65f4fedce63",
-      "title": "新「マイナアプリ」きょうスタート 「デジタル認証アプリ」統合、水色→ピンクに",
-      "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000732/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T23:37:03+00:00",
-      "summary": "マイナちゃん入りアイコンは期間限定。一定期間後はマイナちゃんが消え、桜と枠線、マイナの文字だけになる予定だ。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "5984c8911f18e9f62616",
-      "title": "ひんやり布団、足裏冷却ジェル。編集部員が使ってる暑さ対策グッズその2",
-      "url": "https://kaden.watch.impress.co.jp/docs/topic/topic/2131143.html",
-      "source": "家電 Watch",
-      "published_at": "2026-08-24T23:04:00+00:00",
-      "summary": "まだまだ続いている夏の暑さ。峠を越えたとはいえ、晴れた日中は少し動くだけでもぐったりしてしまうほどの時もありますよね。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "d63e4c9c348a37edf9dc",
-      "title": "買ったペットボトルを冷たいまま持ち歩ける！ 無印良品の「保冷ホルダー」が夏に便利",
-      "url": "https://ascii.jp/elem/000/004/428/4428917/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-24T23:00:00+00:00",
-      "summary": "Amazon.co.jpで無印良品の「保冷ホルダー」が販売中。ペットボトルをそのまま入れることで、冷やした状態をキープして持ち運べる商品です。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/24/4516548/s/041286baa137f2cc.jpg"
-    },
-    {
-      "id": "e87cac19cdb8b1d25755",
-      "title": "HSPは職場でどう立ち回る？組織で消耗しないための「3つの境界線」",
-      "url": "https://www.lifehacker.jp/article/2608-book_to_read-2019/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T23:00:00+00:00",
-      "summary": "【毎日書評】『繊細な自分のままで賢く生きる』（みさきじゅり 著、フォレスト出版）より、HSPは職場でどう立ち回る？組織で消耗しないための「3つの境界線」について解説します。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/24/359f1314-028e-4a1b-a348-661746668289/original.jpg?w=1200"
-    },
-    {
-      "id": "b2725e0999979d1e3684",
-      "title": "MCPサーバーを7個つないだら、話す前にコンテキストの12%が埋まっていた",
-      "url": "https://zenn.dev/kazu_aiengineer/articles/mcp-server-tool-definition-token-cost",
-      "source": "Zenn / LLM",
-      "published_at": "2026-08-24T22:37:19+00:00",
-      "summary": "先に結論 MCPサーバーを足すと「なんとなくコンテキストが減る」ことは知られているが、実際に何トークン持っていかれるのかを数字で見た記憶がなかったので、手元でよく使われるサーバーを7個立ち上げて tools/list を叩き、ツール定義をそのままトークン化して数えた。 結果はこうなった。 7サーバー・131ツールで 合計 23,964 トークン。20万トークン窓（Claude Sonnet / Claude Code クラス）に対して 約12% が、まだ一言も入力していない時点で埋まっている。 そのうち Azure MCP 1個だけで 14,709 ト…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "7dcba698da3fcbd18a3a",
-      "title": "「10点マルチタッチ」の“10点”って何？ 10本の指を同時に認識できるってこと!?",
-      "url": "https://ascii.jp/elem/000/004/428/4428643/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-24T22:30:00+00:00",
-      "summary": "タブレットやノートPCのスペック表で頻出する「10点マルチタッチ」。これ、具体的に何なのか、何をするための機能か知ってますか？",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/23/4516001/s/5b64251a6761ad33.png"
-    },
-    {
-      "id": "111d2eaf2e648700fc13",
-      "title": "シャープ蓄電池、太陽光発電の自家消費率74%にアップ 狭くても置ける",
-      "url": "https://kaden.watch.impress.co.jp/docs/news/2135042.html",
-      "source": "家電 Watch",
-      "published_at": "2026-08-24T22:04:00+00:00",
-      "summary": "シャープは、住宅用クラウド蓄電池システム「Eeeストレージ」から「JH-WB2621」を9月8日に発売する。容量は11.5kWh。価格は3,751,000円(別途パワーコンディショナーなどが必要)。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "cf5a330d9271953598df",
-      "title": "LLMベンチマークにおけるテストデータの配り方の違い",
-      "url": "https://zenn.dev/takkuhiro/articles/benchmark-test-data-distribution",
-      "source": "Zenn / LLM",
-      "published_at": "2026-08-24T22:00:05+00:00",
-      "summary": "はじめに LLMやエージェントのベンチマークを手元で動かすとき、タスクと正解がどう配られているかはベンチマークごとに違います。全部ダウンロードできるものもあれば、正解だけが主催者の手元にあってスコアだけが返ってくるものもあります。 この配り方の違いによって、スコアを読むときに確認しておきたい点も変わってきます。この記事では配り方を3種類に整理して、それぞれが何を得て何を手放しているかを並べます。 種類 得たもの 手放したもの 例 全公開型 手元で再現でき、ベンチマーク側の誤りを外部から検証できる 汚染耐性 WebArena、ST-WebAgentBen…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "3f66e8ba2714fe099574",
-      "title": "プールにはおしっこが何リットル混じっている？ 人工甘味料を基に計測 カナダチームが2017年に調査",
-      "url": "https://www.itmedia.co.jp/news/article/2608/25/2000000713/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T22:00:00+00:00",
-      "summary": "カナダのアルバータ大学に所属する研究者らが2017年に学術誌「Environmental Science & Technology Letters」で発表した論文「Sweetened Swimming Pools and Hot Tubs」は、プールに混入した尿の量を、人工甘味料を使って数値化した研究報告だ。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "ef05056ed13f1b8422d7",
-      "title": "Core i5-1135G7+16GBメモリを搭載「dynabook B55/HS」が59,980円、パソコン工房で中古品が販売中",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/usedpc_hotline/2134806.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-24T22:00:00+00:00",
-      "summary": "Core i5-1135G7(4コア/8スレッド)を搭載した15.6型ノートPC「dynabook B55/HS」の中古品が、パソコン工房の通販サイトで販売中。販売されているのは3か月保証が付いた中古品で、価格は59,980円となっています。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "a0537225e64de54eb133",
-      "title": "コミケで2Gbps級も KDDIとソフトバンク“つながる”舞台裏",
-      "url": "https://ascii.jp/elem/000/004/428/4428894/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-24T22:00:00+00:00",
-      "summary": "KDDIはコミケにミリ波対応の移動基地局車を投入し、ソフトバンクは清水寺に新基地局を設置。混雑や景観規制などの難題を乗り越え、通信品質を高める両社の取り組みを追った。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/24/4516375/s/c2026a1f5d9f40cb.jpg"
-    },
-    {
-      "id": "3f77b69c1a83f95b7ab0",
-      "title": "夏の寝苦しさを解消！ ひんやり快適な「冷感キルトケット」",
-      "url": "https://ascii.jp/elem/000/004/428/4428912/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-24T22:00:00+00:00",
-      "summary": "Amazon.co.jpでAOYANEIの「冷感キルトケット」が売れています。3シーズンで活躍するリバーシブルな掛け布団。しっかり冷感を感じられると好評な一品です。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/24/4516520/s/144dd835124e4506.jpg"
-    },
-    {
-      "id": "ebf57cb46c650d709fb1",
-      "title": "最速14分でご飯が炊けて、同時におかずも温められる弁当箱型のコンパクトな炊飯器の記事に注目が集まる【アクセスランキング】",
-      "url": "https://internet.watch.impress.co.jp/docs/news/ranking/2135195.html",
-      "source": "INTERNET Watch",
-      "published_at": "2026-08-24T21:55:00+00:00",
-      "summary": "前週に閲覧数の多かった記事を、カテゴリーごとに上位5位までレポートします。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "57eaa3e06639896cb5d3",
-      "title": "東京都とGovTech東京、環境・福祉・防災などの役立つ情報をまとめた地図サービス「Tokyo Map」正式版公開",
-      "url": "https://internet.watch.impress.co.jp/docs/news/2134980.html",
-      "source": "INTERNET Watch",
-      "published_at": "2026-08-24T21:30:00+00:00",
-      "summary": "東京都と一般財団法人GovTech東京は8月20日、東京都の様々な地図情報を1つのウェブサイトで閲覧できる「Tokyo Map」正式版の提供を開始した。PCやスマートフォンのウェブブラウザーから無料で利用できる。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "a73633dec2fc06212cba",
-      "title": "2Lペットボトルをつけるだけで「さくっと高圧洗浄機」",
-      "url": "https://www.lifehacker.jp/article/amazon-thanko-cordlesswhosher-2608-gbw/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T21:15:00+00:00",
-      "summary": "玄関やベランダ、車やお墓などを掃除したいときに、わざわざ大きな洗浄機を出すのは面倒ですよね。 そこでおすすめなのが、THANKO（サンコー）の「コードレス高圧ちょい洗浄機」。 ペットボトルがあれば、日常使いからアウトドアまで手軽に使用できちゃいます。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/06/01/2d1ac9aa-01bc-41db-bbb0-52ee958f7fb5/original.png?w=1200"
-    },
-    {
-      "id": "5dcc0f6962df572c1f89",
-      "title": "ChatGPT・Claude・Geminiのメモリ機能、3社の設計差を公式ドキュメントから比較する",
-      "url": "https://zenn.dev/every_ai_recipe/articles/ai-memory-feature-check",
-      "source": "Zenn / LLM",
-      "published_at": "2026-08-24T21:10:48+00:00",
-      "summary": "TL;DR ChatGPT・Claude・Geminiは3社とも「会話をまたいで記憶する」機能を持つが、内部構造は「明示的な事実リスト」「暗黙の傾向推測」「セッション/プロジェクト単位の要約」という異なる層で実装されており、オフにする操作もその層ごとに独立している ChatGPTは「保存されたメモリ（saved memories）」と「チャット履歴の参照（reference chat history）」が別トグルのため、片方だけオフにしても記憶が完全には止まらない Claudeの「一時停止（Pause）」と「リセット（Reset）」は、書き込みを止める…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "6eca569704fef000502f",
-      "title": "【プレゼントコーナー】PC Watch創刊30周年特別プレゼント企画【XPPen製お絵かきAndroidタブレット「Magic Drawing Pad」と液晶ペンタブレット「Artist 12 3rdピンク」】 - PC Watch",
-      "url": "https://pc.watch.impress.co.jp/docs/topic/present/2135154.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-24T21:00:00+00:00",
-      "summary": "",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "6d4bc0a9bd51aaa679a5",
-      "title": "ソニーネットワークコミュニケーションズとファイバーゲート、入居者の希望に応じて選べ、オーナーの負担がない集合住宅向け光回線サービス提供",
-      "url": "https://internet.watch.impress.co.jp/docs/news/2135057.html",
-      "source": "INTERNET Watch",
-      "published_at": "2026-08-24T21:00:00+00:00",
-      "summary": "ソニーネットワークコミュニケーションズ株式会社は、高速光回線サービス「NURO 光」の基盤を活用した集合住宅向け卸サービスを構築したと発表した。本サービスは同社の事業提携先である株式会社ファイバーゲートより「FGBB 光 Select powered by NURO」として9月1日から提供開始される。提供プランは2ギガプランと10ギガプラン。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "1dda43c4d1d2f2519e68",
-      "title": "希少性は死なない、登っていく — 実行が無料になった後、価値はどこへ移動するのか",
-      "url": "https://zenn.dev/pich/articles/d3193d5a079b35",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-24T16:47:31+00:00",
-      "summary": "! 本記事は英語の原文「Scarcity Never Dies. It Climbs.」（Michał Piszczek, CTO @ Archdesk）を日本語の読者向けに再構成したものです。正典は piszczek.pl にあります。 壁が壊れても、希少性は死なない 2004年から2012年まで、私はコンピュータシステムに侵入していました。技術のキャリアのつもりでしたが、実際に学んだのは経済学でした。 壁というものは、その向こうに希少なものがあるから存在します。お金、データ、アクセス権、評判。そして壁が壊れるたびに、その希少性は消えませんでした。移…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "661e731bd80d06c1846c",
-      "title": "RTX 3050 8GBでローカルLLMを実運用する — VRAM予算とプレフィクスキャッシュの実測",
-      "url": "https://zenn.dev/ace_toshi/articles/ollama-8gb-vram-budget",
-      "source": "Zenn / LLM",
-      "published_at": "2026-08-24T16:02:34+00:00",
-      "summary": "この記事について VRAM 8GBのGPU1枚（RTX 3050）で、ローカルLLMを「試す」ではなく常時動かし続けるための実測値をまとめる。 個人開発のアプリにローカルLLMを組み込むとき、最初に知りたいのは「このモデルは載るのか」の一点に尽きる。ところが公開されているのはモデルのファイルサイズばかりで、実際に確保されるメモリでも、同居できるかでも、切り替えたときに何秒待たされるかでもない。ここでは全部を自分で測った数字で書く。 計測環境は Windows 11 / RTX 3050 8GB / Ollama 0.32.11、計測日は2026年8月。…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "d65862d075288409551d",
-      "title": "RTX 5060 Ti 16GBを結局追加した。RTX 4070 Ti SUPERとの2GPUでQwen3.8 27Bを動かしてみる",
-      "url": "https://zenn.dev/sumumu26/articles/dbe910db00ece7",
-      "source": "Zenn / LLM",
-      "published_at": "2026-08-24T15:11:34+00:00",
-      "summary": "こんにちは。miharubaの池谷です。 前回の記事では、RTX 4070 Ti SUPER 16GBを使って、Qwen3.8 27Bをllama.cppでどこまで動かせるのかを検証しました。 https://zenn.dev/sumumu26/articles/b5b2ab52939b4e Q3量子化、KVキャッシュの量子化、ngram + MTPによるSpeculative Decodingなどを試した結果、RTX 4070 Ti SUPER単体でもかなり実用的な速度が出ました。 そのため前回は、「RTX 5060 Ti 16GBを追加する必要はな…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "64b37767f0ae5058801e",
-      "title": "面白いように水垢が落ちる。「塗って放置」で新品みたいにピカピカに！",
-      "url": "https://www.lifehacker.jp/article/2608-amazon-lec-mogi-kiwami/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T14:00:00+00:00",
-      "summary": "水垢を緩めて落とす専用洗剤「レック 茂木和哉『極』」は、水回りの大掃除にピッタリ。研磨剤を含んだ酸性洗剤なので、ゴシゴシ擦らなくても、効果的に水垢を落としてくれます。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2024/12/25/23be1472-0fbc-452f-a575-d31b9b357780/original.jpg?w=1200"
-    },
-    {
-      "id": "b265dde687f021366625",
-      "title": "grill-me の質問攻めを CLAUDE.md で AskUserQuestion に置き換えたら楽になった",
-      "url": "https://zenn.dev/denwaya/articles/grill-me-askuserquestion",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-24T13:16:33+00:00",
-      "summary": "概要 grill-me は、計画や設計が固まるまでユーザーに質問を繰り返すスキルです。 質問はすべて文章で提示されるため、回答も毎回自由記述になります。 二択の質問でも同じです。 一方、Claude Code には AskUserQuestion という、選択肢を提示してユーザーに選ばせるツールが標準で備わっています。 そこで、grill-me の質問をこのツール経由で提示させる指示を CLAUDE.md に追加しました。 CLAUDE.md に書いたプロンプト ~/.claude/CLAUDE.md に次のブロックを追加します。 リポジトリ直下の C…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "e1315c7c12979595f5cc",
-      "title": "あのコクヨと共同開発したAnkerのガジェットポーチが期待通りの良さ",
-      "url": "https://www.lifehacker.jp/article/2608-amazon-anker-smartpouch-jki/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T13:00:00+00:00",
-      "summary": "Ankerとコクヨが共同開発した「Smart Pouch Supported by KOKUYO」は、ガジェットや文具を効率的に収納できる多機能ポーチ。背面ポケットにはB5ハーフサイズのノートやスマホ、内部には充電器やケーブル類をスッキリ収納可。厚さ約5cmと薄型ながらサイドボタンを留めると自立するニクい設計なのだ！",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2025/08/28/cadd182c-5e2f-4a98-bfe0-769d6205904f/original.jpg?w=1200"
-    },
-    {
-      "id": "e5f1f2a6448e92162722",
-      "title": "「まるで奇行種」――とある人型ロボの爆走フォームが話題に 中国のロボット運動会400m走で優勝",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000730/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T12:54:36+00:00",
-      "summary": "人型ロボットが独特なフォームでトラックを駆け抜ける映像が、SNSで話題だ。ロボットは、中国の北京人形機器人創新中心（TianGong Robotics）が開発した「天工 Omni」。8月23日（現地時間）、北京で開催中の「第2回世界人型ロボット運動会」の400m走・小型組で、45秒66を記録し優勝した。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "b3babbaa577817bf3b52",
-      "title": "古いエアコンでも賃貸でもOK。コンセントに挿すだけでスマホ操作できるようになるプラグ",
-      "url": "https://www.lifehacker.jp/article/2608-costorypo-smartairconset-end-1258488008/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T11:30:00+00:00",
-      "summary": "工事や買い替え不要で、今あるエアコンをコンセントに挿すだけで手軽にスマート化できるHAWSTONEの「エアコンパートナー」をご紹介。付属の温湿度センサーと自動連携させることで、留守番中の大切なペットや離れて暮らす家族の部屋の室温を快適に維持。消費電力を可視化し、うっかり生じる電気代のムダ使いをスピーディに見直しませんか。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/24/8394b345-b68f-4756-b8e7-3f1a359e2505/original.png?w=1200"
-    },
-    {
-      "id": "de218b67d2af8fcc4abc",
-      "title": "初代Switchがついに終焉のとき。まずはヨーロッパから",
-      "url": "https://www.lifehacker.jp/article/2608_gizmodo_nintendo-will-quit-selling-the-original-switch-in-europe-whos-next/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T11:00:00+00:00",
-      "summary": "任天堂の初代Switchが、発売から10周年を迎えようとしています。しかし任天堂はまずはヨーロッパで初代の販売を終了し、ここからはSwitch 2へと全面的に力を注ぐことになるでしょう。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/23/9c91c046-ecea-453e-ba71-454d3d60fb26/original.png?w=1200"
-    },
-    {
-      "id": "5b2ade7edfedae3763f2",
-      "title": "就職先の選定「SNSを参考にした」83％ 27年春の大卒生「閲覧で入社意欲増した」",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000729/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T10:51:11+00:00",
-      "summary": "2027年春の卒業を予定している就職活動中の大学生らを対象に行ったアンケートで、就職先の企業を選ぶ際に企業が開設しているSNSを参考にしたという就活生が83.5％に上った。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "b1cbb2ffb5a8acb6adca",
-      "title": "外からは見せず、光は通す。UV・遮熱・保温まで叶えるKumoriレースカーテン",
-      "url": "https://www.lifehacker.jp/article/amazon-timesale-2026-0824-2/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T10:30:00+00:00",
-      "summary": "日中の明るさはそのままに。視線・紫外線・暑さ寒さまで、窓辺の悩みを1枚でまとめて対策できるクモリ（Kumori）「UV カット 透けないレースカーテン」が、Amazonで10%オフになっています。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/24/dc07b484-c234-403d-8204-ef53fd220ed4/original.png?w=1200"
-    },
-    {
-      "id": "502831284b76a008666b",
-      "title": "BigQueryからGoogleスプレッドシートに自動出力して非エンジニアとデータ共有する",
-      "url": "https://zenn.dev/web_benriya/articles/bigquery-sheets-auto-export-data-sharing",
-      "source": "Zenn / データエンジニアリング",
-      "published_at": "2026-08-24T10:16:15+00:00",
-      "summary": "はじめに 「BigQueryでSQLを書けるようになったはいいけれど、結果を社内の担当者や取引先に渡す方法がわからない」——そういった悩みを抱えていませんか？ BigQueryはデータ分析の強力なツールですが、SQLに不慣れな非エンジニアのメンバーが直接クエリを実行するのはハードルが高いものです。かといって、分析担当者が毎日手動でCSVをエクスポートしてSlackやメールで送るのは、時間がかかる上にミスの温床にもなります。 そこで有効なのが、BigQueryのクエリ結果をGoogleスプレッドシートに自動的に出力するしくみです。スプレッドシートであれば…",
-      "category": "技術コミュニティ",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "b2492a3baf7621ec5e71",
-      "title": "本を開いておくクリップ vs 本に寄り添う文鎮。本好きとして両方試してみた",
-      "url": "https://www.lifehacker.jp/article/2608-lht-ukanmuriclip-vs-yorisou-bunchin/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T10:00:00+00:00",
-      "summary": "勉強や料理中、本が閉じてイライラ……。そんなストレスを解消する便利グッズ、サンスター「ウカンムリクリップ」とコクヨ「本に寄り添う文鎮」を徹底比較。それぞれの長所・短所を読書好き目線でレビューします。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2025/09/22/872d624a-3cb9-42d0-8028-7181835a7005/original.png?w=1200"
-    },
-    {
-      "id": "23c3a4fe949e5abd599b",
-      "title": "東京の下町や浦安周辺はなぜ揺れやすい？ 日本地震工学会の「揺れやすさ」マップが話題",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000726/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T09:44:33+00:00",
-      "summary": "関東地方の「揺れやすさ」を色分けした地図が、Xで注目を集めている。日本地震工学会が8月23日、公式アカウントで投稿したもので、同日未明の茨城県南部の地震で観測した震度の分布と見比べると、赤い場所に震度5弱や震度4が集まっている。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "1edd958084e81add4b53",
-      "title": "消費者庁、「ダークパターン」規制へ 特商法改正視野に中間取りまとめ案",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000728/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T09:23:27+00:00",
-      "summary": "消費者庁は8月24日、消費者を誤認させたり不安を生じさせたりして契約に誘導する表示・UI、いわゆる「ダークパターン」への規律などを盛り込んだ、有識者検討会の中間取りまとめ案を公表した。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "63f880faa6de0724d3eb",
-      "title": "将門塚によじ登り動画配信、男性が謝罪 不敬避けてきた場所……国税庁も「たたりの噂」",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000727/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T09:22:19+00:00",
-      "summary": "平安時代の豪族、平将門（903?940年）の首を供養する東京都千代田区大手町の将門塚で、動画配信者の男性が石碑をよじ登り、批判を受けてSNSで謝罪した。将門塚は都の旧跡に指定されているうえ、「怨霊伝説」があり、敬意を欠いた行為が避けられてきた。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "57b93fc90ce84fb52ab8",
-      "title": "ドコモ・バイクシェア、新ブランドへの刷新また延期 8月のシステム障害受け",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000725/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T08:46:13+00:00",
-      "summary": "ドコモ・バイクシェア（東京都港区）は8月24日、9月1日に予定していたサービスブランド「NOLL」への刷新を延期すると発表した。8月1日のサービス仕様変更後、全国でシステム障害が発生したことを受け、現行サービスの安定した提供や顧客対応を優先すると判断した。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "8dcee857d69e4cce0e07",
-      "title": "Aqua Computerのゴム製ソフトチューブが入荷、内径10mm/外径16mm",
-      "url": "https://akiba-pc.watch.impress.co.jp/docs/news/news/2134793.html",
-      "source": "AKIBA PC Hotline!",
-      "published_at": "2026-08-24T08:05:00+00:00",
-      "summary": "内径10mm/外径16mm/肉厚3mmのゴム製ソフトチューブ「Hose Aqua Computer 16/10 mm EPDM black」が、オリオスペックに入荷。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "322c3e4c1da851024950",
-      "title": "10ギガ回線にはこれが買い？ エレコムの新型10GbE対応スイッチの実力を動画でチェック。Amazonで売っているモデルとの違いも解説します。【清水理史の「イニシャルB」チャンネル】",
-      "url": "https://internet.watch.impress.co.jp/docs/column/shimizumovie/2134596.html",
-      "source": "INTERNET Watch",
-      "published_at": "2026-08-24T08:00:00+00:00",
-      "summary": "エレコムから登場した10GbE対応でファンレス5ポートのスイッチングハブ「EHC-X05MA-HB」の実力を検証すべく、清水理史が自腹で買って分解してみた。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "af44920d46d48ede8bd3",
-      "title": "ちいかわがジャポニカ学習帳に! ハチワレ、うさぎ、モモンガも",
-      "url": "https://kaden.watch.impress.co.jp/docs/news/2134665.html",
-      "source": "家電 Watch",
-      "published_at": "2026-08-24T07:04:00+00:00",
-      "summary": "サンスター文具は、「ジャポニカ学習帳」と「ちいかわ」がコラボレーションした「ジャポニカ学習帳 アニメちいかわ」を発売した。価格は各275円。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "2279c2965389c45c0141",
-      "title": "Claude Codeを使って、自作言語Onionの構文を後方互換を捨てて変え、3日でv0.12.0まで出した",
-      "url": "https://zenn.dev/nextbeat/articles/2026-08-onion-0-12-agent-development",
-      "source": "Zenn / 生成AI",
-      "published_at": "2026-08-24T06:55:06+00:00",
-      "summary": "はじめに こんにちは！株式会社ネクストビートでテクノロジー・エヴァンジェリストなる肩書きでお仕事をしている水島です。 自作プログラミング言語Onionを、先週にv0.11.0からv0.12.0 まで進めました（会社プロジェクトでなく業務時間外に趣味で行っています）。依存解決やロックファイルのような「実用言語なら要るけれど作るのは面倒なもの」を足しただけでなく、最後は言語の構文そのものを二箇所、後方互換を捨てて変えています。 リポジトリ: onion-lang/onion リリース: Onion v0.12.0 Onion がどういう言語かは0.2.0…",
-      "category": "生成AI活用",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "6ece36d0b5665945c46b",
-      "title": "エース、同社製バックパック「ガジェタブル」に耐水性を高めた限定モデルを追加",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news091.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T06:30:00+00:00",
-      "summary": "エースは、同社製バックパック「ガジェタブル」シリーズをベースとした限定モデル「ガジェタブル ヘザー2 LTD」を発表した。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "ad7c23e95ca12b16478f",
-      "title": "「うるう秒」27年に事実上廃止へ 自転とのずれ「1時間」まで容認 10月に国際会議で採決",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000718/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T06:10:09+00:00",
-      "summary": "「うるう秒」を事実上廃止する案について、10月13?15日にフランスで開催する国際度量衡総会（CGPM）で審議する。国際度量衡局（BIPM）の決議案では、採択されれば2027年5月20日から、うるう秒による調整を行わない「連続的な協定世界時」に移行する。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "5b892b380c39c2204722",
-      "title": "パナのムダ毛トリマーレビュー首位、ウルトラファインバブルも注目【週刊ランキング2026年8月17日～8月23日】",
-      "url": "https://kaden.watch.impress.co.jp/docs/accessranking/2134999.html",
-      "source": "家電 Watch",
-      "published_at": "2026-08-24T06:04:00+00:00",
-      "summary": "家電レビューby福永 太郎",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "66502c953d2375cf48e1",
-      "title": "通電でモンスターボールがピカッ。Ankerのピカチュウアダプタが過去最安",
-      "url": "https://www.lifehacker.jp/article/amazon-timesale-2026-0824-1/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T06:00:00+00:00",
-      "summary": "スーツケースから取り出すと、テンションが上がるトラベルアダプタはいかがですか？ Anker（アンカー）の「トラベルアダプタ ピカチュウモデル」が、Amazonで33％オフに！ 7月6日の発売から早くも2,000円引きの過去最安値になっています。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/24/cea1b30f-0890-45f9-8761-29e9dd1ae353/original.png?w=1200"
-    },
-    {
-      "id": "ed9d4374704991828cb6",
-      "title": "NVIDIAのクラウドゲーミングサービス「GeForce NOW」がFirefoxをサポート",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news087.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T05:44:00+00:00",
-      "summary": "NVIDIAは、同社提供のクラウドゲーミングサービス「GeForce NOW」でFirefoxブラウザのサポートを開始した。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "b687d1adf5b0e38d19f1",
-      "title": "Claudeの一部モデルがリクエストエラー多発、現在調査中",
-      "url": "https://pc.watch.impress.co.jp/docs/news/2135022.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-24T05:24:31+00:00",
-      "summary": "Claudeにおいて、「Mythos 5」、「Fable 5」、「Opus 5」および「Opus 4.8」モデルのエラーが多発しており、現在アクセスできなくなっている。編集部の環境でも確認できた。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "fc6df419c9ce5ef92780",
-      "title": "中国、人型ロボットが100メートルで9秒32 “ボルト超え”続出の北京「世界人型ロボット運動会」",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000714/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T04:34:23+00:00",
-      "summary": "中国・北京で開催中の「世界人型ロボット運動会」で、陸上100メートルの予選でウサイン・ボルト選手の世界記録を上回るタイムが相次いだ。2回目となる今回は参加ロボットが約2000台と前回の4倍に増え、中国のロボット産業の勢いを映している。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "ca7eca44764288a898a3",
-      "title": "シャープの太陽光パネル 狭い屋根にも多く設置できるコンパクト型",
-      "url": "https://kaden.watch.impress.co.jp/docs/news/2134967.html",
-      "source": "家電 Watch",
-      "published_at": "2026-08-24T04:15:06+00:00",
-      "summary": "シャープは、住宅用太陽光発電システム「Eeeソーラー」から、屋根の形状や大きさに合わせて選べるルーフィットタイプの住宅用単結晶太陽電池モジュール「Full Fit」を10月9日に発売する。公称の最大出力が132～230Wの5機種をラインナップし、価格は91,300～152,900円。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "800d8dcd4dca6fc9c19a",
-      "title": "人気カフェ「BERG」も楽天市場撤退 「反戦の思いと相容れない」",
-      "url": "https://www.itmedia.co.jp/news/article/2608/24/2000000715/",
-      "source": "ITmedia NEWS",
-      "published_at": "2026-08-24T03:54:30+00:00",
-      "summary": "楽天の軍事ドローン参入を理由とした楽天市場からの撤退は、18日に「通販生活」を手掛けるカタログハウスに続き2例目とみられる。",
-      "category": "テクノロジー",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "16be4b61230cbfea1afe",
-      "title": "サードウェーブ、Core i7＋RTX 5060を搭載したスタンダード15.3型ノート",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news084.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T03:50:00+00:00",
-      "summary": "サードウェーブは、Core i7を採用したスタンダード設計の15.3型ノートPC「GALLERIA NPC7L-R56-G5」を発売する。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "deaa0c016b46d7ef273c",
-      "title": "TV事業合弁化の裏で「音響」を残した理由とは？ エンジニア出身・ソニー田中新社長の挑戦",
-      "url": "https://www.itmedia.co.jp/pcuser/articles/2608/24/news056.html",
-      "source": "ITmedia PC USER",
-      "published_at": "2026-08-24T03:00:00+00:00",
-      "summary": "4月にソニーの社長 CEOに就任した田中健二氏は、エンジニアとしての長年の経験を背景に、ソニーを「感動を創る会社」と再定義する。本記事では、新体制の全貌を解き明かす。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "3d4bbe200068eafd7be1",
-      "title": "Samsung「SF2P」の全貌！ GAA最大の弱点であるPMOS性能低下を克服し、TSMC追撃へ準備万端",
-      "url": "https://ascii.jp/elem/000/004/428/4428642/?rss=",
-      "source": "ASCII.jp デジタル",
-      "published_at": "2026-08-24T03:00:00+00:00",
-      "summary": "都合8回ほど2026 VLSIシンポジウムの内容を説明してきたが、最後にSamsungのナノシートを解説したい。これは同社のSF2Pプロセスに関する説明である。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://ascii.jp/img/2026/08/23/4516000/s/57668dfac630c7e5.png"
-    },
-    {
-      "id": "65182d93a847346fddaf",
-      "title": "What's New in Sigma - 2026年08月21日のSigma Computing関連リリース情報まとめ",
-      "url": "https://zenn.dev/truestar/articles/53df140780f6b9",
-      "source": "Zenn / Databricks",
-      "published_at": "2026-08-24T02:34:54+00:00",
-      "summary": "Sigma(Sigma Computing)の最新リリースノート情報を集約・要約して紹介しているコミュニティスレッド『Release Notes』。米国時間毎週金曜日中(日本時間土曜日早朝)に定期的に公開されているこちらのスレッドの内容について、個人的情報観測も兼ねて公開されたタイミングで目を通すようにしています。 当エントリではこのコミュニティスレッドにおける2026年08月21日付けの投稿について、内容を要約・咀嚼理解したものを紹介します。 TL;DR 2026年08月21日のSigmaリリースにおける主なトピック、目玉は以下の通り。 Sigma…",
-      "category": "技術コミュニティ",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "18d7eff4c12e94da3c08",
-      "title": "なでるだけで、爪がスルスル整う。燕三条の3WAY爪ヤスリがクセになる使い心地",
-      "url": "https://www.lifehacker.jp/article/2608-costorypo-3waytsumeyasuri-review3-1166165502/",
-      "source": "ライフハッカー・ジャパン",
-      "published_at": "2026-08-24T02:30:00+00:00",
-      "summary": "燕三条で125年の歴史を持つ老舗が手がけた「3WAY爪ヤスリ」は、削る・整える・爪垢取りがこれ1本で完結する万能ツールです。軽く撫でるだけでスルスル削れる心地よさや極薄設計でごっそり汚れが取れる爪垢取りの快感など、ヤスリ初心者が実際に使ってみたリアルな感想をお届けします。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": "https://media.loom-app.com/loom/2026/08/19/c49ffc16-50ee-45a7-9924-8eb14ca8f51f/original.png?w=1200"
-    },
-    {
-      "id": "90c41b0e9fbf90b83246",
-      "title": "シャークのコードレスブロワー スリムでパワフル",
-      "url": "https://kaden.watch.impress.co.jp/docs/news/2134433.html",
-      "source": "家電 Watch",
-      "published_at": "2026-08-24T02:04:00+00:00",
-      "summary": "シャークニンジャは、コンパクトながら強力な風を実現した「Shark BlastBoss(シャーク ブラストボス) コードレスブロワー」を、9月25日に発売する。直販価格はスポットノズル、延長パイプ、床用ブラシが付属するAB2111JBK(チャコール)が29,700円。スポットノズルのみ付属のAB2000JBL(ブルー)、AB2000JGY(グレージュ)、AB2000JGN(グリーン)、AB2000JPK(ピンク)が27,500円。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "49c89980ff173e2433e7",
-      "title": "ネットギア、マルチギガビットスマートスイッチ・アンマネージスイッチ5モデル発売",
-      "url": "https://internet.watch.impress.co.jp/docs/news/2134233.html",
-      "source": "INTERNET Watch",
-      "published_at": "2026-08-24T02:00:00+00:00",
-      "summary": "ネットギアジャパン合同会社は8月20日、マルチギガビットスマートスイッチ・アンマネージスイッチ計5モデルを発売した。ラインアップと市場想定価格は、「XS748TM」が125万6200円、「MS110TX」が7万6800円、「MS110TXUP」が12万0600円、「XS505Mv2」が8万5000円、「XS508Mv2」が9万6500円（いずれも税別）。",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
-    },
-    {
-      "id": "a1573d45b1abd8d53652",
-      "title": "【大河原克行の「パソコン業界、東奔西走」】動かないなら誰の責任？子どもたちと島根富士通社長らが世界最軽量「FMV Zero」を組む",
-      "url": "https://pc.watch.impress.co.jp/docs/column/gyokai/2134891.html",
-      "source": "PC Watch",
-      "published_at": "2026-08-24T01:53:57+00:00",
-      "summary": "",
-      "category": "業務改善・QOL",
-      "score": 0,
-      "image_url": null
     }
   ],
   "update_stats": {
-    "generated_at": "2026-08-25T03:00:38.707602+00:00",
-    "new_articles": 88,
+    "generated_at": "2026-08-25T10:07:37.825724+00:00",
+    "new_articles": 36,
     "total_articles": 500,
-    "new_articles_highlighted": 4,
-    "new_highlights": 11,
-    "kept_highlights": 5,
-    "total_highlights": 16,
+    "new_articles_highlighted": 3,
+    "new_highlights": 12,
+    "kept_highlights": 6,
+    "total_highlights": 18,
     "highlights_updated": true
   }
 }
