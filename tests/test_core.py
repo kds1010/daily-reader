@@ -8,6 +8,7 @@ from daily_reader.core import (
     calculate_score,
     canonicalize_url,
     clean_text,
+    collect,
     is_recent_or_upcoming_store_opening,
     load_keywords,
     parse_feed,
@@ -66,6 +67,60 @@ def test_parse_feed_normalizes_and_scores_articles() -> None:
     assert articles[0].score == 11
     assert articles[0].image_url == "https://images.example.com/python-ai.jpg"
     assert articles[1].score == -7
+
+
+def test_parse_feed_marks_missing_timestamp_as_unverified() -> None:
+    content = (
+        b"<rss><channel><item><title>New item</title>"
+        b"<link>https://example.com/new</link></item></channel></rss>"
+    )
+    now = datetime(2026, 8, 12, 2, tzinfo=UTC)
+
+    article = parse_feed(
+        content,
+        Feed("Example", "https://example.com/feed", "開発", priority=6),
+        {},
+        Settings(),
+        now,
+    )[0]
+
+    assert article.published_at == now.isoformat()
+    assert article.published_at_verified is False
+    assert article.source_priority == 6
+
+
+def test_collect_prefers_primary_copy_and_rejects_implausible_future_date(monkeypatch) -> None:
+    now = datetime(2026, 8, 12, 2, tzinfo=UTC)
+    feeds = [
+        Feed("secondary", "https://secondary.example/feed", "開発"),
+        Feed("official", "https://official.example/feed", "開発", priority=8),
+    ]
+    content = {
+        "secondary": (
+            b"<rss><channel><item><title>Shared</title>"
+            b"<link>https://example.com/shared</link>"
+            b"<pubDate>Wed, 12 Aug 2026 01:00:00 GMT</pubDate>"
+            b"</item></channel></rss>"
+        ),
+        "official": (
+            b"<rss><channel><item><title>Shared</title>"
+            b"<link>https://example.com/shared</link>"
+            b"<pubDate>Wed, 12 Aug 2026 00:00:00 GMT</pubDate></item>"
+            b"<item><title>Future</title><link>https://example.com/future</link>"
+            b"<pubDate>Sun, 16 Aug 2026 00:00:00 GMT</pubDate>"
+            b"</item></channel></rss>"
+        ),
+    }
+    monkeypatch.setattr(
+        "daily_reader.core.fetch_feed",
+        lambda feed, timeout, fetched_at=None: content[feed.name],
+    )
+
+    articles, errors = collect(feeds, {}, Settings(max_workers=2), now)
+
+    assert errors == []
+    assert [article.title for article in articles] == ["Shared"]
+    assert articles[0].source == "official"
 
 
 def test_parse_snowflake_release_notes_extracts_unique_updates() -> None:

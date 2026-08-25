@@ -3,6 +3,7 @@ retention_days = 30
 max_articles = 500
 request_timeout_seconds = 20
 summary_max_length = 280
+max_workers = 12
 
 [[feeds]]
 name = "NHK NEWS WEB"
@@ -18,6 +19,7 @@ enabled = true
 
 [[feeds]]
 name = "GitHub Blog"
+priority = 6
 url = "https://github.blog/feed/"
 category = "開発"
 enabled = true
@@ -30,24 +32,28 @@ enabled = true
 
 [[feeds]]
 name = "eza Releases"
+priority = 6
 url = "https://github.com/eza-community/eza/releases.atom"
 category = "CLI生産性"
 enabled = true
 
 [[feeds]]
 name = "fzf Releases"
+priority = 6
 url = "https://github.com/junegunn/fzf/releases.atom"
 category = "CLI生産性"
 enabled = true
 
 [[feeds]]
 name = "Yazi Releases"
+priority = 6
 url = "https://github.com/sxyazi/yazi/releases.atom"
 category = "CLI生産性"
 enabled = true
 
 [[feeds]]
 name = "cmux Releases"
+priority = 6
 url = "https://github.com/manaflow-ai/cmux/releases.atom"
 category = "CLI生産性"
 enabled = true
@@ -66,12 +72,14 @@ enabled = true
 
 [[feeds]]
 name = "OpenAI Official"
+priority = 6
 url = "https://openai.com/news/rss.xml"
 category = "生成AI活用"
 enabled = true
 
 [[feeds]]
 name = "Hugging Face Blog"
+priority = 5
 url = "https://huggingface.co/blog/feed.xml"
 category = "生成AI活用"
 enabled = true
@@ -102,6 +110,7 @@ enabled = true
 
 [[feeds]]
 name = "Snowflake Release Notes"
+priority = 8
 url = "https://docs.snowflake.com/en/release-notes/all-release-notes?bundle=true"
 category = "データ基盤"
 kind = "snowflake_release_notes"
@@ -109,36 +118,42 @@ enabled = true
 
 [[feeds]]
 name = "dbt Labs Blog"
+priority = 6
 url = "https://www.getdbt.com/blog/rss.xml"
 category = "データマネジメント"
 enabled = true
 
 [[feeds]]
 name = "dbt Core Releases"
+priority = 8
 url = "https://github.com/dbt-labs/dbt-core/releases.atom"
 category = "リリース速報"
 enabled = true
 
 [[feeds]]
 name = "Apache Iceberg Releases"
+priority = 8
 url = "https://github.com/apache/iceberg/releases.atom"
 category = "リリース速報"
 enabled = true
 
 [[feeds]]
 name = "Databricks Release Notes"
+priority = 8
 url = "https://docs.databricks.com/aws/en/feed.xml"
 category = "リリース速報"
 enabled = true
 
 [[feeds]]
 name = "横浜市イベント"
+priority = 8
 url = "https://www.city.yokohama.lg.jp/kanko-bunka/kanko-event/eventannai/rss_news.xml"
 category = "横浜イベント"
 enabled = true
 
 [[feeds]]
 name = "横浜市こどもイベント"
+priority = 8
 url = "https://cgi.city.yokohama.lg.jp/common/event2/kodomo/event_list.html?txt=%E5%A4%8F%E7%A5%AD%E3%82%8A&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
 category = "子育て"
 kind = "yokohama_child_events"
@@ -146,6 +161,7 @@ enabled = true
 
 [[feeds]]
 name = "横浜市親子イベント"
+priority = 8
 url = "https://cgi.city.yokohama.lg.jp/common/event2/kodomo/event_list.html?txt=%E8%A6%AA%E5%AD%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
 category = "子育て"
 kind = "yokohama_child_events"
@@ -153,6 +169,7 @@ enabled = true
 
 [[feeds]]
 name = "横浜市乳幼児イベント"
+priority = 8
 url = "https://cgi.city.yokohama.lg.jp/common/event2/kodomo/event_list.html?txt=%E4%B9%B3%E5%B9%BC%E5%85%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
 category = "子育て"
 kind = "yokohama_child_events"
@@ -160,6 +177,7 @@ enabled = true
 
 [[feeds]]
 name = "横浜市中区親子イベント"
+priority = 8
 url = "https://cgi.city.yokohama.lg.jp/common/event2/naka/event_list.html?txt=%E8%A6%AA%E5%AD%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
 category = "子育て"
 kind = "yokohama_child_events"
@@ -167,6 +185,7 @@ enabled = true
 
 [[feeds]]
 name = "横浜市中区乳幼児イベント"
+priority = 8
 url = "https://cgi.city.yokohama.lg.jp/common/event2/naka/event_list.html?txt=%E4%B9%B3%E5%B9%BC%E5%85%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%AE%E3%81%8C%E4%B8%8A"
 category = "子育て"
 kind = "yokohama_child_events"
@@ -174,6 +193,7 @@ enabled = true
 
 [[feeds]]
 name = "横浜市西区親子イベント"
+priority = 8
 url = "https://cgi.city.yokohama.lg.jp/common/event2/nishi/event_list.html?txt=%E8%A6%AA%E5%AD%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%8C%E4%B8%8A"
 category = "子育て"
 kind = "yokohama_child_events"
@@ -181,6 +201,7 @@ enabled = true
 
 [[feeds]]
 name = "横浜市西区乳幼児イベント"
+priority = 8
 url = "https://cgi.city.yokohama.lg.jp/common/event2/nishi/event_list.html?txt=%E4%B9%B3%E5%B9%BC%E5%85%90&term_after={date}&term_is_application=0&odr=%E5%AE%9F%E6%96%BD%2F%E9%96%8B%E5%82%AC%E3%81%AE%E6%97%A9%E3%81%84%E3%82%82%E3%81%8C%E4%B8%8A"
 category = "子育て"
 kind = "yokohama_child_events"
@@ -188,6 +209,7 @@ enabled = true
 
 [[feeds]]
 name = "横浜市公式観光イベント"
+priority = 8
 url = "https://www.welcome.city.yokohama.jp/eventinfo/index.php?action=home"
 category = "横浜イベント"
 kind = "yokohama_tourism_events"
@@ -275,12 +297,14 @@ enabled = true
 
 [[feeds]]
 name = "DAMA International"
+priority = 8
 url = "https://dama.org/feed/"
 category = "データマネジメント"
 enabled = true
 
 [[feeds]]
 name = "DAMA日本支部"
+priority = 8
 url = "https://dama-japan.org/blog/feed/"
 category = "データマネジメント"
 enabled = true
@@ -301,6 +325,7 @@ enabled = true
 
 [[feeds]]
 name = "Toyota Research Institute"
+priority = 5
 url = "https://medium.com/feed/toyotaresearch"
 category = "ML・データ事例"
 retention_days = 730
@@ -308,6 +333,7 @@ enabled = true
 
 [[feeds]]
 name = "Woven by Toyota"
+priority = 6
 url = "https://woven.toyota/en/news/"
 category = "ML・データ事例"
 kind = "woven_news"
@@ -316,6 +342,7 @@ enabled = true
 
 [[feeds]]
 name = "Volvo Cars Engineering"
+priority = 5
 url = "https://medium.com/feed/volvo-cars-engineering"
 category = "ML・データ事例"
 retention_days = 730
@@ -323,6 +350,7 @@ enabled = true
 
 [[feeds]]
 name = "Mercedes-Benz Tech Innovation"
+priority = 5
 url = "https://medium.com/feed/mercedes-benz-techinnovation-blog"
 category = "ML・データ事例"
 retention_days = 730
@@ -342,6 +370,7 @@ enabled = true
 
 [[feeds]]
 name = "Apple Newsroom"
+priority = 6
 url = "https://www.apple.com/newsroom/rss-feed.rss"
 category = "業務改善・QOL"
 enabled = true
@@ -402,6 +431,7 @@ enabled = true
 
 [[feeds]]
 name = "ACSM"
+priority = 7
 url = "https://acsm.org/feed/"
 category = "筋トレ"
 enabled = true
@@ -414,6 +444,7 @@ enabled = true
 
 [[feeds]]
 name = "Nature / Sleep Research"
+priority = 8
 url = "https://www.nature.com/subjects/sleep.rss"
 category = "睡眠"
 enabled = true

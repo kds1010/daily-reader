@@ -98,6 +98,18 @@ def test_candidate_rank_decays_as_article_ages() -> None:
     )] == [17, 12, 8, -1]
 
 
+def test_candidate_rank_prefers_verified_primary_source() -> None:
+    generated_at = datetime.fromisoformat("2026-08-13T00:00:00+00:00")
+    base = {**_event("source-quality").__dict__, "published_at": "2026-08-12T12:00:00+00:00"}
+    primary = Article(**{**base, "id": "primary", "source_priority": 8})
+    undated = Article(
+        **{**base, "id": "undated", "source_priority": 8, "published_at_verified": False}
+    )
+
+    assert _candidate_rank(primary, set(), generated_at)[0] == 25
+    assert _candidate_rank(undated, set(), generated_at)[0] == 17
+
+
 def test_candidates_reserve_fresh_data_ai_before_other_pools() -> None:
     generated_at = datetime.fromisoformat("2026-08-13T00:00:00+00:00")
     fresh_data = Article(

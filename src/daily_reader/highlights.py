@@ -21,7 +21,7 @@ from pathlib import Path
 from daily_reader.core import Article
 
 LOGGER = logging.getLogger(__name__)
-PROMPT_VERSION = "selection-freshness-interest-v25"
+PROMPT_VERSION = "selection-source-quality-v26"
 FOCUS_CATEGORIES = {
     "データマネジメント",
     "データ基盤",
@@ -271,6 +271,8 @@ def _candidate_rank(
     adjusted_score = (
         article.score
         + freshness_adjustment
+        + article.source_priority
+        - (8 if not article.published_at_verified else 0)
         - (10 if article.id in previous_ids else 0)
     )
     return adjusted_score, article.published_at
@@ -289,7 +291,11 @@ def _candidate_articles(
         for article in articles
         if article.category in FOCUS_CATEGORIES and article.score >= 3
     ]
-    newest = sorted(focused, key=lambda article: article.published_at, reverse=True)[:12]
+    newest = sorted(
+        [article for article in focused if article.published_at_verified],
+        key=lambda article: article.published_at,
+        reverse=True,
+    )[:12]
     ranked = sorted(
         focused,
         key=lambda article: _candidate_rank(article, previous_ids, generated_at),
@@ -557,6 +563,8 @@ def generate_highlights(
             "category": article.category,
             "published_at": article.published_at,
             "score": article.score,
+            "source_priority": article.source_priority,
+            "published_at_verified": article.published_at_verified,
             "summary": article.summary[:400],
             "suggested_field": _suggested_field(article),
             "freshness": (
@@ -673,7 +681,10 @@ def generate_highlights(
         "検証結果、失敗からの学び、実務への大きな影響、意外性のいずれもない総論や似た記事は"
         "選ばないでください。タイトルの派手さではなく、summaryから確認できる具体性で判断し、"
         "同じ話題の言い換えより、未掲載の新しい動きや視点を優先してください。"
-        "鮮度についてはfreshness=newの記事を最優先し、age_hoursが72以下の記事を先に検討して"
+        "source_priorityが高い一次情報・公式情報を、同じ話題の転載やまとめより優先してください。"
+        "published_at_verified=falseはフィードに日時がなく取得時刻を仮置きした記事なので、新着とは"
+        "みなさず、明確に重要な場合だけ選んでください。鮮度についてはfreshness=newかつ"
+        "published_at_verified=trueの記事を最優先し、age_hoursが72以下の記事を先に検討して"
         "ください。7日を超える記事は、直近の記事より明確に重要で今日も有効な理由がreasonに"
         "書ける場合だけ選んでください。14日を超える記事は、同じ分野に7日以内の適格候補が"
         "ある場合は選ばないでください。previously_selected=trueの記事は強く減点して"

@@ -10,6 +10,7 @@ import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -31,6 +32,7 @@ SPACE_PATTERN = re.compile(r"\s+")
 JAPANESE_DATE_PATTERN = re.compile(
     r"(?:(?P<year>20\d{2})年)?(?P<month>1[0-2]|0?[1-9])月(?P<day>3[01]|[12]\d|0?[1-9])日"
 )
+SCHEDULED_DATE_CATEGORIES = {"子育て", "横浜イベント", "データ関連書籍"}
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,7 @@ class Feed:
     category: str
     kind: str = "feed"
     retention_days: int | None = None
+    priority: int = 0
 
 
 @dataclass(frozen=True)
@@ -48,6 +51,7 @@ class Settings:
     max_articles: int = 300
     request_timeout_seconds: int = 20
     summary_max_length: int = 280
+    max_workers: int = 12
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,8 @@ class Article:
     category: str
     score: int
     image_url: str | None = None
+    source_priority: int = 0
+    published_at_verified: bool = True
 
 
 def load_config(path: Path) -> tuple[Settings, list[Feed]]:
@@ -75,12 +81,17 @@ def load_config(path: Path) -> tuple[Settings, list[Feed]]:
             category=item["category"],
             kind=item.get("kind", "feed"),
             retention_days=item.get("retention_days"),
+            priority=int(item.get("priority", 0)),
         )
         for item in config.get("feeds", [])
         if item.get("enabled", True)
     ]
     if not feeds:
         raise ValueError("At least one enabled feed is required")
+    if settings.max_workers < 1:
+        raise ValueError("max_workers must be at least 1")
+    if any(not -10 <= feed.priority <= 10 for feed in feeds):
+        raise ValueError("feed priority must be between -10 and 10")
     return settings, feeds
 
 
@@ -121,11 +132,11 @@ def clean_text(value: str, max_length: int) -> str:
     return f"{text[: max_length - 1].rstrip()}…"
 
 
-def _published_at(entry: Any, fallback: datetime) -> datetime:
+def _published_at(entry: Any, fallback: datetime) -> tuple[datetime, bool]:
     parsed_time: struct_time | None = entry.get("published_parsed") or entry.get("updated_parsed")
     if parsed_time:
-        return datetime.fromtimestamp(calendar.timegm(parsed_time), tz=UTC)
-    return fallback
+        return datetime.fromtimestamp(calendar.timegm(parsed_time), tz=UTC), True
+    return fallback, False
 
 
 def _entry_image_url(entry: Any, base_url: str) -> str | None:
@@ -197,7 +208,7 @@ def parse_feed(
         summary = clean_text(
             entry.get("summary", entry.get("description", "")), settings.summary_max_length
         )
-        published_at = _published_at(entry, fetched_at)
+        published_at, published_at_verified = _published_at(entry, fetched_at)
         articles.append(
             Article(
                 id=hashlib.sha256(url.encode()).hexdigest()[:20],
@@ -209,6 +220,8 @@ def parse_feed(
                 category=feed.category,
                 score=calculate_score(title, summary, keywords),
                 image_url=_entry_image_url(entry, url),
+                source_priority=feed.priority,
+                published_at_verified=published_at_verified,
             )
         )
     return articles
@@ -239,6 +252,7 @@ def parse_snowflake_release_notes(
             summary="Snowflake公式リリースノート",
             category=feed.category,
             score=calculate_score(title, "", keywords),
+            source_priority=feed.priority,
         )
         articles[article.id] = article
     return list(articles.values())
@@ -269,6 +283,7 @@ def parse_woven_news(
             summary=f"Woven by Toyota公式 {match.group('section')}",
             category=feed.category,
             score=calculate_score(title, match.group("section"), keywords),
+            source_priority=feed.priority,
         )
         articles[article.id] = article
     return list(articles.values())
@@ -326,6 +341,7 @@ def parse_yokohama_child_events(
                 summary=summary,
                 category=feed.category,
                 score=calculate_score(title, summary, keywords),
+                source_priority=feed.priority,
             )
         )
     return articles
@@ -369,6 +385,7 @@ def parse_yokohama_tourism_events(
                 summary=clean_text(f"{tags}・{details}", 280),
                 category=feed.category,
                 score=calculate_score(title, f"{tags} {details}", keywords),
+                source_priority=feed.priority,
             )
         )
     return articles
@@ -412,29 +429,62 @@ def collect(
     settings: Settings,
     now: datetime,
 ) -> tuple[list[Article], list[dict[str, str]]]:
+    def collect_feed(feed: Feed) -> tuple[Feed, list[Article]]:
+        content = fetch_feed(feed, settings.request_timeout_seconds, now)
+        return feed, parse_source(content, feed, keywords, settings, now)
+
     articles: dict[str, Article] = {}
     errors: list[dict[str, str]] = []
-    for feed in feeds:
+    results: list[tuple[Feed, list[Article]]] = []
+    worker_count = max(1, min(settings.max_workers, len(feeds)))
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        futures = {executor.submit(collect_feed, feed): feed for feed in feeds}
+        for future in as_completed(futures):
+            feed = futures[future]
+            try:
+                results.append(future.result())
+            except (OSError, ValueError, urllib.error.URLError) as error:
+                errors.append({"source": feed.name, "message": str(error)})
+
+    for feed, parsed_articles in results:
         try:
-            content = fetch_feed(feed, settings.request_timeout_seconds, now)
-            parsed_articles = parse_source(content, feed, keywords, settings, now)
             retention_days = feed.retention_days or settings.retention_days
             cutoff = now - timedelta(days=retention_days)
             for article in parsed_articles:
                 published_at = datetime.fromisoformat(article.published_at)
-                if published_at >= cutoff and is_recent_or_upcoming_store_opening(article, now):
+                is_plausible_date = (
+                    article.category in SCHEDULED_DATE_CATEGORIES
+                    or published_at <= now + timedelta(days=2)
+                )
+                if (
+                    published_at >= cutoff
+                    and is_plausible_date
+                    and is_recent_or_upcoming_store_opening(article, now)
+                ):
                     existing = articles.get(article.id)
-                    if existing is None or article.published_at > existing.published_at:
+                    if existing is None or (
+                        article.source_priority,
+                        article.published_at_verified,
+                        article.published_at,
+                    ) > (
+                        existing.source_priority,
+                        existing.published_at_verified,
+                        existing.published_at,
+                    ):
                         articles[article.id] = article
-        except (OSError, ValueError, urllib.error.URLError) as error:
+        except ValueError as error:
             errors.append({"source": feed.name, "message": str(error)})
 
     ranked = sorted(
         articles.values(),
-        key=lambda article: (article.score, article.published_at),
+        key=lambda article: (
+            article.score + article.source_priority,
+            article.published_at_verified,
+            article.published_at,
+        ),
         reverse=True,
     )
-    return ranked[: settings.max_articles], errors
+    return ranked[: settings.max_articles], sorted(errors, key=lambda error: error["source"])
 
 
 def write_output(
