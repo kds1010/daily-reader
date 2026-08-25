@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from daily_reader.agent_worker import _parse_codex_events, build_parser
+from daily_reader.agent_worker import _codex_command, _parse_codex_events, build_parser
 
 
 def test_agent_worker_defaults(monkeypatch) -> None:
@@ -34,3 +34,16 @@ def test_parse_codex_events_extracts_thread_and_messages() -> None:
 
     assert thread_id == "thread-1"
     assert messages == ["Implemented the change"]
+
+
+def test_initial_codex_command_uses_automatic_workspace_approval() -> None:
+    command = _codex_command(
+        Path("/tmp/worktree"),
+        Path("schema.json"),
+        "Complete the task",
+        None,
+        Path("result.json"),
+    )
+
+    assert "--approve-for-me" in command
+    assert "--sandbox" not in command

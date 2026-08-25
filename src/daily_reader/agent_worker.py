@@ -73,6 +73,41 @@ def _parse_codex_events(output: str) -> tuple[str | None, list[str]]:
     return thread_id, messages
 
 
+def _codex_command(
+    worktree: Path,
+    schema: Path,
+    prompt: str,
+    thread_id: str | None,
+    output_path: Path,
+) -> list[str]:
+    if thread_id:
+        return [
+            "codex",
+            "exec",
+            "resume",
+            "--json",
+            "--output-schema",
+            str(schema),
+            "-o",
+            str(output_path),
+            thread_id,
+            prompt,
+        ]
+    return [
+        "codex",
+        "exec",
+        "--approve-for-me",
+        "--json",
+        "--output-schema",
+        str(schema),
+        "-o",
+        str(output_path),
+        "-C",
+        str(worktree),
+        prompt,
+    ]
+
+
 def run_codex_turn(
     worktree: Path,
     schema: Path,
@@ -82,35 +117,7 @@ def run_codex_turn(
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as output_file:
         output_path = Path(output_file.name)
     try:
-        if thread_id:
-            command = [
-                "codex",
-                "exec",
-                "resume",
-                "--json",
-                "--output-schema",
-                str(schema),
-                "-o",
-                str(output_path),
-                thread_id,
-                prompt,
-            ]
-        else:
-            command = [
-                "codex",
-                "exec",
-                "--approve-for-me",
-                "--sandbox",
-                "workspace-write",
-                "--json",
-                "--output-schema",
-                str(schema),
-                "-o",
-                str(output_path),
-                "-C",
-                str(worktree),
-                prompt,
-            ]
+        command = _codex_command(worktree, schema, prompt, thread_id, output_path)
         result = run_command(command, worktree, check=False)
         parsed_thread_id, messages = _parse_codex_events(result.stdout)
         if result.returncode != 0:
