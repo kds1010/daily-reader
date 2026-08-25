@@ -149,6 +149,21 @@ lsof -nP -iTCP:8787 -sTCP:LISTEN
 
 起動時には全フィード取得と、候補が変わった場合のCodex生成が走る。不要な再起動は避ける。
 
+## デプロイ完了条件
+
+- 実行時の挙動に影響する変更は、検証済みコードを `main` へ統合して `origin/main` へ push した後、影響を受ける LaunchAgent を再起動し、実環境を確認して初めて完了とする。
+- Web サーバー、UI、ニュース、メール、プランナー、設定、依存関係の変更では `org.nix-community.home.daily-reader` を再起動する。Agent キュー、Agent ワーカー、リポジトリ操作の変更では `org.nix-community.home.daily-reader-agent-worker` も再起動する。
+- 再起動前に `lsof -nP -iTCP:8787 -sTCP:LISTEN` で PID を記録する。再起動は次の形式で行う。
+
+```bash
+launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader
+launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-worker
+```
+
+- 再起動後は、PID の更新、LaunchAgent の稼働、`http://127.0.0.1:8787/` の成功応答、`https://sk-mins-mac-mini.tailc193b2.ts.net/` の成功応答、および変更機能の代表的な動作を確認する。
+- デプロイまたは実環境確認に失敗した状態を完了として扱わない。実行できない場合は未デプロイと阻害要因を明示する。
+- 文書、コメント、テストだけの変更で実行時成果物が変わらない場合は再起動不要だが、その判断を完了報告へ明記する。
+
 ## Gitと環境上の注意
 
 - GitHubリポジトリは `kds1010/daily-reader`、ブランチは `main`。
