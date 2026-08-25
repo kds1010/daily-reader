@@ -8,6 +8,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Lock
 from time import sleep
 from typing import Any
 
@@ -22,6 +23,7 @@ from daily_reader.agent_jobs import (
 
 LOGGER = logging.getLogger(__name__)
 MAX_TURNS = 8
+DEPLOYMENT_LOCK = Lock()
 
 
 def run_command(
@@ -194,10 +196,26 @@ autonomously until the task is committed and verified.
 """
 
 
-def push_and_cleanup_worktree(
-    repository: dict[str, str], branch: str, worktree: Path
-) -> str | None:
-    repository_path = Path(repository["path"])
+def _deployment_prompt(commit: str) -> str:
+    return f"""The supervisor has integrated and pushed commit {commit} to the default branch.
+The coding and verification phase is complete. Now deploy this completed task before reporting
+success.
+
+Read all applicable AGENTS.md deployment instructions again and deploy the pushed default
+branch to the real runtime environment. Perform every required restart and live-environment
+check, including a representative check of the changed behavior. Do not edit files, create
+commits, or push anything during this phase. If the change only affects documentation, tests,
+or comments and the repository instructions explicitly allow deployment to be skipped, verify
+that classification and state it in the summary.
+
+Return state=done only after deployment and live verification succeed, or after confirming that
+deployment is not required under the repository instructions. If deployment fails, investigate
+and retry safe fixes. Return blocked only when human input is genuinely required. Never report
+the task as complete while runtime changes remain undeployed or unverified.
+"""
+
+
+def push_worktree(repository: dict[str, str], worktree: Path) -> str | None:
     status = run_command(["git", "status", "--porcelain"], worktree).stdout.strip()
     if status:
         raise RuntimeError("Codex left uncommitted changes in the task worktree")
@@ -213,9 +231,38 @@ def push_and_cleanup_worktree(
     )
     if pushed.returncode != 0:
         return None
+    return head
+
+
+def sync_default_worktree(repository: dict[str, str], commit: str) -> None:
+    repository_path = Path(repository["path"])
+    default_branch = repository["default_branch"]
+    current_branch = run_command(
+        ["git", "branch", "--show-current"], repository_path
+    ).stdout.strip()
+    if current_branch != default_branch:
+        raise RuntimeError(
+            f"repository checkout is on {current_branch or 'detached HEAD'}, "
+            f"not {default_branch}"
+        )
+    run_command(["git", "fetch", "origin", default_branch], repository_path)
+    remote_head = run_command(
+        ["git", "rev-parse", f"origin/{default_branch}"], repository_path
+    ).stdout.strip()
+    contains_commit = run_command(
+        ["git", "merge-base", "--is-ancestor", commit, remote_head],
+        repository_path,
+        check=False,
+    )
+    if contains_commit.returncode != 0:
+        raise RuntimeError("pushed commit is no longer on the remote default branch")
+    run_command(["git", "merge", "--ff-only", remote_head], repository_path)
+
+
+def cleanup_worktree(repository: dict[str, str], branch: str, worktree: Path) -> None:
+    repository_path = Path(repository["path"])
     run_command(["git", "worktree", "remove", str(worktree)], repository_path)
     run_command(["git", "branch", "-D", branch], repository_path)
-    return head
 
 
 def cleanup_failed_worktree(repository: dict[str, str], branch: str, worktree: Path) -> None:
@@ -240,6 +287,7 @@ def execute_job(
     repository = repositories[job["repository"]]
     branch = ""
     worktree: Path | None = None
+    deployment_lock_acquired = False
     try:
         existing_worktree = Path(job["worktree"]) if job.get("worktree") else None
         if existing_worktree and existing_worktree.exists() and job.get("branch"):
@@ -312,6 +360,8 @@ current worktree state. Continue autonomously until the task is committed and ve
         else:
             raise RuntimeError(f"Codex did not finish within {MAX_TURNS} turns")
 
+        DEPLOYMENT_LOCK.acquire()
+        deployment_lock_acquired = True
         update_job(database, job_id, phase="mainへ統合中")
         commit = None
         for integration_attempt in range(1, 4):
@@ -349,7 +399,7 @@ clean. Return done only when the rebase and verification succeed."""
                 )
                 if conflict_result["state"] != "done":
                     raise RuntimeError("Codex could not resolve the integration conflict")
-            commit = push_and_cleanup_worktree(repository, branch, worktree)
+            commit = push_worktree(repository, worktree)
             if commit:
                 break
             append_event(
@@ -360,8 +410,40 @@ clean. Return done only when the rebase and verification succeed."""
             )
         if not commit:
             raise RuntimeError("main changed repeatedly while the task was being integrated")
+        sync_default_worktree(repository, commit)
+        update_job(database, job_id, phase="デプロイ・実環境確認中")
+        append_event(
+            database,
+            job_id,
+            "deploying",
+            f"{commit} のデプロイと実環境確認を開始しました",
+        )
+        thread_id, deployment_result, messages = run_codex_turn(
+            worktree, schema, _deployment_prompt(commit), thread_id
+        )
+        update_job(
+            database,
+            job_id,
+            thread_id=thread_id,
+            summary=deployment_result["summary"],
+        )
+        append_event(
+            database,
+            job_id,
+            "codex",
+            messages or deployment_result["summary"],
+        )
+        if deployment_result["state"] != "done":
+            detail = deployment_result.get("next_action") or deployment_result["summary"]
+            raise RuntimeError(f"deployment did not complete: {detail}")
+        append_event(database, job_id, "deployed", deployment_result["summary"])
+        cleanup_worktree(repository, branch, worktree)
         worktree = None
-        summary = final_result.get("summary", "タスクが完了しました")
+        DEPLOYMENT_LOCK.release()
+        deployment_lock_acquired = False
+        summary = deployment_result.get("summary") or final_result.get(
+            "summary", "タスクが完了しました"
+        )
         update_job(
             database,
             job_id,
@@ -371,8 +453,15 @@ clean. Return done only when the rebase and verification succeed."""
             worktree=None,
             finished_at=datetime.now(UTC).isoformat(),
         )
-        append_event(database, job_id, "completed", f"{commit} をmainへ反映しました")
+        append_event(
+            database,
+            job_id,
+            "completed",
+            f"{commit} をmainへ反映し、デプロイを確認しました",
+        )
     except Exception as error:  # noqa: BLE001
+        if deployment_lock_acquired:
+            DEPLOYMENT_LOCK.release()
         LOGGER.exception("Agent job %s failed", job_id)
         update_job(
             database,

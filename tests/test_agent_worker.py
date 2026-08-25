@@ -3,6 +3,7 @@ from pathlib import Path
 
 from daily_reader.agent_worker import (
     _codex_command,
+    _deployment_prompt,
     _initial_prompt,
     _parse_codex_events,
     build_parser,
@@ -71,3 +72,12 @@ def test_requirements_prompt_requires_discovery_before_implementation() -> None:
     assert "do not change files" in prompt
     assert "return state=blocked" in prompt
     assert "After the user answers" in prompt
+
+
+def test_deployment_prompt_requires_live_verification_before_done() -> None:
+    prompt = _deployment_prompt("abc123")
+
+    assert "integrated and pushed commit abc123" in prompt
+    assert "Read all applicable AGENTS.md deployment instructions again" in prompt
+    assert "Return state=done only after deployment and live verification succeed" in prompt
+    assert "runtime changes remain undeployed or unverified" in prompt

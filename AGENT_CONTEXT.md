@@ -25,6 +25,7 @@
 - `src/daily_reader/daily_planner.py`: タスク、繰り返しルーティン、健康チェックインのSQLite状態管理。
 - `src/daily_reader/agent_jobs.py`: Agentタスクキュー、イベント、状態のSQLite永続化。
 - `src/daily_reader/agent_worker.py`: 専用worktreeでCodexを反復実行し、検証済み変更をmainへ統合する常駐ワーカー。
+- Agentワーカーはpush後にローカルのデフォルトブランチを同期し、対象リポジトリの`AGENTS.md`に従ったデプロイと実環境確認が成功してからタスクを完了する。
 - Agentワーカーは既定で最大10件を並列実行し、`--max-workers`で並列数を変更できる。
 - `config/agent-repositories.toml`: Agentが操作できるGitリポジトリの許可リスト。Daily Reader、soan、宿直（tonoi）を登録し、ホーム相対パスにも対応する。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
