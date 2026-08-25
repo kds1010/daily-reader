@@ -89,6 +89,10 @@ uv run daily-reader-local
 uv run --frozen daily-reader-agent-worker
 ```
 
+Agentワーカーは既定で最大2件のタスクを並列実行します。端末の負荷やCodexの利用枠に
+合わせて変更する場合は、`--max-workers 4`のように指定します。各タスクは専用worktree
+で実行され、同じキュー項目が複数ワーカーに取得されることはありません。
+
 Agentが操作できるリポジトリは`config/agent-repositories.toml`の明示的な許可リストに限定されます。複数の`[[repositories]]`を登録でき、`path`には設定ファイルからの相対パス、絶対パス、または`~/`から始まるホーム相対パスを指定できます。現在はDaily Reader、soan、宿直（tonoi）を選択できます。ワーカーはタスクごとに専用branchとworktreeを作り、Codexを構造化出力付きで反復実行します。検証済みの変更は各リポジトリの最新デフォルトブランチへrebaseしてpushし、成功後に作業環境を削除します。競合は同じCodexセッションへ戻して解決と再検証を行います。
 
 作成したタスクの「やりとりを表示」から進捗履歴を確認できます。待機中・実行中の

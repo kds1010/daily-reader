@@ -5,6 +5,7 @@ import json
 import logging
 import subprocess
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from time import sleep
@@ -386,17 +387,19 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path.home() / ".local/state/daily-reader/agent-worktrees",
     )
     parser.add_argument("--poll-seconds", type=int, default=5)
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=2,
+        help="Maximum number of Agent tasks to run concurrently (default: 2)",
+    )
     parser.add_argument("--once", action="store_true")
     return parser
 
 
-def main() -> None:
-    args = build_parser().parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    if args.poll_seconds < 1:
-        raise SystemExit("--poll-seconds must be at least 1")
-    repositories = load_repositories(args.repositories)
-    args.worktree_root.mkdir(parents=True, exist_ok=True)
+def run_worker(
+    args: argparse.Namespace, repositories: dict[str, dict[str, str]]
+) -> None:
     while True:
         job = claim_next_job(args.database)
         if job:
@@ -410,6 +413,26 @@ def main() -> None:
         if args.once:
             return
         sleep(args.poll_seconds)
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    if args.poll_seconds < 1:
+        raise SystemExit("--poll-seconds must be at least 1")
+    if args.max_workers < 1:
+        raise SystemExit("--max-workers must be at least 1")
+    repositories = load_repositories(args.repositories)
+    args.worktree_root.mkdir(parents=True, exist_ok=True)
+    with ThreadPoolExecutor(
+        max_workers=args.max_workers, thread_name_prefix="agent-worker"
+    ) as executor:
+        futures = [
+            executor.submit(run_worker, args, repositories)
+            for _ in range(args.max_workers)
+        ]
+        for future in futures:
+            future.result()
 
 
 if __name__ == "__main__":

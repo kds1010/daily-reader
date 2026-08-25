@@ -13,7 +13,18 @@ def test_agent_worker_defaults(monkeypatch) -> None:
     assert args.repositories == Path("config/agent-repositories.toml")
     assert args.schema == Path("config/agent-result-schema.json")
     assert args.poll_seconds == 5
+    assert args.max_workers == 2
     assert not args.once
+
+
+def test_agent_worker_accepts_configured_parallelism(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "sys.argv", ["daily-reader-agent-worker", "--max-workers", "4"]
+    )
+
+    args = build_parser().parse_args()
+
+    assert args.max_workers == 4
 
 
 def test_parse_codex_events_extracts_thread_and_messages() -> None:
