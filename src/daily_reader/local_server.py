@@ -197,6 +197,12 @@ def make_handler(
     repositories = agent_repositories or {}
 
     class DailyReaderHandler(SimpleHTTPRequestHandler):
+        def end_headers(self) -> None:
+            path = urllib.parse.urlsplit(self.path).path
+            if path in {"/", "/index.html", "/sw.js"}:
+                self.send_header("Cache-Control", "no-cache")
+            super().end_headers()
+
         def _send_json(self, status: int, payload: object) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode()
             self.send_response(status)
