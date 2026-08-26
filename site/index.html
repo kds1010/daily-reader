@@ -8,9 +8,13 @@
     <title>Daily Reader</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="./style.css?v=48">
+    <link rel="stylesheet" href="./style.css?v=49">
   </head>
   <body>
+    <div id="pull-to-refresh" class="pull-to-refresh" role="status" aria-live="polite" aria-hidden="true">
+      <span class="pull-to-refresh-icon" aria-hidden="true">↓</span>
+      <span class="pull-to-refresh-label">引いて更新</span>
+    </div>
     <header class="masthead">
       <div>
         <p class="eyebrow">YOUR DAILY SIGNAL</p>
@@ -255,6 +259,6 @@
       </article>
     </template>
 
-    <script src="./app.js?v=51" defer></script>
+    <script src="./app.js?v=52" defer></script>
   </body>
 </html>

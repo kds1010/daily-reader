@@ -34,6 +34,56 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.pull-to-refresh {
+  position: fixed;
+  z-index: 100;
+  top: max(6px, env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 8px 13px;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  box-shadow: var(--shadow-soft);
+  font-size: .74rem;
+  font-weight: 800;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(var(--pull-distance, 0px) - 52px));
+  transition: opacity 120ms ease, transform 120ms ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.pull-to-refresh.is-visible {
+  opacity: 1;
+}
+
+.pull-to-refresh-icon {
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 150ms ease;
+}
+
+.pull-to-refresh.is-ready .pull-to-refresh-icon {
+  transform: rotate(180deg);
+}
+
+.pull-to-refresh.is-refreshing {
+  --pull-distance: 52px;
+}
+
+.pull-to-refresh.is-refreshing .pull-to-refresh-icon {
+  animation: pull-refresh-spin 800ms linear infinite;
+}
+
+@keyframes pull-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
 button,
 input,
 select,

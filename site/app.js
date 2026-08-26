@@ -35,6 +35,7 @@ const elements = {
   highlightsHeading: document.querySelector("#highlights-heading"),
   highlightsOverview: document.querySelector("#highlights-overview"),
   officialDigest: document.querySelector("#official-digest"),
+  pullToRefresh: document.querySelector("#pull-to-refresh"),
   refresh: document.querySelector("#refresh"),
   resultCount: document.querySelector("#result-count"),
   savedOnly: document.querySelector("#saved-only"),
@@ -1369,7 +1370,7 @@ elements.savedOnly.addEventListener("change", (event) => {
   state.savedOnly = event.target.checked;
   renderArticles();
 });
-elements.refresh.addEventListener("click", async () => {
+async function refreshCurrentView() {
   if (currentView === "agent") {
     await Promise.all([loadAgentJobs(), loadCodexUsage()]);
   } else if (currentView === "email") {
@@ -1380,7 +1381,93 @@ elements.refresh.addEventListener("click", async () => {
     await loadArticles();
   }
   updateScreenUpdatedAt();
-});
+}
+
+elements.refresh.addEventListener("click", refreshCurrentView);
+
+const pullToRefresh = {
+  startX: 0,
+  startY: 0,
+  distance: 0,
+  vertical: false,
+  tracking: false,
+  refreshing: false,
+};
+const pullRefreshDirectionThreshold = 8;
+const pullRefreshThreshold = 72;
+const pullRefreshMaxDistance = 112;
+
+function resetPullToRefresh() {
+  pullToRefresh.distance = 0;
+  pullToRefresh.vertical = false;
+  pullToRefresh.tracking = false;
+  elements.pullToRefresh.classList.remove("is-visible", "is-ready");
+  elements.pullToRefresh.style.removeProperty("--pull-distance");
+  elements.pullToRefresh.setAttribute("aria-hidden", "true");
+}
+
+document.addEventListener("touchstart", (event) => {
+  if (
+    event.touches.length !== 1
+    || window.scrollY > 0
+    || pullToRefresh.refreshing
+    || event.target.closest("button, input, textarea, select, a, label, [contenteditable='true']")
+  ) return;
+  pullToRefresh.startX = event.touches[0].clientX;
+  pullToRefresh.startY = event.touches[0].clientY;
+  pullToRefresh.tracking = true;
+}, { passive: true });
+
+document.addEventListener("touchmove", (event) => {
+  if (!pullToRefresh.tracking || event.touches.length !== 1) return;
+  const horizontalDistance = event.touches[0].clientX - pullToRefresh.startX;
+  const rawDistance = event.touches[0].clientY - pullToRefresh.startY;
+  if (!pullToRefresh.vertical) {
+    if (
+      Math.abs(horizontalDistance) < pullRefreshDirectionThreshold
+      && Math.abs(rawDistance) < pullRefreshDirectionThreshold
+    ) return;
+    if (Math.abs(horizontalDistance) >= Math.abs(rawDistance)) {
+      resetPullToRefresh();
+      return;
+    }
+    pullToRefresh.vertical = true;
+  }
+  if (rawDistance <= 0 || window.scrollY > 0) {
+    resetPullToRefresh();
+    return;
+  }
+  event.preventDefault();
+  pullToRefresh.distance = Math.min(pullRefreshMaxDistance, rawDistance * 0.55);
+  const ready = pullToRefresh.distance >= pullRefreshThreshold;
+  elements.pullToRefresh.style.setProperty("--pull-distance", `${pullToRefresh.distance}px`);
+  elements.pullToRefresh.classList.add("is-visible");
+  elements.pullToRefresh.classList.toggle("is-ready", ready);
+  elements.pullToRefresh.setAttribute("aria-hidden", "false");
+  elements.pullToRefresh.querySelector(".pull-to-refresh-label").textContent = ready
+    ? "離して更新"
+    : "引いて更新";
+}, { passive: false });
+
+document.addEventListener("touchend", async () => {
+  if (!pullToRefresh.tracking) return;
+  const shouldRefresh = pullToRefresh.distance >= pullRefreshThreshold;
+  resetPullToRefresh();
+  if (!shouldRefresh) return;
+  pullToRefresh.refreshing = true;
+  elements.pullToRefresh.classList.add("is-visible", "is-refreshing");
+  elements.pullToRefresh.setAttribute("aria-hidden", "false");
+  elements.pullToRefresh.querySelector(".pull-to-refresh-label").textContent = "更新中…";
+  try {
+    await refreshCurrentView();
+  } finally {
+    pullToRefresh.refreshing = false;
+    elements.pullToRefresh.classList.remove("is-visible", "is-refreshing");
+    elements.pullToRefresh.setAttribute("aria-hidden", "true");
+  }
+}, { passive: true });
+
+document.addEventListener("touchcancel", resetPullToRefresh, { passive: true });
 elements.agentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(elements.agentForm);
