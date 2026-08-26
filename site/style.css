@@ -278,7 +278,7 @@ main,
   gap: 9px;
   align-items: center;
   min-height: 76px;
-  padding: 11px 88px 11px 10px;
+  padding: 11px 62px 11px 10px;
   cursor: pointer;
   list-style: none;
 }
@@ -361,14 +361,23 @@ main,
 .agent-hide {
   position: absolute;
   z-index: 2;
-  top: 24px;
-  right: 10px;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
+  top: 27px;
+  right: 8px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
   border-radius: 999px;
   color: var(--muted);
+  background: transparent;
+  font-size: .62rem;
+  line-height: 1.35;
+  opacity: .58;
+  transition: opacity .15s ease, background-color .15s ease;
+}
+
+.agent-hide:hover,
+.agent-hide:focus-visible {
   background: var(--paper);
-  font-size: .72rem;
+  opacity: 1;
 }
 
 .agent-job-heading {
