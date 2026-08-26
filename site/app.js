@@ -426,7 +426,7 @@ function renderAgentJob(job, archived = false) {
   const hide = document.createElement("button");
   hide.type = "button";
   hide.className = "agent-hide";
-  hide.textContent = "アーカイブ";
+  hide.textContent = "非表示";
   hide.setAttribute("aria-label", `「${job.prompt}」をアーカイブ`);
   let hiding = false;
   const hideJob = async (swiped = false) => {
@@ -448,7 +448,6 @@ function renderAgentJob(job, archived = false) {
     }
   };
   hide.addEventListener("click", () => hideJob());
-  body.append(hide);
 
   let touchId = null;
   let startX = 0;
@@ -521,7 +520,7 @@ function renderAgentJob(job, archived = false) {
     card.style.removeProperty("transform");
   });
 
-  swipeContainer.append(swipeAction, card);
+  swipeContainer.append(swipeAction, card, hide);
   return swipeContainer;
 }
 

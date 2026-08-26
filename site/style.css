@@ -278,7 +278,7 @@ main,
   gap: 9px;
   align-items: center;
   min-height: 76px;
-  padding: 11px 12px 11px 10px;
+  padding: 11px 88px 11px 10px;
   cursor: pointer;
   list-style: none;
 }
@@ -359,16 +359,17 @@ main,
 }
 
 .agent-hide {
-  margin-top: 10px;
+  position: absolute;
+  z-index: 2;
+  top: 24px;
+  right: 10px;
   padding: 6px 10px;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
-  background: transparent;
+  background: var(--paper);
   font-size: .72rem;
 }
-
-.agent-cancel + .agent-hide { margin-left: 8px; }
 
 .agent-job-heading {
   display: flex;
