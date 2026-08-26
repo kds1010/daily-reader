@@ -145,7 +145,7 @@ def test_sync_default_worktree_rebases_when_fast_forward_fails(
     monkeypatch.setattr("daily_reader.agent_worker.run_command", fake_run_command)
     repository = {"path": str(tmp_path), "default_branch": "main"}
 
-    assert sync_default_worktree(repository, "task-commit")
+    assert sync_default_worktree(repository, "task-commit") == "rebased"
     assert (["git", "rebase", "origin/main"], tmp_path, False) in calls
 
 
@@ -166,7 +166,30 @@ def test_sync_default_worktree_reports_rebase_conflict(
     monkeypatch.setattr("daily_reader.agent_worker.run_command", fake_run_command)
     repository = {"path": str(tmp_path), "default_branch": "main"}
 
-    assert not sync_default_worktree(repository, "task-commit")
+    assert sync_default_worktree(repository, "task-commit") == "conflict"
+
+
+def test_sync_default_worktree_skips_dirty_checkout(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls = []
+
+    def fake_run_command(command, cwd, *, check=True):
+        calls.append(command)
+        if command[:3] == ["git", "branch", "--show-current"]:
+            return CompletedProcess(command, 0, "main\n", "")
+        if command[:3] == ["git", "rev-parse", "origin/main"]:
+            return CompletedProcess(command, 0, "remote-head\n", "")
+        if command[:3] == ["git", "status", "--porcelain"]:
+            return CompletedProcess(command, 0, " M generated.json\n", "")
+        return CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("daily_reader.agent_worker.run_command", fake_run_command)
+    repository = {"path": str(tmp_path), "default_branch": "main"}
+
+    assert sync_default_worktree(repository, "task-commit") == "dirty"
+    assert not any(command[:2] == ["git", "merge"] for command in calls)
+    assert not any(command[:2] == ["git", "rebase"] for command in calls)
 
 
 def test_follow_up_prompt_is_read_only_and_uses_completion_context() -> None:
