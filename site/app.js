@@ -566,7 +566,7 @@ async function loadAgentJobs() {
     const interactionActive = isAgentInteractionActive();
     if (!interactionActive) {
       updateAgentRepositories(payload.repositories);
-      elements.agentJobs.replaceChildren(...payload.jobs.map(renderAgentJob));
+      elements.agentJobs.replaceChildren(...payload.jobs.map((job) => renderAgentJob(job)));
       const archivedJobs = payload.archived_jobs || [];
       elements.agentArchivedJobs.replaceChildren(
         ...archivedJobs.map((job) => renderAgentJob(job, true)),
