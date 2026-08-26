@@ -449,7 +449,7 @@ function renderAgentJob(job, archived = false) {
   hide.addEventListener("click", () => hideJob());
   body.append(hide);
 
-  let pointerId = null;
+  let touchId = null;
   let startX = 0;
   let startY = 0;
   let offsetX = 0;
@@ -461,37 +461,38 @@ function renderAgentJob(job, archived = false) {
     event.stopPropagation();
     suppressClick = false;
   }, true);
-  card.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "mouse" || hiding) return;
+  card.addEventListener("touchstart", (event) => {
+    if (hiding || event.touches.length !== 1) return;
     if (event.target.closest("button, input, textarea, select, a, label")) return;
-    pointerId = event.pointerId;
-    startX = event.clientX;
-    startY = event.clientY;
+    const [touch] = event.changedTouches;
+    touchId = touch.identifier;
+    startX = touch.clientX;
+    startY = touch.clientY;
     offsetX = 0;
     horizontalSwipe = false;
-    card.setPointerCapture(event.pointerId);
-  });
-  card.addEventListener("pointermove", (event) => {
-    if (event.pointerId !== pointerId) return;
-    const deltaX = event.clientX - startX;
-    const deltaY = event.clientY - startY;
+  }, { passive: true });
+  card.addEventListener("touchmove", (event) => {
+    const touch = [...event.changedTouches].find((item) => item.identifier === touchId);
+    if (!touch) return;
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
     if (!horizontalSwipe && Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
     if (!horizontalSwipe && Math.abs(deltaY) >= Math.abs(deltaX)) {
-      pointerId = null;
+      touchId = null;
       return;
     }
     horizontalSwipe = true;
+    event.preventDefault();
     offsetX = Math.max(-120, Math.min(120, deltaX));
     card.style.transform = `translateX(${offsetX}px)`;
     swipeContainer.classList.add("is-swiping");
     swipeContainer.classList.toggle("swipe-right", offsetX > 0);
-  });
-  const finishSwipe = (event) => {
-    if (event.pointerId !== pointerId) return;
-    pointerId = null;
+  }, { passive: false });
+  const finishSwipe = () => {
+    touchId = null;
     swipeContainer.classList.remove("is-swiping");
     suppressClick = horizontalSwipe;
-    setTimeout(() => { suppressClick = false; }, 0);
+    setTimeout(() => { suppressClick = false; }, 400);
     if (horizontalSwipe && Math.abs(offsetX) >= 72) {
       swipeContainer.classList.toggle("hide-right", offsetX > 0);
       hideJob(true);
@@ -499,10 +500,13 @@ function renderAgentJob(job, archived = false) {
     }
     card.style.removeProperty("transform");
   };
-  card.addEventListener("pointerup", finishSwipe);
-  card.addEventListener("pointercancel", (event) => {
-    if (event.pointerId !== pointerId) return;
-    pointerId = null;
+  card.addEventListener("touchend", (event) => {
+    if (![...event.changedTouches].some((item) => item.identifier === touchId)) return;
+    finishSwipe();
+  });
+  card.addEventListener("touchcancel", (event) => {
+    if (![...event.changedTouches].some((item) => item.identifier === touchId)) return;
+    touchId = null;
     swipeContainer.classList.remove("is-swiping");
     card.style.removeProperty("transform");
   });
