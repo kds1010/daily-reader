@@ -625,18 +625,29 @@ function renderCodexLimit(name, window) {
   return item;
 }
 
+function compareCodexLimits([leftId, left], [rightId, right]) {
+  const leftRank = leftId === "codex" ? 0 : 1;
+  const rightRank = rightId === "codex" ? 0 : 1;
+  if (leftRank !== rightRank) return leftRank - rightRank;
+  const leftName = left.limitName || leftId;
+  const rightName = right.limitName || rightId;
+  return leftName.localeCompare(rightName, "ja") || leftId.localeCompare(rightId, "en");
+}
+
 async function loadCodexUsage() {
   try {
     const response = await fetchWithTimeout("./api/codex-usage", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     const limits = payload.rateLimitsByLimitId || {};
-    const entries = Object.entries(limits).flatMap(([limitId, limit]) => {
-      const name = limit.limitName || (limitId === "codex" ? "Codex" : limitId);
-      return [limit.primary, limit.secondary]
-        .filter(Boolean)
-        .map((window) => renderCodexLimit(name, window));
-    });
+    const entries = Object.entries(limits)
+      .sort(compareCodexLimits)
+      .flatMap(([limitId, limit]) => {
+        const name = limit.limitName || (limitId === "codex" ? "Codex" : limitId);
+        return [limit.primary, limit.secondary]
+          .filter(Boolean)
+          .map((window) => renderCodexLimit(name, window));
+      });
     elements.codexUsageLimits.replaceChildren(...entries);
     elements.codexUsageStatus.hidden = entries.length > 0;
     elements.codexUsageStatus.textContent = entries.length
