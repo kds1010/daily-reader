@@ -455,6 +455,13 @@ function renderAgentJob(job, archived = false) {
   let offsetX = 0;
   let horizontalSwipe = false;
   let suppressClick = false;
+  const findTouch = (touches, identifier) => {
+    for (let index = 0; index < touches.length; index += 1) {
+      const touch = touches.item(index);
+      if (touch?.identifier === identifier) return touch;
+    }
+    return null;
+  };
   card.addEventListener("click", (event) => {
     if (!suppressClick) return;
     event.preventDefault();
@@ -464,7 +471,8 @@ function renderAgentJob(job, archived = false) {
   card.addEventListener("touchstart", (event) => {
     if (hiding || event.touches.length !== 1) return;
     if (event.target.closest("button, input, textarea, select, a, label")) return;
-    const [touch] = event.changedTouches;
+    const touch = event.changedTouches.item(0);
+    if (!touch) return;
     touchId = touch.identifier;
     startX = touch.clientX;
     startY = touch.clientY;
@@ -472,7 +480,7 @@ function renderAgentJob(job, archived = false) {
     horizontalSwipe = false;
   }, { passive: true });
   card.addEventListener("touchmove", (event) => {
-    const touch = [...event.changedTouches].find((item) => item.identifier === touchId);
+    const touch = findTouch(event.changedTouches, touchId);
     if (!touch) return;
     const deltaX = touch.clientX - startX;
     const deltaY = touch.clientY - startY;
@@ -495,17 +503,18 @@ function renderAgentJob(job, archived = false) {
     setTimeout(() => { suppressClick = false; }, 400);
     if (horizontalSwipe && Math.abs(offsetX) >= 72) {
       swipeContainer.classList.toggle("hide-right", offsetX > 0);
+      card.style.removeProperty("transform");
       hideJob(true);
       return;
     }
     card.style.removeProperty("transform");
   };
   card.addEventListener("touchend", (event) => {
-    if (![...event.changedTouches].some((item) => item.identifier === touchId)) return;
+    if (!findTouch(event.changedTouches, touchId)) return;
     finishSwipe();
   });
   card.addEventListener("touchcancel", (event) => {
-    if (![...event.changedTouches].some((item) => item.identifier === touchId)) return;
+    if (!findTouch(event.changedTouches, touchId)) return;
     touchId = null;
     swipeContainer.classList.remove("is-swiping");
     card.style.removeProperty("transform");
