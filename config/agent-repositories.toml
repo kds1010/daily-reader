@@ -16,3 +16,10 @@ label = "宿直 (tonoi)"
 path = "~/ghq/github.com/kds1010/tonoi"
 default_branch = "main"
 deploy = false
+
+[[repositories]]
+name = "config"
+label = "config"
+path = "~/.config"
+default_branch = "main"
+deploy = false
