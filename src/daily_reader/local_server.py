@@ -58,6 +58,21 @@ READ_SURFACES = {
 }
 
 
+def _without_codex_spark_limits(result: dict[str, object]) -> dict[str, object]:
+    limits = result.get("rateLimitsByLimitId")
+    if not isinstance(limits, dict):
+        return result
+    result["rateLimitsByLimitId"] = {
+        limit_id: limit
+        for limit_id, limit in limits.items()
+        if not (
+            isinstance(limit, dict)
+            and "codex-spark" in str(limit.get("limitName", "")).lower()
+        )
+    }
+    return result
+
+
 def read_codex_rate_limits(timeout: float = 10) -> dict[str, object]:
     """Read the signed-in Codex account's current limits from the app-server API."""
     process = subprocess.Popen(
@@ -104,7 +119,7 @@ def read_codex_rate_limits(timeout: float = 10) -> dict[str, object]:
             result = message.get("result")
             if not isinstance(result, dict):
                 raise RuntimeError("Codex returned an invalid rate-limit response")
-            return result
+            return _without_codex_spark_limits(result)
         raise TimeoutError("Codex rate-limit request timed out")
     finally:
         process.terminate()

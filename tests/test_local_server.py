@@ -26,7 +26,9 @@ class FakeCodexProcess:
         self.stdout = io.StringIO(
             '{"id":1,"result":{}}\n'
             '{"id":2,"result":{"rateLimits":{"planType":"pro"},'
-            '"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":18}}}}}\n'
+            '"rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":18}},'
+            '"codex_bengalfox":{"limitName":"GPT-5.3-Codex-Spark",'
+            '"primary":{"usedPercent":0}}}}}\n'
         )
 
     def terminate(self) -> None:
@@ -55,6 +57,7 @@ def test_codex_rate_limits_use_app_server_protocol(monkeypatch: pytest.MonkeyPat
     assert requests[0]["method"] == "initialize"
     assert requests[1] == {"id": 2, "method": "account/rateLimits/read", "params": None}
     assert result["rateLimitsByLimitId"]["codex"]["primary"]["usedPercent"] == 18
+    assert "codex_bengalfox" not in result["rateLimitsByLimitId"]
 
 
 def test_deployment_info_includes_package_version_and_revision(
