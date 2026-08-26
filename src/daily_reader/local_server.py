@@ -551,6 +551,7 @@ def update_articles(
     update_stats_path: Path = Path("data/update-stats.jsonl"),
 ) -> None:
     now = datetime.now(UTC)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     highlights_path = output_path.parent / "highlights.json"
     previous_article_ids = _load_article_ids(output_path)
     previous_highlight_ids = _load_highlight_ids(highlights_path)

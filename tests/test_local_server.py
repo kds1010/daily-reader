@@ -15,6 +15,7 @@ from daily_reader.local_server import (
     load_feedback_events,
     read_codex_rate_limits,
     summarize_read_events,
+    update_articles,
 )
 
 
@@ -160,3 +161,19 @@ def test_update_stats_compare_articles_and_highlights(tmp_path: Path) -> None:
     log_path = tmp_path / "update-stats.jsonl"
     append_update_stats(log_path, stats)
     assert json.loads(log_path.read_text(encoding="utf-8")) == stats
+
+
+def test_update_articles_creates_untracked_snapshot_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "site" / "data" / "articles.json"
+    monkeypatch.setattr("daily_reader.local_server.load_config", lambda _path: ({}, []))
+    monkeypatch.setattr("daily_reader.local_server.load_keywords", lambda _path: {})
+    monkeypatch.setattr(
+        "daily_reader.local_server.collect",
+        lambda *_args: ([], [{"source": "test", "error": "offline"}]),
+    )
+
+    update_articles(Path("feeds.toml"), Path("keywords.toml"), output)
+
+    assert output.parent.is_dir()

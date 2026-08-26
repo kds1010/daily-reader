@@ -13,4 +13,6 @@ data/planner.sqlite3
 data/agent.sqlite3
 data/agent.sqlite3-*
 data/planner.sqlite3-*
+site/data/articles.json
+site/data/highlights.json
 secrets/

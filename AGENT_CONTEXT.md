@@ -36,7 +36,7 @@
 - tonoiとconfigは`config/agent-repositories.toml`の`deploy = false`により、検証済み変更を`main`へ統合してpushした時点で完了とし、実環境デプロイは行わない。
 - `config/agent-repositories.toml`: Agentが操作できるGitリポジトリの許可リスト。Daily Reader、soan、宿直（tonoi）、configを登録し、ホーム相対パスにも対応する。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
-- `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。Git管理対象。
+- `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。起動時・定期更新時に再生成するGit管理対象外の実行時データ。
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
 - `data/selection-history.jsonl`: 分野別ハイライトの連続掲載履歴。Git管理対象外。
