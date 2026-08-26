@@ -17,12 +17,13 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from daily_reader.core import Article
 
 LOGGER = logging.getLogger(__name__)
-PROMPT_VERSION = "selection-source-quality-diversity-v27"
+PROMPT_VERSION = "selection-novelty-series-diversity-v28"
 FOCUS_CATEGORIES = {
     "データマネジメント",
     "データ基盤",
@@ -314,6 +315,20 @@ def _normalized_title(title: str) -> str:
     return "".join(character for character in normalized if character.isalnum())
 
 
+def _titles_describe_same_story(left: str, right: str) -> bool:
+    """Identify long, near-duplicate headlines from a recurring story or series."""
+    left_key = _normalized_title(left)
+    right_key = _normalized_title(right)
+    if left_key == right_key:
+        return True
+    if min(len(left_key), len(right_key)) < 20:
+        return False
+    shorter, longer = sorted((left_key, right_key), key=len)
+    if shorter in longer:
+        return True
+    return SequenceMatcher(None, left_key, right_key, autojunk=False).ratio() >= 0.45
+
+
 def _diverse_articles(
     articles: list[Article],
     limit: int,
@@ -327,7 +342,10 @@ def _diverse_articles(
     source_counts: dict[str, int] = {}
     for article in articles:
         title_key = _normalized_title(article.title)
-        if deduplicate_titles and title_key in seen_titles:
+        if deduplicate_titles and (
+            title_key in seen_titles
+            or any(_titles_describe_same_story(article.title, item.title) for item in selected)
+        ):
             continue
         if source_counts.get(article.source, 0) >= max_per_source:
             continue
@@ -773,7 +791,10 @@ def generate_highlights(
         "各分野では最初に『今この更新で読む理由』を比較してください。新しい事実、具体的な"
         "検証結果、失敗からの学び、実務への大きな影響、意外性のいずれもない総論や似た記事は"
         "選ばないでください。タイトルの派手さではなく、summaryから確認できる具体性で判断し、"
-        "同じ話題の言い換えより、未掲載の新しい動きや視点を優先してください。"
+        "同じ話題の言い換えより、未掲載の新しい動きや視点を優先してください。同じ連載、同じ検証の"
+        "続編、同じ製品・発表を扱う記事は、全表示面を通じて最も有用な1件だけに絞ってください。"
+        "各枠を埋めることより発見の幅を優先し、選ぶ記事同士で学べることが重複するなら空きを残して"
+        "ください。"
         "source_priorityが高い一次情報・公式情報を、同じ話題の転載やまとめより優先してください。"
         "published_at_verified=falseはフィードに日時がなく取得時刻を仮置きした記事なので、新着とは"
         "みなさず、明確に重要な場合だけ選んでください。鮮度についてはfreshness=newかつ"

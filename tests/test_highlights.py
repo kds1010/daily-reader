@@ -16,6 +16,7 @@ from daily_reader.highlights import (
     _normalized_title,
     _sakuragicho_area_priority,
     _selection_streak,
+    _titles_describe_same_story,
 )
 
 
@@ -206,6 +207,38 @@ def test_diverse_articles_deduplicates_titles_and_limits_each_source() -> None:
         "article-5",
     ]
     assert _normalized_title("ＡＩ Agent: 実践！") == _normalized_title("AI agent 実践")
+
+
+def test_diverse_articles_deduplicates_recurring_story_headlines() -> None:
+    first = Article(
+        **{
+            **_event("first").__dict__,
+            "id": "first",
+            "title": "AIエージェントをOpenTelemetryで計装し、トレースを残してみた",
+            "source": "Zenn / Databricks",
+        }
+    )
+    sequel = Article(
+        **{
+            **first.__dict__,
+            "id": "sequel",
+            "title": "OpenTelemetryでAIエージェントのLLM比較と失敗アラートまでやってみた",
+        }
+    )
+    unrelated = Article(
+        **{
+            **first.__dict__,
+            "id": "unrelated",
+            "title": "Unity Catalogでデータ品質ルールと所有者を管理する方法",
+        }
+    )
+
+    assert _titles_describe_same_story(first.title, sequel.title)
+    assert not _titles_describe_same_story(first.title, unrelated.title)
+    assert [article.id for article in _diverse_articles([first, sequel, unrelated], 3)] == [
+        "first",
+        "unrelated",
+    ]
 
 
 def test_candidates_do_not_let_duplicate_desk_stories_fill_field_quota() -> None:
