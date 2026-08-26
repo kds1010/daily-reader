@@ -8,6 +8,7 @@ from daily_reader.agent_jobs import (
     append_event,
     attach_to_job,
     claim_next_job,
+    connect_database,
     create_job,
     get_job,
     hide_job,
@@ -20,6 +21,46 @@ from daily_reader.agent_jobs import (
     take_pending_instructions,
     update_job,
 )
+
+
+class FakeConnection:
+    def __init__(self) -> None:
+        self.exited_with: type[BaseException] | None = None
+        self.closed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, error_type, _error, _traceback) -> None:
+        self.exited_with = error_type
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_connect_database_closes_after_success(monkeypatch, tmp_path: Path) -> None:
+    connection = FakeConnection()
+    monkeypatch.setattr(sqlite3, "connect", lambda *_args, **_kwargs: connection)
+
+    with connect_database(tmp_path / "agent.sqlite3") as opened:
+        assert opened is connection
+
+    assert connection.exited_with is None
+    assert connection.closed
+
+
+def test_connect_database_closes_after_error(monkeypatch, tmp_path: Path) -> None:
+    connection = FakeConnection()
+    monkeypatch.setattr(sqlite3, "connect", lambda *_args, **_kwargs: connection)
+
+    with (
+        pytest.raises(RuntimeError, match="failure"),
+        connect_database(tmp_path / "agent.sqlite3"),
+    ):
+        raise RuntimeError("failure")
+
+    assert connection.exited_with is RuntimeError
+    assert connection.closed
 
 
 def repositories(tmp_path: Path) -> dict[str, dict[str, str]]:

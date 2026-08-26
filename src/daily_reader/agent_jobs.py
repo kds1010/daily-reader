@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 import tomllib
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -10,6 +12,19 @@ from typing import Any
 FINAL_STATES = {"completed", "blocked", "failed", "cancelled"}
 JOB_MODES = {"execute", "requirements"}
 ARCHIVE_RETENTION = timedelta(days=7)
+
+
+@contextmanager
+def connect_database(
+    path: Path, *, timeout: float = 5.0
+) -> Iterator[sqlite3.Connection]:
+    """Commit or roll back a transaction, then always release its file descriptors."""
+    connection = sqlite3.connect(path, timeout=timeout)
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
 
 
 def load_repositories(path: Path) -> dict[str, dict[str, str]]:
@@ -52,7 +67,7 @@ def load_repositories(path: Path) -> dict[str, dict[str, str]]:
 
 def initialize_database(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         connection.executescript(
             """
             PRAGMA journal_mode = WAL;
@@ -143,7 +158,7 @@ def create_job(
         "updated_at": now,
     }
     initialize_database(path)
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         connection.execute(
             """INSERT INTO agent_jobs (
                 id, repository, prompt, mode, status, phase, created_at, updated_at
@@ -168,7 +183,7 @@ def create_job(
 
 def list_jobs(path: Path, limit: int = 50) -> list[dict[str, Any]]:
     initialize_database(path)
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
             """SELECT * FROM agent_jobs WHERE hidden_at IS NULL
@@ -194,7 +209,7 @@ def list_archived_jobs(
     """List archived jobs after permanently removing archives older than seven days."""
     initialize_database(path)
     cutoff = (now or datetime.now(UTC)) - ARCHIVE_RETENTION
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         connection.row_factory = sqlite3.Row
         expired_ids = [
             row["id"]
@@ -235,7 +250,7 @@ def list_archived_jobs(
 
 def get_job(path: Path, job_id: str) -> dict[str, Any] | None:
     initialize_database(path)
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         connection.row_factory = sqlite3.Row
         row = connection.execute(
             "SELECT * FROM agent_jobs WHERE id = ?", (job_id,)
@@ -255,7 +270,7 @@ def get_job(path: Path, job_id: str) -> dict[str, Any] | None:
 def request_cancel(path: Path, job_id: str) -> bool:
     initialize_database(path)
     now = _now()
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         row = connection.execute(
             "SELECT status FROM agent_jobs WHERE id = ?", (job_id,)
         ).fetchone()
@@ -286,7 +301,7 @@ def hide_job(path: Path, job_id: str) -> bool:
     if not isinstance(job_id, str) or not job_id:
         return False
     initialize_database(path)
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         cursor = connection.execute(
             "UPDATE agent_jobs SET hidden_at = ? WHERE id = ?",
             (_now(), job_id),
@@ -299,7 +314,7 @@ def attach_to_job(path: Path, job_id: str, instruction: object) -> bool:
         return False
     initialize_database(path)
     now = _now()
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         row = connection.execute(
             "SELECT status, worktree, follow_up FROM agent_jobs WHERE id = ?", (job_id,)
         ).fetchone()
@@ -341,7 +356,7 @@ def resume_job(path: Path, job_id: str, instruction: object) -> bool:
 def take_pending_instructions(path: Path, job_id: str) -> list[str]:
     initialize_database(path)
     now = _now()
-    with sqlite3.connect(path, timeout=30) as connection:
+    with connect_database(path, timeout=30) as connection:
         connection.row_factory = sqlite3.Row
         connection.execute("BEGIN IMMEDIATE")
         rows = connection.execute(
@@ -361,7 +376,7 @@ def take_pending_instructions(path: Path, job_id: str) -> list[str]:
 def claim_next_job(path: Path) -> dict[str, Any] | None:
     initialize_database(path)
     now = _now()
-    with sqlite3.connect(path, timeout=30) as connection:
+    with connect_database(path, timeout=30) as connection:
         connection.row_factory = sqlite3.Row
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
@@ -385,7 +400,7 @@ def recover_interrupted_jobs(path: Path) -> int:
     initialize_database(path)
     now = _now()
     message = "Agentワーカーの再起動により処理が中断されたため、自動で再試行します。"
-    with sqlite3.connect(path, timeout=30) as connection:
+    with connect_database(path, timeout=30) as connection:
         connection.execute("BEGIN IMMEDIATE")
         rows = connection.execute(
             "SELECT id FROM agent_jobs WHERE status='running'"
@@ -428,7 +443,7 @@ def update_job(path: Path, job_id: str, **fields: object) -> None:
     values["hidden_at"] = None
     assignments = ", ".join(f"{name} = ?" for name in values)
     initialize_database(path)
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         connection.execute(
             f"UPDATE agent_jobs SET {assignments} WHERE id = ?",  # noqa: S608
             (*values.values(), job_id),
@@ -438,7 +453,7 @@ def update_job(path: Path, job_id: str, **fields: object) -> None:
 def append_event(path: Path, job_id: str, kind: str, message: str) -> None:
     initialize_database(path)
     now = _now()
-    with sqlite3.connect(path) as connection:
+    with connect_database(path) as connection:
         connection.execute(
             """INSERT INTO agent_events (job_id, created_at, kind, message)
             VALUES (?, ?, ?, ?)""",
