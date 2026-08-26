@@ -73,7 +73,7 @@ def test_agent_job_lifecycle(tmp_path: Path) -> None:
     assert stored["events"][0]["kind"] == "queued"
 
 
-def test_running_jobs_are_recovered_after_worker_restart(tmp_path: Path) -> None:
+def test_running_jobs_are_requeued_after_worker_restart(tmp_path: Path) -> None:
     database = tmp_path / "agent.sqlite3"
     job = create_job(
         database,
@@ -94,12 +94,17 @@ def test_running_jobs_are_recovered_after_worker_restart(tmp_path: Path) -> None
 
     stored = get_job(database, job["id"])
     assert stored is not None
-    assert stored["status"] == "failed"
-    assert stored["phase"] == "ワーカー再起動で中断"
-    assert stored["finished_at"] is not None
+    assert stored["status"] == "queued"
+    assert stored["phase"] == "ワーカー再起動のため再試行待ち"
+    assert stored["finished_at"] is None
     assert stored["hidden_at"] is None
-    assert stored["events"][-1]["kind"] == "failed"
-    assert "追加指示から再開できます" in stored["summary"]
+    assert stored["events"][-1]["kind"] == "retrying"
+    assert "自動で再試行します" in stored["summary"]
+
+    retried = claim_next_job(database)
+    assert retried is not None
+    assert retried["id"] == job["id"]
+    assert retried["worktree"] == str(tmp_path / "worktree")
 
 
 def test_hidden_job_returns_to_list_after_an_update(tmp_path: Path) -> None:
