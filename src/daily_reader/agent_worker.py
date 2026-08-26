@@ -247,6 +247,15 @@ the task as complete while runtime changes remain undeployed or unverified.
 """
 
 
+def _default_branch_conflict_prompt(default_branch: str) -> str:
+    return f"""The supervisor could not fast-forward the local {default_branch} branch to its
+remote because the local branch also contains commits. A rebase onto origin/{default_branch}
+was started and encountered conflicts. Resolve every conflict without discarding either the
+local commits or unrelated upstream changes, complete the rebase, and rerun the relevant
+verification. Leave the checkout clean. Do not push. Return done only when the rebase and
+verification succeed."""
+
+
 def push_worktree(repository: dict[str, str], worktree: Path) -> str | None:
     status = run_command(["git", "status", "--porcelain"], worktree).stdout.strip()
     if status:
@@ -266,7 +275,7 @@ def push_worktree(repository: dict[str, str], worktree: Path) -> str | None:
     return head
 
 
-def sync_default_worktree(repository: dict[str, str], commit: str) -> None:
+def sync_default_worktree(repository: dict[str, str], commit: str) -> bool:
     repository_path = Path(repository["path"])
     default_branch = repository["default_branch"]
     current_branch = run_command(
@@ -288,7 +297,17 @@ def sync_default_worktree(repository: dict[str, str], commit: str) -> None:
     )
     if contains_commit.returncode != 0:
         raise RuntimeError("pushed commit is no longer on the remote default branch")
-    run_command(["git", "merge", "--ff-only", remote_head], repository_path)
+    merged = run_command(
+        ["git", "merge", "--ff-only", remote_head], repository_path, check=False
+    )
+    if merged.returncode == 0:
+        return True
+    rebased = run_command(
+        ["git", "rebase", f"origin/{default_branch}"],
+        repository_path,
+        check=False,
+    )
+    return rebased.returncode == 0
 
 
 def cleanup_worktree(repository: dict[str, str], branch: str, worktree: Path) -> None:
@@ -469,7 +488,41 @@ clean. Return done only when the rebase and verification succeed."""
             )
         if not commit:
             raise RuntimeError("main changed repeatedly while the task was being integrated")
-        sync_default_worktree(repository, commit)
+        default_worktree = Path(repository["path"])
+        for sync_attempt in range(1, 4):
+            if not sync_default_worktree(repository, commit):
+                append_event(
+                    database,
+                    job_id,
+                    "conflict",
+                    "ローカルmainの競合をCodexへ戻して解決しています",
+                )
+                conflict_prompt = _default_branch_conflict_prompt(
+                    repository["default_branch"]
+                )
+                _, conflict_result, messages = run_codex_turn(
+                    default_worktree, schema, conflict_prompt, None
+                )
+                append_event(
+                    database,
+                    job_id,
+                    "codex",
+                    messages or conflict_result["summary"],
+                )
+                if conflict_result["state"] != "done":
+                    raise RuntimeError("Codex could not resolve the local main conflict")
+            synced_commit = push_worktree(repository, default_worktree)
+            if synced_commit:
+                commit = synced_commit
+                break
+            append_event(
+                database,
+                job_id,
+                "push-retry",
+                f"mainが更新されたためローカル同期を再試行します（{sync_attempt}/3）",
+            )
+        else:
+            raise RuntimeError("main changed repeatedly while the local checkout was synced")
         if repository.get("deploy", True):
             update_job(database, job_id, phase="デプロイ・実環境確認中")
             append_event(

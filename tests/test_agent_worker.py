@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
+from subprocess import CompletedProcess
 
 from daily_reader.agent_worker import (
     _codex_command,
+    _default_branch_conflict_prompt,
     _deployment_prompt,
     _follow_up_prompt,
     _initial_prompt,
@@ -10,6 +12,7 @@ from daily_reader.agent_worker import (
     build_parser,
     resolve_schema_path,
     run_deployment_turn,
+    sync_default_worktree,
 )
 
 
@@ -111,6 +114,59 @@ def test_deployment_prompt_requires_live_verification_before_done() -> None:
     assert "Read all applicable AGENTS.md deployment instructions again" in prompt
     assert "Return state=done only after deployment and live verification succeed" in prompt
     assert "runtime changes remain undeployed or unverified" in prompt
+
+
+def test_default_branch_conflict_prompt_requires_rebase_verification() -> None:
+    prompt = _default_branch_conflict_prompt("main")
+
+    assert "rebase onto origin/main" in prompt
+    assert "without discarding either" in prompt
+    assert "local commits or unrelated upstream changes" in prompt
+    assert "rerun the relevant" in prompt
+    assert "verification. Leave the checkout clean" in prompt
+    assert "Do not push" in prompt
+
+
+def test_sync_default_worktree_rebases_when_fast_forward_fails(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls = []
+
+    def fake_run_command(command, cwd, *, check=True):
+        calls.append((command, cwd, check))
+        if command[:3] == ["git", "rev-parse", "origin/main"]:
+            return CompletedProcess(command, 0, "remote-head\n", "")
+        if command[:3] == ["git", "branch", "--show-current"]:
+            return CompletedProcess(command, 0, "main\n", "")
+        if command[:3] == ["git", "merge", "--ff-only"]:
+            return CompletedProcess(command, 128, "", "not a fast-forward")
+        return CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("daily_reader.agent_worker.run_command", fake_run_command)
+    repository = {"path": str(tmp_path), "default_branch": "main"}
+
+    assert sync_default_worktree(repository, "task-commit")
+    assert (["git", "rebase", "origin/main"], tmp_path, False) in calls
+
+
+def test_sync_default_worktree_reports_rebase_conflict(
+    monkeypatch, tmp_path: Path
+) -> None:
+    def fake_run_command(command, cwd, *, check=True):
+        if command[:3] == ["git", "rev-parse", "origin/main"]:
+            return CompletedProcess(command, 0, "remote-head\n", "")
+        if command[:3] == ["git", "branch", "--show-current"]:
+            return CompletedProcess(command, 0, "main\n", "")
+        if command[:2] == ["git", "rebase"]:
+            return CompletedProcess(command, 1, "", "conflict")
+        if command[:3] == ["git", "merge", "--ff-only"]:
+            return CompletedProcess(command, 128, "", "not a fast-forward")
+        return CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("daily_reader.agent_worker.run_command", fake_run_command)
+    repository = {"path": str(tmp_path), "default_branch": "main"}
+
+    assert not sync_default_worktree(repository, "task-commit")
 
 
 def test_follow_up_prompt_is_read_only_and_uses_completion_context() -> None:

@@ -26,6 +26,7 @@
 - `src/daily_reader/agent_jobs.py`: Agentタスクキュー、イベント、状態のSQLite永続化。
 - `src/daily_reader/agent_worker.py`: 専用worktreeでCodexを反復実行し、検証済み変更をmainへ統合する常駐ワーカー。
 - Agentワーカーはpush後にローカルのデフォルトブランチを同期し、対象リポジトリの`AGENTS.md`に従ったデプロイと実環境確認が成功してからタスクを完了する。
+- ローカルのデフォルトブランチがリモートと分岐してfast-forwardできない場合は、リモートへrebaseし、競合をCodexで解消・再検証してからローカルコミットもpushする。
 - Agentワーカーは既定で最大10件を並列実行し、`--max-workers`で並列数を変更できる。
 - Agentワーカー起動時は、前プロセスの再起動で`running`のまま残ったタスクを自動で再キュー化し、保持した作業環境から再試行する。
 - デプロイ確認は実装セッションとは別の自動承認付きCodexセッションで実行し、`launchctl`による再起動と実環境確認に必要な権限を自動審査へ回す。
