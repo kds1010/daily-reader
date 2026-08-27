@@ -162,6 +162,14 @@ Python = 4
 
 `daily-reader-local`をmacOSのLaunchAgentから起動すると、ログイン後に常駐できます。Mac mini固有のHome Manager設定から、リポジトリ内の`.venv/bin/daily-reader-local`を作業ディレクトリ付きで起動する構成を推奨します。Tailscale Serveの設定はバックグラウンド設定としてTailscale側に保存されます。
 
+## Sitesへの移行について
+
+現状はSitesへ全面移行せず、Mac miniのローカルサーバーをTailscale Serveで使います。Sitesにすると、Mac miniが停止中でもニュース閲覧ができること、Tailscaleに接続していない場所からの利用、認証付き共有、クラウド上の永続化が可能になります。一方、ニュース収集・Codexによるハイライト生成の能力が増えるわけではありません。
+
+Codex CLI、Git worktree、LaunchAgent、ローカルGmail OAuth、HealthKit同期、Planner／AgentのSQLiteはSites上ではそのまま動かせません。Sitesからtailnet内のMac APIへ接続することもできないため、全面移行には公開API、認証、クラウド実行基盤、データ移行の再設計が必要です。これは現行の「tailnet内限定」「外部サーバー・DBを使わない」という方針とも合いません。
+
+将来、Mac停止中の閲覧や他者との共有が必要になった場合は、既存版を残したまま、ニュース一覧・ハイライトだけを独立したSites版として段階導入します。最初は匿名化した固定データで検証し、Gmail、健康、Agent履歴はSitesへ送信しません。閲覧履歴やフィードバックをクラウド保存する場合はD1移行を別タスクで設計し、Sites版と現行Tailscale版を並行稼働させてから切り替えます。
+
 ## iPhoneへの追加
 
 1. 公開されたページをSafariで開きます。

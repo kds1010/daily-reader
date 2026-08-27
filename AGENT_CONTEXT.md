@@ -206,3 +206,11 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 5. 公開URLはTailscale接続端末から確認する。
 
 この文書と実装が食い違う場合は、実装と実データを正とし、この文書を更新すること。
+
+## Sitesデプロイの判断
+
+- 現時点ではSitesへの全面移行を行わない。Sitesで増えるのは、Mac mini停止中でも利用できること、Tailscaleなしの外部アクセス、管理されたクラウド永続化、認証付き共有などであり、ニュース収集やハイライト生成そのものの能力ではない。
+- 現行のCodex CLI・Git worktree・LaunchAgent、ローカルGmail OAuth、HealthKit同期、Planner／AgentのSQLiteはSitesへそのまま移せない。Sites URLからtailnet内Mac APIへ接続する前提も成立しないため、移行には認証・公開API・クラウド実行基盤の再設計が必要になる。
+- 将来スパイクする場合は、既存の`site/`とPythonサーバーを維持したまま、機密性の低いニュース一覧・ハイライトだけを独立したSitesフロントエンドとして作る。初期データは匿名化fixtureに限定し、Gmail、健康、Agent履歴はアップロードしない。
+- フィードバックや閲覧履歴をクラウド保存する必要が生じた場合だけD1移行を別途設計する。Gmail、HealthKit、Planner、Agentのクラウド移行は、認証・秘密情報・データ保持方針を確定した別タスクとする。
+- Sitesを試す場合も現行のTailscale版と並行稼働し、非公開アクセスで検証する。公開範囲、Mac停止時の期待動作、外部サービス利用を確認するまで現行URLを切り替えない。
