@@ -206,6 +206,9 @@ def test_deployment_prompt_requires_live_verification_before_done() -> None:
     assert "Read all applicable AGENTS.md deployment instructions again" in prompt
     assert "Return state=done only after deployment and live verification succeed" in prompt
     assert "runtime changes remain undeployed or unverified" in prompt
+    assert "already restarted onto this pushed commit" in prompt
+    assert "do not restart it again" in prompt
+    assert "launches duplicate Codex sessions against the same worktree" in prompt
 
 
 def test_default_branch_conflict_prompt_requires_rebase_verification() -> None:

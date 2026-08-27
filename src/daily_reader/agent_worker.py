@@ -244,6 +244,15 @@ commits, or push anything during this phase. If the change only affects document
 or comments and the repository instructions explicitly allow deployment to be skipped, verify
 that classification and state it in the summary.
 
+The deployment may restart the Agent worker that launched this session. Before restarting that
+worker, inspect its current PID, start time, deployed commit, and recent service logs. If those
+show that the worker has already restarted onto this pushed commit, treat the required restart
+as complete and do not restart it again. This check is mandatory because restarting the parent
+worker interrupts this session; repeating the restart after recovery creates an endless restart
+loop and launches duplicate Codex sessions against the same worktree. Restart the worker only
+when it has not yet loaded this commit, and perform all checks that can precede that restart
+first.
+
 Return state=done only after deployment and live verification succeed, or after confirming that
 deployment is not required under the repository instructions. If deployment fails, investigate
 and retry safe fixes. Return blocked only when human input is genuinely required. Never report
