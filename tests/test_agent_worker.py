@@ -10,6 +10,7 @@ from daily_reader.agent_worker import (
     _default_branch_conflict_prompt,
     _deployment_prompt,
     _follow_up_prompt,
+    _implementation_prompt,
     _initial_prompt,
     _parse_codex_events,
     build_parser,
@@ -174,6 +175,22 @@ def test_initial_codex_command_uses_automatic_workspace_approval() -> None:
     assert "--sandbox" not in command
 
 
+def test_resumed_codex_command_can_switch_to_low_cost_model() -> None:
+    command = _codex_command(
+        Path("/tmp/worktree"),
+        Path("schema.json"),
+        "Implement the task",
+        "thread-1",
+        Path("result.json"),
+        "gpt-5.6-luna",
+        "low",
+    )
+
+    assert command[0:3] == ["codex", "exec", "resume"]
+    assert command[command.index("--model") + 1] == "gpt-5.6-luna"
+    assert 'model_reasoning_effort="low"' in command
+
+
 def test_deployment_starts_fresh_automatic_approval_session(monkeypatch) -> None:
     calls = []
 
@@ -197,6 +214,21 @@ def test_requirements_prompt_requires_discovery_before_implementation() -> None:
     assert "do not change files" in prompt
     assert "return state=blocked" in prompt
     assert "After the user answers" in prompt
+
+
+def test_execute_prompt_separates_planning_from_implementation() -> None:
+    prompt = _initial_prompt("Add a better workflow")
+
+    assert "Do not change files or commit in this turn" in prompt
+    assert "Return state=continue" in prompt
+    assert "lower-cost implementation model" in prompt
+
+    implementation = _implementation_prompt(
+        {"summary": "Update the worker", "next_action": "Edit and test"}
+    )
+    assert "Update the worker" in implementation
+    assert "Edit and test" in implementation
+    assert "Return state=done only after" in implementation
 
 
 def test_deployment_prompt_requires_live_verification_before_done() -> None:

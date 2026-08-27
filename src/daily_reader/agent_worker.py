@@ -27,6 +27,8 @@ from daily_reader.agent_jobs import (
 
 LOGGER = logging.getLogger(__name__)
 MAX_TURNS = 8
+IMPLEMENTATION_MODEL = "gpt-5.6-luna"
+IMPLEMENTATION_REASONING_EFFORT = "low"
 DEPLOYMENT_LOCK = Lock()
 ARCHIVE_CLEANUP_LOCK = Lock()
 
@@ -88,7 +90,16 @@ def _codex_command(
     prompt: str,
     thread_id: str | None,
     output_path: Path,
+    model: str | None = None,
+    reasoning_effort: str | None = None,
 ) -> list[str]:
+    model_options = []
+    if model:
+        model_options.extend(["--model", model])
+    if reasoning_effort:
+        model_options.extend(
+            ["--config", f'model_reasoning_effort="{reasoning_effort}"']
+        )
     if thread_id:
         return [
             "codex",
@@ -99,6 +110,7 @@ def _codex_command(
             str(schema),
             "-o",
             str(output_path),
+            *model_options,
             thread_id,
             prompt,
         ]
@@ -113,6 +125,7 @@ def _codex_command(
         str(output_path),
         "-C",
         str(worktree),
+        *model_options,
         prompt,
     ]
 
@@ -122,11 +135,22 @@ def run_codex_turn(
     schema: Path,
     prompt: str,
     thread_id: str | None,
+    *,
+    model: str | None = None,
+    reasoning_effort: str | None = None,
 ) -> tuple[str | None, dict[str, Any], str]:
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as output_file:
         output_path = Path(output_file.name)
     try:
-        command = _codex_command(worktree, schema, prompt, thread_id, output_path)
+        command = _codex_command(
+            worktree,
+            schema,
+            prompt,
+            thread_id,
+            output_path,
+            model,
+            reasoning_effort,
+        )
         result = run_command(command, worktree, check=False)
         parsed_thread_id, messages = _parse_codex_events(result.stdout)
         if result.returncode != 0:
@@ -167,20 +191,33 @@ and commit only task-scoped changes. Do not merge, push, remove the worktree, or
 branch; the external supervisor performs those steps. Return state=done only after the
 implementation is committed and verification succeeds.
 """
-    return f"""Complete the following coding task autonomously.
+    return f"""Plan the following coding task before implementation.
 
 Task:
 {task}
 
-You are already running in a dedicated task worktree and branch. Do not create another
-worktree. Inspect all applicable AGENTS.md files before changing files. Implement the task,
-run the relevant verification, and commit only task-scoped changes. Do not merge, push, remove
-the worktree, or delete the branch; the external supervisor performs those steps.
+You are already running in a dedicated task worktree and branch. Inspect all applicable
+AGENTS.md files and the relevant implementation. Do not change files or commit in this turn.
+Produce a concrete implementation plan, including affected files, risks, and verification, in
+summary and next_action. Return state=continue and human_input_required=false unless progress is
+impossible without credentials, an irreversible high-risk decision, or a materially ambiguous
+product decision that cannot be resolved from the repository. A lower-cost implementation model
+will continue in this same thread after this planning turn.
+"""
 
-Continue working without asking the user unless progress is impossible without credentials,
-an irreversible high-risk decision, or a materially ambiguous product decision that cannot be
-resolved from the repository. Return state=done only after the implementation is committed and
-verification succeeds. Return state=continue when another autonomous turn can make progress.
+
+def _implementation_prompt(result: dict[str, Any]) -> str:
+    return f"""Implement the original task autonomously, following the plan from the previous
+turn.
+
+Plan summary: {result.get('summary', '')}
+Planned next action: {result.get('next_action', '')}
+
+You are already running in a dedicated task worktree and branch. Do not create another
+worktree. Make the task-scoped changes, run the relevant verification, and commit them. Do not
+merge, push, remove the worktree, or delete the branch; the external supervisor performs those
+steps. Continue without asking the user unless the configured high-risk blocker criteria are
+met. Return state=done only after the implementation is committed and verification succeeds.
 """
 
 
@@ -459,6 +496,11 @@ current worktree state. Continue autonomously until the task is committed and ve
         elif attached:
             prompt = f"{prompt}\n\n{_attached_prompt(attached)}"
         final_result: dict[str, Any] = {}
+        planning_turn = (
+            not follow_up
+            and not existing_worktree
+            and job.get("mode", "execute") == "execute"
+        )
         for attempt in range(1, MAX_TURNS + 1):
             current = get_job(database, job_id)
             if current and current["cancel_requested"]:
@@ -473,13 +515,36 @@ current worktree state. Continue autonomously until the task is committed and ve
                 cleanup_failed_worktree(repository, branch, worktree)
                 return
             update_job(database, job_id, attempts=attempt, phase=f"Codex実行中（{attempt}回目）")
-            thread_id, result, messages = run_codex_turn(worktree, schema, prompt, thread_id)
+            use_implementation_model = not follow_up and not (
+                planning_turn and attempt == 1
+            )
+            thread_id, result, messages = run_codex_turn(
+                worktree,
+                schema,
+                prompt,
+                thread_id,
+                model=IMPLEMENTATION_MODEL if use_implementation_model else None,
+                reasoning_effort=(
+                    IMPLEMENTATION_REASONING_EFFORT
+                    if use_implementation_model
+                    else None
+                ),
+            )
             final_result = result
             update_fields = {"thread_id": thread_id}
             if not follow_up:
                 update_fields["summary"] = result["summary"]
             update_job(database, job_id, **update_fields)
             append_event(database, job_id, "codex", messages or result["summary"])
+            if planning_turn and attempt == 1 and result["state"] != "blocked":
+                prompt = _implementation_prompt(result)
+                append_event(
+                    database,
+                    job_id,
+                    "model-routing",
+                    f"実装を低コストモデル（{IMPLEMENTATION_MODEL}）へ切り替えました",
+                )
+                continue
             attached = take_pending_instructions(database, job_id)
             if attached:
                 prompt = (
