@@ -10,9 +10,11 @@ from daily_reader.agent_jobs import (
     claim_next_job,
     connect_database,
     create_job,
+    delete_expired_archived_job,
     get_job,
     hide_job,
     list_archived_jobs,
+    list_expired_archived_jobs,
     list_jobs,
     load_repositories,
     recover_interrupted_jobs,
@@ -197,6 +199,24 @@ def test_archived_job_is_deleted_after_seven_days(tmp_path: Path) -> None:
 
     assert list_archived_jobs(database, now=archived_at + timedelta(days=6))
     assert list_archived_jobs(database, now=archived_at + timedelta(days=7)) == []
+    assert list_expired_archived_jobs(
+        database, now=archived_at + timedelta(days=7)
+    ) == []
+    assert get_job(database, job["id"]) is not None
+
+    update_job(database, job["id"], status="failed")
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE agent_jobs SET hidden_at = ? WHERE id = ?",
+            (archived_at.isoformat(), job["id"]),
+        )
+    expired = list_expired_archived_jobs(
+        database, now=archived_at + timedelta(days=7)
+    )
+    assert [item["id"] for item in expired] == [job["id"]]
+    assert delete_expired_archived_job(
+        database, job["id"], archived_at.isoformat()
+    )
     assert get_job(database, job["id"]) is None
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT count(*) FROM agent_events").fetchone()[0] == 0

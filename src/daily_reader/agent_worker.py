@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import logging
 import subprocess
@@ -15,7 +16,9 @@ from typing import Any
 from daily_reader.agent_jobs import (
     append_event,
     claim_next_job,
+    delete_expired_archived_job,
     get_job,
+    list_expired_archived_jobs,
     load_repositories,
     recover_interrupted_jobs,
     take_pending_instructions,
@@ -25,6 +28,7 @@ from daily_reader.agent_jobs import (
 LOGGER = logging.getLogger(__name__)
 MAX_TURNS = 8
 DEPLOYMENT_LOCK = Lock()
+ARCHIVE_CLEANUP_LOCK = Lock()
 
 
 def run_command(
@@ -333,6 +337,68 @@ def cleanup_failed_worktree(repository: dict[str, str], branch: str, worktree: P
             check=False,
         )
     run_command(["git", "branch", "-D", branch], repository_path, check=False)
+
+
+def cleanup_archived_worktree(
+    repository: dict[str, str], branch: str, worktree: Path
+) -> None:
+    """Remove an expired archive's worktree and branch without masking failures."""
+    repository_path = Path(repository["path"])
+    if worktree.exists():
+        run_command(
+            ["git", "worktree", "remove", "--force", str(worktree)],
+            repository_path,
+        )
+    else:
+        run_command(["git", "worktree", "prune"], repository_path)
+    branch_exists = run_command(
+        ["git", "show-ref", "--verify", f"refs/heads/{branch}"],
+        repository_path,
+        check=False,
+    )
+    if branch_exists.returncode == 0:
+        run_command(["git", "branch", "-D", branch], repository_path)
+
+
+def cleanup_expired_archives(
+    database: Path,
+    repositories: dict[str, dict[str, str]],
+    now: datetime | None = None,
+) -> int:
+    """Remove expired archive resources before permanently deleting their records."""
+    deleted = 0
+    with ARCHIVE_CLEANUP_LOCK:
+        for job in list_expired_archived_jobs(database, now=now):
+            repository = repositories.get(job["repository"])
+            if repository is None:
+                LOGGER.error(
+                    "Cannot clean archived job %s: repository %s is not configured",
+                    job["id"],
+                    job["repository"],
+                )
+                continue
+            cleanup_resources = None
+            if job.get("worktree") and job.get("branch"):
+                cleanup_resources = functools.partial(
+                    cleanup_archived_worktree,
+                    repository,
+                    job["branch"],
+                    Path(job["worktree"]),
+                )
+
+            try:
+                removed = delete_expired_archived_job(
+                    database,
+                    job["id"],
+                    job["hidden_at"],
+                    before_delete=cleanup_resources,
+                )
+            except (OSError, subprocess.CalledProcessError):
+                LOGGER.exception("Could not clean resources for archived job %s", job["id"])
+                continue
+            if removed:
+                deleted += 1
+    return deleted
 
 
 def execute_job(
@@ -659,6 +725,7 @@ def run_worker(
     args: argparse.Namespace, repositories: dict[str, dict[str, str]]
 ) -> None:
     while True:
+        cleanup_expired_archives(args.database, repositories)
         job = claim_next_job(args.database)
         if job:
             execute_job(

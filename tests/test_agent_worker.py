@@ -1,7 +1,10 @@
 import json
+import sqlite3
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from subprocess import CompletedProcess
+from subprocess import CalledProcessError, CompletedProcess
 
+from daily_reader.agent_jobs import create_job, get_job, hide_job, update_job
 from daily_reader.agent_worker import (
     _codex_command,
     _default_branch_conflict_prompt,
@@ -10,10 +13,23 @@ from daily_reader.agent_worker import (
     _initial_prompt,
     _parse_codex_events,
     build_parser,
+    cleanup_expired_archives,
     resolve_schema_path,
     run_deployment_turn,
     sync_default_worktree,
 )
+
+
+def repositories(tmp_path: Path) -> dict[str, dict[str, str]]:
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    return {
+        "repo": {
+            "name": "repo",
+            "path": str(repository),
+            "default_branch": "main",
+        }
+    }
 
 
 def test_agent_worker_defaults(monkeypatch) -> None:
@@ -37,6 +53,82 @@ def test_agent_worker_accepts_configured_parallelism(monkeypatch) -> None:
     args = build_parser().parse_args()
 
     assert args.max_workers == 4
+
+
+def test_expired_archive_removes_worktree_before_database_history(
+    monkeypatch, tmp_path: Path
+) -> None:
+    database = tmp_path / "agent.sqlite3"
+    configured = repositories(tmp_path)
+    job = create_job(
+        database,
+        configured,
+        {"repository": "repo", "prompt": "Eventually discard this task"},
+    )
+    worktree = tmp_path / "worktree"
+    update_job(
+        database,
+        job["id"],
+        status="failed",
+        branch="codex/web-task",
+        worktree=str(worktree),
+    )
+    hide_job(database, job["id"])
+    archived_at = datetime(2026, 8, 1, tzinfo=UTC)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE agent_jobs SET hidden_at = ? WHERE id = ?",
+            (archived_at.isoformat(), job["id"]),
+        )
+    cleaned = []
+    monkeypatch.setattr(
+        "daily_reader.agent_worker.cleanup_archived_worktree",
+        lambda repository, branch, path: cleaned.append((repository, branch, path)),
+    )
+
+    assert cleanup_expired_archives(
+        database, configured, now=archived_at + timedelta(days=7)
+    ) == 1
+    assert cleaned == [(configured["repo"], "codex/web-task", worktree)]
+    assert get_job(database, job["id"]) is None
+
+
+def test_expired_archive_is_retained_when_worktree_cleanup_fails(
+    monkeypatch, tmp_path: Path
+) -> None:
+    database = tmp_path / "agent.sqlite3"
+    configured = repositories(tmp_path)
+    job = create_job(
+        database,
+        configured,
+        {"repository": "repo", "prompt": "Keep history if cleanup fails"},
+    )
+    update_job(
+        database,
+        job["id"],
+        status="failed",
+        branch="codex/web-task",
+        worktree=str(tmp_path / "worktree"),
+    )
+    hide_job(database, job["id"])
+    archived_at = datetime(2026, 8, 1, tzinfo=UTC)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE agent_jobs SET hidden_at = ? WHERE id = ?",
+            (archived_at.isoformat(), job["id"]),
+        )
+
+    def fail_cleanup(*_args) -> None:
+        raise CalledProcessError(1, ["git", "worktree", "remove"])
+
+    monkeypatch.setattr(
+        "daily_reader.agent_worker.cleanup_archived_worktree", fail_cleanup
+    )
+
+    assert cleanup_expired_archives(
+        database, configured, now=archived_at + timedelta(days=7)
+    ) == 0
+    assert get_job(database, job["id"]) is not None
 
 
 def test_schema_path_is_resolved_before_using_external_worktree(

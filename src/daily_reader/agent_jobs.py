@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 import tomllib
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -206,36 +206,15 @@ def list_jobs(path: Path, limit: int = 50) -> list[dict[str, Any]]:
 def list_archived_jobs(
     path: Path, limit: int = 50, now: datetime | None = None
 ) -> list[dict[str, Any]]:
-    """List archived jobs after permanently removing archives older than seven days."""
+    """List archived jobs that are still within the seven-day retention period."""
     initialize_database(path)
     cutoff = (now or datetime.now(UTC)) - ARCHIVE_RETENTION
     with connect_database(path) as connection:
         connection.row_factory = sqlite3.Row
-        expired_ids = [
-            row["id"]
-            for row in connection.execute(
-                "SELECT id FROM agent_jobs WHERE hidden_at <= ?",
-                (cutoff.isoformat(),),
-            )
-        ]
-        if expired_ids:
-            placeholders = ", ".join("?" for _ in expired_ids)
-            connection.execute(
-                f"DELETE FROM agent_events WHERE job_id IN ({placeholders})",  # noqa: S608
-                expired_ids,
-            )
-            connection.execute(
-                f"DELETE FROM agent_instructions WHERE job_id IN ({placeholders})",  # noqa: S608
-                expired_ids,
-            )
-            connection.execute(
-                f"DELETE FROM agent_jobs WHERE id IN ({placeholders})",  # noqa: S608
-                expired_ids,
-            )
         rows = connection.execute(
-            """SELECT * FROM agent_jobs WHERE hidden_at IS NOT NULL
+            """SELECT * FROM agent_jobs WHERE hidden_at > ?
             ORDER BY hidden_at DESC LIMIT ?""",
-            (limit,),
+            (cutoff.isoformat(), limit),
         ).fetchall()
         jobs = [dict(row) for row in rows]
         for job in jobs:
@@ -246,6 +225,54 @@ def list_archived_jobs(
             ).fetchall()
             job["recent_events"] = [dict(event) for event in reversed(events)]
     return jobs
+
+
+def list_expired_archived_jobs(
+    path: Path, now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """Return dormant final-state archives whose resources may now be removed."""
+    initialize_database(path)
+    cutoff = (now or datetime.now(UTC)) - ARCHIVE_RETENTION
+    final_states = sorted(FINAL_STATES)
+    placeholders = ", ".join("?" for _ in final_states)
+    with connect_database(path) as connection:
+        connection.row_factory = sqlite3.Row
+        rows = connection.execute(
+            f"""SELECT * FROM agent_jobs
+            WHERE hidden_at <= ? AND status IN ({placeholders})
+            ORDER BY hidden_at""",  # noqa: S608
+            (cutoff.isoformat(), *final_states),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def delete_expired_archived_job(
+    path: Path,
+    job_id: str,
+    hidden_at: str,
+    *,
+    before_delete: Callable[[], None] | None = None,
+) -> bool:
+    """Delete an unchanged archive, cleaning external resources in the same lock."""
+    initialize_database(path)
+    final_states = sorted(FINAL_STATES)
+    placeholders = ", ".join("?" for _ in final_states)
+    with connect_database(path, timeout=30) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            f"""SELECT id FROM agent_jobs
+            WHERE id = ? AND hidden_at = ? AND status IN ({placeholders})""",  # noqa: S608
+            (job_id, hidden_at, *final_states),
+        ).fetchone()
+        if row is None:
+            connection.commit()
+            return False
+        if before_delete is not None:
+            before_delete()
+        connection.execute("DELETE FROM agent_events WHERE job_id = ?", (job_id,))
+        connection.execute("DELETE FROM agent_instructions WHERE job_id = ?", (job_id,))
+        connection.execute("DELETE FROM agent_jobs WHERE id = ?", (job_id,))
+    return True
 
 
 def get_job(path: Path, job_id: str) -> dict[str, Any] | None:
