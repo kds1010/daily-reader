@@ -1,5 +1,7 @@
 # Daily Reader
 
+> SwiftUIネイティブiPhone版は[`ios/README.md`](ios/README.md)を参照してください。
+
 Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部公開用サーバーやデータベースは必要ありません。起動時はAgentタブを最初に表示します。
 
 ## 主な機能

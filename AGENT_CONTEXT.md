@@ -38,6 +38,8 @@
 - tonoiとconfigは`config/agent-repositories.toml`の`deploy = false`により、検証済み変更を`main`へ統合してpushした時点で完了とし、実環境デプロイは行わない。
 - `config/agent-repositories.toml`: Agentが操作できるGitリポジトリの許可リスト。Daily Reader、soan、宿直（tonoi）、configを登録し、ホーム相対パスにも対応する。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
+- `ios/DailyReader/`: SwiftUIで全面実装したiPhoneネイティブクライアント。Agent、今日、メール、ニュース、設定をネイティブ表示し、Tailscale Serve上の既存APIへ接続する。
+- ネイティブクライアントはHealthKit日次集計、Agent状態変化のローカル通知、App Intents、Keychainでの同期トークン保存に対応する。無料Personal TeamのApp ID消費を抑えるため、初期版は単一アプリターゲットとし、ウィジェットや通知Extensionは実機署名検証後に追加する。
 - `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。起動時・定期更新時に再生成するGit管理対象外の実行時データ。
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
@@ -158,6 +160,17 @@ node --check site/sw.js
 jq empty config/highlight-schema.json
 git diff --check
 ```
+
+iPhoneネイティブクライアントを変更した場合は、署名なしのデバイスSDKビルドも実行する。
+
+```bash
+xcodebuild -project ios/DailyReader/DailyReader.xcodeproj \
+  -scheme DailyReader -sdk iphoneos -configuration Debug \
+  -derivedDataPath /tmp/daily-reader-ios-derived \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+HealthKit capabilityとSideStore再署名の可否はSimulatorでは確定できないため、XcodeでPersonal Teamを選択した実機ビルドを別途行う。Apple Accountへのログイン、Developer Mode、HealthKit・通知権限の許可はユーザー本人が操作する。
 
 サーバー起動:
 

@@ -16,3 +16,8 @@ data/planner.sqlite3-*
 site/data/articles.json
 site/data/highlights.json
 secrets/
+
+# Xcode user state and local build products
+DerivedData/
+*.xcuserstate
+xcuserdata/
