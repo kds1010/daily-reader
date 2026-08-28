@@ -67,8 +67,32 @@ struct AgentCard: View {
     @State private var fullEvents: [AgentEvent] = []
     @State private var instruction = ""
     @State private var sending = false
+    @State private var dragOffset: CGFloat = 0
+    @State private var hiding = false
 
     var body: some View {
+        ZStack {
+            if !archived {
+                HStack {
+                    if dragOffset > 0 {
+                        archiveAction
+                    }
+                    Spacer()
+                    if dragOffset < 0 {
+                        archiveAction
+                    }
+                }
+                .padding(.horizontal, 24)
+                .foregroundStyle(.white)
+            }
+            cardContent
+                .offset(x: dragOffset)
+                .gesture(cardDragGesture)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button { withAnimation(.snappy) { expanded.toggle() } } label: {
                 HStack(spacing: 12) {
@@ -133,6 +157,42 @@ struct AgentCard: View {
             }
         }
         .glassCard()
+    }
+
+    private var archiveAction: some View {
+        Label("非表示", systemImage: "archivebox.fill")
+            .font(.caption.bold())
+    }
+
+    private var cardDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                guard !archived, !hiding else { return }
+                let horizontal = abs(value.translation.width) > abs(value.translation.height)
+                guard horizontal else { return }
+                dragOffset = max(-140, min(140, value.translation.width))
+            }
+            .onEnded { value in
+                guard !archived, !hiding else { return }
+                let horizontal = abs(value.translation.width) > abs(value.translation.height)
+                guard horizontal else {
+                    withAnimation(.snappy) { dragOffset = 0 }
+                    return
+                }
+                if abs(value.translation.width) >= 72 {
+                    hiding = true
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        dragOffset = value.translation.width > 0 ? 500 : -500
+                    }
+                    Task {
+                        await model.hideAgent(job)
+                        hiding = false
+                        dragOffset = 0
+                    }
+                } else {
+                    withAnimation(.snappy) { dragOffset = 0 }
+                }
+            }
     }
 
     private var canAttach: Bool {
