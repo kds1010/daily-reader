@@ -21,3 +21,6 @@ secrets/
 DerivedData/
 *.xcuserstate
 xcuserdata/
+
+# Locally published SideStore release artifacts
+site/sidestore/

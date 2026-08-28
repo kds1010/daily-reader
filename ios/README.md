@@ -20,6 +20,25 @@ Documents領域へ転送して再起動します。アプリはトークンをKe
 `DailyReader.entitlements`から`com.apple.developer.healthkit.background-delivery`だけを外し、
 前景同期で実機検証してください。
 
+## SideStoreで更新する
+
+Mac miniで次を実行すると、未署名IPA、SideStoreソース、アイコンを
+`site/sidestore/`へ生成します。ローカルHTTPサーバーとTailscale Serveがそのまま配信します。
+
+```bash
+uv run --frozen python scripts/build_sidestore_release.py
+```
+
+SideStoreへ次のソースURLを一度追加すると、以降はケーブルなしでDaily Readerを
+インストール・更新できます。
+
+```text
+https://sk-mins-mac-mini.tailc193b2.ts.net/sidestore/source.json
+```
+
+IPAはSideStoreが端末上のApple Accountで署名します。無料Personal Teamでは署名の有効期間が
+7日間のため、SideStoreのVPNを有効にして定期更新を成功させてください。配布URLはtailnet内限定です。
+
 ## 検証
 
 ```bash
