@@ -33,26 +33,26 @@ final class AppModel: ObservableObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
-        async let agentRequest = try? api.get("api/agent-jobs", as: AgentEnvelope.self)
-        async let todayRequest = try? api.get("api/today", as: TodayEnvelope.self)
-        async let emailRequest = try? api.get("api/email-reminders/daily", as: EmailEnvelope.self)
-        async let articleRequest = try? api.get("data/articles.json", as: ArticleEnvelope.self)
-        let (agent, day, mail, news) = await (agentRequest, todayRequest, emailRequest, articleRequest)
-        if let agent {
+        var updated = false
+        if let day = try? await api.get("api/today", as: TodayEnvelope.self) {
+            today = day
+            updated = true
+        }
+        if let mail = try? await api.get("api/email-reminders/daily", as: EmailEnvelope.self) {
+            emails = mail.items
+            updated = true
+        }
+        if let agent = try? await api.get("api/agent-jobs", as: AgentEnvelope.self) {
             notifyAgentChanges(agent.jobs)
             agents = agent.jobs
             repositories = agent.repositories
+            updated = true
         }
-        if let day {
-            today = day
-        }
-        if let mail {
-            emails = mail.items
-        }
-        if let news {
+        if let news = try? await api.get("data/articles.json", as: ArticleEnvelope.self) {
             articles = news.articles
+            updated = true
         }
-        if agent != nil || day != nil || mail != nil || news != nil {
+        if updated {
             lastUpdated = .now
             errorMessage = nil
         } else {
