@@ -32,6 +32,7 @@ final class AppModel: ObservableObject {
     func refresh() async {
         guard !isRefreshing else { return }
         isRefreshing = true
+        errorMessage = nil
         defer { isRefreshing = false }
         var updated = false
         if let day = try? await api.get("api/today", as: TodayEnvelope.self) {
