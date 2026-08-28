@@ -27,6 +27,7 @@ struct AgentView: View {
         ScrollView {
             LazyVStack(spacing: 14) {
                 StatusHero(title: "Agent Console", subtitle: summary, icon: "terminal.fill", color: .mint)
+                CodexUsageCard()
                 ForEach(model.agents) { job in AgentCard(job: job) }
                 if model.agents.isEmpty { EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。") }
                 if !model.archivedAgents.isEmpty {
@@ -60,6 +61,95 @@ struct AgentView: View {
         let running = model.agents.filter { ["queued", "running"].contains($0.status) }.count
         let blocked = model.agents.filter { $0.status == "blocked" }.count
         return blocked > 0 ? "\(blocked)件の判断を待っています" : running > 0 ? "\(running)件を進めています" : "新しい依頼を受け付けられます"
+    }
+}
+
+struct CodexUsageCard: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Codex 使用状況", systemImage: "gauge.with.dots.needle.67percent")
+                    .font(.headline)
+                Spacer()
+                if let plan = model.codexUsage?.rateLimits?.planType, !plan.isEmpty {
+                    Text(plan).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if model.codexUsageFailed {
+                Text("使用状況を取得できませんでした。")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            } else {
+                let limits = sortedLimits
+                if limits.isEmpty {
+                    Text(model.codexUsage == nil ? "使用状況を読み込んでいます…" : "現在の利用枠はありません。")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    ForEach(limits, id: \.id) { item in
+                        CodexLimitRow(name: item.name, window: item.window)
+                    }
+                }
+            }
+        }
+        .glassCard()
+    }
+
+    private var sortedLimits: [(id: String, name: String, window: CodexLimitWindow)] {
+        (model.codexUsage?.rateLimitsByLimitID ?? [:])
+            .sorted {
+                let leftRank = $0.key == "codex" ? 0 : 1
+                let rightRank = $1.key == "codex" ? 0 : 1
+                if leftRank != rightRank { return leftRank < rightRank }
+                let leftName = $0.value.limitName ?? $0.key
+                let rightName = $1.value.limitName ?? $1.key
+                if leftName != rightName { return leftName.localizedCompare(rightName) == .orderedAscending }
+                return $0.key.localizedCompare($1.key) == .orderedAscending
+            }
+            .flatMap { id, limit in
+                let name = limit.limitName ?? (id == "codex" ? "Codex" : id)
+                return [(id: "\(id)-primary", name: "\(name)・\(windowLabel(limit.primary?.windowDurationMins))", window: limit.primary),
+                        (id: "\(id)-secondary", name: "\(name)・\(windowLabel(limit.secondary?.windowDurationMins))", window: limit.secondary)]
+                    .compactMap { item in item.window.map { (item.id, item.name, $0) } }
+            }
+    }
+
+    private func windowLabel(_ minutes: Int?) -> String {
+        guard let minutes, minutes > 0 else { return "利用枠" }
+        if minutes == 10080 { return "週次" }
+        if minutes % 1440 == 0 { return "\(minutes / 1440)日" }
+        if minutes % 60 == 0 { return "\(minutes / 60)時間" }
+        return "\(minutes)分"
+    }
+}
+
+struct CodexLimitRow: View {
+    let name: String
+    let window: CodexLimitWindow
+
+    var body: some View {
+        let used = min(max(window.usedPercent ?? 0, 0), 100)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(name).font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(used.formatted(.number.precision(.fractionLength(0...1))) )% 使用")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ProgressView(value: used, total: 100)
+                .tint(.mint)
+            HStack {
+                Text("残り \(max(0, 100 - used).formatted(.number.precision(.fractionLength(0...1))) )%")
+                Spacer()
+                Text(resetLabel)
+            }
+            .font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    private var resetLabel: String {
+        guard let timestamp = window.resetsAt else { return "リセット時刻不明" }
+        return "リセット \(Date(timeIntervalSince1970: TimeInterval(timestamp)).formatted(date: .omitted, time: .shortened))"
     }
 }
 

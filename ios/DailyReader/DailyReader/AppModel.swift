@@ -10,6 +10,8 @@ final class AppModel: ObservableObject {
     @Published var today: TodayEnvelope?
     @Published var emails: [EmailReminder] = []
     @Published var articles: [Article] = []
+    @Published var codexUsage: CodexUsageEnvelope?
+    @Published var codexUsageFailed = false
     @Published var isRefreshing = false
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
@@ -51,6 +53,13 @@ final class AppModel: ObservableObject {
             archivedAgents = agent.archivedJobs
             repositories = agent.repositories
             updated = true
+        }
+        do {
+            codexUsage = try await api.get("api/codex-usage", as: CodexUsageEnvelope.self)
+            codexUsageFailed = false
+            updated = true
+        } catch {
+            codexUsageFailed = true
         }
         if let news = try? await api.get("data/articles.json", as: ArticleEnvelope.self) {
             articles = news.articles

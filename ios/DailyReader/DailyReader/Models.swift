@@ -11,6 +11,32 @@ struct AgentEnvelope: Decodable {
     }
 }
 
+struct CodexUsageEnvelope: Decodable {
+    let rateLimits: CodexRateLimits?
+    let rateLimitsByLimitID: [String: CodexLimit]
+
+    enum CodingKeys: String, CodingKey {
+        case rateLimits
+        case rateLimitsByLimitID = "rateLimitsByLimitId"
+    }
+}
+
+struct CodexRateLimits: Decodable {
+    let planType: String?
+}
+
+struct CodexLimit: Decodable {
+    let limitName: String?
+    let primary: CodexLimitWindow?
+    let secondary: CodexLimitWindow?
+}
+
+struct CodexLimitWindow: Decodable {
+    let usedPercent: Double?
+    let windowDurationMins: Int?
+    let resetsAt: Int64?
+}
+
 struct Repository: Codable, Identifiable, Hashable {
     var id: String { name }
     let name: String
