@@ -34,7 +34,7 @@ struct AgentView: View {
         .background(AppBackground())
         .navigationTitle("Daily Reader")
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) { ConnectionBadge(date: model.lastUpdated) }
+            ToolbarItem(placement: .topBarLeading) { ConnectionBadge(date: model.lastUpdated, failed: model.refreshFailed) }
             ToolbarItem(placement: .primaryAction) { Button { showComposer = true } label: { Image(systemName: "plus.circle.fill").font(.title2) } }
         }
         .refreshable { await model.refresh() }
@@ -182,7 +182,18 @@ struct StatusHero: View {
 struct Metric: View { let value: String; let label: String; var body: some View { VStack(alignment: .leading) { Text(value).font(.title3.bold().monospacedDigit()); Text(label).font(.caption).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading) } }
 struct SectionTitle: View { let title: String; init(_ title: String) { self.title = title }; var body: some View { Text(title).font(.title3.bold()).frame(maxWidth: .infinity, alignment: .leading) } }
 struct EmptyState: View { let icon: String; let title: String; let detail: String; var body: some View { VStack(spacing: 12) { Image(systemName: icon).font(.largeTitle).foregroundStyle(.secondary); Text(title).font(.headline); Text(detail).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center) }.frame(maxWidth: .infinity).padding(40).glassCard() } }
-struct ConnectionBadge: View { let date: Date?; var body: some View { HStack(spacing: 5) { Circle().fill(date == nil ? .orange : .green).frame(width: 7, height: 7); Text(date == nil ? "接続中" : "同期済み") }.font(.caption.weight(.medium)).foregroundStyle(.secondary) } }
+struct ConnectionBadge: View {
+    let date: Date?
+    let failed: Bool
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(failed ? .orange : date == nil ? .secondary : .green).frame(width: 7, height: 7)
+            Text(failed ? "更新待ち" : date == nil ? "接続中" : "同期済み")
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
+    }
+}
 struct AppBackground: View { var body: some View { LinearGradient(colors: [Color(red: 0.04, green: 0.06, blue: 0.1), Color(red: 0.07, green: 0.05, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea() } }
 
 extension View {

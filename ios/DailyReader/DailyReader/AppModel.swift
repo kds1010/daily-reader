@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
+    @Published var refreshFailed = false
     @Published var selectedTab = 0
 
     private let api = APIClient.shared
@@ -55,9 +56,9 @@ final class AppModel: ObservableObject {
         }
         if updated {
             lastUpdated = .now
-            errorMessage = nil
+            refreshFailed = false
         } else {
-            errorMessage = "サーバーへ接続できませんでした"
+            refreshFailed = true
         }
     }
 
