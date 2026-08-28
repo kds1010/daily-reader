@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import tempfile
@@ -104,10 +103,9 @@ def main() -> None:
         payload.mkdir()
         shutil.copytree(app, payload / app.name)
         subprocess.run(
-            ["/usr/bin/ditto", "-c", "-k", "--keepParent", "Payload", ipa],
+            ["/usr/bin/zip", "-q", "-r", "-y", "-X", str(ipa), "Payload"],
             cwd=temporary,
             check=True,
-            env={**os.environ, "COPYFILE_DISABLE": "1"},
         )
 
     shutil.copy2(ICON, args.output_dir / "icon.png")
