@@ -19,6 +19,11 @@ final class AppModel: ObservableObject {
     private var previousStates: [String: String] = [:]
 
     func start() async {
+        do {
+            try SecretStore.importBootstrapHealthToken()
+        } catch {
+            errorMessage = "HealthKit同期トークンを安全に取り込めませんでした：\(error.localizedDescription)"
+        }
         await requestNotifications()
         await refresh()
     }

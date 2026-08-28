@@ -4,6 +4,25 @@ import Security
 enum SecretStore {
     private static let service = "net.skmin.DailyReader"
     private static let healthAccount = "health-sync-token"
+    private static let bootstrapFilename = "health-sync-token.txt"
+
+    /// Imports a token provisioned into the development app's Documents directory.
+    /// The plaintext bootstrap file is deleted only after Keychain persistence succeeds.
+    @discardableResult
+    static func importBootstrapHealthToken() throws -> Bool {
+        let documents = try FileManager.default.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let bootstrap = documents.appending(path: bootstrapFilename)
+        guard FileManager.default.fileExists(atPath: bootstrap.path) else { return false }
+        let token = try String(contentsOf: bootstrap, encoding: .utf8)
+        try saveHealthToken(token)
+        try FileManager.default.removeItem(at: bootstrap)
+        return true
+    }
 
     static func saveHealthToken(_ token: String) throws {
         let value = token.trimmingCharacters(in: .whitespacesAndNewlines)

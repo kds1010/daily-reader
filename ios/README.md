@@ -11,6 +11,10 @@ Daily ReaderのSwiftUIネイティブクライアントです。既存のMac min
 5. 初回起動時に通知とHealthKitの読み取りを許可する。
 6. 設定画面へHealthKit同期トークンを入力する。
 
+開発用実機へCodexから初期設定する場合は、`health-sync-token.txt`をアプリの
+Documents領域へ転送して再起動します。アプリはトークンをKeychainへ保存できた場合だけ、
+平文の転送ファイルを直ちに削除します。トークンをリポジトリやアプリ本体へ含めないでください。
+
 無料Personal TeamでHealthKitのプロビジョニングに失敗する場合は、まず
 `DailyReader.entitlements`から`com.apple.developer.healthkit.background-delivery`だけを外し、
 前景同期で実機検証してください。
