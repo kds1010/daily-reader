@@ -22,7 +22,8 @@ Documents領域へ転送して再起動します。アプリはトークンをKe
 
 ## SideStoreで更新する
 
-Mac miniで次を実行すると、未署名IPA、LAN用と外出先用のSideStoreソース、アイコンを
+Mac miniで次を実行すると、HealthKit entitlementを保持したアドホック署名済みseed IPA、
+LAN用と外出先用のSideStoreソース、アイコンを
 `data/sidestore/`へ生成します。Daily Readerサーバーはこのディレクトリだけを
 LAN専用ポート`8788`から配信します。Agent、Gmail、健康情報を扱うメインサーバーは
 従来どおり`127.0.0.1:8787`だけで待ち受けます。配布ポートも接続元を自宅LANの
@@ -58,7 +59,8 @@ Installed Appの更新元は切り替わりません。remote sourceの一覧か
 インストールし、更新成功後にLAN sourceを削除してください。以後はremote sourceが更新元に
 なります。
 
-IPAはSideStoreが端末上のApple Accountで署名します。無料Personal Teamでは署名の有効期間が
+seed IPAのアドホック署名はHealthKit entitlementをSideStoreへ引き渡すためのもので、
+インストール時にはSideStoreが端末上のApple Accountで再署名します。無料Personal Teamでは署名の有効期間が
 7日間のため、LocalDevVPNを有効にして定期更新を成功させてください。新版の取得時は、
 自宅でも外出先でもiPhoneのTailscaleを切り、LocalDevVPNを有効にします。外出先用ソースは
 通常のWi-Fiまたはモバイル回線から取得できます。更新後はLocalDevVPNを切り、Daily Readerの

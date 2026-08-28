@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build an unsigned Daily Reader IPA and publish a SideStore AltSource."""
+"""Build a SideStore seed IPA and publish its private AltSources."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import base64
 import binascii
 import json
 import os
+import plistlib
 import secrets
 import shutil
 import stat
@@ -23,6 +24,7 @@ ICON = (
     REPOSITORY_ROOT
     / "ios/DailyReader/DailyReader/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
 )
+ENTITLEMENTS = REPOSITORY_ROOT / "ios/DailyReader/DailyReader/DailyReader.entitlements"
 DEFAULT_OUTPUT = REPOSITORY_ROOT / "data/sidestore"
 DEFAULT_BASE_URL = "http://sk-mins-Mac-mini.local:8788"
 DEFAULT_REMOTE_ORIGIN = "https://sk-mins-mac-mini.tailc193b2.ts.net:8443"
@@ -31,6 +33,12 @@ BUNDLE_IDENTIFIER = "net.skmin.DailyReader"
 REMOTE_TOKEN_LENGTH = 43
 REMOTE_VERSION_RETENTION = 10
 REMOTE_SOURCE_SUBTITLE = "個人用の外出先更新ソース"
+REQUIRED_SIDESTORE_ENTITLEMENTS = frozenset(
+    {
+        "com.apple.developer.healthkit",
+        "com.apple.developer.healthkit.background-delivery",
+    }
+)
 REMOTE_TOKEN_CHARACTERS = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
 )
@@ -261,6 +269,56 @@ def atomic_copy(source: Path, destination: Path) -> None:
     temporary.replace(destination)
 
 
+def sign_app_for_sidestore(app: Path) -> None:
+    """Add seed entitlements that SideStore must preserve while re-signing."""
+    if not ENTITLEMENTS.is_file() or ENTITLEMENTS.is_symlink():
+        raise FileNotFoundError("Daily Reader entitlements file is missing or unsafe")
+    subprocess.run(
+        [
+            "/usr/bin/codesign",
+            "--force",
+            "--sign",
+            "-",
+            "--entitlements",
+            str(ENTITLEMENTS),
+            "--timestamp=none",
+            str(app),
+        ],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+    )
+    displayed = subprocess.run(
+        [
+            "/usr/bin/codesign",
+            "--display",
+            "--entitlements",
+            ":-",
+            str(app),
+        ],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+    )
+    try:
+        signed_entitlements = plistlib.loads(displayed.stdout)
+    except plistlib.InvalidFileException as error:
+        raise RuntimeError("SideStore seed entitlements could not be decoded") from error
+    missing = sorted(
+        entitlement
+        for entitlement in REQUIRED_SIDESTORE_ENTITLEMENTS
+        if signed_entitlements.get(entitlement) is not True
+    )
+    if missing:
+        raise RuntimeError(
+            "SideStore seed IPA is missing required entitlements: " + ", ".join(missing)
+        )
+    subprocess.run(
+        ["/usr/bin/codesign", "--verify", "--strict", str(app)],
+        cwd=REPOSITORY_ROOT,
+        check=True,
+    )
+
+
 def prune_unlisted_versioned_ipas(
     directory: Path,
     versions: list[dict[str, object]],
@@ -315,6 +373,7 @@ def main() -> None:
     app = args.derived_data / "Build/Products/Release-iphoneos/DailyReader.app"
     if not app.is_dir():
         raise FileNotFoundError(f"built application not found: {app}")
+    sign_app_for_sidestore(app)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     ipa = args.output_dir / "DailyReader.ipa"

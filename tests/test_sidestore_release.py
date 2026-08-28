@@ -1,3 +1,5 @@
+import plistlib
+import subprocess
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
@@ -122,6 +124,49 @@ def test_private_source_and_versioned_ipa_are_written_atomically(tmp_path: Path)
     assert source_path.stat().st_mode & 0o777 == 0o600
     assert ipa_destination.read_bytes() == b"new ipa"
     assert not (tmp_path / ".DailyReader-0.1.42.ipa.tmp").exists()
+
+
+def test_sidestore_seed_is_ad_hoc_signed_with_required_entitlements(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app = tmp_path / "DailyReader.app"
+    app.mkdir()
+    calls: list[list[str]] = []
+    signed_entitlements = plistlib.dumps(
+        {entitlement: True for entitlement in MODULE.REQUIRED_SIDESTORE_ENTITLEMENTS}
+    )
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        calls.append(command)
+        stdout = signed_entitlements if "--display" in command else b""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr=b"")
+
+    monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+
+    MODULE.sign_app_for_sidestore(app)
+
+    assert calls[0][:4] == ["/usr/bin/codesign", "--force", "--sign", "-"]
+    assert str(MODULE.ENTITLEMENTS) in calls[0]
+    assert calls[1][1:4] == ["--display", "--entitlements", ":-"]
+    assert calls[2][1:3] == ["--verify", "--strict"]
+
+
+def test_sidestore_seed_rejects_missing_healthkit_entitlements(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    app = tmp_path / "DailyReader.app"
+    app.mkdir()
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess:
+        stdout = plistlib.dumps({}) if "--display" in command else b""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr=b"")
+
+    monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="missing required entitlements"):
+        MODULE.sign_app_for_sidestore(app)
 
 
 def test_previous_remote_versions_are_retained_only_when_safe(tmp_path: Path) -> None:
