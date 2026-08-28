@@ -18,8 +18,8 @@ ICON = (
     REPOSITORY_ROOT
     / "ios/DailyReader/DailyReader/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
 )
-DEFAULT_OUTPUT = REPOSITORY_ROOT / "site/sidestore"
-DEFAULT_BASE_URL = "https://sk-mins-mac-mini.tailc193b2.ts.net/sidestore"
+DEFAULT_OUTPUT = REPOSITORY_ROOT / "data/sidestore"
+DEFAULT_BASE_URL = "http://sk-mins-Mac-mini.local:8788"
 BUNDLE_IDENTIFIER = "net.skmin.DailyReader"
 
 

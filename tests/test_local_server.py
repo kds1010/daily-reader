@@ -1,11 +1,14 @@
 import json
 import subprocess
 from datetime import datetime
+from io import BytesIO
+from ipaddress import IPv4Network
 from pathlib import Path
 
 import pytest
 
 from daily_reader.local_server import (
+    SideStoreLANServer,
     append_feedback_event,
     append_read_event,
     append_update_stats,
@@ -13,7 +16,10 @@ from daily_reader.local_server import (
     build_parser,
     build_update_stats,
     load_feedback_events,
+    make_handler,
+    make_sidestore_handler,
     read_codex_rate_limits,
+    start_sidestore_server,
     summarize_read_events,
     update_articles,
 )
@@ -87,6 +93,10 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.host == "127.0.0.1"
     assert args.port == 8787
     assert args.site == Path("site")
+    assert args.sidestore_lan_host == "0.0.0.0"
+    assert args.sidestore_lan_port == 8788
+    assert args.sidestore_lan_network == "192.168.10.0/24"
+    assert args.sidestore_dir == Path("data/sidestore")
     assert args.update_hours == "8,10,12,17,20,22"
     assert args.read_log == Path("data/read-events.jsonl")
     assert args.feedback_log == Path("data/feedback-events.jsonl")
@@ -94,6 +104,71 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.update_stats == Path("data/update-stats.jsonl")
     assert args.gmail_client_secret == Path("secrets/gmail-client.json")
     assert args.gmail_token == Path("secrets/gmail-token.json")
+
+
+def test_sidestore_handler_serves_only_distribution_directory(tmp_path: Path) -> None:
+    distribution = tmp_path / "sidestore"
+    distribution.mkdir()
+    handler_factory = make_sidestore_handler(distribution)
+    handler = handler_factory.func.__new__(handler_factory.func)
+    handler.directory = str(distribution)
+    handler.path = "/%2e%2e/secret.txt"
+    assert Path(handler.translate_path(handler.path)).is_relative_to(distribution)
+
+    handler.path = "/source.json"
+    handler.request_version = "HTTP/1.1"
+    handler._headers_buffer = []
+    handler.wfile = BytesIO()
+    handler.end_headers()
+    assert b"Cache-Control: no-store\r\n" in handler.wfile.getvalue()
+
+
+def test_main_handler_never_serves_sidestore_release(tmp_path: Path) -> None:
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.path = "/sidestore/DailyReader.ipa?download=1"
+
+    handler.do_GET()
+
+    assert responses == [(404, {"error": "not found"})]
+
+
+def test_sidestore_lan_server_rejects_clients_outside_home_network() -> None:
+    server = SideStoreLANServer.__new__(SideStoreLANServer)
+    server.allowed_network = IPv4Network("192.168.10.0/24")
+
+    assert server.verify_request(None, ("127.0.0.1", 1234))
+    assert server.verify_request(None, ("192.168.10.42", 1234))
+    assert not server.verify_request(None, ("100.90.223.13", 1234))
+
+
+def test_sidestore_lan_server_stays_disabled_without_release(tmp_path: Path) -> None:
+    assert start_sidestore_server(tmp_path, "0.0.0.0", 8788, "192.168.10.0/24") is None
+
+
+def test_sidestore_lan_server_failure_does_not_stop_main_server(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ("source.json", "DailyReader.ipa", "icon.png"):
+        (tmp_path / name).touch()
+
+    class FailingServer:
+        def __init__(self, *args, **kwargs) -> None:
+            raise OSError("port unavailable")
+
+    monkeypatch.setattr("daily_reader.local_server.SideStoreLANServer", FailingServer)
+
+    assert start_sidestore_server(tmp_path, "0.0.0.0", 8788, "192.168.10.0/24") is None
 
 
 def test_read_events_are_appended_and_summarized(tmp_path: Path) -> None:

@@ -23,7 +23,10 @@ Documents領域へ転送して再起動します。アプリはトークンをKe
 ## SideStoreで更新する
 
 Mac miniで次を実行すると、未署名IPA、SideStoreソース、アイコンを
-`site/sidestore/`へ生成します。ローカルHTTPサーバーとTailscale Serveがそのまま配信します。
+`data/sidestore/`へ生成します。Daily Readerサーバーはこのディレクトリだけを
+LAN専用ポート`8788`から配信します。Agent、Gmail、健康情報を扱うメインサーバーは
+従来どおり`127.0.0.1:8787`だけで待ち受けます。配布ポートも接続元を自宅LANの
+`192.168.10.0/24`とMac自身に制限します。
 
 ```bash
 uv run --frozen python scripts/build_sidestore_release.py
@@ -33,11 +36,14 @@ SideStoreへ次のソースURLを一度追加すると、以降はケーブル�
 インストール・更新できます。
 
 ```text
-https://sk-mins-mac-mini.tailc193b2.ts.net/sidestore/source.json
+http://sk-mins-Mac-mini.local:8788/source.json
 ```
 
 IPAはSideStoreが端末上のApple Accountで署名します。無料Personal Teamでは署名の有効期間が
-7日間のため、SideStoreのVPNを有効にして定期更新を成功させてください。配布URLはtailnet内限定です。
+7日間のため、LocalDevVPNを有効にして定期更新を成功させてください。新版の取得時は
+iPhoneとMac miniを同じWi-Fiへ接続し、Tailscaleを切ってLocalDevVPNを有効にします。
+配布物は同じLAN内だけから取得でき、インターネットへ公開しません。初回接続時にiOSが
+SideStoreのローカルネットワークアクセスを求めた場合は許可してください。
 
 ## 検証
 

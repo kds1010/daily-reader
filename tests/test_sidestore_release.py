@@ -19,3 +19,8 @@ def test_build_source_uses_versioned_ipa_metadata() -> None:
     assert version["version"] == "0.1.42"
     assert version["downloadURL"] == "https://example.test/sidestore/DailyReader.ipa"
     assert version["size"] == 12345
+
+
+def test_default_source_is_private_lan_url() -> None:
+    assert Path(__file__).parents[1] / "data/sidestore" == MODULE.DEFAULT_OUTPUT
+    assert MODULE.DEFAULT_BASE_URL == "http://sk-mins-Mac-mini.local:8788"

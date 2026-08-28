@@ -13,6 +13,7 @@ from collections import Counter
 from datetime import UTC, datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from importlib.metadata import PackageNotFoundError, version
+from ipaddress import IPv4Network, ip_address, ip_network
 from pathlib import Path
 from time import monotonic, sleep
 
@@ -56,6 +57,7 @@ READ_SURFACES = {
     "tech_pick",
     "article_feed",
 }
+SIDESTORE_REQUIRED_FILES = ("source.json", "DailyReader.ipa", "icon.png")
 
 
 def _without_codex_spark_limits(result: dict[str, object]) -> dict[str, object]:
@@ -331,6 +333,10 @@ def make_handler(
             )
 
         def do_GET(self) -> None:  # noqa: N802
+            path = urllib.parse.urlsplit(self.path).path
+            if path == "/sidestore" or path.startswith("/sidestore/"):
+                self._send_json(404, {"error": "not found"})
+                return
             if self.path == "/api/deployment":
                 self._send_json(200, deployment_info or {})
                 return
@@ -542,6 +548,73 @@ def make_handler(
     return functools.partial(DailyReaderHandler, directory=site)
 
 
+def make_sidestore_handler(directory: Path):
+    """Serve only generated SideStore distribution files on the local network."""
+
+    class SideStoreHandler(SimpleHTTPRequestHandler):
+        def end_headers(self) -> None:
+            path = urllib.parse.urlsplit(self.path).path
+            if path == "/source.json":
+                self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            LOGGER.info("SideStore LAN: " + format, *args)
+
+    return functools.partial(SideStoreHandler, directory=directory)
+
+
+class SideStoreLANServer(ThreadingHTTPServer):
+    """Restrict the distribution listener to this Mac and the trusted home LAN."""
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        request_handler,
+        allowed_network: str,
+    ) -> None:
+        network = ip_network(allowed_network, strict=True)
+        if not isinstance(network, IPv4Network):
+            raise ValueError("SideStore LAN network must be IPv4")
+        self.allowed_network = network
+        super().__init__(server_address, request_handler)
+
+    def verify_request(self, request, client_address: tuple[str, int]) -> bool:
+        client_ip = ip_address(client_address[0])
+        allowed = client_ip.is_loopback or client_ip in self.allowed_network
+        if not allowed:
+            LOGGER.warning("Rejected SideStore request from %s", client_ip)
+        return allowed
+
+
+def start_sidestore_server(
+    directory: Path,
+    host: str,
+    port: int,
+    allowed_network: str,
+) -> SideStoreLANServer | None:
+    missing = [name for name in SIDESTORE_REQUIRED_FILES if not (directory / name).is_file()]
+    if missing:
+        LOGGER.info("SideStore LAN server disabled; missing files: %s", ", ".join(missing))
+        return None
+    try:
+        server = SideStoreLANServer(
+            (host, port),
+            make_sidestore_handler(directory),
+            allowed_network,
+        )
+    except (OSError, ValueError):
+        LOGGER.exception("Could not start SideStore LAN server")
+        return None
+    threading.Thread(
+        target=server.serve_forever,
+        name="sidestore-lan-server",
+        daemon=True,
+    ).start()
+    LOGGER.info("Serving SideStore files from %s at http://%s:%d", directory, host, port)
+    return server
+
+
 def update_articles(
     feeds_path: Path,
     keywords_path: Path,
@@ -651,6 +724,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--site", type=Path, default=Path("site"))
+    parser.add_argument("--sidestore-lan-host", default="0.0.0.0")
+    parser.add_argument("--sidestore-lan-port", type=int, default=8788)
+    parser.add_argument("--sidestore-lan-network", default="192.168.10.0/24")
+    parser.add_argument("--sidestore-dir", type=Path, default=Path("data/sidestore"))
     parser.add_argument("--feeds", type=Path, default=Path("config/feeds.toml"))
     parser.add_argument("--keywords", type=Path, default=Path("config/keywords.toml"))
     parser.add_argument("--update-hours", default="8,10,12,17,20,22")
@@ -742,12 +819,21 @@ def main() -> None:
         deployment_info,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
+    sidestore_server = start_sidestore_server(
+        args.sidestore_dir,
+        args.sidestore_lan_host,
+        args.sidestore_lan_port,
+        args.sidestore_lan_network,
+    )
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         LOGGER.info("Stopping")
     finally:
+        if sidestore_server is not None:
+            sidestore_server.shutdown()
+            sidestore_server.server_close()
         server.server_close()
 
 

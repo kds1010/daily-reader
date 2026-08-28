@@ -23,4 +23,4 @@ DerivedData/
 xcuserdata/
 
 # Locally published SideStore release artifacts
-site/sidestore/
+data/sidestore/
