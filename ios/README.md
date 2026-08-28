@@ -26,7 +26,8 @@ Mac miniで次を実行すると、未署名IPA、SideStoreソース、アイコ
 `data/sidestore/`へ生成します。Daily Readerサーバーはこのディレクトリだけを
 LAN専用ポート`8788`から配信します。Agent、Gmail、健康情報を扱うメインサーバーは
 従来どおり`127.0.0.1:8787`だけで待ち受けます。配布ポートも接続元を自宅LANの
-`192.168.10.0/24`とMac自身に制限します。
+`192.168.10.0/24`、IPv4 link-localの`169.254.0.0/16`（現環境ではiPhoneの
+USB直接リンク）、Mac自身に制限します。
 
 ```bash
 uv run --frozen python scripts/build_sidestore_release.py

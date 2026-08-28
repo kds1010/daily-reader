@@ -565,23 +565,38 @@ def make_sidestore_handler(directory: Path):
 
 
 class SideStoreLANServer(ThreadingHTTPServer):
-    """Restrict the distribution listener to this Mac and the trusted home LAN."""
+    """Restrict distribution requests to this Mac and trusted local networks."""
 
     def __init__(
         self,
         server_address: tuple[str, int],
         request_handler,
-        allowed_network: str,
+        allowed_networks: str,
     ) -> None:
-        network = ip_network(allowed_network, strict=True)
-        if not isinstance(network, IPv4Network):
-            raise ValueError("SideStore LAN network must be IPv4")
-        self.allowed_network = network
+        networks = tuple(
+            ip_network(value.strip(), strict=True)
+            for value in allowed_networks.split(",")
+            if value.strip()
+        )
+        if not networks or not all(isinstance(network, IPv4Network) for network in networks):
+            raise ValueError("SideStore LAN networks must contain IPv4 networks")
+        trusted_ranges = tuple(
+            IPv4Network(value)
+            for value in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16")
+        )
+        if not all(
+            any(network.subnet_of(trusted_range) for trusted_range in trusted_ranges)
+            for network in networks
+        ):
+            raise ValueError("SideStore LAN networks must be private or link-local")
+        self.allowed_networks = networks
         super().__init__(server_address, request_handler)
 
     def verify_request(self, request, client_address: tuple[str, int]) -> bool:
         client_ip = ip_address(client_address[0])
-        allowed = client_ip.is_loopback or client_ip in self.allowed_network
+        allowed = client_ip.is_loopback or any(
+            client_ip in network for network in self.allowed_networks
+        )
         if not allowed:
             LOGGER.warning("Rejected SideStore request from %s", client_ip)
         return allowed
@@ -591,17 +606,19 @@ def start_sidestore_server(
     directory: Path,
     host: str,
     port: int,
-    allowed_network: str,
+    allowed_networks: str,
 ) -> SideStoreLANServer | None:
     missing = [name for name in SIDESTORE_REQUIRED_FILES if not (directory / name).is_file()]
     if missing:
         LOGGER.info("SideStore LAN server disabled; missing files: %s", ", ".join(missing))
         return None
     try:
+        if not 1 <= port <= 65535:
+            raise ValueError("SideStore LAN port must be between 1 and 65535")
         server = SideStoreLANServer(
             (host, port),
             make_sidestore_handler(directory),
-            allowed_network,
+            allowed_networks,
         )
     except (OSError, ValueError):
         LOGGER.exception("Could not start SideStore LAN server")
@@ -726,7 +743,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--site", type=Path, default=Path("site"))
     parser.add_argument("--sidestore-lan-host", default="0.0.0.0")
     parser.add_argument("--sidestore-lan-port", type=int, default=8788)
-    parser.add_argument("--sidestore-lan-network", default="192.168.10.0/24")
+    parser.add_argument(
+        "--sidestore-lan-network",
+        "--sidestore-lan-networks",
+        dest="sidestore_lan_networks",
+        default="192.168.10.0/24,169.254.0.0/16",
+    )
     parser.add_argument("--sidestore-dir", type=Path, default=Path("data/sidestore"))
     parser.add_argument("--feeds", type=Path, default=Path("config/feeds.toml"))
     parser.add_argument("--keywords", type=Path, default=Path("config/keywords.toml"))
@@ -823,7 +845,7 @@ def main() -> None:
         args.sidestore_dir,
         args.sidestore_lan_host,
         args.sidestore_lan_port,
-        args.sidestore_lan_network,
+        args.sidestore_lan_networks,
     )
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)
     try:

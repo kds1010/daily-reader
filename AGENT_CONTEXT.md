@@ -40,7 +40,7 @@
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
 - `ios/DailyReader/`: SwiftUIで全面実装したiPhoneネイティブクライアント。Agent、今日、メール、ニュース、設定をネイティブ表示し、Tailscale Serve上の既存APIへ接続する。
 - ネイティブクライアントはHealthKit日次集計、Agent状態変化のローカル通知、App Intents、Keychainでの同期トークン保存に対応する。無料Personal TeamのApp ID消費を抑えるため、初期版は単一アプリターゲットとし、ウィジェットや通知Extensionは実機署名検証後に追加する。
-- SideStore配布物は`scripts/build_sidestore_release.py`でメイン静的ルート外の`data/sidestore/`へ生成する。メインサーバーとは分離した`0.0.0.0:8788`の静的ハンドラーがこのディレクトリだけを配信し、接続元をMac自身と自宅LANの`192.168.10.0/24`へ制限する。配布ファイル不足や補助ポートの起動失敗時もメインサーバーは継続する。Agent、Gmail、健康情報のAPIは引き続き`127.0.0.1:8787`とTailscale Serveに限定する。SideStoreのソースURLは`http://sk-mins-Mac-mini.local:8788/source.json`。更新時はTailscaleを切り、LocalDevVPNと同一Wi-Fiを使用する。
+- SideStore配布物は`scripts/build_sidestore_release.py`でメイン静的ルート外の`data/sidestore/`へ生成する。メインサーバーとは分離した`0.0.0.0:8788`の静的ハンドラーがこのディレクトリだけを配信し、接続元をMac自身、自宅LANの`192.168.10.0/24`、IPv4 link-localの`169.254.0.0/16`（現環境ではiPhoneのUSB直接リンク）へ制限する。配布ファイル不足や補助ポートの起動失敗時もメインサーバーは継続する。Agent、Gmail、健康情報のAPIは引き続き`127.0.0.1:8787`とTailscale Serveに限定する。SideStoreのソースURLは`http://sk-mins-Mac-mini.local:8788/source.json`。更新時はTailscaleを切り、LocalDevVPNと同一Wi-Fiを使用する。
 - `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。起動時・定期更新時に再生成するGit管理対象外の実行時データ。
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。

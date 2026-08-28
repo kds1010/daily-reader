@@ -95,7 +95,7 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.site == Path("site")
     assert args.sidestore_lan_host == "0.0.0.0"
     assert args.sidestore_lan_port == 8788
-    assert args.sidestore_lan_network == "192.168.10.0/24"
+    assert args.sidestore_lan_networks == "192.168.10.0/24,169.254.0.0/16"
     assert args.sidestore_dir == Path("data/sidestore")
     assert args.update_hours == "8,10,12,17,20,22"
     assert args.read_log == Path("data/read-events.jsonl")
@@ -104,6 +104,36 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.update_stats == Path("data/update-stats.jsonl")
     assert args.gmail_client_secret == Path("secrets/gmail-client.json")
     assert args.gmail_token == Path("secrets/gmail-token.json")
+
+
+def test_local_server_accepts_legacy_sidestore_network_option(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "sys.argv",
+        ["daily-reader-local", "--sidestore-lan-network", "192.168.1.0/24"],
+    )
+
+    args = build_parser().parse_args()
+
+    assert args.sidestore_lan_networks == "192.168.1.0/24"
+
+
+def test_local_server_accepts_plural_sidestore_network_option(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "daily-reader-local",
+            "--sidestore-lan-networks",
+            "10.0.0.0/8,169.254.0.0/16",
+        ],
+    )
+
+    args = build_parser().parse_args()
+
+    assert args.sidestore_lan_networks == "10.0.0.0/8,169.254.0.0/16"
 
 
 def test_sidestore_handler_serves_only_distribution_directory(tmp_path: Path) -> None:
@@ -143,13 +173,47 @@ def test_main_handler_never_serves_sidestore_release(tmp_path: Path) -> None:
     assert responses == [(404, {"error": "not found"})]
 
 
-def test_sidestore_lan_server_rejects_clients_outside_home_network() -> None:
-    server = SideStoreLANServer.__new__(SideStoreLANServer)
-    server.allowed_network = IPv4Network("192.168.10.0/24")
+def test_sidestore_lan_server_parses_and_applies_trusted_networks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "daily_reader.local_server.ThreadingHTTPServer.__init__",
+        lambda *_args, **_kwargs: None,
+    )
+    server = SideStoreLANServer(
+        ("0.0.0.0", 8788),
+        object,
+        " 192.168.10.0/24, 169.254.0.0/16 ",
+    )
+
+    assert server.allowed_networks == (
+        IPv4Network("192.168.10.0/24"),
+        IPv4Network("169.254.0.0/16"),
+    )
 
     assert server.verify_request(None, ("127.0.0.1", 1234))
     assert server.verify_request(None, ("192.168.10.42", 1234))
+    assert server.verify_request(None, ("169.254.172.225", 1234))
+    assert not server.verify_request(None, ("169.253.255.255", 1234))
+    assert not server.verify_request(None, ("169.255.0.1", 1234))
     assert not server.verify_request(None, ("100.90.223.13", 1234))
+    assert not server.verify_request(None, ("8.8.8.8", 1234))
+
+
+@pytest.mark.parametrize(
+    "network",
+    [
+        "",
+        "::1/128",
+        "192.168.10.0/24,::1/128",
+        "192.168.10.1/24",
+        "0.0.0.0/0",
+        "8.8.8.0/24",
+    ],
+)
+def test_sidestore_lan_server_rejects_invalid_allowed_network(network: str) -> None:
+    with pytest.raises(ValueError):
+        SideStoreLANServer(("127.0.0.1", 0), object, network)
 
 
 def test_sidestore_lan_server_stays_disabled_without_release(tmp_path: Path) -> None:
@@ -169,6 +233,22 @@ def test_sidestore_lan_server_failure_does_not_stop_main_server(
     monkeypatch.setattr("daily_reader.local_server.SideStoreLANServer", FailingServer)
 
     assert start_sidestore_server(tmp_path, "0.0.0.0", 8788, "192.168.10.0/24") is None
+
+
+@pytest.mark.parametrize("port", [-1, 0, 65536])
+def test_sidestore_lan_server_invalid_port_does_not_stop_main_server(
+    tmp_path: Path,
+    port: int,
+) -> None:
+    for name in ("source.json", "DailyReader.ipa", "icon.png"):
+        (tmp_path / name).touch()
+
+    assert start_sidestore_server(
+        tmp_path,
+        "0.0.0.0",
+        port,
+        "192.168.10.0/24",
+    ) is None
 
 
 def test_read_events_are_appended_and_summarized(tmp_path: Path) -> None:
