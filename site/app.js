@@ -299,6 +299,10 @@ function renderAgentJob(job, archived = false) {
   const body = document.createElement("div");
   body.className = "agent-job-body";
   card.append(cardSummary, body);
+  const progressHeading = document.createElement("p");
+  progressHeading.className = "agent-section-label";
+  progressHeading.textContent = "現在の進捗";
+  body.append(progressHeading);
   if (job.summary) {
     const summaryLabel = document.createElement("strong");
     summaryLabel.className = "agent-summary-label";
@@ -338,6 +342,7 @@ function renderAgentJob(job, archived = false) {
       : "やりとりを表示";
   };
   updateConversationSummary();
+  conversationSummary.className = "agent-conversation-toggle";
   const eventList = document.createElement("div");
   eventList.className = "agent-events";
   eventList.addEventListener("click", () => {
@@ -362,6 +367,10 @@ function renderAgentJob(job, archived = false) {
     }
   });
   conversation.append(conversationSummary, eventList);
+  const conversationLabel = document.createElement("span");
+  conversationLabel.className = "agent-section-label agent-conversation-label";
+  conversationLabel.textContent = "やりとり";
+  body.append(conversationLabel);
   body.append(conversation);
   const canAttach = !archived && (["queued", "running", "blocked", "completed"].includes(job.status)
     || (job.status === "failed" && job.worktree));

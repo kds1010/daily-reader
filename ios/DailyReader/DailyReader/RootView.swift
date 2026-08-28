@@ -205,6 +205,7 @@ struct AgentCard: View {
 
             if expanded {
                 Divider()
+                Text("現在の進捗").font(.caption.bold()).foregroundStyle(statusColor)
                 if let summary = job.summary, !summary.isEmpty {
                     Text(job.status == "completed" || job.followUp == 1 ? "完了サマリー" : "現在の報告").font(.caption.bold()).foregroundStyle(.secondary)
                     Text(summary).font(.subheadline).textSelection(.enabled)
@@ -213,6 +214,7 @@ struct AgentCard: View {
                     Label(job.status == "blocked" ? "回答を待っています" : "進捗を自動更新中", systemImage: "waveform.path.ecg").font(.caption.bold()).foregroundStyle(statusColor)
                     ForEach(job.recentEvents ?? []) { event in AgentEventRow(event: event) }
                 }
+                Text("やりとり").font(.caption.bold()).foregroundStyle(.secondary)
                 Button(showConversation ? "やりとりを非表示" : "やりとりを表示") {
                     showConversation.toggle()
                     if showConversation && fullEvents.isEmpty {
@@ -320,8 +322,10 @@ struct AgentEventRow: View {
     let event: AgentEvent
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Circle().fill(.mint.opacity(0.7)).frame(width: 7, height: 7).padding(.top, 6)
+            Circle().fill(event.kind == "user" ? .mint : .secondary).frame(width: 7, height: 7).padding(.top, 6)
             VStack(alignment: .leading, spacing: 3) {
+                Text(event.kind == "user" ? "あなた" : event.kind == "codex" ? "Agent" : "進捗")
+                    .font(.caption2.bold()).foregroundStyle(event.kind == "user" ? .mint : .secondary)
                 Text(event.message).font(.caption).textSelection(.enabled)
                 Text(event.createdAt.relativeTime).font(.caption2).foregroundStyle(.tertiary)
             }
