@@ -30,7 +30,6 @@ enum SecretStore {
     /// Creates an empty, app-owned destination that `devicectl copy to` can overwrite.
     /// CoreDevice cannot create a new file in an app data container directly.
     static func prepareBootstrapHealthTokenFile() throws {
-        guard try readHealthToken() == nil else { return }
         let documents = try FileManager.default.url(
             for: .documentDirectory,
             in: .userDomainMask,
