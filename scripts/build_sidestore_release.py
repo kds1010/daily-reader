@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -98,6 +99,7 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     ipa = args.output_dir / "DailyReader.ipa"
+    ipa.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory(prefix="daily-reader-ipa-") as temporary:
         payload = Path(temporary) / "Payload"
         payload.mkdir()
@@ -106,6 +108,7 @@ def main() -> None:
             ["/usr/bin/zip", "-q", "-r", "-y", "-X", str(ipa), "Payload"],
             cwd=temporary,
             check=True,
+            env={**os.environ, "COPYFILE_DISABLE": "1"},
         )
 
     shutil.copy2(ICON, args.output_dir / "icon.png")
