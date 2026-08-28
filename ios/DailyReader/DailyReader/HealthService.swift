@@ -16,15 +16,17 @@ actor HealthService {
         try await store.requestAuthorization(toShare: [], read: types)
         let start = Calendar.current.startOfDay(for: .now)
         let end = Date()
-        async let steps = sum(.stepCount, unit: .count(), start: start, end: end)
-        async let resting = average(.restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute()), start: start, end: end)
-        async let hrv = average(.heartRateVariabilitySDNN, unit: .secondUnit(with: .milli), start: start, end: end)
-        async let respiratory = average(.respiratoryRate, unit: HKUnit.count().unitDivided(by: .minute()), start: start, end: end)
-        async let sleep = sleepMinutes(start: start.addingTimeInterval(-12 * 3600), end: end)
-        return try await HealthSnapshot(
+        async let steps: Double? = try? sum(.stepCount, unit: .count(), start: start, end: end)
+        async let resting: Double? = try? average(.restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute()), start: start, end: end)
+        async let hrv: Double? = try? average(.heartRateVariabilitySDNN, unit: .secondUnit(with: .milli), start: start, end: end)
+        async let respiratory: Double? = try? average(.respiratoryRate, unit: HKUnit.count().unitDivided(by: .minute()), start: start, end: end)
+        async let sleep: Double? = try? sleepMinutes(start: start.addingTimeInterval(-12 * 3600), end: end)
+        let readings = await (steps, resting, hrv, respiratory, sleep)
+        return HealthSnapshot(
             date: Date.now.formatted(.iso8601.year().month().day()),
-            sleepMinutes: Int(sleep), steps: Int(steps), restingHeartRate: resting,
-            hrvMS: hrv, respiratoryRate: respiratory
+            sleepMinutes: readings.4.map(Int.init), steps: readings.0.map(Int.init),
+            restingHeartRate: readings.1, hrvMS: readings.2,
+            respiratoryRate: readings.3
         )
     }
 
