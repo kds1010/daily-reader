@@ -6,6 +6,7 @@ import json
 import logging
 import subprocess
 import tempfile
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
@@ -84,6 +85,35 @@ def _parse_codex_events(output: str) -> tuple[str | None, list[str]]:
     return thread_id, messages
 
 
+def _activity_from_event(event: dict[str, Any]) -> tuple[str, str] | None:
+    """Convert public, non-sensitive Codex events into a compact activity entry."""
+    item = event.get("item") or {}
+    kind = item.get("type")
+    if event.get("type") == "thread.started":
+        return "activity", "Codexセッションを開始しました"
+    if kind == "agent_message" and event.get("type") == "item.completed":
+        return "codex", str(item.get("text", ""))[:20_000]
+    if kind == "reasoning" and event.get("type") == "item.completed":
+        summary = item.get("summary") or item.get("summary_text")
+        if summary:
+            return "activity", "推論を更新しました"
+    if kind == "command_execution":
+        command = item.get("command") or item.get("cmd")
+        if command:
+            status = "完了" if event.get("type") == "item.completed" else "開始"
+            return "activity", f"コマンド実行（{status}）: {str(command)[:500]}"
+    labels = {
+        "file_change": "ファイル変更",
+        "mcp_tool_call": "ツール呼び出し",
+        "web_search": "Web検索",
+        "todo_list": "作業一覧",
+    }
+    if kind in labels and event.get("type") in {"item.started", "item.completed"}:
+        status = "完了" if event["type"] == "item.completed" else "開始"
+        return "activity", f"{labels[kind]}（{status}）"
+    return None
+
+
 def _codex_command(
     worktree: Path,
     schema: Path,
@@ -138,6 +168,7 @@ def run_codex_turn(
     *,
     model: str | None = None,
     reasoning_effort: str | None = None,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> tuple[str | None, dict[str, Any], str]:
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as output_file:
         output_path = Path(output_file.name)
@@ -151,10 +182,26 @@ def run_codex_turn(
             model,
             reasoning_effort,
         )
-        result = run_command(command, worktree, check=False)
-        parsed_thread_id, messages = _parse_codex_events(result.stdout)
-        if result.returncode != 0:
-            error = result.stderr.strip() or "Codex exited without an error message"
+        with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr_file:
+            process = subprocess.Popen(command, cwd=worktree, stdout=subprocess.PIPE,
+                                       stderr=stderr_file, text=True)
+            lines: list[str] = []
+            assert process.stdout is not None
+            for line in process.stdout:
+                lines.append(line)
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if on_event is not None:
+                    on_event(event)
+            process.wait()
+            stderr_file.seek(0)
+            stderr = stderr_file.read()
+            returncode = process.returncode
+        parsed_thread_id, messages = _parse_codex_events("".join(lines))
+        if returncode != 0:
+            error = stderr.strip() or "Codex exited without an error message"
             raise RuntimeError(error[-4000:])
         payload = json.loads(output_path.read_text(encoding="utf-8"))
         return parsed_thread_id or thread_id, payload, "\n".join(messages)
@@ -496,6 +543,10 @@ current worktree state. Continue autonomously until the task is committed and ve
         elif attached:
             prompt = f"{prompt}\n\n{_attached_prompt(attached)}"
         final_result: dict[str, Any] = {}
+        def record_activity(event: dict[str, Any]) -> None:
+            activity = _activity_from_event(event)
+            if activity is not None:
+                append_event(database, job_id, *activity)
         planning_turn = (
             not follow_up
             and not existing_worktree
@@ -529,6 +580,7 @@ current worktree state. Continue autonomously until the task is committed and ve
                     if use_implementation_model
                     else None
                 ),
+                on_event=record_activity,
             )
             final_result = result
             update_fields = {"thread_id": thread_id}

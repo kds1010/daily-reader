@@ -148,6 +148,7 @@ const agentStatusIcons = {
 function agentEventSpeaker(kind) {
   if (kind === "user") return "あなた";
   if (kind === "codex") return "Agent";
+  if (kind === "activity") return "アクティビティ";
   return "進捗";
 }
 
