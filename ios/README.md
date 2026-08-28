@@ -14,6 +14,7 @@ Daily ReaderのSwiftUIネイティブクライアントです。既存のMac min
 開発用実機へCodexから初期設定する場合は、`health-sync-token.txt`をアプリの
 Documents領域へ転送して再起動します。アプリはトークンをKeychainへ保存できた場合だけ、
 平文の転送ファイルを直ちに削除します。トークンをリポジトリやアプリ本体へ含めないでください。
+未設定時は、CoreDeviceが上書きできる空の受け口ファイルをアプリが作成します。
 
 無料Personal TeamでHealthKitのプロビジョニングに失敗する場合は、まず
 `DailyReader.entitlements`から`com.apple.developer.healthkit.background-delivery`だけを外し、

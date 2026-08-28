@@ -21,6 +21,7 @@ final class AppModel: ObservableObject {
     func start() async {
         do {
             try SecretStore.importBootstrapHealthToken()
+            try SecretStore.prepareBootstrapHealthTokenFile()
         } catch {
             errorMessage = "HealthKit同期トークンを安全に取り込めませんでした：\(error.localizedDescription)"
         }

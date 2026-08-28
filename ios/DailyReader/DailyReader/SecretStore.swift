@@ -19,13 +19,34 @@ enum SecretStore {
         let bootstrap = documents.appending(path: bootstrapFilename)
         guard FileManager.default.fileExists(atPath: bootstrap.path) else { return false }
         let token = try String(contentsOf: bootstrap, encoding: .utf8)
+        guard !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
         try saveHealthToken(token)
         try FileManager.default.removeItem(at: bootstrap)
         return true
     }
 
+    /// Creates an empty, app-owned destination that `devicectl copy to` can overwrite.
+    /// CoreDevice cannot create a new file in an app data container directly.
+    static func prepareBootstrapHealthTokenFile() throws {
+        guard try readHealthToken() == nil else { return }
+        let documents = try FileManager.default.url(
+            for: .documentDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let bootstrap = documents.appending(path: bootstrapFilename)
+        guard !FileManager.default.fileExists(atPath: bootstrap.path) else { return }
+        guard FileManager.default.createFile(atPath: bootstrap.path, contents: Data()) else {
+            throw SecretStoreError.bootstrap
+        }
+    }
+
     static func saveHealthToken(_ token: String) throws {
         let value = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { throw SecretStoreError.empty }
         guard let data = value.data(using: .utf8) else { throw SecretStoreError.encoding }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -59,10 +80,14 @@ enum SecretStore {
 }
 
 enum SecretStoreError: LocalizedError {
+    case empty
+    case bootstrap
     case encoding
     case keychain(OSStatus)
     var errorDescription: String? {
         switch self {
+        case .empty: "空のトークンは保存できません"
+        case .bootstrap: "トークン受け口を作成できませんでした"
         case .encoding: "トークンを保存できませんでした"
         case .keychain(let status): "Keychainエラー（\(status)）"
         }
