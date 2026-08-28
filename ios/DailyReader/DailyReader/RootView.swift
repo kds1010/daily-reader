@@ -35,13 +35,18 @@ struct AgentView: View {
                     }
                     .glassCard()
                 }
+                Button { showComposer = true } label: {
+                    Label("新しいタスク", systemImage: "plus.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.mint)
             }.padding()
         }
         .background(AppBackground())
         .navigationTitle("Daily Reader")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) { ConnectionBadge(date: model.lastUpdated, failed: model.refreshFailed) }
-            ToolbarItem(placement: .primaryAction) { Button { showComposer = true } label: { Image(systemName: "plus.circle.fill").font(.title2) } }
         }
         .refreshable { await model.refresh() }
         .task {
@@ -245,9 +250,28 @@ struct AgentComposer: View {
             Form {
                 Section("依頼") { TextEditor(text: $prompt).frame(minHeight: 180); Text("目的、制約、完了条件を自然な言葉で入力してください。").font(.caption).foregroundStyle(.secondary) }
                 Section("リポジトリ") { Picker("対象", selection: $repository) { ForEach(model.repositories) { Text($0.label).tag($0.name) } } }
+                Section {
+                    Button {
+                        Task {
+                            sending = true
+                            if await model.createAgent(prompt: prompt, repository: repository) { dismiss() }
+                            sending = false
+                        }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if sending { ProgressView().tint(.white) }
+                            Text("タスクを開始")
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.mint)
+                    .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repository.isEmpty || sending)
+                }
             }
             .navigationTitle("Agentへ依頼")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("開始") { Task { sending = true; if await model.createAgent(prompt: prompt, repository: repository) { dismiss() }; sending = false } }.disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repository.isEmpty || sending) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } } }
             .onAppear { repository = repository.isEmpty ? model.repositories.first?.name ?? "" : repository }
         }.presentationDetents([.large])
     }
