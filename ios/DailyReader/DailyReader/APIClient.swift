@@ -69,6 +69,12 @@ struct NewTask: Encodable { let title: String; let dueDate: String?; let priorit
 struct TaskStatus: Encodable { let taskID: String; let completed: Bool
     enum CodingKeys: String, CodingKey { case completed; case taskID = "task_id" }
 }
+struct AgentInstruction: Encodable { let jobID: String; let instruction: String
+    enum CodingKeys: String, CodingKey { case instruction; case jobID = "job_id" }
+}
+struct AgentJobAction: Encodable { let jobID: String
+    enum CodingKeys: String, CodingKey { case jobID = "job_id" }
+}
 struct EmailAction: Encodable { let threadID: String; let action: String
     enum CodingKeys: String, CodingKey { case action; case threadID = "thread_id" }
 }

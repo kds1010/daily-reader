@@ -5,6 +5,7 @@ import UserNotifications
 @MainActor
 final class AppModel: ObservableObject {
     @Published var agents: [AgentJob] = []
+    @Published var archivedAgents: [AgentJob] = []
     @Published var repositories: [Repository] = []
     @Published var today: TodayEnvelope?
     @Published var emails: [EmailReminder] = []
@@ -47,6 +48,7 @@ final class AppModel: ObservableObject {
         if let agent = try? await api.get("api/agent-jobs", as: AgentEnvelope.self) {
             notifyAgentChanges(agent.jobs)
             agents = agent.jobs
+            archivedAgents = agent.archivedJobs
             repositories = agent.repositories
             updated = true
         }
@@ -68,6 +70,62 @@ final class AppModel: ObservableObject {
             await refresh()
             return true
         } catch { errorMessage = error.localizedDescription; return false }
+    }
+
+    func refreshAgents() async {
+        do {
+            let envelope = try await api.get("api/agent-jobs", as: AgentEnvelope.self)
+            notifyAgentChanges(envelope.jobs)
+            agents = envelope.jobs
+            archivedAgents = envelope.archivedJobs
+            repositories = envelope.repositories
+        } catch {
+            refreshFailed = true
+        }
+    }
+
+    func agentDetail(_ jobID: String) async -> AgentJob? {
+        do {
+            let encoded = jobID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobID
+            return try await api.get("api/agent-jobs/\(encoded)", as: AgentJob.self)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func sendInstruction(to job: AgentJob, instruction: String) async -> Bool {
+        do {
+            let _: EmptyResponse = try await api.post(
+                "api/agent-jobs/attach",
+                body: AgentInstruction(jobID: job.id, instruction: instruction),
+                as: EmptyResponse.self
+            )
+            await refreshAgents()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func cancelAgent(_ job: AgentJob) async {
+        await performAgentAction("api/agent-jobs/cancel", job: job)
+    }
+
+    func hideAgent(_ job: AgentJob) async {
+        await performAgentAction("api/agent-jobs/hide", job: job)
+    }
+
+    private func performAgentAction(_ path: String, job: AgentJob) async {
+        do {
+            let _: EmptyResponse = try await api.post(
+                path, body: AgentJobAction(jobID: job.id), as: EmptyResponse.self
+            )
+            await refreshAgents()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func toggle(_ task: PlannerTask) async {

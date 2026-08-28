@@ -29,6 +29,12 @@ struct AgentView: View {
                 StatusHero(title: "Agent Console", subtitle: summary, icon: "terminal.fill", color: .mint)
                 ForEach(model.agents) { job in AgentCard(job: job) }
                 if model.agents.isEmpty { EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。") }
+                if !model.archivedAgents.isEmpty {
+                    DisclosureGroup("アーカイブ（\(model.archivedAgents.count)）") {
+                        ForEach(model.archivedAgents) { job in AgentCard(job: job, archived: true) }
+                    }
+                    .glassCard()
+                }
             }.padding()
         }
         .background(AppBackground())
@@ -38,6 +44,12 @@ struct AgentView: View {
             ToolbarItem(placement: .primaryAction) { Button { showComposer = true } label: { Image(systemName: "plus.circle.fill").font(.title2) } }
         }
         .refreshable { await model.refresh() }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                if !Task.isCancelled { await model.refreshAgents() }
+            }
+        }
     }
     private var summary: String {
         let running = model.agents.filter { ["queued", "running"].contains($0.status) }.count
@@ -47,22 +59,118 @@ struct AgentView: View {
 }
 
 struct AgentCard: View {
+    @EnvironmentObject private var model: AppModel
     let job: AgentJob
+    var archived = false
+    @State private var expanded = false
+    @State private var showConversation = false
+    @State private var fullEvents: [AgentEvent] = []
+    @State private var instruction = ""
+    @State private var sending = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Circle().fill(statusColor).frame(width: 10, height: 10).shadow(color: statusColor, radius: 5)
-                Text(job.phase).font(.caption.weight(.semibold)).foregroundStyle(statusColor)
-                Spacer()
-                Text(job.updatedAt.relativeTime).font(.caption).foregroundStyle(.secondary)
+            Button { withAnimation(.snappy) { expanded.toggle() } } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: statusIcon).foregroundStyle(statusColor).font(.title3)
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack { Text(statusLabel).font(.caption.bold()).foregroundStyle(statusColor); Text(job.repository).font(.caption).foregroundStyle(.secondary) }
+                        Text(job.prompt).font(.headline).foregroundStyle(.primary).lineLimit(expanded ? nil : 2)
+                        Text("\(job.phase)・\(job.updatedAt.relativeTime)").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down").foregroundStyle(.tertiary)
+                }
             }
-            Text(job.prompt).font(.headline).lineLimit(3)
-            if let summary = job.summary, !summary.isEmpty { Text(summary).font(.subheadline).foregroundStyle(.secondary).lineLimit(3) }
-            HStack { Label(job.repository, systemImage: "shippingbox"); Spacer(); Image(systemName: "chevron.right") }.font(.caption).foregroundStyle(.secondary)
-        }.glassCard()
+            .buttonStyle(.plain)
+
+            if expanded {
+                Divider()
+                if let summary = job.summary, !summary.isEmpty {
+                    Text(job.status == "completed" || job.followUp == 1 ? "完了サマリー" : "現在の報告").font(.caption.bold()).foregroundStyle(.secondary)
+                    Text(summary).font(.subheadline).textSelection(.enabled)
+                }
+                if ["queued", "running", "blocked"].contains(job.status) {
+                    Label(job.status == "blocked" ? "回答を待っています" : "進捗を自動更新中", systemImage: "waveform.path.ecg").font(.caption.bold()).foregroundStyle(statusColor)
+                    ForEach(job.recentEvents ?? []) { event in AgentEventRow(event: event) }
+                }
+                Button(showConversation ? "やりとりを非表示" : "やりとりを表示") {
+                    showConversation.toggle()
+                    if showConversation && fullEvents.isEmpty {
+                        Task { fullEvents = await model.agentDetail(job.id)?.events ?? [] }
+                    }
+                }
+                .font(.caption.bold())
+                if showConversation {
+                    if fullEvents.isEmpty { ProgressView().frame(maxWidth: .infinity) }
+                    ForEach(fullEvents) { event in AgentEventRow(event: event) }
+                }
+                if canAttach {
+                    TextField(instructionPlaceholder, text: $instruction, axis: .vertical)
+                        .lineLimit(2...5)
+                        .textFieldStyle(.roundedBorder)
+                    Button(sendLabel) {
+                        Task {
+                            sending = true
+                            if await model.sendInstruction(to: job, instruction: instruction) { instruction = "" }
+                            sending = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.mint)
+                    .disabled(instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
+                }
+                HStack {
+                    if !archived && ["queued", "running"].contains(job.status) {
+                        Button("停止", role: .destructive) { Task { await model.cancelAgent(job) } }
+                    }
+                    Spacer()
+                    if !archived {
+                        Button("非表示") { Task { await model.hideAgent(job) } }
+                    }
+                }
+                .font(.caption.bold())
+            }
+        }
+        .glassCard()
+    }
+
+    private var canAttach: Bool {
+        guard !archived else { return false }
+        return ["queued", "running", "blocked", "completed"].contains(job.status)
+            || (job.status == "failed" && job.worktree != nil)
+    }
+    private var instructionPlaceholder: String {
+        if job.status == "blocked" { return "必要な判断や追加情報を入力" }
+        if job.status == "completed" || job.followUp == 1 { return "完了内容について質問" }
+        return "このタスクへの追加指示"
+    }
+    private var sendLabel: String {
+        if job.status == "completed" || job.followUp == 1 { return "Agentに確認" }
+        if ["blocked", "failed"].contains(job.status) { return "送信して再開" }
+        return "タスクへ送信"
+    }
+    private var statusLabel: String {
+        switch job.status { case "queued": "待機中"; case "running": "実行中"; case "blocked": "判断待ち"; case "completed": "完了"; case "failed": "失敗"; case "cancelled": "キャンセル済み"; default: job.status }
+    }
+    private var statusIcon: String {
+        switch job.status { case "completed": "checkmark.circle.fill"; case "blocked": "questionmark.circle.fill"; case "failed": "exclamationmark.triangle.fill"; case "running": "bolt.circle.fill"; case "cancelled": "minus.circle.fill"; default: "clock.fill" }
     }
     private var statusColor: Color {
         switch job.status { case "completed": .green; case "blocked": .orange; case "failed": .red; case "running": .cyan; default: .secondary }
+    }
+}
+
+struct AgentEventRow: View {
+    let event: AgentEvent
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Circle().fill(.mint.opacity(0.7)).frame(width: 7, height: 7).padding(.top, 6)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(event.message).font(.caption).textSelection(.enabled)
+                Text(event.createdAt.relativeTime).font(.caption2).foregroundStyle(.tertiary)
+            }
+        }
     }
 }
 

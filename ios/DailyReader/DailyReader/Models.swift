@@ -3,6 +3,12 @@ import Foundation
 struct AgentEnvelope: Decodable {
     let repositories: [Repository]
     let jobs: [AgentJob]
+    let archivedJobs: [AgentJob]
+
+    enum CodingKeys: String, CodingKey {
+        case repositories, jobs
+        case archivedJobs = "archived_jobs"
+    }
 }
 
 struct Repository: Codable, Identifiable, Hashable {
@@ -20,11 +26,16 @@ struct AgentJob: Decodable, Identifiable {
     let summary: String?
     let updatedAt: String
     let recentEvents: [AgentEvent]?
+    let events: [AgentEvent]?
+    let mode: String?
+    let followUp: Int?
+    let worktree: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, repository, prompt, status, phase, summary
+        case id, repository, prompt, status, phase, summary, events, mode, worktree
         case updatedAt = "updated_at"
         case recentEvents = "recent_events"
+        case followUp = "follow_up"
     }
 }
 
