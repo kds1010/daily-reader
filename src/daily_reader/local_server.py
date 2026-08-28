@@ -1,17 +1,22 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import functools
 import hmac
 import json
 import logging
 import select
+import stat
 import subprocess
 import threading
 import urllib.parse
 from collections import Counter
 from datetime import UTC, datetime
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from datetime import date as calendar_date
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from importlib.metadata import PackageNotFoundError, version
 from ipaddress import IPv4Network, ip_address, ip_network
 from pathlib import Path
@@ -58,6 +63,12 @@ READ_SURFACES = {
     "article_feed",
 }
 SIDESTORE_REQUIRED_FILES = ("source.json", "DailyReader.ipa", "icon.png")
+SIDESTORE_REMOTE_REQUIRED_FILES = ("remote-source.json", "icon.png")
+SIDESTORE_REMOTE_TOKEN_LENGTH = 43
+SIDESTORE_REMOTE_SOURCE_SUBTITLE = "個人用の外出先更新ソース"
+SIDESTORE_REMOTE_TOKEN_CHARACTERS = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+)
 
 
 def _without_codex_spark_limits(result: dict[str, object]) -> dict[str, object]:
@@ -552,6 +563,25 @@ def make_sidestore_handler(directory: Path):
     """Serve only generated SideStore distribution files on the local network."""
 
     class SideStoreHandler(SimpleHTTPRequestHandler):
+        allowed_paths = frozenset({"/source.json", "/DailyReader.ipa", "/icon.png"})
+
+        def send_head(self):
+            parsed = urllib.parse.urlsplit(self.path)
+            if (
+                parsed.scheme
+                or parsed.netloc
+                or parsed.query
+                or parsed.fragment
+                or parsed.path not in self.allowed_paths
+            ):
+                self.send_error(404)
+                return None
+            requested_file = Path(self.translate_path(self.path))
+            if requested_file.is_symlink() or not requested_file.is_file():
+                self.send_error(404)
+                return None
+            return super().send_head()
+
         def end_headers(self) -> None:
             path = urllib.parse.urlsplit(self.path).path
             if path == "/source.json":
@@ -562,6 +592,219 @@ def make_sidestore_handler(directory: Path):
             LOGGER.info("SideStore LAN: " + format, *args)
 
     return functools.partial(SideStoreHandler, directory=directory)
+
+
+def load_sidestore_remote_token(path: Path) -> str:
+    if path.is_symlink():
+        raise ValueError("SideStore remote token file must not be a symlink")
+    token = path.read_text(encoding="utf-8").strip()
+    if stat.S_IMODE(path.stat().st_mode) != 0o600:
+        raise ValueError("SideStore remote token file permissions must be 0600")
+    try:
+        decoded = base64.b64decode(token + "=", altchars=b"-_", validate=True)
+    except (binascii.Error, ValueError):
+        decoded = b""
+    is_canonical = (
+        len(decoded) == 32
+        and base64.urlsafe_b64encode(decoded).decode().rstrip("=") == token
+    )
+    if (
+        len(token) != SIDESTORE_REMOTE_TOKEN_LENGTH
+        or not set(token) <= SIDESTORE_REMOTE_TOKEN_CHARACTERS
+        or not is_canonical
+    ):
+        raise ValueError("SideStore remote token must be a canonical 32-byte URL-safe token")
+    return token
+
+
+def sidestore_remote_ipas(directory: Path, token: str) -> tuple[str, ...]:
+    source = json.loads((directory / "remote-source.json").read_text(encoding="utf-8"))
+    if (
+        not isinstance(source, dict)
+        or source.get("subtitle") != SIDESTORE_REMOTE_SOURCE_SUBTITLE
+    ):
+        raise ValueError("SideStore remote source must hide its credential URL")
+    app = source["apps"][0]
+    versions = app["versions"]
+    if not isinstance(versions, list) or not versions:
+        raise ValueError("SideStore remote source has no versions")
+    urls: dict[str, str] = {
+        "source.json": source["sourceURL"],
+        "icon.png": app["iconURL"],
+    }
+    ipa_names = []
+    declared_sizes = {}
+    for version_item in versions:
+        if not isinstance(version_item, dict):
+            raise ValueError("SideStore remote source contains invalid version metadata")
+        version_value = version_item.get("version")
+        date_value = version_item.get("date")
+        size_value = version_item.get("size")
+        download_url = version_item["downloadURL"]
+        if (
+            not isinstance(version_value, str)
+            or not isinstance(date_value, str)
+            or not isinstance(size_value, int)
+            or isinstance(size_value, bool)
+            or size_value < 0
+            or not isinstance(download_url, str)
+        ):
+            raise ValueError("SideStore remote source contains invalid version metadata")
+        try:
+            parsed_date = calendar_date.fromisoformat(date_value)
+        except ValueError as error:
+            raise ValueError(
+                "SideStore remote source contains invalid version metadata"
+            ) from error
+        if parsed_date.isoformat() != date_value:
+            raise ValueError("SideStore remote source contains invalid version metadata")
+        download_path = urllib.parse.urlsplit(download_url).path
+        ipa_name = download_path.rsplit("/", 1)[-1]
+        version_parts = version_value.split(".")
+        if (
+            ipa_name in urls
+            or ipa_name != f"DailyReader-{version_value}.ipa"
+            or len(version_parts) != 3
+            or not all(part.isdigit() for part in version_parts)
+        ):
+            raise ValueError("SideStore remote source contains duplicate artifact URLs")
+        urls[ipa_name] = download_url
+        ipa_names.append(ipa_name)
+        declared_sizes[ipa_name] = size_value
+    if not all(isinstance(url, str) for url in urls.values()):
+        raise ValueError("SideStore remote source contains non-string artifact URLs")
+    expected_prefix = f"/{token}/"
+    parsed_urls = {
+        name: urllib.parse.urlsplit(url)
+        for name, url in urls.items()
+    }
+    try:
+        for parsed in parsed_urls.values():
+            _ = parsed.port
+    except ValueError as error:
+        raise ValueError("SideStore remote source contains an invalid URL port") from error
+    source_origin = parsed_urls["source.json"].netloc
+    urls_are_safe = all(
+        parsed.scheme == "https"
+        and parsed.hostname is not None
+        and parsed.netloc == source_origin
+        and parsed.username is None
+        and parsed.password is None
+        and parsed.query == ""
+        and parsed.fragment == ""
+        and parsed.path == f"{expected_prefix}{name}"
+        for name, parsed in parsed_urls.items()
+    )
+    artifact_paths = (
+        directory / "remote-source.json",
+        directory / "icon.png",
+        *(directory / ipa_name for ipa_name in ipa_names),
+    )
+    if (
+        not urls_are_safe
+        or not all(path.is_file() and not path.is_symlink() for path in artifact_paths)
+        or not all(
+            (directory / ipa_name).stat().st_size == declared_sizes[ipa_name]
+            for ipa_name in ipa_names
+        )
+    ):
+        raise ValueError("SideStore remote source contains unsafe artifact URLs")
+    return tuple(ipa_names)
+
+
+def current_sidestore_remote_ipa(directory: Path, token: str) -> str:
+    return sidestore_remote_ipas(directory, token)[0]
+
+
+def make_sidestore_remote_handler(directory: Path, token: str):
+    """Serve three token-protected SideStore artifacts without exposing a directory."""
+
+    class SideStoreRemoteHandler(BaseHTTPRequestHandler):
+        server_version = "DailyReaderSideStore/1.0"
+        sys_version = ""
+
+        def _requested_path(self) -> Path | None:
+            parsed = urllib.parse.urlsplit(self.path)
+            parts = parsed.path.split("/")
+            if (
+                parsed.scheme
+                or parsed.netloc
+                or parsed.query
+                or parsed.fragment
+                or len(parts) != 3
+                or parts[0]
+            ):
+                return None
+            if not hmac.compare_digest(parts[1], token):
+                return None
+            try:
+                ipa_names = sidestore_remote_ipas(directory, token)
+            except (IndexError, KeyError, OSError, TypeError, UnicodeError, ValueError):
+                LOGGER.exception("SideStore remote source is invalid")
+                return None
+            files = {
+                "source.json": directory / "remote-source.json",
+                "icon.png": directory / "icon.png",
+                **{ipa_name: directory / ipa_name for ipa_name in ipa_names},
+            }
+            return files.get(parts[2])
+
+        def _serve(self, *, include_body: bool) -> None:
+            path = self._requested_path()
+            if path is None or not path.is_file() or path.is_symlink():
+                self.send_error(404)
+                return
+            content_types = {
+                ".json": "application/json; charset=utf-8",
+                ".ipa": "application/octet-stream",
+                ".png": "image/png",
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", content_types[path.suffix])
+            self.send_header("Content-Length", str(path.stat().st_size))
+            self.send_header("Cache-Control", "private, no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            if include_body:
+                with path.open("rb") as stream:
+                    while chunk := stream.read(1024 * 1024):
+                        self.wfile.write(chunk)
+
+        def do_GET(self) -> None:
+            self._serve(include_body=True)
+
+        def do_HEAD(self) -> None:
+            self._serve(include_body=False)
+
+        def _reject_method(self) -> None:
+            self.send_error(404)
+
+        def send_error(
+            self,
+            code: int,
+            message: str | None = None,
+            explain: str | None = None,
+        ) -> None:
+            if code == HTTPStatus.NOT_IMPLEMENTED:
+                code = HTTPStatus.NOT_FOUND
+                message = None
+                explain = None
+            super().send_error(code, message, explain)
+
+        do_CONNECT = _reject_method
+        do_DELETE = _reject_method
+        do_OPTIONS = _reject_method
+        do_PATCH = _reject_method
+        do_POST = _reject_method
+        do_PUT = _reject_method
+        do_TRACE = _reject_method
+
+        def log_message(self, format: str, *args: object) -> None:
+            message = (format % args).replace(token, "<redacted>")
+            LOGGER.info("SideStore remote: %s", message)
+
+    return SideStoreRemoteHandler
 
 
 class SideStoreLANServer(ThreadingHTTPServer):
@@ -608,9 +851,16 @@ def start_sidestore_server(
     port: int,
     allowed_networks: str,
 ) -> SideStoreLANServer | None:
-    missing = [name for name in SIDESTORE_REQUIRED_FILES if not (directory / name).is_file()]
-    if missing:
-        LOGGER.info("SideStore LAN server disabled; missing files: %s", ", ".join(missing))
+    unsafe = [
+        name
+        for name in SIDESTORE_REQUIRED_FILES
+        if not (directory / name).is_file() or (directory / name).is_symlink()
+    ]
+    if unsafe:
+        LOGGER.info(
+            "SideStore LAN server disabled; missing or unsafe files: %s",
+            ", ".join(unsafe),
+        )
         return None
     try:
         if not 1 <= port <= 65535:
@@ -629,6 +879,42 @@ def start_sidestore_server(
         daemon=True,
     ).start()
     LOGGER.info("Serving SideStore files from %s at http://%s:%d", directory, host, port)
+    return server
+
+
+def start_sidestore_remote_server(
+    directory: Path,
+    port: int,
+    token_path: Path,
+) -> ThreadingHTTPServer | None:
+    missing = [
+        name for name in SIDESTORE_REMOTE_REQUIRED_FILES if not (directory / name).is_file()
+    ]
+    if missing:
+        LOGGER.info("SideStore remote server disabled; missing files: %s", ", ".join(missing))
+        return None
+    try:
+        if not 1 <= port <= 65535:
+            raise ValueError("SideStore remote port must be between 1 and 65535")
+        token = load_sidestore_remote_token(token_path)
+        sidestore_remote_ipas(directory, token)
+        server = ThreadingHTTPServer(
+            ("127.0.0.1", port),
+            make_sidestore_remote_handler(directory, token),
+        )
+    except (IndexError, KeyError, OSError, TypeError, UnicodeError, ValueError):
+        LOGGER.exception("Could not start SideStore remote server")
+        return None
+    threading.Thread(
+        target=server.serve_forever,
+        name="sidestore-remote-server",
+        daemon=True,
+    ).start()
+    LOGGER.info(
+        "Serving token-protected SideStore files from %s at http://127.0.0.1:%d",
+        directory,
+        port,
+    )
     return server
 
 
@@ -750,6 +1036,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="192.168.10.0/24,169.254.0.0/16",
     )
     parser.add_argument("--sidestore-dir", type=Path, default=Path("data/sidestore"))
+    parser.add_argument("--sidestore-remote-port", type=int, default=8789)
+    parser.add_argument(
+        "--sidestore-remote-token",
+        type=Path,
+        default=Path("secrets/sidestore-remote-token.txt"),
+    )
     parser.add_argument("--feeds", type=Path, default=Path("config/feeds.toml"))
     parser.add_argument("--keywords", type=Path, default=Path("config/keywords.toml"))
     parser.add_argument("--update-hours", default="8,10,12,17,20,22")
@@ -847,6 +1139,11 @@ def main() -> None:
         args.sidestore_lan_port,
         args.sidestore_lan_networks,
     )
+    sidestore_remote_server = start_sidestore_remote_server(
+        args.sidestore_dir,
+        args.sidestore_remote_port,
+        args.sidestore_remote_token,
+    )
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)
     try:
         server.serve_forever()
@@ -856,6 +1153,9 @@ def main() -> None:
         if sidestore_server is not None:
             sidestore_server.shutdown()
             sidestore_server.server_close()
+        if sidestore_remote_server is not None:
+            sidestore_remote_server.shutdown()
+            sidestore_remote_server.server_close()
         server.server_close()
 
 

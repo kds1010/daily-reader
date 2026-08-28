@@ -9,7 +9,7 @@
 - 同じ基盤で生活支援機能を拡張する。最初の追加機能はGmailの未対応メール管理。
 - Mac miniの `127.0.0.1:8787` だけでホストし、Tailscale Serve経由でtailnet内に限定公開する。
 - 公開URL: `https://sk-mins-mac-mini.tailc193b2.ts.net/`
-- 外部サーバー、DB、有料ホスティングは使わない。
+- 外部サーバー、DB、有料ホスティングは使わない。SideStore更新成果物だけは、Mac mini上の専用loopbackサーバーをTailscale Funnelの`8443`番へ中継する。
 - 起動時とローカル時刻の8時、10時、12時、17時、20時、22時に更新する。
 - Codex CLIを1更新につき最大1回呼び、低コストモデルで全ハイライトをまとめて生成する。
 
@@ -40,7 +40,7 @@
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
 - `ios/DailyReader/`: SwiftUIで全面実装したiPhoneネイティブクライアント。Agent、今日、メール、ニュース、設定をネイティブ表示し、Tailscale Serve上の既存APIへ接続する。
 - ネイティブクライアントはHealthKit日次集計、Agent状態変化のローカル通知、App Intents、Keychainでの同期トークン保存に対応する。無料Personal TeamのApp ID消費を抑えるため、初期版は単一アプリターゲットとし、ウィジェットや通知Extensionは実機署名検証後に追加する。
-- SideStore配布物は`scripts/build_sidestore_release.py`でメイン静的ルート外の`data/sidestore/`へ生成する。メインサーバーとは分離した`0.0.0.0:8788`の静的ハンドラーがこのディレクトリだけを配信し、接続元をMac自身、自宅LANの`192.168.10.0/24`、IPv4 link-localの`169.254.0.0/16`（現環境ではiPhoneのUSB直接リンク）へ制限する。配布ファイル不足や補助ポートの起動失敗時もメインサーバーは継続する。Agent、Gmail、健康情報のAPIは引き続き`127.0.0.1:8787`とTailscale Serveに限定する。SideStoreのソースURLは`http://sk-mins-Mac-mini.local:8788/source.json`。更新時はTailscaleを切り、LocalDevVPNと同一Wi-Fiを使用する。
+- SideStore配布物は`scripts/build_sidestore_release.py`でメイン静的ルート外の`data/sidestore/`へ生成する。LAN用`0.0.0.0:8788`は`source.json`、`DailyReader.ipa`、`icon.png`だけを配信し、接続元をMac自身、自宅LANの`192.168.10.0/24`、IPv4 link-localの`169.254.0.0/16`（現環境ではiPhoneのUSB直接リンク）へ制限する。外出先用`127.0.0.1:8789`はスクリプト生成の32-byte random path tokenをconstant-timeで照合し、`remote-source.json`を`source.json`として、アイコンとソースに列挙した最大10版のIPAだけを配信する。サーバーログへ秘密URLを出さず、tokenファイルと`remote-source.json`は`0600`で保存する。SideStore自身は失敗時等にURLをiPhone診断ログへ記録し得るため、そのログも共有しない。Tailscale Funnelは`8443`番だけを8789へ中継する。配布ファイル不足や補助ポートの起動失敗時もメインサーバーは継続する。Agent、Gmail、健康情報のAPIは引き続き`127.0.0.1:8787`とTailscale Serveの`443`番に限定する。更新時はiPhoneのTailscaleを切り、LocalDevVPNを使用する。LAN用ソースは同一Wi-Fi、外出先用ソースは通常のWi-Fiまたはモバイル回線で取得する。LAN版からの移行時はremote source追加後、その一覧から一度installして更新元を関連付け、LAN sourceを削除する。
 - `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。起動時・定期更新時に再生成するGit管理対象外の実行時データ。
 - `data/read-events.jsonl`: 実際に開いた記事のローカル履歴。Git管理対象外。
 - `data/feedback-events.jsonl`: 「表示したくない」と指定した記事のローカル履歴。Git管理対象外。
@@ -199,7 +199,7 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 ```
 
 - 再起動後は、PID の更新、LaunchAgent の稼働、`http://127.0.0.1:8787/` の成功応答、`https://sk-mins-mac-mini.tailc193b2.ts.net/` の成功応答、および変更機能の代表的な動作を確認する。
-- SideStore配信を変更した場合は、`0.0.0.0:8788`の待ち受けと、MacのLAN IPおよび`sk-mins-Mac-mini.local`から`source.json`とIPAを取得できることも確認する。
+- SideStore配信を変更した場合は、`0.0.0.0:8788`の待ち受けと、MacのLAN IPおよび`sk-mins-Mac-mini.local`から`source.json`とIPAを取得できることを確認する。さらに`127.0.0.1:8789`だけで外出先用サーバーが待ち受け、`scripts/verify_sidestore_remote.py`でFunnelの現行3成果物がローカルと一致し、tokenなし、誤token、traversal、APIパス、非GETメソッドが404になることを確認する。同スクリプトでServe/Funnel JSONが`443 -> 8787`のtailnet限定と`8443 -> 8789`のFunnelだけであることも検証する。Tailscaleを切った外部回線から8443の更新取得が成功し、443のメインサービスへ到達できないことを実機確認する。検証出力へ秘密URLを含めない。
 - デプロイまたは実環境確認に失敗した状態を完了として扱わない。実行できない場合は未デプロイと阻害要因を明示する。
 - 文書、コメント、テストだけの変更で実行時成果物が変わらない場合は再起動不要だが、その判断を完了報告へ明記する。
 
@@ -209,7 +209,7 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 - 画像対応までの基準コミットは `57ab455 feat: add images to highlight cards`。現在の先端は `git log -1` で確認する。
 - 端末設定は `~/.config/nix/` のNix/Home Manager管理。シェル、PATH、環境変数、Codex設定を直接変更しない。
 - Mac mini固有のシステム適用コマンドは、ユーザー自身に実行してもらう。
-- Tailscale Funnelは使わない。Serveのみを使う。
+- Tailscale FunnelはSideStore配布専用の`8443 -> 127.0.0.1:8789`に限り使う。`443`のServe、`8787`のメインサービス、Agent、Gmail、HealthKit、PlannerはFunnelへ載せない。FunnelのURL path tokenはbearer credentialである。漏洩時は有効化時と同じ引数へ`off`を付けた`tailscale funnel --bg --yes --https=8443 http://127.0.0.1:8789 off`で8443だけを止め、新tokenでreleaseを再生成してサービスを再起動し、新URLをSideStoreへ再登録・installして旧sourceを削除する。`funnel reset`は443 Serveも消すため使わない。0.6.3は保存済みsource URLを自動更新しないため、復旧まで外出先更新が停止する点を明示する。
 - 既存のユーザー変更を破棄しない。`git reset --hard` 等を使わない。
 
 ## 再開時の最初の確認

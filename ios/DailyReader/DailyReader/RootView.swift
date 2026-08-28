@@ -454,8 +454,13 @@ struct SettingsView: View {
     @AppStorage("serverURL") private var serverURL = "https://sk-mins-mac-mini.tailc193b2.ts.net/"
     @State private var healthToken = ""
     @State private var tokenStatus = ""
+    private var versionText: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        return build.isEmpty ? version : "\(version) (\(build))"
+    }
     var body: some View {
-        Form { Section("接続") { TextField("サーバーURL", text: $serverURL).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("HealthKit同期トークン", text: $healthToken); Button("トークンを安全に保存") { do { try SecretStore.saveHealthToken(healthToken); tokenStatus = "Keychainへ保存しました" } catch { tokenStatus = error.localizedDescription } }; if !tokenStatus.isEmpty { Text(tokenStatus).font(.caption).foregroundStyle(.secondary) } }; Section("プライバシー") { Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield") }; Section("バージョン") { LabeledContent("Daily Reader", value: "0.1.0") } }
+        Form { Section("接続") { TextField("サーバーURL", text: $serverURL).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("HealthKit同期トークン", text: $healthToken); Button("トークンを安全に保存") { do { try SecretStore.saveHealthToken(healthToken); tokenStatus = "Keychainへ保存しました" } catch { tokenStatus = error.localizedDescription } }; if !tokenStatus.isEmpty { Text(tokenStatus).font(.caption).foregroundStyle(.secondary) } }; Section("プライバシー") { Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield") }; Section("バージョン") { LabeledContent("Daily Reader", value: versionText) } }
             .navigationTitle("設定")
             .onAppear { healthToken = (try? SecretStore.readHealthToken()) ?? "" }
     }

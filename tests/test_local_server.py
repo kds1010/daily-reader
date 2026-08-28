@@ -15,14 +15,20 @@ from daily_reader.local_server import (
     build_deployment_info,
     build_parser,
     build_update_stats,
+    current_sidestore_remote_ipa,
     load_feedback_events,
+    load_sidestore_remote_token,
     make_handler,
     make_sidestore_handler,
+    make_sidestore_remote_handler,
     read_codex_rate_limits,
+    start_sidestore_remote_server,
     start_sidestore_server,
     summarize_read_events,
     update_articles,
 )
+
+TOKEN = "a" * 42 + "A"
 
 
 class FakeCodexProcess:
@@ -97,6 +103,8 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.sidestore_lan_port == 8788
     assert args.sidestore_lan_networks == "192.168.10.0/24,169.254.0.0/16"
     assert args.sidestore_dir == Path("data/sidestore")
+    assert args.sidestore_remote_port == 8789
+    assert args.sidestore_remote_token == Path("secrets/sidestore-remote-token.txt")
     assert args.update_hours == "8,10,12,17,20,22"
     assert args.read_log == Path("data/read-events.jsonl")
     assert args.feedback_log == Path("data/feedback-events.jsonl")
@@ -139,18 +147,57 @@ def test_local_server_accepts_plural_sidestore_network_option(
 def test_sidestore_handler_serves_only_distribution_directory(tmp_path: Path) -> None:
     distribution = tmp_path / "sidestore"
     distribution.mkdir()
+    (distribution / "source.json").write_text("{}", encoding="utf-8")
+    (distribution / "remote-source.json").write_text("secret", encoding="utf-8")
     handler_factory = make_sidestore_handler(distribution)
     handler = handler_factory.func.__new__(handler_factory.func)
     handler.directory = str(distribution)
-    handler.path = "/%2e%2e/secret.txt"
-    assert Path(handler.translate_path(handler.path)).is_relative_to(distribution)
-
     handler.path = "/source.json"
+    handler.command = "GET"
     handler.request_version = "HTTP/1.1"
+    handler.requestline = "GET /source.json HTTP/1.1"
+    handler.client_address = ("127.0.0.1", 1234)
+    handler.headers = {}
     handler._headers_buffer = []
     handler.wfile = BytesIO()
-    handler.end_headers()
-    assert b"Cache-Control: no-store\r\n" in handler.wfile.getvalue()
+    handler.do_GET()
+    response = handler.wfile.getvalue()
+    assert b"200 OK" in response
+    assert response.endswith(b"{}")
+    assert b"Cache-Control: no-store\r\n" in response
+
+    for path in ("/remote-source.json", "/DailyReader-0.1.42.ipa", "/../secret.txt"):
+        handler.path = path
+        handler.requestline = f"GET {path} HTTP/1.1"
+        handler._headers_buffer = []
+        handler.wfile = BytesIO()
+        handler.do_GET()
+        assert b"404 Not Found" in handler.wfile.getvalue()
+
+
+def test_sidestore_handler_rejects_allowed_name_symlink(tmp_path: Path) -> None:
+    distribution = tmp_path / "sidestore"
+    distribution.mkdir()
+    secret = distribution / "remote-source.json"
+    secret.write_text("credential", encoding="utf-8")
+    (distribution / "source.json").symlink_to(secret)
+    handler_factory = make_sidestore_handler(distribution)
+    handler = handler_factory.func.__new__(handler_factory.func)
+    handler.directory = str(distribution)
+    handler.path = "/source.json"
+    handler.command = "GET"
+    handler.request_version = "HTTP/1.1"
+    handler.requestline = "GET /source.json HTTP/1.1"
+    handler.client_address = ("127.0.0.1", 1234)
+    handler.headers = {}
+    handler._headers_buffer = []
+    handler.wfile = BytesIO()
+
+    handler.do_GET()
+
+    response = handler.wfile.getvalue()
+    assert b"404 Not Found" in response
+    assert b"credential" not in response
 
 
 def test_main_handler_never_serves_sidestore_release(tmp_path: Path) -> None:
@@ -220,6 +267,21 @@ def test_sidestore_lan_server_stays_disabled_without_release(tmp_path: Path) -> 
     assert start_sidestore_server(tmp_path, "0.0.0.0", 8788, "192.168.10.0/24") is None
 
 
+def test_sidestore_lan_server_stays_disabled_for_symlinked_release(tmp_path: Path) -> None:
+    secret = tmp_path / "remote-source.json"
+    secret.write_text("credential", encoding="utf-8")
+    (tmp_path / "source.json").symlink_to(secret)
+    (tmp_path / "DailyReader.ipa").write_bytes(b"ipa")
+    (tmp_path / "icon.png").write_bytes(b"icon")
+
+    assert start_sidestore_server(
+        tmp_path,
+        "0.0.0.0",
+        8788,
+        "192.168.10.0/24",
+    ) is None
+
+
 def test_sidestore_lan_server_failure_does_not_stop_main_server(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -249,6 +311,295 @@ def test_sidestore_lan_server_invalid_port_does_not_stop_main_server(
         port,
         "192.168.10.0/24",
     ) is None
+
+
+def make_remote_request(handler_factory, path: str, method: str = "GET") -> bytes:
+    handler = handler_factory.__new__(handler_factory)
+    handler.path = path
+    handler.command = method
+    handler.request_version = "HTTP/1.1"
+    handler.requestline = f"{method} {path} HTTP/1.1"
+    handler.client_address = ("127.0.0.1", 1234)
+    handler._headers_buffer = []
+    handler.wfile = BytesIO()
+    getattr(handler, f"do_{method}")()
+    return handler.wfile.getvalue()
+
+
+def write_remote_release(directory: Path, token: str) -> None:
+    ipa_name = "DailyReader-0.1.42.ipa"
+    base_url = f"https://reader.example.test:8443/{token}"
+    (directory / ipa_name).write_bytes(b"test ipa")
+    (directory / "icon.png").write_bytes(b"test icon")
+    (directory / "remote-source.json").write_text(
+        json.dumps(
+            {
+                "subtitle": "個人用の外出先更新ソース",
+                "sourceURL": f"{base_url}/source.json",
+                "apps": [
+                    {
+                        "iconURL": f"{base_url}/icon.png",
+                        "versions": [
+                            {
+                                "version": "0.1.42",
+                                "date": "2026-08-28",
+                                "downloadURL": f"{base_url}/{ipa_name}",
+                                "size": 8,
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_sidestore_remote_handler_serves_only_token_protected_artifacts(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    token = TOKEN
+    write_remote_release(tmp_path, token)
+    handler = make_sidestore_remote_handler(tmp_path, token)
+
+    source_response = make_remote_request(handler, f"/{token}/source.json")
+    ipa_response = make_remote_request(handler, f"/{token}/DailyReader-0.1.42.ipa")
+    head_response = make_remote_request(handler, f"/{token}/icon.png", "HEAD")
+
+    assert b"200 OK" in source_response
+    assert b'"sourceURL"' in source_response
+    assert b"200 OK" in ipa_response
+    assert ipa_response.endswith(b"test ipa")
+    assert b"200 OK" in head_response
+    assert not head_response.endswith(b"test icon")
+    assert b"Cache-Control: private, no-store" in source_response
+    assert token not in caplog.text
+
+
+def test_sidestore_remote_handler_keeps_manifested_previous_version_available(
+    tmp_path: Path,
+) -> None:
+    token = TOKEN
+    write_remote_release(tmp_path, token)
+    previous_name = "DailyReader-0.1.41.ipa"
+    (tmp_path / previous_name).write_bytes(b"previous ipa")
+    source_path = tmp_path / "remote-source.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    source["apps"][0]["versions"].append(
+        {
+            "version": "0.1.41",
+            "date": "2026-08-27",
+            "downloadURL": (
+                f"https://reader.example.test:8443/{token}/{previous_name}"
+            ),
+            "size": 12,
+        }
+    )
+    source_path.write_text(json.dumps(source), encoding="utf-8")
+    handler = make_sidestore_remote_handler(tmp_path, token)
+
+    response = make_remote_request(handler, f"/{token}/{previous_name}")
+
+    assert b"200 OK" in response
+    assert response.endswith(b"previous ipa")
+
+
+@pytest.mark.parametrize(
+    ("path", "method"),
+    [
+        ("/source.json", "GET"),
+        ("/wrong-token/source.json", "GET"),
+        ("/token/api/deployment", "GET"),
+        ("/token/../source.json", "GET"),
+        ("/token/source.json?download=1", "GET"),
+        ("/token/source.json#fragment", "GET"),
+        ("https://example.test/token/source.json", "GET"),
+        ("/token/source.json", "POST"),
+        ("/token/source.json", "OPTIONS"),
+    ],
+)
+def test_sidestore_remote_handler_returns_404_for_every_other_path(
+    tmp_path: Path,
+    path: str,
+    method: str,
+) -> None:
+    token = TOKEN
+    write_remote_release(tmp_path, token)
+    handler = make_sidestore_remote_handler(tmp_path, token)
+
+    response = make_remote_request(handler, path.replace("token", token), method)
+
+    assert b"404 Not Found" in response
+
+
+def test_sidestore_remote_handler_maps_unknown_methods_to_404(tmp_path: Path) -> None:
+    token = TOKEN
+    write_remote_release(tmp_path, token)
+    handler_factory = make_sidestore_remote_handler(tmp_path, token)
+    handler = handler_factory.__new__(handler_factory)
+    handler.path = f"/{token}/source.json"
+    handler.command = "PROPFIND"
+    handler.request_version = "HTTP/1.1"
+    handler.requestline = f"PROPFIND /{token}/source.json HTTP/1.1"
+    handler.client_address = ("127.0.0.1", 1234)
+    handler._headers_buffer = []
+    handler.wfile = BytesIO()
+
+    handler.send_error(501)
+
+    assert b"404 Not Found" in handler.wfile.getvalue()
+
+
+def test_sidestore_remote_token_validation(tmp_path: Path) -> None:
+    token_path = tmp_path / "token.txt"
+    token_path.write_text(TOKEN + "\n", encoding="utf-8")
+    token_path.chmod(0o600)
+
+    assert load_sidestore_remote_token(token_path) == TOKEN
+
+    token_path.write_text("weak\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="32-byte URL-safe"):
+        load_sidestore_remote_token(token_path)
+
+    token_path.write_text(TOKEN + "\n", encoding="utf-8")
+    token_path.chmod(0o644)
+    with pytest.raises(ValueError, match="permissions must be 0600"):
+        load_sidestore_remote_token(token_path)
+
+    real_token = tmp_path / "real-token.txt"
+    real_token.write_text(TOKEN + "\n", encoding="utf-8")
+    real_token.chmod(0o600)
+    token_path.unlink()
+    token_path.symlink_to(real_token)
+    with pytest.raises(ValueError, match="must not be a symlink"):
+        load_sidestore_remote_token(token_path)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        {"apps": []},
+        {"apps": [{"versions": []}]},
+        {
+            "sourceURL": 1,
+            "apps": [{"iconURL": "value", "versions": [{"downloadURL": "value"}]}],
+        },
+    ],
+)
+def test_sidestore_remote_server_stays_disabled_for_empty_source_arrays(
+    tmp_path: Path,
+    source: dict[str, object],
+) -> None:
+    token_path = tmp_path / "token.txt"
+    token_path.write_text(TOKEN + "\n", encoding="utf-8")
+    token_path.chmod(0o600)
+    (tmp_path / "icon.png").write_bytes(b"icon")
+    (tmp_path / "remote-source.json").write_text(json.dumps(source), encoding="utf-8")
+
+    assert start_sidestore_remote_server(tmp_path, 8789, token_path) is None
+
+
+@pytest.mark.parametrize(
+    ("field", "url"),
+    [
+        ("sourceURL", "http://reader.example.test:8443/token/source.json"),
+        ("iconURL", "https://evil.example.test:8443/token/icon.png"),
+        (
+            "downloadURL",
+            "https://reader.example.test:8443/token/DailyReader-0.1.42.ipa?download=1",
+        ),
+        (
+            "downloadURL",
+            "https://reader.example.test:99999/token/DailyReader-0.1.42.ipa",
+        ),
+    ],
+)
+def test_sidestore_remote_source_rejects_unsafe_artifact_urls(
+    tmp_path: Path,
+    field: str,
+    url: str,
+) -> None:
+    token = TOKEN
+    write_remote_release(tmp_path, token)
+    source_path = tmp_path / "remote-source.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    url = url.replace("token", token)
+    if field == "sourceURL":
+        source[field] = url
+    elif field == "iconURL":
+        source["apps"][0][field] = url
+    else:
+        source["apps"][0]["versions"][0][field] = url
+    source_path.write_text(json.dumps(source), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unsafe artifact URLs|invalid URL port"):
+        current_sidestore_remote_ipa(tmp_path, token)
+
+
+def test_sidestore_remote_source_rejects_symlinked_artifact(tmp_path: Path) -> None:
+    token = TOKEN
+    write_remote_release(tmp_path, token)
+    ipa_path = tmp_path / "DailyReader-0.1.42.ipa"
+    outside_path = tmp_path / "outside.txt"
+    outside_path.write_text("secret", encoding="utf-8")
+    ipa_path.unlink()
+    ipa_path.symlink_to(outside_path)
+
+    with pytest.raises(ValueError, match="unsafe artifact URLs"):
+        current_sidestore_remote_ipa(tmp_path, token)
+
+
+def test_sidestore_remote_source_requires_noncredential_subtitle(tmp_path: Path) -> None:
+    token = TOKEN
+    write_remote_release(tmp_path, token)
+    source_path = tmp_path / "remote-source.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    source.pop("subtitle")
+    source_path.write_text(json.dumps(source), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="hide its credential URL"):
+        current_sidestore_remote_ipa(tmp_path, token)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("date", None),
+        ("date", "not-a-date"),
+        ("date", "20260828"),
+        ("date", "2026-W35-5"),
+        ("size", True),
+        ("size", -1),
+    ],
+)
+def test_sidestore_remote_source_rejects_invalid_required_version_metadata(
+    tmp_path: Path,
+    field: str,
+    value: object,
+) -> None:
+    token = TOKEN
+    write_remote_release(tmp_path, token)
+    source_path = tmp_path / "remote-source.json"
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    source["apps"][0]["versions"][0][field] = value
+    source_path.write_text(json.dumps(source), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="invalid version metadata"):
+        current_sidestore_remote_ipa(tmp_path, token)
+
+
+def test_sidestore_remote_server_stays_disabled_for_invalid_configuration(
+    tmp_path: Path,
+) -> None:
+    token_path = tmp_path / "token.txt"
+    token_path.write_text(TOKEN + "\n", encoding="utf-8")
+    token_path.chmod(0o600)
+
+    assert start_sidestore_remote_server(tmp_path, 8789, token_path) is None
+
+    write_remote_release(tmp_path, TOKEN)
+    assert start_sidestore_remote_server(tmp_path, 0, token_path) is None
 
 
 def test_read_events_are_appended_and_summarized(tmp_path: Path) -> None:

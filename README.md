@@ -2,7 +2,7 @@
 
 > SwiftUIネイティブiPhone版は[`ios/README.md`](ios/README.md)を参照してください。
 
-Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部公開用サーバーやデータベースは必要ありません。起動時はAgentタブを最初に表示します。
+Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部サーバーやデータベースは必要ありません。SideStoreの更新成果物だけは、秘密URLで保護したTailscale Funnelの専用ポートから配信できます。起動時はAgentタブを最初に表示します。
 
 ## 主な機能
 
@@ -125,6 +125,17 @@ SideStore配布を生成している場合だけ、`data/sidestore/`内のIPA、
 専用ポート`8788`から自宅LANの`192.168.10.0/24`へ配信します。メイン画面とAPIは
 このポートから配信しません。IPv4 link-localの`169.254.0.0/16`も許可します
 （現環境ではMacとiPhoneのUSB直接リンク）。それ以外のネットワークからの要求は拒否します。
+LAN側では`source.json`、`DailyReader.ipa`、`icon.png`の3ファイルだけを配信し、
+外出先用の秘密URLを含む`remote-source.json`は配信しません。
+
+ビルド時には、外出先更新用のバージョン付きIPAと`remote-source.json`も生成します。
+初回だけ32-byteのランダムなURLトークンを`secrets/sidestore-remote-token.txt`へ`0600`で
+作成し、標準出力へ秘密URLを表示しません。秘密URLを含む`remote-source.json`も`0600`で
+保存します。`127.0.0.1:8789`の専用サーバーは秘密URL配下のソースJSON、アイコン、
+ソースに列挙した現在版と直前版を含む最大10版のIPAだけを配信し、Tailscale Funnelの
+`8443`番からのみ中継します。URLを知る人は配布物を取得できるため、URLやトークンを
+共有しないでください。SideStoreは取得失敗時などにURLを端末診断ログへ記録し得るため、
+SideStoreやiPhoneの診断ログも共有しないでください。
 
 Codex CLIがログイン済みの場合は、更新時に注目記事から今日のハイライトを生成します。Snowflake、Databricks、dbt、Apache Icebergなどの公式リリースは製品別に束ね、英語の記事も日本語で要約して原文リンクを添えます。同じ候補記事の組み合わせでは再生成しません。実行にはCodexの利用量を消費しますが、`gpt-5.6-luna`を低推論設定で1回だけ呼び出し、ハイライトと公式リリースまとめを同時に生成します。Codexは`--ephemeral`、`--sandbox read-only`、構造化出力で呼び出され、記事本文中の命令を無視するよう指示されます。
 
@@ -137,7 +148,31 @@ tailscale serve --bg --yes http://127.0.0.1:8787
 tailscale serve status
 ```
 
-`tailscale serve status`に表示された`https://<Mac mini名>.<tailnet名>.ts.net`をiPhoneのSafariで開きます。Tailscale Funnelは使用しません。Serveにはtailnetのアクセス制御が適用されるため、iPhoneだけに限定する場合はTailscaleのポリシーでも対象端末またはユーザーを制限してください。
+`tailscale serve status`に表示された`https://<Mac mini名>.<tailnet名>.ts.net`をiPhoneのSafariで開きます。Serveにはtailnetのアクセス制御が適用されるため、iPhoneだけに限定する場合はTailscaleのポリシーでも対象端末またはユーザーを制限してください。
+
+SideStoreの外出先更新だけは、メインサービスとは別のFunnelポートを使用します。
+
+```bash
+tailscale funnel --bg --yes --https=8443 http://127.0.0.1:8789
+uv run --frozen python scripts/verify_sidestore_remote.py
+```
+
+`443`番のServeと`127.0.0.1:8787`は変更せず、Agent、Gmail、HealthKit、Plannerを
+Funnelへ載せません。検証コマンドは秘密URLを表示せず、現行3成果物の内容一致、拒否パス、
+`443`/`8443`のTailscale設定境界を確認します。外部配信を停止する場合は、共有Serve設定を
+全消去する`tailscale funnel reset`を使わず、次のように有効化時と同じ引数へ`off`を付けます。
+
+```bash
+tailscale funnel --bg --yes --https=8443 http://127.0.0.1:8789 off
+tailscale serve status --json
+tailscale funnel status --json
+```
+
+`AllowFunnel`と8443のhandlerが消え、`443 -> 127.0.0.1:8787`が残ったことを確認します。
+
+トークンを変更しても、SideStore 0.6.3の保存済みソースURLは自動更新されません。
+漏洩時はFunnelを停止して新しいトークンで再ビルド・再起動し、実機へ新URLを再登録して
+remote一覧からDaily Readerを一度インストールします。復旧まで外出先更新は停止します。
 
 ## 購読先とキーワード
 
