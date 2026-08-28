@@ -33,22 +33,30 @@ final class AppModel: ObservableObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         defer { isRefreshing = false }
-        do {
-            async let agentRequest = api.get("api/agent-jobs", as: AgentEnvelope.self)
-            async let todayRequest = api.get("api/today", as: TodayEnvelope.self)
-            async let emailRequest = api.get("api/email-reminders/daily", as: EmailEnvelope.self)
-            async let articleRequest = api.get("data/articles.json", as: ArticleEnvelope.self)
-            let (agent, day, mail, news) = try await (agentRequest, todayRequest, emailRequest, articleRequest)
+        async let agentRequest = try? api.get("api/agent-jobs", as: AgentEnvelope.self)
+        async let todayRequest = try? api.get("api/today", as: TodayEnvelope.self)
+        async let emailRequest = try? api.get("api/email-reminders/daily", as: EmailEnvelope.self)
+        async let articleRequest = try? api.get("data/articles.json", as: ArticleEnvelope.self)
+        let (agent, day, mail, news) = await (agentRequest, todayRequest, emailRequest, articleRequest)
+        if let agent {
             notifyAgentChanges(agent.jobs)
             agents = agent.jobs
             repositories = agent.repositories
+        }
+        if let day {
             today = day
+        }
+        if let mail {
             emails = mail.items
+        }
+        if let news {
             articles = news.articles
+        }
+        if agent != nil || day != nil || mail != nil || news != nil {
             lastUpdated = .now
             errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
+        } else {
+            errorMessage = "サーバーへ接続できませんでした"
         }
     }
 
