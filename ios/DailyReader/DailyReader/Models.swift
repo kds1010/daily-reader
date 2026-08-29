@@ -37,6 +37,22 @@ struct CodexLimitWindow: Decodable {
     let resetsAt: Int64?
 }
 
+struct DeploymentInfo: Decodable {
+    let version: String
+    let deployedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case version
+        case deployedAt = "deployed_at"
+    }
+
+    var deployedDate: Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: deployedAt) ?? ISO8601DateFormatter().date(from: deployedAt)
+    }
+}
+
 struct Repository: Codable, Identifiable, Hashable {
     var id: String { name }
     let name: String

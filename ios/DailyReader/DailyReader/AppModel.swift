@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
     @Published var articles: [Article] = []
     @Published var codexUsage: CodexUsageEnvelope?
     @Published var codexUsageFailed = false
+    @Published var deploymentInfo: DeploymentInfo?
     @Published var isRefreshing = false
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
@@ -64,6 +65,9 @@ final class AppModel: ObservableObject {
         if let news = try? await api.get("data/articles.json", as: ArticleEnvelope.self) {
             articles = news.articles
             updated = true
+        }
+        if let deployment = try? await api.get("api/deployment", as: DeploymentInfo.self) {
+            deploymentInfo = deployment
         }
         if updated {
             lastUpdated = .now

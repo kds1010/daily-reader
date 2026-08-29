@@ -27,6 +27,7 @@ struct AgentView: View {
         ScrollView {
             LazyVStack(spacing: 14) {
                 StatusHero(title: "Agent Console", subtitle: summary, icon: "terminal.fill", color: .mint)
+                RuntimeInfo(info: model.deploymentInfo)
                 CodexUsageCard()
                 ForEach(model.agents) { job in AgentCard(job: job) }
                 if model.agents.isEmpty { EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。") }
@@ -451,6 +452,7 @@ struct ArticleCard: View {
 }
 
 struct SettingsView: View {
+    @EnvironmentObject private var model: AppModel
     @AppStorage("serverURL") private var serverURL = "https://sk-mins-mac-mini.tailc193b2.ts.net/"
     @State private var healthToken = ""
     @State private var tokenStatus = ""
@@ -460,7 +462,7 @@ struct SettingsView: View {
         return build.isEmpty ? version : "\(version) (\(build))"
     }
     var body: some View {
-        Form { Section("接続") { TextField("サーバーURL", text: $serverURL).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("HealthKit同期トークン", text: $healthToken); Button("トークンを安全に保存") { do { try SecretStore.saveHealthToken(healthToken); tokenStatus = "Keychainへ保存しました" } catch { tokenStatus = error.localizedDescription } }; if !tokenStatus.isEmpty { Text(tokenStatus).font(.caption).foregroundStyle(.secondary) } }; Section("プライバシー") { Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield") }; Section("バージョン") { LabeledContent("Daily Reader", value: versionText) } }
+        Form { Section("接続") { TextField("サーバーURL", text: $serverURL).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("HealthKit同期トークン", text: $healthToken); Button("トークンを安全に保存") { do { try SecretStore.saveHealthToken(healthToken); tokenStatus = "Keychainへ保存しました" } catch { tokenStatus = error.localizedDescription } }; if !tokenStatus.isEmpty { Text(tokenStatus).font(.caption).foregroundStyle(.secondary) } }; Section("プライバシー") { Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield") }; Section("バージョン") { LabeledContent("Daily Reader", value: versionText); if let info = model.deploymentInfo { LabeledContent("サーバー", value: info.version); if let date = info.deployedDate { LabeledContent("デプロイ", value: date.runtimeDisplay) } } } }
             .navigationTitle("設定")
             .onAppear { healthToken = (try? SecretStore.readHealthToken()) ?? "" }
     }
@@ -479,11 +481,34 @@ struct ConnectionBadge: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(failed ? .orange : date == nil ? .secondary : .green).frame(width: 7, height: 7)
-            Text(failed ? "更新待ち" : date == nil ? "接続中" : "同期済み")
+            Text(label)
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(.secondary)
     }
+    private var label: String {
+        if failed { return "更新待ち" }
+        guard let date else { return "接続中" }
+        return "更新 \(date.runtimeDisplay)"
+    }
+}
+struct RuntimeInfo: View {
+    let info: DeploymentInfo?
+    var body: some View {
+        if let info {
+            HStack {
+                Label("稼働 \(info.version)", systemImage: "shippingbox")
+                Spacer()
+                if let date = info.deployedDate { Text("デプロイ \(date.runtimeDisplay)") }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+        }
+    }
+}
+private extension Date {
+    var runtimeDisplay: String { formatted(.dateTime.month().day().hour().minute()) }
 }
 struct AppBackground: View { var body: some View { LinearGradient(colors: [Color(red: 0.04, green: 0.06, blue: 0.1), Color(red: 0.07, green: 0.05, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea() } }
 
