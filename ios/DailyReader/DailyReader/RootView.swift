@@ -27,7 +27,7 @@ struct AgentView: View {
         ScrollView {
             LazyVStack(spacing: 14) {
                 StatusHero(title: "Agent Console", subtitle: summary, icon: "terminal.fill", color: .mint)
-                RuntimeInfo(info: model.deploymentInfo)
+                RuntimeInfo(info: model.deploymentInfo, refreshedAt: model.lastUpdated)
                 CodexUsageCard()
                 ForEach(model.agents) { job in AgentCard(job: job) }
                 if model.agents.isEmpty { EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。") }
@@ -494,12 +494,24 @@ struct ConnectionBadge: View {
 }
 struct RuntimeInfo: View {
     let info: DeploymentInfo?
+    let refreshedAt: Date?
     var body: some View {
-        if let info {
-            HStack {
-                Label("稼働 \(info.version)", systemImage: "shippingbox")
-                Spacer()
-                if let date = info.deployedDate { Text("デプロイ \(date.runtimeDisplay)") }
+        if info != nil || refreshedAt != nil {
+            VStack(spacing: 8) {
+                if let info {
+                    HStack {
+                        Label("稼働 \(info.version)", systemImage: "shippingbox")
+                        Spacer()
+                        if let date = info.deployedDate { Text("デプロイ \(date.runtimeDisplay)") }
+                    }
+                }
+                if let refreshedAt {
+                    HStack {
+                        Label("画面更新", systemImage: "arrow.clockwise")
+                        Spacer()
+                        Text(refreshedAt.runtimeDisplay)
+                    }
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)
