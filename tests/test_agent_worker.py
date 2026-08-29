@@ -257,6 +257,10 @@ def test_deployment_prompt_requires_live_verification_before_done() -> None:
     assert "already restarted onto this pushed commit" in prompt
     assert "do not restart it again" in prompt
     assert "launches duplicate Codex sessions against the same worktree" in prompt
+    assert "publishing and verifying" in prompt
+    assert "device installation is a separate user" in prompt
+    assert "operation, return done after the distribution checks pass" in prompt
+    assert "absence of a connected physical device" in prompt
 
 
 def test_default_branch_conflict_prompt_requires_rebase_verification() -> None:

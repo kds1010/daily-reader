@@ -332,6 +332,12 @@ commits, or push anything during this phase. If the change only affects document
 or comments and the repository instructions explicitly allow deployment to be skipped, verify
 that classification and state it in the summary.
 
+Respect the repository's delivery boundary. If its instructions define publishing and verifying
+an installable artifact as deployment completion while device installation is a separate user
+operation, return done after the distribution checks pass. Do not wait for, require, or treat the
+absence of a connected physical device as a deployment failure. Report the published version and
+the pending device installation separately in the summary.
+
 The deployment may restart the Agent worker that launched this session. Before restarting that
 worker, inspect its current PID, start time, deployed commit, and recent service logs. If those
 show that the worker has already restarted onto this pushed commit, treat the required restart

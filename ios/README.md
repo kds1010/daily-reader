@@ -22,6 +22,11 @@ Documents領域へ転送して再起動します。アプリはトークンをKe
 
 ## SideStoreで更新する
 
+自動デプロイの完了範囲は、検証済みIPAとソースを生成し、LANおよび外出先用Funnelから
+正しい成果物を取得できることをMac側で確認するところまでです。SideStoreによる再署名と
+iPhoneへのインストール、権限付与、画面・操作確認は配信後の独立した実機工程です。
+iPhoneが未接続でも配信成功は失敗扱いにしません。
+
 Mac miniで次を実行すると、HealthKit entitlementを保持したアドホック署名済みseed IPA、
 LAN用と外出先用のSideStoreソース、アイコンを
 `data/sidestore/`へ生成します。Daily Readerサーバーはこのディレクトリだけを
@@ -93,6 +98,8 @@ AppleDoubleファイルが残るとiOSが`._AltWidgetExtension.appex`をapp exte
 `codesign --verify --deep --strict`が成功すること、IPAと内包`AltBackup.ipa`に`._*`がないことを
 確認します。USB接続したiPhoneへiLoaderの`Import IPA`で上書きした後、更新済みSideStoreで
 Daily Readerを再インストールし、iOSのHealthKit許可画面と実際の同期成功まで確認します。
+これはHealthKit対応SideStore自体を新規作成・更新した場合の手動適格性確認であり、通常の
+Daily Reader IPA配信を自動デプロイする際の完了条件には含めません。
 
 SideStore 0.6.3は取得失敗時やIPAダウンロード時に秘密URLを端末ログへ記録し得ます。
 SideStoreまたはiPhoneの診断ログを共有した場合はトークン漏洩として扱います。トークンを
