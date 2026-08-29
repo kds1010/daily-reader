@@ -33,6 +33,7 @@
 - AgentキューのSQLite接続は各操作後に明示的にcloseし、10並列のポーリングでファイル記述子を蓄積しない。
 - Agentワーカー起動時は、前プロセスの再起動で`running`のまま残ったタスクを自動で再キュー化し、保持した作業環境から再試行する。
 - デプロイ確認は実装セッションとは別の自動承認付きCodexセッションで実行し、`launchctl`による再起動と実環境確認に必要な権限を自動審査へ回す。
+- 実装・継続・デプロイ中の必須コマンドが`Operation not permitted`、CoreSimulatorService接続拒否、Simulator runtimeなしで失敗した場合は、ホスト環境不足と決めつけず承認付きで同じコマンドを再実行する。同じ隔離環境の失敗を複数ターン繰り返さない。
 - デプロイ確認でAgentワーカー自身を再起動する場合は、現在のPID、起動時刻、デプロイ済みコミット、サービスログを先に確認する。復旧後のセッションで対象コミットへの再起動済みと確認できた場合は再度kickstartせず、自己再起動の反復と同一worktreeへのCodex多重実行を防ぐ。
 - Codexの構造化出力スキーマはワーカー起動時にDaily Reader基準の絶対パスへ解決し、tonoiなど別リポジトリのworktreeでも同じスキーマを使用する。
 - tonoiとconfigは`config/agent-repositories.toml`の`deploy = false`により、検証済み変更を`main`へ統合してpushした時点で完了とし、実環境デプロイは行わない。

@@ -265,6 +265,8 @@ worktree. Make the task-scoped changes, run the relevant verification, and commi
 merge, push, remove the worktree, or delete the branch; the external supervisor performs those
 steps. Continue without asking the user unless the configured high-risk blocker criteria are
 met. Return state=done only after the implementation is committed and verification succeeds.
+
+{_sandbox_retry_guidance()}
 """
 
 
@@ -276,6 +278,8 @@ Next action: {result.get('next_action', '')}
 
 Inspect the current repository state and keep working until the original task is committed and
 verified. Do not ask the user unless the configured high-risk blocker criteria are met.
+
+{_sandbox_retry_guidance()}
 """
 
 
@@ -341,7 +345,18 @@ Return state=done only after deployment and live verification succeed, or after 
 deployment is not required under the repository instructions. If deployment fails, investigate
 and retry safe fixes. Return blocked only when human input is genuinely required. Never report
 the task as complete while runtime changes remain undeployed or unverified.
+
+{_sandbox_retry_guidance()}
 """
+
+
+def _sandbox_retry_guidance() -> str:
+    return """A failed command can reflect the Codex sandbox rather than the host environment.
+If a required macOS or Xcode command reports Operation not permitted, CoreSimulatorService
+connection invalid/refused, or no available simulator runtimes, retry that same command through
+the approval escalation mechanism before diagnosing missing software or asking for environment
+changes. Do not repeat an unchanged sandboxed command across turns. If escalation is denied,
+report the denied approval and the exact remaining verification instead."""
 
 
 def _default_branch_conflict_prompt(default_branch: str) -> str:

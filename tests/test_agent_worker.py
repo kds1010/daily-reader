@@ -7,6 +7,7 @@ from subprocess import CalledProcessError, CompletedProcess
 from daily_reader.agent_jobs import create_job, get_job, hide_job, update_job
 from daily_reader.agent_worker import (
     _codex_command,
+    _continue_prompt,
     _default_branch_conflict_prompt,
     _deployment_prompt,
     _follow_up_prompt,
@@ -229,6 +230,21 @@ def test_execute_prompt_separates_planning_from_implementation() -> None:
     assert "Update the worker" in implementation
     assert "Edit and test" in implementation
     assert "Return state=done only after" in implementation
+
+
+def test_execution_prompts_retry_xcode_failures_with_approval_escalation() -> None:
+    implementation = _implementation_prompt(
+        {"summary": "Update the app", "next_action": "Build it"}
+    )
+    continuation = _continue_prompt(
+        {"summary": "Build failed", "next_action": "Retry it"}
+    )
+    deployment = _deployment_prompt("abc123")
+
+    for prompt in (implementation, continuation, deployment):
+        assert "CoreSimulatorService" in prompt
+        assert "approval escalation mechanism" in prompt
+        assert "Do not repeat an unchanged sandboxed command" in prompt
 
 
 def test_deployment_prompt_requires_live_verification_before_done() -> None:
