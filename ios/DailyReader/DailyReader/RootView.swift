@@ -319,8 +319,7 @@ struct AgentComposer: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("依頼") { TextEditor(text: $prompt).frame(minHeight: 180); Text("目的、制約、完了条件を自然な言葉で入力してください。").font(.caption).foregroundStyle(.secondary) }
-                Section("リポジトリ") { Picker("対象", selection: $repository) { ForEach(model.repositories) { Text($0.label).tag($0.name) } } }
+                Section("依頼") { TextEditor(text: $prompt).frame(minHeight: 120); Text("目的、制約、完了条件を自然な言葉で入力してください。").font(.caption).foregroundStyle(.secondary) }
                 Section {
                     Button {
                         Task {
@@ -340,6 +339,7 @@ struct AgentComposer: View {
                     .tint(.mint)
                     .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repository.isEmpty || sending)
                 }
+                Section("リポジトリ") { Picker("対象", selection: $repository) { ForEach(model.repositories) { Text($0.label).tag($0.name) } } }
             }
             .navigationTitle("Agentへ依頼")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } } }
