@@ -2,18 +2,16 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var showComposer = false
 
     var body: some View {
         TabView(selection: $model.selectedTab) {
-            NavigationStack { AgentView(showComposer: $showComposer) }.tabItem { Label("Agent", systemImage: "sparkles") }.tag(0)
+            NavigationStack { AgentView() }.tabItem { Label("Agent", systemImage: "sparkles") }.tag(0)
             NavigationStack { TodayView() }.tabItem { Label("今日", systemImage: "checkmark.circle") }.tag(1)
             NavigationStack { EmailView() }.tabItem { Label("メール", systemImage: "envelope") }.badge(model.emails.count).tag(2)
             NavigationStack { NewsView() }.tabItem { Label("ニュース", systemImage: "newspaper") }.tag(3)
             NavigationStack { SettingsView() }.tabItem { Label("設定", systemImage: "gearshape") }.tag(4)
         }
         .tint(.mint)
-        .sheet(isPresented: $showComposer) { AgentComposer() }
         .alert("接続できませんでした", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {
             Button("閉じる", role: .cancel) {}
         } message: { Text(model.errorMessage ?? "") }
@@ -22,22 +20,14 @@ struct RootView: View {
 
 struct AgentView: View {
     @EnvironmentObject private var model: AppModel
-    @Binding var showComposer: Bool
     var body: some View {
         List {
-            StatusHero(title: "Agent Console", subtitle: summary, icon: "terminal.fill", color: .mint)
+            AgentComposer()
                 .agentListRow()
             RuntimeInfo(info: model.deploymentInfo, refreshedAt: model.lastUpdated)
                 .agentListRow()
             CodexUsageCard()
                 .agentListRow()
-            Button { showComposer = true } label: {
-                Label("新しいタスク", systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.mint)
-            .agentListRow()
             ForEach(model.agents) { job in
                 AgentCard(job: job)
                     .agentListRow()
@@ -72,12 +62,6 @@ struct AgentView: View {
             }
         }
     }
-    private var summary: String {
-        let running = model.agents.filter { ["queued", "running"].contains($0.status) }.count
-        let blocked = model.agents.filter { $0.status == "blocked" }.count
-        return blocked > 0 ? "\(blocked)件の判断を待っています" : running > 0 ? "\(running)件を進めています" : "新しい依頼を受け付けられます"
-    }
-
     private func archiveButton(for job: AgentJob) -> some View {
         Button {
             Task { await model.hideAgent(job) }
@@ -312,39 +296,58 @@ struct AgentEventRow: View {
 
 struct AgentComposer: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.dismiss) private var dismiss
     @State private var prompt = ""
     @State private var repository = ""
     @State private var sending = false
+    @FocusState private var promptFocused: Bool
+
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("依頼") { TextEditor(text: $prompt).frame(minHeight: 120); Text("目的、制約、完了条件を自然な言葉で入力してください。").font(.caption).foregroundStyle(.secondary) }
-                Section {
-                    Button {
-                        Task {
-                            sending = true
-                            if await model.createAgent(prompt: prompt, repository: repository) { dismiss() }
-                            sending = false
-                        }
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if sending { ProgressView().tint(.white) }
-                            Text("タスクを開始")
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.mint)
-                    .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repository.isEmpty || sending)
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("実現したい結果を書いてください", text: $prompt, axis: .vertical)
+                .lineLimit(3...7)
+                .textFieldStyle(.roundedBorder)
+                .focused($promptFocused)
+                .accessibilityLabel("Agentへの依頼")
+            HStack(spacing: 10) {
+                Picker("リポジトリ", selection: $repository) {
+                    ForEach(model.repositories) { Text($0.label).tag($0.name) }
                 }
-                Section("リポジトリ") { Picker("対象", selection: $repository) { ForEach(model.repositories) { Text($0.label).tag($0.name) } } }
+                .pickerStyle(.menu)
+                .disabled(model.repositories.isEmpty || sending)
+                Spacer(minLength: 0)
+                Button {
+                    Task {
+                        sending = true
+                        if await model.createAgent(prompt: prompt, repository: repository) {
+                            prompt = ""
+                            promptFocused = false
+                        }
+                        sending = false
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if sending { ProgressView() }
+                        Text("依頼")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.mint)
+                .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repository.isEmpty || sending)
             }
-            .navigationTitle("Agentへ依頼")
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } } }
-            .onAppear { repository = repository.isEmpty ? model.repositories.first?.name ?? "" : repository }
-        }.presentationDetents([.large])
+        }
+        .glassCard()
+        .onAppear { synchronizeRepositorySelection() }
+        .onChange(of: model.repositories, initial: true) { _, _ in synchronizeRepositorySelection() }
+    }
+
+    private func synchronizeRepositorySelection() {
+        guard !model.repositories.isEmpty else {
+            repository = ""
+            return
+        }
+        if !model.repositories.contains(where: { $0.name == repository }) {
+            repository = model.repositories[0].name
+        }
     }
 }
 
