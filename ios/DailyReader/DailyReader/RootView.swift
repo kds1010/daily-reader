@@ -31,6 +31,13 @@ struct AgentView: View {
                 .agentListRow()
             CodexUsageCard()
                 .agentListRow()
+            Button { showComposer = true } label: {
+                Label("新しいタスク", systemImage: "plus.circle.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.mint)
+            .agentListRow()
             ForEach(model.agents) { job in
                 AgentCard(job: job)
                     .agentListRow()
@@ -52,13 +59,6 @@ struct AgentView: View {
                 .glassCard()
                 .agentListRow()
             }
-            Button { showComposer = true } label: {
-                Label("新しいタスク", systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.mint)
-            .agentListRow()
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
