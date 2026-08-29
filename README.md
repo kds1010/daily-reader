@@ -1,4 +1,4 @@
-# Daily Reader
+# Daymeld (内部プロジェクト名: Daily Reader)
 
 > SwiftUIネイティブiPhone版は[`ios/README.md`](ios/README.md)を参照してください。
 
@@ -78,7 +78,7 @@ uv run --frozen daily-reader-gmail sync
 ```
 
 認証トークンとSQLiteデータベースはMac mini内だけに保存され、Git管理されません。
-初回認証後、常駐サーバーが15分ごとにGmailを自動同期します。Daily Readerの先頭に
+初回認証後、常駐サーバーが15分ごとにGmailを自動同期します。Daymeldの先頭に
 重要な未読メールが表示されます。アプリの「既読」はGmailのスレッドを既読にして即座に一覧から外し、
 Gmailで既読にした場合も次回同期後に一覧から外れます。以前の読み取り専用権限で認証済みの場合は、
 `uv run --frozen daily-reader-gmail auth`を再実行して権限を更新してください。返信したスレッドは

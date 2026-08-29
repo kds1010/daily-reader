@@ -1,6 +1,6 @@
-# Daily Reader for iPhone
+# Daymeld for iPhone
 
-Daily ReaderのSwiftUIネイティブクライアントです。既存のMac mini APIへTailscale経由で接続します。
+DaymeldのSwiftUIネイティブクライアントです。既存のMac mini APIへTailscale経由で接続します。XcodeプロジェクトとBundle IDは更新互換性のため維持しています。
 
 ## 実機で試す
 

@@ -53,12 +53,12 @@ def build_source(version: str, ipa_size: int, base_url: str) -> dict[str, object
     base_url = base_url.rstrip("/")
     return {
         "$schema": "https://github.com/SideStore/sidestore-source-types/raw/main/schema.json",
-        "name": "Daily Reader",
+        "name": "Daymeld",
         "identifier": "net.skmin.DailyReader.source",
         "sourceURL": f"{base_url}/source.json",
         "apps": [
             {
-                "name": "Daily Reader",
+                "name": "Daymeld",
                 "bundleIdentifier": BUNDLE_IDENTIFIER,
                 "developerName": "sk-min",
                 "subtitle": "生活・情報・Codex Agentをまとめる個人ダッシュボード",
@@ -72,7 +72,7 @@ def build_source(version: str, ipa_size: int, base_url: str) -> dict[str, object
                     {
                         "version": version,
                         "date": date.today().isoformat(),
-                        "localizedDescription": "Daily Readerの最新ネイティブ版です。",
+                        "localizedDescription": "Daymeldの最新ネイティブ版です。",
                         "downloadURL": f"{base_url}/DailyReader.ipa",
                         "size": ipa_size,
                         "minOSVersion": "17.0",
@@ -155,7 +155,7 @@ def build_remote_source(
 ) -> dict[str, object]:
     base_url = f"{validate_remote_origin(origin)}/{validate_remote_token(token)}"
     source = build_source(version, ipa_size, base_url)
-    source["name"] = "Daily Reader Remote"
+    source["name"] = "Daymeld Remote"
     source["subtitle"] = REMOTE_SOURCE_SUBTITLE
     source["identifier"] = "net.skmin.DailyReader.remote-source"
     app = source["apps"][0]

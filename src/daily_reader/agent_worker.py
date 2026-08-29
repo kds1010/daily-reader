@@ -844,7 +844,7 @@ clean. Return done only when the rebase and verification succeed."""
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run queued Daily Reader Codex tasks")
+    parser = argparse.ArgumentParser(description="Run queued Daymeld Codex tasks")
     parser.add_argument("--database", type=Path, default=Path("data/agent.sqlite3"))
     parser.add_argument(
         "--repositories", type=Path, default=Path("config/agent-repositories.toml")

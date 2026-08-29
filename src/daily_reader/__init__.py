@@ -1,1 +1,1 @@
-"""Daily Reader feed collection package."""
+"""Daymeld feed collection package."""

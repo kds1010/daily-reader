@@ -1,6 +1,6 @@
 [[repositories]]
 name = "daily-reader"
-label = "Daily Reader"
+label = "Daymeld"
 path = "."
 default_branch = "main"
 

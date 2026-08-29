@@ -21,6 +21,8 @@ def test_build_source_uses_versioned_ipa_metadata() -> None:
 
     assert source["identifier"] == "net.skmin.DailyReader.source"
     assert source["sourceURL"] == "https://example.test/sidestore/source.json"
+    assert source["name"] == "Daymeld"
+    assert app["name"] == "Daymeld"
     assert app["bundleIdentifier"] == "net.skmin.DailyReader"
     assert version["version"] == "0.1.42"
     assert version["downloadURL"] == "https://example.test/sidestore/DailyReader.ipa"
@@ -44,7 +46,7 @@ def test_remote_source_uses_token_and_versioned_ipa() -> None:
     app = source["apps"][0]
     version = app["versions"][0]
 
-    assert source["name"] == "Daily Reader Remote"
+    assert source["name"] == "Daymeld Remote"
     assert source["subtitle"] == "個人用の外出先更新ソース"
     assert source["identifier"] == "net.skmin.DailyReader.remote-source"
     assert source["sourceURL"] == f"https://reader.example.test:8443/{token}/source.json"

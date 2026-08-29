@@ -53,7 +53,7 @@ struct AgentView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(AppBackground())
-        .navigationTitle("Daily Reader")
+        .navigationTitle("Daymeld")
         .refreshable { await model.refresh() }
         .task {
             while !Task.isCancelled {
@@ -441,7 +441,7 @@ struct SettingsView: View {
         return build.isEmpty ? version : "\(version) (\(build))"
     }
     var body: some View {
-        Form { Section("接続") { TextField("サーバーURL", text: $serverURL).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("HealthKit同期トークン", text: $healthToken); Button("トークンを安全に保存") { do { try SecretStore.saveHealthToken(healthToken); tokenStatus = "Keychainへ保存しました" } catch { tokenStatus = error.localizedDescription } }; if !tokenStatus.isEmpty { Text(tokenStatus).font(.caption).foregroundStyle(.secondary) } }; Section("プライバシー") { Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield") }; Section("バージョン") { LabeledContent("Daily Reader", value: versionText); if let info = model.deploymentInfo { LabeledContent("サーバー", value: info.version); if let date = info.deployedDate { LabeledContent("デプロイ", value: date.runtimeDisplay) } } } }
+        Form { Section("接続") { TextField("サーバーURL", text: $serverURL).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("HealthKit同期トークン", text: $healthToken); Button("トークンを安全に保存") { do { try SecretStore.saveHealthToken(healthToken); tokenStatus = "Keychainへ保存しました" } catch { tokenStatus = error.localizedDescription } }; if !tokenStatus.isEmpty { Text(tokenStatus).font(.caption).foregroundStyle(.secondary) } }; Section("プライバシー") { Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield") }; Section("バージョン") { LabeledContent("Daymeld", value: versionText); if let info = model.deploymentInfo { LabeledContent("サーバー", value: info.version); if let date = info.deployedDate { LabeledContent("デプロイ", value: date.runtimeDisplay) } } } }
             .navigationTitle("設定")
             .onAppear { healthToken = (try? SecretStore.readHealthToken()) ?? "" }
     }

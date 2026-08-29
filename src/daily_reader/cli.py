@@ -9,7 +9,7 @@ from daily_reader.core import collect, load_config, load_keywords, write_output
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Collect feeds and build the Daily Reader data file"
+        description="Collect feeds and build the Daymeld data file"
     )
     parser.add_argument("--feeds", type=Path, default=Path("config/feeds.toml"))
     parser.add_argument("--keywords", type=Path, default=Path("config/keywords.toml"))

@@ -1,5 +1,14 @@
-const CACHE_NAME = "daily-reader-v57";
-const APP_ASSETS = ["./", "./index.html", "./style.css?v=49", "./app.js?v=53", "./icons/icon.svg"];
+const CACHE_NAME = "daily-reader-v58";
+const APP_ASSETS = [
+  "./",
+  "./index.html",
+  "./style.css?v=49",
+  "./app.js?v=53",
+  "./icons/icon.svg",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/apple-touch-icon.png",
+];
 
 async function cacheSuccessfulResponse(request, response) {
   if (response?.ok) {

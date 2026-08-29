@@ -1023,7 +1023,7 @@ def run_gmail_scheduler(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Serve Daily Reader on localhost")
+    parser = argparse.ArgumentParser(description="Serve Daymeld on localhost")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--site", type=Path, default=Path("site"))
