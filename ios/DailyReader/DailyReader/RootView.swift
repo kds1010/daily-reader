@@ -64,9 +64,6 @@ struct AgentView: View {
         .scrollContentBackground(.hidden)
         .background(AppBackground())
         .navigationTitle("Daily Reader")
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) { ConnectionBadge(date: model.lastUpdated, failed: model.refreshFailed) }
-        }
         .refreshable { await model.refresh() }
         .task {
             while !Task.isCancelled {
@@ -454,23 +451,6 @@ struct StatusHero: View {
 struct Metric: View { let value: String; let label: String; var body: some View { VStack(alignment: .leading) { Text(value).font(.title3.bold().monospacedDigit()); Text(label).font(.caption).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading) } }
 struct SectionTitle: View { let title: String; init(_ title: String) { self.title = title }; var body: some View { Text(title).font(.title3.bold()).frame(maxWidth: .infinity, alignment: .leading) } }
 struct EmptyState: View { let icon: String; let title: String; let detail: String; var body: some View { VStack(spacing: 12) { Image(systemName: icon).font(.largeTitle).foregroundStyle(.secondary); Text(title).font(.headline); Text(detail).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center) }.frame(maxWidth: .infinity).padding(40).glassCard() } }
-struct ConnectionBadge: View {
-    let date: Date?
-    let failed: Bool
-    var body: some View {
-        HStack(spacing: 5) {
-            Circle().fill(failed ? .orange : date == nil ? .secondary : .green).frame(width: 7, height: 7)
-            Text(label)
-        }
-        .font(.caption.weight(.medium))
-        .foregroundStyle(.secondary)
-    }
-    private var label: String {
-        if failed { return "更新待ち" }
-        guard let date else { return "接続中" }
-        return "更新 \(date.runtimeDisplay)"
-    }
-}
 struct RuntimeInfo: View {
     let info: DeploymentInfo?
     let refreshedAt: Date?

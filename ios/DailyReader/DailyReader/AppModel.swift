@@ -16,7 +16,6 @@ final class AppModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
-    @Published var refreshFailed = false
     @Published var selectedTab = 0
 
     private let api = APIClient.shared
@@ -71,9 +70,6 @@ final class AppModel: ObservableObject {
         }
         if updated {
             lastUpdated = .now
-            refreshFailed = false
-        } else {
-            refreshFailed = true
         }
     }
 
@@ -93,7 +89,6 @@ final class AppModel: ObservableObject {
             archivedAgents = envelope.archivedJobs
             repositories = envelope.repositories
         } catch {
-            refreshFailed = true
         }
     }
 
