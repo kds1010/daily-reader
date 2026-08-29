@@ -155,6 +155,11 @@ struct CodexLimitRow: View {
 }
 
 struct AgentCard: View {
+    private enum DragAxis {
+        case horizontal
+        case vertical
+    }
+
     @EnvironmentObject private var model: AppModel
     let job: AgentJob
     var archived = false
@@ -164,6 +169,7 @@ struct AgentCard: View {
     @State private var instruction = ""
     @State private var sending = false
     @State private var dragOffset: CGFloat = 0
+    @State private var dragAxis: DragAxis?
     @State private var hiding = false
 
     var body: some View {
@@ -183,7 +189,7 @@ struct AgentCard: View {
             }
             cardContent
                 .offset(x: dragOffset)
-                .gesture(cardDragGesture)
+                .simultaneousGesture(cardDragGesture)
         }
         .clipShape(RoundedRectangle(cornerRadius: 22))
     }
@@ -263,17 +269,18 @@ struct AgentCard: View {
     }
 
     private var cardDragGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
+        DragGesture(minimumDistance: 12)
             .onChanged { value in
                 guard !archived, !hiding else { return }
-                let horizontal = abs(value.translation.width) > abs(value.translation.height)
-                guard horizontal else { return }
+                let resolvedAxis = dragAxis ?? dominantAxis(for: value.translation)
+                if dragAxis == nil { dragAxis = resolvedAxis }
+                guard resolvedAxis == .horizontal else { return }
                 dragOffset = max(-140, min(140, value.translation.width))
             }
             .onEnded { value in
                 guard !archived, !hiding else { return }
-                let horizontal = abs(value.translation.width) > abs(value.translation.height)
-                guard horizontal else {
+                defer { dragAxis = nil }
+                guard dragAxis == .horizontal else {
                     withAnimation(.snappy) { dragOffset = 0 }
                     return
                 }
@@ -291,6 +298,14 @@ struct AgentCard: View {
                     withAnimation(.snappy) { dragOffset = 0 }
                 }
             }
+    }
+
+    private func dominantAxis(for translation: CGSize) -> DragAxis? {
+        let horizontalDistance = abs(translation.width)
+        let verticalDistance = abs(translation.height)
+        if horizontalDistance > verticalDistance * 1.2 { return .horizontal }
+        if verticalDistance > horizontalDistance * 1.2 { return .vertical }
+        return nil
     }
 
     private var canAttach: Bool {
