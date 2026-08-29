@@ -1,0 +1,26 @@
+diff --git a/AltSign/Capabilities/ALTCapabilities.h b/AltSign/Capabilities/ALTCapabilities.h
+index 76b9e9c..9817781 100644
+--- a/AltSign/Capabilities/ALTCapabilities.h
++++ b/AltSign/Capabilities/ALTCapabilities.h
+@@ -21,0 +22 @@ extern ALTEntitlement const ALTEntitlementInterAppAudio;
++extern ALTEntitlement const ALTEntitlementHealthKit;
+@@ -35,0 +37 @@ extern ALTFeature const ALTFeatureInterAppAudio;
++extern ALTFeature const ALTFeatureHealthKit;
+diff --git a/AltSign/Capabilities/ALTCapabilities.m b/AltSign/Capabilities/ALTCapabilities.m
+index 20adeae..f350ed0 100644
+--- a/AltSign/Capabilities/ALTCapabilities.m
++++ b/AltSign/Capabilities/ALTCapabilities.m
+@@ -18,0 +19 @@
++ALTEntitlement const ALTEntitlementHealthKit = @"com.apple.developer.healthkit";
+@@ -30,0 +32 @@
++ALTFeature const ALTFeatureHealthKit = @"HK421J6T7P";
+@@ -41,0 +44,4 @@ _Nullable ALTEntitlement ALTEntitlementForFeature(ALTFeature feature)
++    else if ([feature isEqualToString:ALTFeatureHealthKit])
++    {
++        return ALTEntitlementHealthKit;
++    }
+@@ -87,0 +94,4 @@ _Nullable ALTFeature ALTFeatureForEntitlement(ALTEntitlement entitlement)
++    else if ([entitlement isEqualToString:ALTEntitlementHealthKit])
++    {
++        return ALTFeatureHealthKit;
++    }

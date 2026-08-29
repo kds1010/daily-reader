@@ -69,6 +69,31 @@ seed IPAのアドホック署名はHealthKit entitlementをSideStoreへ引き渡
 LANソースを使う場合、初回接続時にiOSがSideStoreのローカルネットワークアクセスを求めたら
 許可してください。
 
+### HealthKit対応SideStore
+
+公式SideStore 0.6.3のAltSignは、元IPAにHealthKit entitlementがあってもApple Developer
+PortalのHealthKit機能へ対応付けないため、再署名後のDaily ReaderからHealthKit entitlementが
+失われます。Daily Readerのseed IPAだけを正しく署名しても解決しません。実機では
+`Missing com.apple.developer.healthkit entitlement`として再現します。
+
+この端末では、SideStore 0.6.3（commit `4deda922`）のAltSign submoduleへ
+[`patches/sidestore-0.6.3-healthkit.patch`](patches/sidestore-0.6.3-healthkit.patch)を適用した
+自己ビルド版を使用します。このパッチは`com.apple.developer.healthkit`とApple Developer
+Portal feature ID `HK421J6T7P`を双方向に対応付けます。公式SideStoreへ更新するとパッチが
+失われるため、HealthKit対応を取り込んだことを実装で確認するまで公式版へ置き換えないでください。
+
+再ビルド時はSideStore 0.6.3をrecursive submodule付きで取得し、AltSign submodule内で
+パッチを適用します。SideStoreの古いビルドスクリプトが`em_proxy`の`latest` releaseから
+互換性のない成果物を取得する場合は、release tag `build`のiOS device/simulator静的ライブラリ、
+ヘッダー、Swift bridgeを使用します。IPA作成前に全`._*`と`.DS_Store`を除外してください。
+AppleDoubleファイルが残るとiOSが`._AltWidgetExtension.appex`をapp extensionとして解釈し、
+インストールが失敗します。
+
+配布前に、SideStore.appの`AltStoreCore.framework/AltStoreCore`へ`HK421J6T7P`が含まれること、
+`codesign --verify --deep --strict`が成功すること、IPAと内包`AltBackup.ipa`に`._*`がないことを
+確認します。USB接続したiPhoneへiLoaderの`Import IPA`で上書きした後、更新済みSideStoreで
+Daily Readerを再インストールし、iOSのHealthKit許可画面と実際の同期成功まで確認します。
+
 SideStore 0.6.3は取得失敗時やIPAダウンロード時に秘密URLを端末ログへ記録し得ます。
 SideStoreまたはiPhoneの診断ログを共有した場合はトークン漏洩として扱います。トークンを
 変更しただけでは保存済みsource URLは更新されないため、Funnelを停止し、新トークンで
