@@ -24,27 +24,44 @@ struct AgentView: View {
     @EnvironmentObject private var model: AppModel
     @Binding var showComposer: Bool
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 14) {
-                StatusHero(title: "Agent Console", subtitle: summary, icon: "terminal.fill", color: .mint)
-                RuntimeInfo(info: model.deploymentInfo, refreshedAt: model.lastUpdated)
-                CodexUsageCard()
-                ForEach(model.agents) { job in AgentCard(job: job) }
-                if model.agents.isEmpty { EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。") }
-                if !model.archivedAgents.isEmpty {
-                    DisclosureGroup("アーカイブ（\(model.archivedAgents.count)）") {
-                        ForEach(model.archivedAgents) { job in AgentCard(job: job, archived: true) }
+        List {
+            StatusHero(title: "Agent Console", subtitle: summary, icon: "terminal.fill", color: .mint)
+                .agentListRow()
+            RuntimeInfo(info: model.deploymentInfo, refreshedAt: model.lastUpdated)
+                .agentListRow()
+            CodexUsageCard()
+                .agentListRow()
+            ForEach(model.agents) { job in
+                AgentCard(job: job)
+                    .agentListRow()
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        archiveButton(for: job)
                     }
-                    .glassCard()
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        archiveButton(for: job)
+                    }
+            }
+            if model.agents.isEmpty {
+                EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。")
+                    .agentListRow()
+            }
+            if !model.archivedAgents.isEmpty {
+                DisclosureGroup("アーカイブ（\(model.archivedAgents.count)）") {
+                    ForEach(model.archivedAgents) { job in AgentCard(job: job, archived: true) }
                 }
-                Button { showComposer = true } label: {
-                    Label("新しいタスク", systemImage: "plus.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.mint)
-            }.padding()
+                .glassCard()
+                .agentListRow()
+            }
+            Button { showComposer = true } label: {
+                Label("新しいタスク", systemImage: "plus.circle.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.mint)
+            .agentListRow()
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .background(AppBackground())
         .navigationTitle("Daily Reader")
         .toolbar {
@@ -62,6 +79,23 @@ struct AgentView: View {
         let running = model.agents.filter { ["queued", "running"].contains($0.status) }.count
         let blocked = model.agents.filter { $0.status == "blocked" }.count
         return blocked > 0 ? "\(blocked)件の判断を待っています" : running > 0 ? "\(running)件を進めています" : "新しい依頼を受け付けられます"
+    }
+
+    private func archiveButton(for job: AgentJob) -> some View {
+        Button {
+            Task { await model.hideAgent(job) }
+        } label: {
+            Label("非表示", systemImage: "archivebox.fill")
+        }
+        .tint(.orange)
+    }
+}
+
+private extension View {
+    func agentListRow() -> some View {
+        listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
 
@@ -155,11 +189,6 @@ struct CodexLimitRow: View {
 }
 
 struct AgentCard: View {
-    private enum DragAxis {
-        case horizontal
-        case vertical
-    }
-
     @EnvironmentObject private var model: AppModel
     let job: AgentJob
     var archived = false
@@ -168,30 +197,10 @@ struct AgentCard: View {
     @State private var fullEvents: [AgentEvent] = []
     @State private var instruction = ""
     @State private var sending = false
-    @State private var dragOffset: CGFloat = 0
-    @State private var dragAxis: DragAxis?
-    @State private var hiding = false
 
     var body: some View {
-        ZStack {
-            if !archived {
-                HStack {
-                    if dragOffset > 0 {
-                        archiveAction
-                    }
-                    Spacer()
-                    if dragOffset < 0 {
-                        archiveAction
-                    }
-                }
-                .padding(.horizontal, 24)
-                .foregroundStyle(.white)
-            }
-            cardContent
-                .offset(x: dragOffset)
-                .simultaneousGesture(cardDragGesture)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 22))
+        cardContent
+            .clipShape(RoundedRectangle(cornerRadius: 22))
     }
 
     private var cardContent: some View {
@@ -261,51 +270,6 @@ struct AgentCard: View {
             }
         }
         .glassCard()
-    }
-
-    private var archiveAction: some View {
-        Label("非表示", systemImage: "archivebox.fill")
-            .font(.caption.bold())
-    }
-
-    private var cardDragGesture: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { value in
-                guard !archived, !hiding else { return }
-                let resolvedAxis = dragAxis ?? dominantAxis(for: value.translation)
-                if dragAxis == nil { dragAxis = resolvedAxis }
-                guard resolvedAxis == .horizontal else { return }
-                dragOffset = max(-140, min(140, value.translation.width))
-            }
-            .onEnded { value in
-                guard !archived, !hiding else { return }
-                defer { dragAxis = nil }
-                guard dragAxis == .horizontal else {
-                    withAnimation(.snappy) { dragOffset = 0 }
-                    return
-                }
-                if abs(value.translation.width) >= 72 {
-                    hiding = true
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        dragOffset = value.translation.width > 0 ? 500 : -500
-                    }
-                    Task {
-                        await model.hideAgent(job)
-                        hiding = false
-                        dragOffset = 0
-                    }
-                } else {
-                    withAnimation(.snappy) { dragOffset = 0 }
-                }
-            }
-    }
-
-    private func dominantAxis(for translation: CGSize) -> DragAxis? {
-        let horizontalDistance = abs(translation.width)
-        let verticalDistance = abs(translation.height)
-        if horizontalDistance > verticalDistance * 1.2 { return .horizontal }
-        if verticalDistance > horizontalDistance * 1.2 { return .vertical }
-        return nil
     }
 
     private var canAttach: Bool {
