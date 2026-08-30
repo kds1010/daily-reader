@@ -48,6 +48,14 @@ struct DaymeldMacApp: App {
         .defaultSize(width: 1120, height: 760)
         .commands {
             CommandGroup(before: .sidebar) {
+                Button("再読み込み") {
+                    Task { await model.refresh() }
+                }
+                .keyboardShortcut("r", modifiers: .command)
+                .disabled(model.isRefreshing)
+
+                Divider()
+
                 Button("拡大") {
                     contentZoom.zoomIn()
                 }
