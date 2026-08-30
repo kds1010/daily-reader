@@ -8,7 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from daily_reader.email_assistant import GmailThreadRecord, upsert_thread
+from daily_reader.email_assistant import (
+    GmailAuthorizationRequired,
+    GmailThreadRecord,
+    upsert_thread,
+)
 from daily_reader.local_server import (
     SideStoreLANServer,
     append_feedback_event,
@@ -548,6 +552,30 @@ def test_main_handler_exposes_all_unread_emails(tmp_path: Path) -> None:
     assert responses[0][0] == 200
     assert [item["thread_id"] for item in responses[0][1]["items"]] == ["thread-1"]
     assert responses[0][1]["sync_error"] is None
+
+
+def test_main_handler_maps_gmail_content_authorization_error_to_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "daily_reader.local_server.fetch_gmail_thread_content",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            GmailAuthorizationRequired("Gmail authorization required")
+        ),
+    )
+    handler_factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json", tmp_path / "gmail-token.json",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.path = "/api/email-content/thread1"
+
+    handler.do_GET()
+
+    assert responses == [(503, {"error": "Gmail authorization required"})]
 
 
 def test_sidestore_lan_server_parses_and_applies_trusted_networks(

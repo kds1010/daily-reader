@@ -46,6 +46,7 @@ from daily_reader.daily_planner import (
     upsert_health_checkin,
 )
 from daily_reader.email_assistant import (
+    GmailAuthorizationRequired,
     fetch_gmail_thread_content,
     get_gmail_sync_state,
     get_gmail_sync_status,
@@ -718,9 +719,17 @@ def make_handler(
                 if not thread_id or not thread_id.isalnum():
                     self._send_json(400, {"error": "invalid thread id"})
                     return
-                content = fetch_gmail_thread_content(
-                    assistant_db, gmail_client_secret, gmail_token, thread_id
-                )
+                try:
+                    content = fetch_gmail_thread_content(
+                        assistant_db, gmail_client_secret, gmail_token, thread_id
+                    )
+                except GmailAuthorizationRequired as error:
+                    self._send_json(503, {"error": str(error)})
+                    return
+                except Exception:  # noqa: BLE001
+                    LOGGER.exception("Could not fetch Gmail thread content")
+                    self._send_json(502, {"error": "Gmail本文を取得できませんでした"})
+                    return
                 if content is None:
                     self._send_json(404, {"error": "email thread not found"})
                     return

@@ -2,6 +2,8 @@
 
 DaymeldのSwiftUIネイティブクライアントです。iPhone版とmacOS版は共通の画面・モデルを使い、既存のMac mini APIへ接続します。Agent画面ではCodexに加えて、別ホストのTailscale Serveで公開されたtanomiをDaymeldの8787 BFF経由で利用できます。Daymeldとtanomiのタスクは更新時刻順の同じカード一覧へまとめ、ミント／紫で出所を区別します。使用状況にはCodexとtanomiの5時間・週次利用枠を表示します。クライアントからtanomiへ直接接続しません。iPhoneのXcodeターゲットとBundle IDは更新互換性のため維持しています。tanomi本体の導入・常駐化はこのリポジトリの責務外です。
 
+メールは対応操作を画面へ即時反映し、メール行を右へフルスワイプして「完了」にできます。カードの「本文を読む」から、Gmailスレッドの本文を必要時だけMac mini API経由で取得して表示します。既存の「既読」操作だけがGmailの未読ラベルを変更し、「完了」はDaymeld内の対応状態を更新します。
+
 ## 実機で試す
 
 1. `ios/DailyReader/DailyReader.xcodeproj`をXcodeで開く。

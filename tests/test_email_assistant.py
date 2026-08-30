@@ -10,6 +10,7 @@ from daily_reader.email_assistant import (
     GmailThreadRecord,
     assess_email,
     clean_message_body,
+    fetch_gmail_thread_content,
     get_gmail_sync_state,
     get_gmail_sync_status,
     gmail_thread_url,
@@ -348,3 +349,74 @@ def test_manual_done_is_preserved_until_a_new_message_arrives(tmp_path: Path) ->
     )
     upsert_thread(database, refreshed, NOW)
     assert len(list_reminders(database, "weekly", NOW)) == 1
+
+
+def test_fetch_gmail_thread_content_returns_messages_in_chronological_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "assistant.sqlite3"
+    upsert_thread(
+        database,
+        GmailThreadRecord(
+            "thread-1", "message-2", "me@example.com", "件名", "a@example.com",
+            NOW.isoformat(), "本文", "https://example.com", "high", 5, "理由",
+            "確認する", None, "open", "classified",
+        ),
+        NOW,
+    )
+
+    class Request:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def execute(self):
+            return self.payload
+
+    class Threads:
+        def get(self, **kwargs):
+            assert kwargs == {"userId": "me", "id": "thread-1", "format": "full"}
+            return Request(
+                {"messages": [
+                    {
+                        "id": "message-2", "internalDate": "2000",
+                        "payload": {
+                            "headers": [{"name": "From", "value": "b@example.com"}],
+                            "body": {"data": ""},
+                        },
+                        "snippet": "新",
+                    },
+                    {
+                        "id": "message-1", "internalDate": "1000",
+                        "payload": {
+                            "headers": [{"name": "From", "value": "a@example.com"}],
+                            "parts": [{
+                                "mimeType": "text/plain",
+                                "body": {"data": "b2xk"},
+                            }],
+                        },
+                    },
+                ]}
+            )
+
+    class Users:
+        def threads(self):
+            return Threads()
+
+    class Service:
+        def users(self):
+            return Users()
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.load_credentials",
+        lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.build", lambda *args, **kwargs: Service()
+    )
+
+    content = fetch_gmail_thread_content(
+        database, tmp_path / "client.json", tmp_path / "token.json", "thread-1"
+    )
+
+    assert content is not None
+    assert [message["body"] for message in content["messages"]] == ["old", "新"]

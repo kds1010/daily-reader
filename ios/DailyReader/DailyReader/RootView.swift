@@ -1061,16 +1061,31 @@ struct HealthCard: View {
 struct EmailView: View {
     @EnvironmentObject private var model: AppModel
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 14) {
-                if let error = model.emailSyncError {
-                    Text(error).appFont(.footnote).foregroundStyle(.orange).frame(maxWidth: .infinity, alignment: .leading).glassCard()
-                }
-                ForEach(model.emails) { email in EmailCard(email: email) }
-                if model.emails.isEmpty { EmptyState(icon: "tray", title: "未読メールはありません", detail: "迷惑メールとゴミ箱を除く未読メールを表示します。") }
-            }.padding()
+        List {
+            if let error = model.emailSyncError {
+                Text(error).appFont(.footnote).foregroundStyle(.orange)
+                    .listRowBackground(Color.clear)
+            }
+            ForEach(model.emails) { email in
+                EmailCard(email: email)
+                    .listRowInsets(EdgeInsets(top: 7, leading: 0, bottom: 7, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button { Task { await model.act(on: email, action: "done") } } label: {
+                            Label("完了", systemImage: "checkmark.circle.fill")
+                        }.tint(.mint)
+                    }
+            }
+            if model.emails.isEmpty {
+                EmptyState(icon: "tray", title: "未読メールはありません", detail: "迷惑メールとゴミ箱を除く未読メールを表示します。")
+                    .listRowBackground(Color.clear)
+            }
         }
-            .background(AppBackground()).navigationTitle("未読メール").refreshable { await model.refresh() }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(AppBackground())
+        .navigationTitle("未読メール")
+        .refreshable { await model.refresh() }
     }
 }
 
@@ -1082,8 +1097,54 @@ struct EmailCard: View {
             HStack { Text(email.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
             Text(email.subject).appFont(.headline)
             Text(email.requiredAction).appFont(.subheadline).foregroundStyle(.secondary)
-            HStack { if let url = email.gmailURL { Link("Gmailで開く", destination: url) }; Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.appFont(.caption, weight: .semibold)
+            HStack { NavigationLink("本文を読む", destination: EmailDetailView(email: email)); if let url = email.gmailURL { Link("Gmailで開く", destination: url) }; Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.appFont(.caption, weight: .semibold)
         }.glassCard()
+    }
+}
+
+struct EmailDetailView: View {
+    @EnvironmentObject private var model: AppModel
+    let email: EmailReminder
+    @State private var content: EmailThreadContent?
+    @State private var errorMessage: String?
+    @State private var loading = false
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                Text(email.subject).appFont(.title3, weight: .bold)
+                if loading {
+                    ProgressView("本文を取得しています…")
+                } else if let errorMessage {
+                    Text(errorMessage).appFont(.subheadline).foregroundStyle(.orange)
+                    Button("再取得") { Task { await load() } }.buttonStyle(.borderedProminent)
+                } else if let content {
+                    ForEach(Array(content.messages.enumerated()), id: \.offset) { _, message in
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(message.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan)
+                            Text(message.receivedAt.relativeTime).appFont(.caption2).foregroundStyle(.secondary)
+                            Text(message.body.isEmpty ? "本文を取得できませんでした。" : message.body)
+                                .appFont(.body).textSelection(.enabled)
+                        }.glassCard()
+                    }
+                }
+            }.padding()
+        }
+        .background(AppBackground())
+        .navigationTitle("メール本文")
+        .task { await load() }
+    }
+
+    private func load() async {
+        guard !loading else { return }
+        loading = true
+        errorMessage = nil
+        defer { loading = false }
+        do {
+            content = try await model.fetchEmailContent(threadID: email.threadID)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 

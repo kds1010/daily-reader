@@ -414,6 +414,32 @@ struct EmailReminder: Decodable, Identifiable {
     }
 }
 
+struct EmailThreadContent: Decodable {
+    let threadID: String
+    let subject: String
+    let accountEmail: String
+    let messages: [EmailMessage]
+
+    enum CodingKeys: String, CodingKey {
+        case threadID = "thread_id"
+        case subject
+        case accountEmail = "account_email"
+        case messages
+    }
+}
+
+struct EmailMessage: Decodable {
+    let sender: String
+    let receivedAt: String
+    let body: String
+
+    enum CodingKeys: String, CodingKey {
+        case sender
+        case receivedAt = "received_at"
+        case body
+    }
+}
+
 struct ArticleEnvelope: Decodable { let articles: [Article] }
 
 struct Article: Decodable, Identifiable {

@@ -40,6 +40,7 @@ final class AppModel: ObservableObject {
     private var agentRefreshGeneration = 0
     private var tanomiRefreshGeneration = 0
     private var snapshotRefreshInProgress = false
+    private var pendingEmailActions: [String: (email: EmailReminder, index: Int)] = [:]
 
     func start() async {
 #if os(iOS)
@@ -70,7 +71,8 @@ final class AppModel: ObservableObject {
         }
         do {
             let mail = try await api.get("api/emails/unread", as: EmailEnvelope.self)
-            emails = mail.items
+            let pendingIDs = Set(pendingEmailActions.keys)
+            emails = mail.items.filter { !pendingIDs.contains($0.threadID) }
             emailSyncError = mail.syncError
             emailCanMarkRead = mail.canMarkRead ?? true
             updated = true
@@ -249,10 +251,24 @@ final class AppModel: ObservableObject {
     }
 
     func act(on email: EmailReminder, action: String) async {
+        guard pendingEmailActions[email.threadID] == nil,
+              let index = emails.firstIndex(where: { $0.threadID == email.threadID }) else { return }
+        pendingEmailActions[email.threadID] = (email, index)
+        emails.remove(at: index)
         do {
             let _: EmptyResponse = try await api.post("api/email-status", body: EmailAction(threadID: email.threadID, action: action), as: EmptyResponse.self)
-            await refresh()
+            pendingEmailActions.removeValue(forKey: email.threadID)
         } catch { errorMessage = error.localizedDescription }
+        if pendingEmailActions[email.threadID] != nil {
+            let pending = pendingEmailActions.removeValue(forKey: email.threadID)!
+            let restoredIndex = min(pending.index, emails.count)
+            emails.insert(pending.email, at: restoredIndex)
+        }
+    }
+
+    func fetchEmailContent(threadID: String) async throws -> EmailThreadContent {
+        let encoded = threadID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? threadID
+        return try await api.get("api/email-content/\(encoded)", as: EmailThreadContent.self)
     }
 
 #if os(iOS)
