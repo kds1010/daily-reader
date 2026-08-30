@@ -167,6 +167,20 @@ struct TanomiRepository: Decodable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey { case path, label, name }
 }
 
+struct TanomiConfig: Decodable, Equatable {
+    let models: [String]
+    let defaultModel: String
+    let efforts: [String]
+    let defaultEffort: String?
+    let permissionModes: [String]
+    enum CodingKeys: String, CodingKey {
+        case models, efforts
+        case defaultModel = "default_model"
+        case defaultEffort = "default_effort"
+        case permissionModes = "permission_modes"
+    }
+}
+
 struct TanomiBuckets: Decodable {
     let tasks: [TanomiTask]
     let archived: [TanomiTask]

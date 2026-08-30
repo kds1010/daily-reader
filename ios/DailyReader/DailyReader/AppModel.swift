@@ -10,6 +10,7 @@ final class AppModel: ObservableObject {
     @Published var tanomiTasks: [TanomiTask] = []
     @Published var tanomiArchivedTasks: [TanomiTask] = []
     @Published var tanomiRepositories: [TanomiRepository] = []
+    @Published var tanomiConfig = TanomiConfig(models: ["opus"], defaultModel: "opus", efforts: ["low", "medium", "high", "xhigh", "max"], defaultEffort: nil, permissionModes: ["acceptEdits", "plan", "manual", "bypassPermissions"])
     @Published var tanomiAvailable = false
     @Published var tanomiStatusMessage: String?
     @Published var tanomiUsage: TanomiUsage?
@@ -113,11 +114,11 @@ final class AppModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription; return false }
     }
 
-    func createTanomi(prompt: String, repo: String, model: String, permissionMode: String) async -> Bool {
+    func createTanomi(prompt: String, repo: String, model: String, permissionMode: String, effort: String?) async -> Bool {
         do {
             let _: EmptyResponse = try await api.post(
                 "api/tanomi/tasks",
-                body: NewTanomiTask(prompt: prompt, repo: repo, model: model, permissionMode: permissionMode),
+                body: NewTanomiTask(prompt: prompt, repo: repo, model: model, permissionMode: permissionMode, effort: effort),
                 as: EmptyResponse.self
             )
             await refreshAgents()
@@ -157,15 +158,17 @@ final class AppModel: ObservableObject {
         let generation = tanomiRefreshGeneration
         do {
             async let repositories: [TanomiRepository] = api.get("api/tanomi/repos")
+            async let config: TanomiConfig = api.get("api/tanomi/config")
             async let buckets: TanomiBuckets = api.get(
                 "api/tanomi/tasks",
                 queryItems: [URLQueryItem(name: "limit", value: "50")]
             )
             async let health: TanomiHealth = api.get("api/tanomi/health")
             async let usage: TanomiUsage? = try? api.get("api/tanomi/usage")
-            let (repos, tasks, status, usageSnapshot) = try await (repositories, buckets, health, usage)
+            let (repos, configSnapshot, tasks, status, usageSnapshot) = try await (repositories, config, buckets, health, usage)
             guard generation == tanomiRefreshGeneration else { return false }
             if tanomiRepositories != repos { tanomiRepositories = repos }
+            if tanomiConfig != configSnapshot { tanomiConfig = configSnapshot }
             if tanomiTasks != tasks.tasks { tanomiTasks = tasks.tasks }
             if tanomiArchivedTasks != tasks.archived { tanomiArchivedTasks = tasks.archived }
             if tanomiAvailable != status.ok { tanomiAvailable = status.ok }

@@ -84,7 +84,9 @@ const elements = {
   tanomiPrompt: document.querySelector("#tanomi-prompt"),
   tanomiRepository: document.querySelector("#tanomi-repository"),
   tanomiModel: document.querySelector("#tanomi-model"),
+  tanomiEffort: document.querySelector("#tanomi-effort"),
   tanomiPermission: document.querySelector("#tanomi-permission"),
+  tanomiOptionsSummary: document.querySelector("#tanomi-options-summary"),
   tanomiJobs: document.querySelector("#tanomi-jobs"),
   tanomiStatus: document.querySelector("#tanomi-status"),
   tanomiHealth: document.querySelector("#tanomi-health"),
@@ -826,6 +828,23 @@ function setTanomiEnabled(enabled) {
 
 async function loadTanomiTasks() {
   try {
+    const configResponse = await fetchWithTimeout("./api/tanomi/config", { cache: "no-store" });
+    if (configResponse.ok) {
+      const config = await configResponse.json();
+      const selectedModel = elements.tanomiModel.value;
+      elements.tanomiModel.replaceChildren(...(config.models || []).map((value) => {
+        const option = document.createElement("option");
+        option.value = value; option.textContent = value; return option;
+      }));
+      if ([...elements.tanomiModel.options].some((o) => o.value === selectedModel)) elements.tanomiModel.value = selectedModel;
+      else if ([...elements.tanomiModel.options].some((o) => o.value === config.default_model)) elements.tanomiModel.value = config.default_model;
+      const efforts = config.efforts || [];
+      const currentEffort = elements.tanomiEffort.value;
+      elements.tanomiEffort.replaceChildren(new Option("既定", ""), ...efforts.map((value) => new Option(value, value)));
+      if ([...elements.tanomiEffort.options].some((o) => o.value === currentEffort)) elements.tanomiEffort.value = currentEffort;
+      else elements.tanomiEffort.value = config.default_effort || "";
+      updateTanomiOptionsSummary();
+    }
     const [reposResponse, tasksResponse, healthResponse] = await Promise.all([
       fetchWithTimeout("./api/tanomi/repos", { cache: "no-store" }),
       fetchWithTimeout("./api/tanomi/tasks?limit=50", { cache: "no-store" }),
@@ -857,6 +876,10 @@ async function loadTanomiTasks() {
     elements.tanomiHealth.textContent = "接続不可";
     setTanomiEnabled(false);
   }
+}
+
+function updateTanomiOptionsSummary() {
+  elements.tanomiOptionsSummary.textContent = `詳細（${elements.tanomiModel.value || "モデル未選択"}・Effort ${elements.tanomiEffort.value || "既定"}・${elements.tanomiPermission.value}）`;
 }
 
 function codexWindowLabel(minutes) {
@@ -1806,6 +1829,7 @@ elements.tanomiForm.addEventListener("submit", async (event) => {
       repo: elements.tanomiRepository.value,
       model: elements.tanomiModel.value || "opus",
       permission_mode: elements.tanomiPermission.value,
+      ...(elements.tanomiEffort.value ? { effort: elements.tanomiEffort.value } : {}),
     });
     elements.tanomiPrompt.value = "";
     await loadTanomiTasks();
@@ -1815,6 +1839,9 @@ elements.tanomiForm.addEventListener("submit", async (event) => {
     submit.disabled = false;
   }
 });
+elements.tanomiModel.addEventListener("change", updateTanomiOptionsSummary);
+elements.tanomiEffort.addEventListener("change", updateTanomiOptionsSummary);
+elements.tanomiPermission.addEventListener("change", updateTanomiOptionsSummary);
 elements.taskForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(elements.taskForm);

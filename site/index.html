@@ -90,8 +90,9 @@
           <form id="tanomi-form" class="agent-form">
             <textarea id="tanomi-prompt" name="prompt" required maxlength="100000" rows="3" aria-label="tanomiタスク" placeholder="tanomiへ依頼する内容"></textarea>
             <select id="tanomi-repository" name="repo" required aria-label="tanomiリポジトリ"></select>
-            <details class="tanomi-options"><summary>詳細設定</summary>
-              <label>モデル <input id="tanomi-model" name="model" value="opus" pattern="[A-Za-z0-9._-]{1,64}"></label>
+            <details class="tanomi-options"><summary id="tanomi-options-summary">詳細（opus・Effort 既定・acceptEdits）</summary>
+              <label>モデル <select id="tanomi-model" name="model" required></select></label>
+              <label>Effort <select id="tanomi-effort" name="effort"><option value="">既定</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
               <label>権限 <select id="tanomi-permission" name="permission_mode"><option>acceptEdits</option><option>plan</option><option>manual</option><option>bypassPermissions</option></select></label>
             </details>
             <button type="submit" class="primary-button">依頼</button>

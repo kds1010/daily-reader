@@ -407,6 +407,10 @@ struct TanomiComposer: View {
     @State private var prompt = ""
     @State private var repo = ""
     @State private var sending = false
+    @State private var selectedModel = "opus"
+    @State private var selectedEffort = ""
+    @State private var permissionMode = "acceptEdits"
+    @State private var confirmBypass = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -421,9 +425,10 @@ struct TanomiComposer: View {
                 .lineLimit(2...5).textFieldStyle(.roundedBorder)
             HStack {
                 Button("依頼") {
+                    if permissionMode == "bypassPermissions" { confirmBypass = true; return }
                     Task {
                         sending = true
-                        if await model.createTanomi(prompt: prompt, repo: repo, model: "opus", permissionMode: "acceptEdits") { prompt = "" }
+                        if await model.createTanomi(prompt: prompt, repo: repo, model: selectedModel, permissionMode: permissionMode, effort: selectedEffort.isEmpty ? nil : selectedEffort) { prompt = "" }
                         sending = false
                     }
                 }.buttonStyle(.borderedProminent).disabled(!model.tanomiAvailable || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo.isEmpty || sending)
@@ -434,14 +439,30 @@ struct TanomiComposer: View {
                     }
                 }.pickerStyle(.menu).disabled(model.tanomiRepositories.isEmpty || !model.tanomiAvailable || sending)
             }
+            DisclosureGroup("詳細（\(selectedModel)・Effort \(selectedEffort.isEmpty ? "既定" : selectedEffort)・\(permissionMode)）") {
+                Picker("モデル", selection: $selectedModel) { ForEach(model.tanomiConfig.models, id: \.self) { Text($0).tag($0) } }
+                Picker("Effort", selection: $selectedEffort) { Text("既定").tag(""); ForEach(model.tanomiConfig.efforts, id: \.self) { Text($0).tag($0) } }
+                Picker("権限", selection: $permissionMode) { ForEach(model.tanomiConfig.permissionModes, id: \.self) { Text($0).tag($0) } }
+            }.appFont(.caption)
             if !model.tanomiAvailable && model.tanomiTasks.isEmpty {
                 Text(model.tanomiStatusMessage.map { "tanomiを利用できません：\($0)" } ?? "tanomiは現在利用できません。")
                     .appFont(.subheadline).foregroundStyle(.secondary)
             }
         }.glassCard()
+        .alert("tanomiに強い権限を許可しますか？", isPresented: $confirmBypass) {
+            Button("キャンセル", role: .cancel) {}
+            Button("許可して依頼", role: .destructive) {
+                Task { sending = true; if await model.createTanomi(prompt: prompt, repo: repo, model: selectedModel, permissionMode: permissionMode, effort: selectedEffort.isEmpty ? nil : selectedEffort) { prompt = "" }; sending = false }
+            }
+        }
         .onAppear { if repo.isEmpty { repo = model.tanomiRepositories.first?.path ?? "" } }
         .onChange(of: model.tanomiRepositories, initial: true) { _, values in
             if !values.contains(where: { $0.path == repo }) { repo = values.first?.path ?? "" }
+        }
+        .onChange(of: model.tanomiConfig, initial: true) { _, config in
+            if !config.models.contains(selectedModel) { selectedModel = config.defaultModel }
+            if !selectedEffort.isEmpty && !config.efforts.contains(selectedEffort) { selectedEffort = config.defaultEffort ?? "" }
+            if !config.permissionModes.contains(permissionMode) { permissionMode = config.permissionModes.first ?? "acceptEdits" }
         }
     }
 }

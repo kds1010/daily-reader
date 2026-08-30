@@ -151,6 +151,8 @@ class FakeTanomiClient:
             raise self.error
         if path == "/api/repos":
             return {"repos": [{"path": "/tmp/example", "label": "Example"}]}
+        if path == "/api/whoami":
+            return {"user": "hidden", "host": "hidden", "models": ["opus"], "default_model": "opus"}
         return {"tasks": [], "archived": [], "deleted": []}
 
     def request_usage(self) -> object:
@@ -215,6 +217,55 @@ def test_tanomi_usage_route_uses_resilient_client_method(tmp_path: Path) -> None
 
     assert responses == [(200, {"limits": {}, "running": 0})]
     assert client.calls == [("GET", "/api/usage", None, None)]
+
+
+def test_tanomi_config_route_filters_identity_fields(tmp_path: Path) -> None:
+    client = FakeTanomiClient()
+    handler, responses = tanomi_handler(tmp_path, client)
+    handler.path = "/api/tanomi/config"
+    handler.do_GET()
+    assert responses == [
+        (
+            200,
+            {
+                "models": ["opus"],
+                "default_model": "opus",
+                "permission_modes": ["acceptEdits", "bypassPermissions", "manual", "plan"],
+                "efforts": ["high", "low", "max", "medium", "xhigh"],
+                "default_effort": None,
+            },
+        )
+    ]
+    assert client.calls == [("GET", "/api/whoami", None, None)]
+
+
+def test_tanomi_post_forwards_valid_effort(tmp_path: Path) -> None:
+    client = FakeTanomiClient()
+    handler, responses = tanomi_handler(tmp_path, client)
+    handler.path = "/api/tanomi/tasks"
+    handler._read_json = lambda *_args: {
+        "prompt": "確認する",
+        "repo": "/tmp/example",
+        "model": "opus",
+        "permission_mode": "acceptEdits",
+        "effort": "high",
+    }
+    handler.do_POST()
+    assert responses == [(201, {"tasks": [], "archived": [], "deleted": []})]
+    assert client.calls == [
+        (
+            "POST",
+            "/api/tasks",
+            {
+                "prompt": "確認する",
+                "repo": "/tmp/example",
+                "model": "opus",
+                "permission_mode": "acceptEdits",
+                "effort": "high",
+            },
+            None,
+        )
+    ]
 
 
 def test_tanomi_route_maps_unavailable_upstream_to_503(tmp_path: Path) -> None:

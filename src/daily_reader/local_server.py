@@ -67,6 +67,8 @@ from daily_reader.tanomi_client import (
     TanomiUnavailable,
 )
 
+TANOMI_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+
 LOGGER = logging.getLogger(__name__)
 MODEL_CACHE_TTL = 300.0
 MODEL_CACHE_LOCK = threading.Lock()
@@ -634,6 +636,17 @@ def make_handler(
                         payload = tanomi.request_usage()
                     elif parts == ["", "api", "tanomi", "health"]:
                         payload = tanomi.request_json("GET", "/api/health")
+                    elif parts == ["", "api", "tanomi", "config"]:
+                        upstream = tanomi.request_json("GET", "/api/whoami")
+                        if not isinstance(upstream, dict):
+                            raise ValueError("invalid tanomi config")
+                        payload = {
+                            "models": upstream.get("models", []),
+                            "default_model": upstream.get("default_model", "opus"),
+                            "permission_modes": upstream.get("permission_modes", sorted(MODES)),
+                            "efforts": upstream.get("efforts", sorted(TANOMI_EFFORTS)),
+                            "default_effort": upstream.get("default_effort"),
+                        }
                     elif len(parts) == 5 and parts[4] == "tasks":
                         raise ValueError("invalid tanomi path")
                     elif len(parts) == 5 and parts[3] == "tasks" and TASK_ID.fullmatch(parts[4]):
@@ -804,7 +817,7 @@ def make_handler(
                                 raise ValueError("invalid parent_id")
                             payload["parent_id"] = parent_id
                         else:
-                            for key in ("repo", "model", "permission_mode"):
+                            for key in ("repo", "model", "permission_mode", "effort"):
                                 if key in request:
                                     payload[key] = request[key]
                             if "model" in payload and (
@@ -817,6 +830,11 @@ def make_handler(
                                 and payload["permission_mode"] not in MODES
                             ):
                                 raise ValueError("invalid permission_mode")
+                            if "effort" in payload and (
+                                not isinstance(payload["effort"], str)
+                                or payload["effort"] not in TANOMI_EFFORTS
+                            ):
+                                raise ValueError("invalid effort")
                         self._send_json(201, tanomi.request_json("POST", "/api/tasks", payload))
                         return
                     if (
