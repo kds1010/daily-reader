@@ -331,6 +331,8 @@ main,
   overflow: hidden;
   border-radius: 12px;
   background: #b43a32;
+  transition: max-height .28s ease, opacity .28s ease, margin .28s ease;
+  max-height: 1200px;
 }
 
 .agent-swipe-action {
@@ -356,6 +358,35 @@ main,
 .agent-swipe-container.is-hiding .agent-job { transform: translateX(-105%); }
 
 .agent-swipe-container.is-hiding.hide-right .agent-job { transform: translateX(105%); }
+
+.agent-swipe-container.is-archive-confirmed {
+  background: #c97718;
+}
+
+.agent-swipe-container.is-archive-confirmed::after {
+  content: "✓ アーカイブしました";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: .86rem;
+  font-weight: 800;
+  pointer-events: none;
+  opacity: 1;
+}
+
+.agent-swipe-container.is-archive-confirmed .agent-job { opacity: .18; }
+
+.agent-swipe-container.is-collapsing {
+  max-height: 0;
+  margin-block: 0;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-swipe-container { transition-duration: .01ms; }
+}
 
 .agent-job { touch-action: pan-y; }
 

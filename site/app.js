@@ -494,6 +494,20 @@ function renderAgentJob(job, archived = false) {
     swipeContainer.classList.toggle("is-hiding", swiped);
     try {
       await postJson("./api/agent-jobs/hide", { job_id: job.id });
+      swipeContainer.classList.add("is-archive-confirmed");
+      await new Promise((resolve) => window.setTimeout(resolve, 360));
+      swipeContainer.classList.add("is-collapsing");
+      await new Promise((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          swipeContainer.removeEventListener("transitionend", finish);
+          resolve();
+        };
+        swipeContainer.addEventListener("transitionend", finish);
+        window.setTimeout(finish, 420);
+      });
       swipeContainer.remove();
       await loadAgentJobs();
     } catch (error) {
