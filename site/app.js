@@ -1080,6 +1080,20 @@ function emailStatusLabel(status) {
   return status === "awaiting_reply" ? "返信待ち" : status === "snoozed" ? "保留中" : "未対応";
 }
 
+function formatEmailReceivedAt(value, now = new Date()) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const dateText = new Intl.DateTimeFormat("ja-JP", {
+    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+  }).format(date);
+  const receivedDay = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysAgo = Math.round((today - receivedDay) / 86400000);
+  const relative = daysAgo === 0 ? "今日" : daysAgo > 0 ? `${daysAgo}日前` : "未来";
+  return `受信 ${dateText}（${relative}）`;
+}
+
 async function updateEmailStatus(threadId, action) {
   const response = await fetchWithTimeout("./api/email-status", {
     method: "POST",
@@ -1138,7 +1152,8 @@ async function loadUnreadEmails() {
       card.className = `email-card importance-${email.importance}`;
       const meta = document.createElement("p");
       meta.className = "email-meta";
-      meta.textContent = `${emailStatusLabel(email.status)}・${email.sender}`;
+      const received = formatEmailReceivedAt(email.received_at);
+      meta.textContent = `${emailStatusLabel(email.status)}・${email.sender}${received ? `・${received}` : ""}`;
       const title = document.createElement("h3");
       title.textContent = email.subject;
       const reason = document.createElement("p");

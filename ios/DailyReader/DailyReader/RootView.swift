@@ -1145,6 +1145,9 @@ struct EmailCard: View {
                 NavigationLink(destination: EmailDetailView(email: email)) {
                     VStack(alignment: .leading, spacing: 7) {
                         HStack { Text(email.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
+                        if let received = email.receivedAt?.emailReceivedDisplay() {
+                            Text(received).appFont(.caption2).foregroundStyle(.secondary)
+                        }
                         Text(email.subject).appFont(.headline).foregroundStyle(.primary)
                         Text(email.requiredAction).appFont(.subheadline).foregroundStyle(.secondary)
                     }

@@ -484,4 +484,18 @@ extension String {
         guard let date = iso8601Date else { return self }
         return date.formatted(.relative(presentation: .named))
     }
+
+    func emailReceivedDisplay(now: Date = .now) -> String? {
+        guard let date = iso8601Date else { return nil }
+        let calendar = Calendar.current
+        var dateFormat = Date.FormatStyle().month(.defaultDigits).day(.defaultDigits)
+        if calendar.component(.year, from: date) != calendar.component(.year, from: now) {
+            dateFormat = dateFormat.year()
+        }
+        dateFormat = dateFormat.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)
+        let receivedText = date.formatted(dateFormat)
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: now)).day ?? 0
+        let relative = days == 0 ? "今日" : days > 0 ? "\(days)日前" : "未来"
+        return "受信 \(receivedText)（\(relative)）"
+    }
 }

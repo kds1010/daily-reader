@@ -617,6 +617,7 @@ def test_main_handler_exposes_all_unread_emails(tmp_path: Path) -> None:
 
     assert responses[0][0] == 200
     assert [item["thread_id"] for item in responses[0][1]["items"]] == ["thread-1"]
+    assert responses[0][1]["items"][0]["received_at"] == "2020-01-01T00:00:00+00:00"
     assert responses[0][1]["sync_error"] is None
 
 
