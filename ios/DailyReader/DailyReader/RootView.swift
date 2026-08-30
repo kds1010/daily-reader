@@ -31,6 +31,8 @@ struct AgentView: View {
                 .agentListRow()
             CodexUsageCard()
                 .agentListRow()
+            TanomiSection()
+                .agentListRow()
             ForEach(displayedAgents) { job in
                 AgentCard(job: job) { isExpanded in
                     setExpanded(job.id, isExpanded: isExpanded)
@@ -99,6 +101,60 @@ struct AgentView: View {
             Label("非表示", systemImage: "archivebox.fill")
         }
         .tint(.orange)
+    }
+}
+
+struct TanomiSection: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var prompt = ""
+    @State private var repo = ""
+    @State private var sending = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("tanomi", systemImage: "terminal")
+                    .font(.headline)
+                Spacer()
+                Text(model.tanomiAvailable ? "接続中" : "接続不可")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            TextField("tanomiへ依頼する内容", text: $prompt, axis: .vertical)
+                .lineLimit(2...5).textFieldStyle(.roundedBorder)
+            HStack {
+                Picker("リポジトリ", selection: $repo) {
+                    ForEach(model.tanomiRepositories) { item in
+                        Text(item.label ?? item.path).tag(item.path)
+                    }
+                }.pickerStyle(.menu).disabled(model.tanomiRepositories.isEmpty || sending)
+                Spacer()
+                Button("依頼") {
+                    Task {
+                        sending = true
+                        if await model.createTanomi(prompt: prompt, repo: repo, model: "opus", permissionMode: "acceptEdits") { prompt = "" }
+                        sending = false
+                    }
+                }.buttonStyle(.borderedProminent).disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo.isEmpty || sending)
+            }
+            ForEach(model.tanomiTasks) { task in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(task.displayTitle).font(.subheadline.bold())
+                    Text("\(task.status)・\(task.displayRepository)").font(.caption).foregroundStyle(.secondary)
+                    if !task.displayResult.isEmpty { Text(task.displayResult).font(.caption) }
+                    if ["queued", "running"].contains(task.status) {
+                        Button("停止") { Task { await model.stopTanomi(task) } }.font(.caption)
+                    }
+                }.padding(.vertical, 4)
+            }
+            if !model.tanomiAvailable && model.tanomiTasks.isEmpty {
+                Text("tanomiは現在利用できません。")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+        }.glassCard()
+        .onAppear { if repo.isEmpty { repo = model.tanomiRepositories.first?.path ?? "" } }
+        .onChange(of: model.tanomiRepositories, initial: true) { _, values in
+            if !values.contains(where: { $0.path == repo }) { repo = values.first?.path ?? "" }
+        }
     }
 }
 

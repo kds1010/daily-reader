@@ -50,6 +50,14 @@ from daily_reader.email_assistant import (
     update_status,
 )
 from daily_reader.highlights import generate_highlights
+from daily_reader.tanomi_client import (
+    MODEL,
+    MODES,
+    TASK_ID,
+    TanomiClient,
+    TanomiError,
+    TanomiUnavailable,
+)
 
 LOGGER = logging.getLogger(__name__)
 READ_LOG_LOCK = threading.Lock()
@@ -329,8 +337,10 @@ def make_handler(
     agent_db: Path = Path("data/agent.sqlite3"),
     agent_repositories: dict[str, dict[str, str]] | None = None,
     deployment_info: dict[str, str] | None = None,
+    tanomi_client: TanomiClient | None = None,
 ):
     repositories = agent_repositories or {}
+    tanomi = tanomi_client
 
     class DailyReaderHandler(SimpleHTTPRequestHandler):
         def end_headers(self) -> None:
@@ -362,10 +372,74 @@ def make_handler(
                 health_sync_token, self.headers.get("Authorization", "")
             )
 
+        def _tanomi_error(self, error: Exception) -> None:
+            if isinstance(error, TanomiError) and error.status is not None:
+                self._send_json(error.status, {"error": str(error)})
+            elif isinstance(error, TanomiUnavailable):
+                self._send_json(503, {"error": str(error)})
+            else:
+                LOGGER.warning("tanomi request failed: %s", error)
+                self._send_json(502, {"error": "tanomi の応答を処理できませんでした"})
+
+        def _tanomi_parts(self) -> tuple[list[str], dict[str, str]]:
+            parsed = urllib.parse.urlsplit(self.path)
+            parts = [urllib.parse.unquote(part) for part in parsed.path.split("/")]
+            query = dict(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True))
+            return parts, query
+
         def do_GET(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
             if path == "/sidestore" or path.startswith("/sidestore/"):
                 self._send_json(404, {"error": "not found"})
+                return
+            if path.startswith("/api/tanomi/"):
+                if tanomi is None:
+                    self._send_json(503, {"error": "tanomi は設定されていません"})
+                    return
+                parts, query = self._tanomi_parts()
+                try:
+                    if parts == ["", "api", "tanomi", "repos"]:
+                        payload = tanomi.request_json("GET", "/api/repos")
+                    elif parts == ["", "api", "tanomi", "tasks"]:
+                        limit = int(query.get("limit", "50"))
+                        if not 1 <= limit <= 200:
+                            raise ValueError("invalid limit")
+                        payload = tanomi.request_json(
+                            "GET", "/api/tasks", query={"limit": str(limit)}
+                        )
+                    elif parts == ["", "api", "tanomi", "usage"]:
+                        payload = tanomi.request_json("GET", "/api/usage")
+                    elif parts == ["", "api", "tanomi", "health"]:
+                        payload = tanomi.request_json("GET", "/api/health")
+                    elif len(parts) == 5 and parts[4] == "tasks":
+                        raise ValueError("invalid tanomi path")
+                    elif len(parts) == 5 and parts[3] == "tasks" and TASK_ID.fullmatch(parts[4]):
+                        payload = tanomi.request_json("GET", f"/api/tasks/{parts[4]}")
+                    elif (
+                        len(parts) == 6
+                        and parts[3] == "tasks"
+                        and TASK_ID.fullmatch(parts[4])
+                        and parts[5] == "stream"
+                    ):
+                        offset = int(query.get("offset", "0"))
+                        if offset < 0:
+                            raise ValueError("invalid offset")
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/event-stream")
+                        self.send_header("Cache-Control", "no-cache")
+                        self.send_header("Connection", "keep-alive")
+                        self.end_headers()
+                        for line in tanomi.stream(parts[4], offset):
+                            self.wfile.write(line)
+                            self.wfile.flush()
+                        return
+                    else:
+                        raise ValueError("invalid tanomi path")
+                    self._send_json(200, payload)
+                except ValueError:
+                    self._send_json(400, {"error": "invalid tanomi request"})
+                except Exception as error:  # noqa: BLE001
+                    self._tanomi_error(error)
                 return
             if self.path == "/api/deployment":
                 self._send_json(200, deployment_info or {})
@@ -445,6 +519,62 @@ def make_handler(
             super().do_GET()
 
         def do_POST(self) -> None:  # noqa: N802
+            path = urllib.parse.urlsplit(self.path).path
+            if path.startswith("/api/tanomi/"):
+                if tanomi is None:
+                    self._send_json(503, {"error": "tanomi は設定されていません"})
+                    return
+                parts, _ = self._tanomi_parts()
+                try:
+                    request = self._read_json(1_000_000)
+                    if parts == ["", "api", "tanomi", "tasks"]:
+                        prompt = request.get("prompt")
+                        if (
+                            not isinstance(prompt, str)
+                            or not prompt.strip()
+                            or len(prompt) > 100_000
+                        ):
+                            raise ValueError("invalid prompt")
+                        payload: dict[str, object] = {"prompt": prompt}
+                        parent_id = request.get("parent_id")
+                        if parent_id is not None:
+                            if not isinstance(parent_id, str) or not TASK_ID.fullmatch(parent_id):
+                                raise ValueError("invalid parent_id")
+                            payload["parent_id"] = parent_id
+                        else:
+                            for key in ("repo", "model", "permission_mode"):
+                                if key in request:
+                                    payload[key] = request[key]
+                            if "model" in payload and (
+                                not isinstance(payload["model"], str)
+                                or not MODEL.fullmatch(payload["model"])
+                            ):
+                                raise ValueError("invalid model")
+                            if (
+                                "permission_mode" in payload
+                                and payload["permission_mode"] not in MODES
+                            ):
+                                raise ValueError("invalid permission_mode")
+                        self._send_json(201, tanomi.request_json("POST", "/api/tasks", payload))
+                        return
+                    if (
+                        len(parts) == 6
+                        and parts[3] == "tasks"
+                        and TASK_ID.fullmatch(parts[4])
+                        and parts[5]
+                        in {"stop", "retry", "deploy", "archive", "unarchive", "restore"}
+                    ):
+                        self._send_json(
+                            200,
+                            tanomi.request_json("POST", f"/api/tasks/{parts[4]}/{parts[5]}"),
+                        )
+                        return
+                    raise ValueError("invalid tanomi path")
+                except ValueError:
+                    self._send_json(400, {"error": "invalid tanomi request"})
+                except Exception as error:  # noqa: BLE001
+                    self._tanomi_error(error)
+                return
             planner_paths = {
                 "/api/tasks",
                 "/api/task-status",
@@ -577,6 +707,26 @@ def make_handler(
                 self._send_json(400, {"error": "invalid event"})
                 return
             self._send_json(202, {"recorded": True})
+
+        def do_DELETE(self) -> None:  # noqa: N802
+            if tanomi is None:
+                self._send_json(503, {"error": "tanomi は設定されていません"})
+                return
+            parts, query = self._tanomi_parts()
+            if len(parts) != 5 or parts[3] != "tasks" or not TASK_ID.fullmatch(parts[4]):
+                self._send_json(400, {"error": "invalid tanomi path"})
+                return
+            purge = query.get("purge", "false")
+            if purge not in {"true", "false"}:
+                self._send_json(400, {"error": "invalid purge"})
+                return
+            try:
+                payload = tanomi.request_json(
+                    "DELETE", f"/api/tasks/{parts[4]}", query={"purge": purge}
+                )
+                self._send_json(200, payload)
+            except Exception as error:  # noqa: BLE001
+                self._tanomi_error(error)
 
     return functools.partial(DailyReaderHandler, directory=site)
 
@@ -1048,6 +1198,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Serve Daymeld on localhost")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
+    parser.add_argument("--tanomi-base-url", default="http://127.0.0.1:8765")
     parser.add_argument("--site", type=Path, default=Path("site"))
     parser.add_argument("--sidestore-lan-host", default="0.0.0.0")
     parser.add_argument("--sidestore-lan-port", type=int, default=8788)
@@ -1153,6 +1304,7 @@ def main() -> None:
         args.agent_db,
         agent_repositories,
         deployment_info,
+        TanomiClient(args.tanomi_base_url),
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     sidestore_server = start_sidestore_server(

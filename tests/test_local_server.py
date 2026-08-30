@@ -191,6 +191,7 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.update_stats == Path("data/update-stats.jsonl")
     assert args.gmail_client_secret == Path("secrets/gmail-client.json")
     assert args.gmail_token == Path("secrets/gmail-token.json")
+    assert args.tanomi_base_url == "http://127.0.0.1:8765"
 
 
 def test_local_server_accepts_legacy_sidestore_network_option(

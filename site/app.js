@@ -77,6 +77,14 @@ const elements = {
   agentArchive: document.querySelector("#agent-archive"),
   agentArchiveCount: document.querySelector("#agent-archive-count"),
   agentArchivedJobs: document.querySelector("#agent-archived-jobs"),
+  tanomiForm: document.querySelector("#tanomi-form"),
+  tanomiPrompt: document.querySelector("#tanomi-prompt"),
+  tanomiRepository: document.querySelector("#tanomi-repository"),
+  tanomiModel: document.querySelector("#tanomi-model"),
+  tanomiPermission: document.querySelector("#tanomi-permission"),
+  tanomiJobs: document.querySelector("#tanomi-jobs"),
+  tanomiStatus: document.querySelector("#tanomi-status"),
+  tanomiHealth: document.querySelector("#tanomi-health"),
   codexUsageLimits: document.querySelector("#codex-usage-limits"),
   codexUsagePlan: document.querySelector("#codex-usage-plan"),
   codexUsageStatus: document.querySelector("#codex-usage-status"),
@@ -601,6 +609,57 @@ async function loadAgentJobs() {
   }
 }
 
+function renderTanomiJob(task) {
+  const card = document.createElement("article");
+  card.className = `agent-job status-${({ done: "completed", error: "failed", stopped: "cancelled" }[task.status] || task.status)}`;
+  const title = document.createElement("strong");
+  title.textContent = task.title || task.prompt || task.id;
+  const meta = document.createElement("p");
+  meta.textContent = `${task.status}・${task.repo_path || task.cwd || "tanomi"}`;
+  const prompt = document.createElement("p");
+  prompt.textContent = task.result || task.error || task.prompt || "";
+  card.append(title, meta, prompt);
+  if (["queued", "running"].includes(task.status)) {
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "agent-cancel";
+    stop.textContent = "停止";
+    stop.addEventListener("click", async () => {
+      stop.disabled = true;
+      try { await postJson(`./api/tanomi/tasks/${encodeURIComponent(task.id)}/stop`, {}); await loadTanomiTasks(); }
+      catch (error) { elements.tanomiStatus.textContent = `停止できませんでした：${error.message}`; stop.disabled = false; }
+    });
+    card.append(stop);
+  }
+  return card;
+}
+
+async function loadTanomiTasks() {
+  try {
+    const [reposResponse, tasksResponse, healthResponse] = await Promise.all([
+      fetchWithTimeout("./api/tanomi/repos", { cache: "no-store" }),
+      fetchWithTimeout("./api/tanomi/tasks?limit=50", { cache: "no-store" }),
+      fetchWithTimeout("./api/tanomi/health", { cache: "no-store" }),
+    ]);
+    if (!reposResponse.ok || !tasksResponse.ok) throw new Error(`HTTP ${reposResponse.status || tasksResponse.status}`);
+    const repos = await reposResponse.json();
+    const buckets = await tasksResponse.json();
+    elements.tanomiRepository.replaceChildren(...(Array.isArray(repos) ? repos : []).map((repo) => {
+      const option = document.createElement("option");
+      option.value = typeof repo === "string" ? repo : repo.path;
+      option.textContent = typeof repo === "string" ? repo : (repo.label || repo.path);
+      return option;
+    }));
+    const tasks = Array.isArray(buckets.tasks) ? buckets.tasks : [];
+    elements.tanomiJobs.replaceChildren(...tasks.map(renderTanomiJob));
+    elements.tanomiStatus.textContent = `${tasks.length}件・5秒ごとに更新`;
+    elements.tanomiHealth.textContent = healthResponse.ok ? "接続中" : "接続不可";
+  } catch (error) {
+    elements.tanomiStatus.textContent = `tanomiを利用できません：${error.message}`;
+    elements.tanomiHealth.textContent = "接続不可";
+  }
+}
+
 function codexWindowLabel(minutes) {
   if (minutes === 10080) return "週次";
   if (minutes && minutes % 1440 === 0) return `${minutes / 1440}日`;
@@ -694,7 +753,10 @@ async function postJson(url, payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.error || detail?.detail || `HTTP ${response.status}`);
+  }
   return response.json();
 }
 
@@ -1509,6 +1571,28 @@ elements.agentForm.addEventListener("submit", async (event) => {
     submits.forEach((button) => { button.disabled = false; });
   }
 });
+
+elements.tanomiForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submit = elements.tanomiForm.querySelector("button[type='submit']");
+  submit.disabled = true;
+  try {
+    if (elements.tanomiPermission.value === "bypassPermissions"
+        && !window.confirm("任意コマンド実行を許可してtanomiタスクを開始しますか？")) return;
+    await postJson("./api/tanomi/tasks", {
+      prompt: elements.tanomiPrompt.value,
+      repo: elements.tanomiRepository.value,
+      model: elements.tanomiModel.value || "opus",
+      permission_mode: elements.tanomiPermission.value,
+    });
+    elements.tanomiPrompt.value = "";
+    await loadTanomiTasks();
+  } catch (error) {
+    elements.tanomiStatus.textContent = `tanomiタスクを開始できませんでした：${error.message}`;
+  } finally {
+    submit.disabled = false;
+  }
+});
 elements.taskForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = new FormData(elements.taskForm);
@@ -1577,10 +1661,14 @@ loadFeedback().then(() => {
   }
 });
 loadAgentJobs();
+loadTanomiTasks();
 loadCodexUsage();
 loadDeploymentInfo();
 window.setInterval(() => {
   if (currentView === "agent") loadAgentJobs();
+}, 5000);
+window.setInterval(() => {
+  if (currentView === "agent") loadTanomiTasks();
 }, 5000);
 window.setInterval(() => {
   if (currentView === "agent") loadCodexUsage();

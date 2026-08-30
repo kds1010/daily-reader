@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="./style.css?v=49">
+    <link rel="stylesheet" href="./style.css?v=50">
   </head>
   <body>
     <div id="pull-to-refresh" class="pull-to-refresh" role="status" aria-live="polite" aria-hidden="true">
@@ -47,15 +47,6 @@
 
     <main>
       <div id="agent-view" class="app-view" role="tabpanel" aria-labelledby="agent-tab">
-        <section class="codex-usage" aria-labelledby="codex-usage-heading">
-          <div class="section-heading">
-            <h2 id="codex-usage-heading">Codex 使用状況</h2>
-            <span id="codex-usage-plan"></span>
-          </div>
-          <p id="codex-usage-status" class="compact-empty" aria-live="polite">使用状況を読み込んでいます…</p>
-          <div id="codex-usage-limits" class="codex-usage-limits"></div>
-        </section>
-
         <section class="agent-hero" aria-label="Agentタスクを依頼">
           <form id="agent-form" class="agent-form">
             <textarea id="agent-prompt" name="prompt" required maxlength="20000" rows="3"
@@ -63,6 +54,15 @@
             <select id="agent-repository" name="repository" required aria-label="リポジトリ"></select>
             <button type="submit" class="primary-button">依頼</button>
           </form>
+        </section>
+
+        <section class="codex-usage" aria-labelledby="codex-usage-heading">
+          <div class="section-heading">
+            <h2 id="codex-usage-heading">Codex 使用状況</h2>
+            <span id="codex-usage-plan"></span>
+          </div>
+          <p id="codex-usage-status" class="compact-empty" aria-live="polite">使用状況を読み込んでいます…</p>
+          <div id="codex-usage-limits" class="codex-usage-limits"></div>
         </section>
 
         <section class="agent-section" aria-labelledby="agent-jobs-heading">
@@ -77,6 +77,20 @@
             <p class="agent-archive-help">アーカイブから7日後に、履歴・作業環境・タスク用ブランチが自動で削除されます。</p>
             <div id="agent-archived-jobs" class="agent-jobs"></div>
           </details>
+        </section>
+        <section class="agent-section tanomi-section" aria-labelledby="tanomi-heading">
+          <div class="section-heading"><h2 id="tanomi-heading">tanomi</h2><span id="tanomi-health"></span></div>
+          <form id="tanomi-form" class="agent-form">
+            <textarea id="tanomi-prompt" name="prompt" required maxlength="100000" rows="3" aria-label="tanomiタスク" placeholder="tanomiへ依頼する内容"></textarea>
+            <select id="tanomi-repository" name="repo" required aria-label="tanomiリポジトリ"></select>
+            <details class="tanomi-options"><summary>詳細設定</summary>
+              <label>モデル <input id="tanomi-model" name="model" value="opus" pattern="[A-Za-z0-9._-]{1,64}"></label>
+              <label>権限 <select id="tanomi-permission" name="permission_mode"><option>acceptEdits</option><option>plan</option><option>manual</option><option>bypassPermissions</option></select></label>
+            </details>
+            <button type="submit" class="primary-button">依頼</button>
+          </form>
+          <p id="tanomi-status" class="compact-empty" aria-live="polite">tanomiを読み込んでいます…</p>
+          <div id="tanomi-jobs" class="agent-jobs"></div>
         </section>
       </div>
 

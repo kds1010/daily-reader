@@ -7,6 +7,7 @@ Codexへの自律タスク投入、今日やること、重要メール、関心
 ## 主な機能
 
 - AgentタブからCodexへタスクを投入し、専用worktreeで実装・検証・main反映まで継続
+- Agentタブからtanomiへもタスクを投入し、同じ画面で状態と結果を確認
 - Agentタブ最上部からプロンプト、リポジトリ選択、依頼ボタンで直接タスクを投入し、その下にCodexの使用率、残量、リセット日時（月日・時刻）を利用枠ごとに表示
 - Agentタスクの待機、実行、判断待ち、完了、失敗状態をiPhoneから確認
 - 完了タスクのサマリーを確認し、その内容について同じカードからAgentへ質問
@@ -138,6 +139,12 @@ LAN側では`source.json`、`DailyReader.ipa`、`icon.png`の3ファイルだけ
 SideStoreやiPhoneの診断ログも共有しないでください。
 
 Codex CLIがログイン済みの場合は、更新時に注目記事から今日のハイライトを生成します。Snowflake、Databricks、dbt、Apache Icebergなどの公式リリースは製品別に束ね、英語の記事も日本語で要約して原文リンクを添えます。同じ候補記事の組み合わせでは再生成しません。実行にはCodexの利用量を消費しますが、`gpt-5.6-luna`を低推論設定で1回だけ呼び出し、ハイライトと公式リリースまとめを同時に生成します。Codexは`--ephemeral`、`--sandbox read-only`、構造化出力で呼び出され、記事本文中の命令を無視するよう指示されます。
+
+### tanomi連携
+
+Agent画面のtanomi欄は、Daymeldの`127.0.0.1:8787`を経由する同一オリジンBFFから、既定の`127.0.0.1:8765`へ接続します。ブラウザやiPhoneから8765へ直接接続せず、CORSも追加しません。tanomiの停止中もDaymeldの既存Agent・ニュース・メールは利用できます。
+
+`bypassPermissions`、deploy、完全削除は強い実行権限または破壊的操作を伴うため、画面で明示確認を行います。8765のtanomi APIをDaymeld以外の公開ポートやSideStore Funnelへ転送しないでください。
 
 ## TailscaleでiPhoneだけに公開する
 

@@ -54,6 +54,7 @@ actor APIClient {
 }
 
 struct EmptyResponse: Decodable {}
+struct EmptyRequest: Encodable {}
 enum APIClientError: LocalizedError {
     case invalidResponse
     case server(String)
@@ -63,6 +64,13 @@ enum APIClientError: LocalizedError {
 }
 
 struct NewAgentJob: Encodable { let repository: String; let prompt: String; let mode = "execute" }
+struct NewTanomiTask: Encodable {
+    let prompt: String
+    let repo: String
+    let model: String
+    let permissionMode: String
+    enum CodingKeys: String, CodingKey { case prompt, repo, model; case permissionMode = "permission_mode" }
+}
 struct NewTask: Encodable { let title: String; let dueDate: String?; let priority: Int; let recurrence: String
     enum CodingKeys: String, CodingKey { case title, priority, recurrence; case dueDate = "due_date" }
 }

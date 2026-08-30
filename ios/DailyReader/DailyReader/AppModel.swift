@@ -6,6 +6,10 @@ import UserNotifications
 final class AppModel: ObservableObject {
     @Published var agents: [AgentJob] = []
     @Published var archivedAgents: [AgentJob] = []
+    @Published var tanomiTasks: [TanomiTask] = []
+    @Published var tanomiArchivedTasks: [TanomiTask] = []
+    @Published var tanomiRepositories: [TanomiRepository] = []
+    @Published var tanomiAvailable = false
     @Published var repositories: [Repository] = []
     @Published var today: TodayEnvelope?
     @Published var emails: [EmailReminder] = []
@@ -51,6 +55,17 @@ final class AppModel: ObservableObject {
         if await refreshAgentSnapshot() {
             updated = true
         }
+        if let repos = try? await api.get("api/tanomi/repos", as: [TanomiRepository].self) {
+            tanomiRepositories = repos
+        }
+        if let buckets = try? await api.get("api/tanomi/tasks?limit=50", as: TanomiBuckets.self) {
+            tanomiTasks = buckets.tasks
+            tanomiArchivedTasks = buckets.archived
+            tanomiAvailable = true
+            updated = true
+        } else {
+            tanomiAvailable = false
+        }
         do {
             codexUsage = try await api.get("api/codex-usage", as: CodexUsageEnvelope.self)
             codexUsageFailed = false
@@ -78,8 +93,34 @@ final class AppModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription; return false }
     }
 
+    func createTanomi(prompt: String, repo: String, model: String, permissionMode: String) async -> Bool {
+        do {
+            let _: EmptyResponse = try await api.post(
+                "api/tanomi/tasks",
+                body: NewTanomiTask(prompt: prompt, repo: repo, model: model, permissionMode: permissionMode),
+                as: EmptyResponse.self
+            )
+            await refreshAgents()
+            return true
+        } catch { errorMessage = error.localizedDescription; return false }
+    }
+
+    func stopTanomi(_ task: TanomiTask) async {
+        do {
+            let _: EmptyResponse = try await api.post("api/tanomi/tasks/\(task.id)/stop", body: EmptyRequest(), as: EmptyResponse.self)
+            await refreshAgents()
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     func refreshAgents() async {
         _ = await refreshAgentSnapshot()
+        if let buckets = try? await api.get("api/tanomi/tasks?limit=50", as: TanomiBuckets.self) {
+            tanomiTasks = buckets.tasks
+            tanomiArchivedTasks = buckets.archived
+            tanomiAvailable = true
+        } else {
+            tanomiAvailable = false
+        }
     }
 
     @discardableResult

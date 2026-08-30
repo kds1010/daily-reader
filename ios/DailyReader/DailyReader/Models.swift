@@ -11,6 +11,64 @@ struct AgentEnvelope: Decodable {
     }
 }
 
+struct TanomiRepository: Decodable, Identifiable, Hashable {
+    let path: String
+    let label: String?
+    var id: String { path }
+
+    init(from decoder: Decoder) throws {
+        if let value = try? decoder.singleValueContainer().decode(String.self) {
+            path = value
+            label = nil
+            return
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let value = try container.decodeIfPresent(String.self, forKey: .path) {
+            path = value
+        } else {
+            path = try container.decode(String.self, forKey: .name)
+        }
+        label = try container.decodeIfPresent(String.self, forKey: .label)
+    }
+
+    enum CodingKeys: String, CodingKey { case path, label, name }
+}
+
+struct TanomiBuckets: Decodable {
+    let tasks: [TanomiTask]
+    let archived: [TanomiTask]
+    let deleted: [TanomiTask]
+}
+
+struct TanomiTask: Decodable, Identifiable {
+    let id: String
+    let title: String?
+    let prompt: String?
+    let repoPath: String?
+    let cwd: String?
+    let status: String
+    let result: String?
+    let error: String?
+    let model: String?
+    let permissionMode: String?
+    let createdAt: String?
+    let startedAt: String?
+    let endedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, prompt, cwd, status, result, error, model
+        case repoPath = "repo_path"
+        case permissionMode = "permission_mode"
+        case createdAt = "created_at"
+        case startedAt = "started_at"
+        case endedAt = "ended_at"
+    }
+
+    var displayTitle: String { title ?? prompt ?? id }
+    var displayRepository: String { repoPath ?? cwd ?? "tanomi" }
+    var displayResult: String { result ?? error ?? "" }
+}
+
 struct CodexUsageEnvelope: Decodable {
     let rateLimits: CodexRateLimits?
     let rateLimitsByLimitID: [String: CodexLimit]
