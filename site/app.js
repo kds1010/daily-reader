@@ -94,6 +94,40 @@ const elements = {
 };
 
 let currentView = "agent";
+const screenRefreshAgingMs = 5 * 60 * 1000;
+const screenRefreshStaleMs = 10 * 60 * 1000;
+let screenFreshnessTimer;
+
+function screenRefreshFreshness(updatedAt, now = new Date()) {
+  const elapsed = Math.max(0, now.getTime() - updatedAt.getTime());
+  if (elapsed < screenRefreshAgingMs) return "fresh";
+  if (elapsed < screenRefreshStaleMs) return "aging";
+  return "stale";
+}
+
+function scheduleScreenFreshnessUpdate(updatedAt, now) {
+  window.clearTimeout(screenFreshnessTimer);
+  const elapsed = Math.max(0, now.getTime() - updatedAt.getTime());
+  const nextBoundary = elapsed < screenRefreshAgingMs
+    ? screenRefreshAgingMs
+    : elapsed < screenRefreshStaleMs ? screenRefreshStaleMs : null;
+  if (nextBoundary === null) return;
+  screenFreshnessTimer = window.setTimeout(() => updateScreenFreshness(), Math.max(1, nextBoundary - elapsed));
+}
+
+function updateScreenFreshness(now = new Date()) {
+  const updatedAt = new Date(elements.screenUpdatedAt.dateTime);
+  if (Number.isNaN(updatedAt.getTime())) return;
+  const freshness = screenRefreshFreshness(updatedAt, now);
+  const labels = {
+    fresh: "更新から5分未満",
+    aging: "更新から5分以上",
+    stale: "更新から10分以上",
+  };
+  elements.screenUpdatedAt.dataset.freshness = freshness;
+  elements.screenUpdatedAt.setAttribute("aria-label", `${elements.screenUpdatedAt.textContent}（${labels[freshness]}）`);
+  scheduleScreenFreshnessUpdate(updatedAt, now);
+}
 
 function updateScreenUpdatedAt(date = new Date()) {
   const formatted = new Intl.DateTimeFormat("ja-JP", {
@@ -105,6 +139,7 @@ function updateScreenUpdatedAt(date = new Date()) {
   }).format(date);
   elements.screenUpdatedAt.dateTime = date.toISOString();
   elements.screenUpdatedAt.textContent = `画面更新 ${formatted}`;
+  updateScreenFreshness(date);
 }
 
 function switchView(view) {
@@ -1644,6 +1679,10 @@ document.querySelectorAll("[data-email-period]").forEach((button) => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
 }
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) updateScreenFreshness();
+});
+window.addEventListener("pageshow", () => updateScreenFreshness());
 
 updateScreenUpdatedAt();
 loadArticles();

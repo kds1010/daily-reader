@@ -575,6 +575,39 @@ struct StatusHero: View {
 struct Metric: View { let value: String; let label: String; var body: some View { VStack(alignment: .leading) { Text(value).font(.title3.bold().monospacedDigit()); Text(label).font(.caption).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading) } }
 struct SectionTitle: View { let title: String; init(_ title: String) { self.title = title }; var body: some View { Text(title).font(.title3.bold()).frame(maxWidth: .infinity, alignment: .leading) } }
 struct EmptyState: View { let icon: String; let title: String; let detail: String; var body: some View { VStack(spacing: 12) { Image(systemName: icon).font(.largeTitle).foregroundStyle(.secondary); Text(title).font(.headline); Text(detail).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center) }.frame(maxWidth: .infinity).padding(40).glassCard() } }
+private enum ScreenRefreshFreshness {
+    case fresh
+    case aging
+    case stale
+
+    init(updatedAt: Date, now: Date) {
+        let elapsed = max(0, now.timeIntervalSince(updatedAt))
+        if elapsed < 5 * 60 {
+            self = .fresh
+        } else if elapsed < 10 * 60 {
+            self = .aging
+        } else {
+            self = .stale
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .fresh: .green
+        case .aging: Color(red: 0.72, green: 0.86, blue: 0.35)
+        case .stale: .yellow
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .fresh: "更新から5分未満"
+        case .aging: "更新から5分以上"
+        case .stale: "更新から10分以上"
+        }
+    }
+}
+
 struct RuntimeInfo: View {
     let info: DeploymentInfo?
     let refreshedAt: Date?
@@ -589,10 +622,16 @@ struct RuntimeInfo: View {
                     }
                 }
                 if let refreshedAt {
-                    HStack {
-                        Label("画面更新", systemImage: "arrow.clockwise")
-                        Spacer()
-                        Text(refreshedAt.runtimeDisplay)
+                    TimelineView(.periodic(from: refreshedAt, by: 60)) { context in
+                        let freshness = ScreenRefreshFreshness(updatedAt: refreshedAt, now: context.date)
+                        HStack {
+                            Label("画面更新", systemImage: "arrow.clockwise")
+                            Spacer()
+                            Text(refreshedAt.runtimeDisplay)
+                        }
+                        .foregroundStyle(freshness.color)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityValue("\(refreshedAt.runtimeDisplay)、\(freshness.accessibilityLabel)")
                     }
                 }
             }

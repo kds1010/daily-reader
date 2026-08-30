@@ -10,6 +10,9 @@
   --accent-strong: #075a48;
   --accent-soft: #d9eee6;
   --warm: #d69a4c;
+  --screen-fresh: #08765c;
+  --screen-aging: #637500;
+  --screen-stale: #806400;
   --shadow: 0 14px 40px rgb(27 61 47 / 9%);
   --shadow-soft: 0 5px 18px rgb(27 61 47 / 6%);
   font-family: ui-rounded, "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
@@ -111,6 +114,14 @@ main,
   color: var(--muted);
   font-size: 0.7rem;
 }
+
+#screen-updated-at {
+  transition: color 180ms ease;
+}
+
+#screen-updated-at[data-freshness="fresh"] { color: var(--screen-fresh); }
+#screen-updated-at[data-freshness="aging"] { color: var(--screen-aging); }
+#screen-updated-at[data-freshness="stale"] { color: var(--screen-stale); }
 
 .app-tabs {
   position: sticky;
@@ -1303,6 +1314,9 @@ h1 {
     --accent: #78d5b5;
     --accent-strong: #236f5a;
     --accent-soft: #244d40;
+    --screen-fresh: #78d5b5;
+    --screen-aging: #b8d85a;
+    --screen-stale: #f2c65c;
     --shadow: 0 10px 28px rgb(0 0 0 / 22%);
     --shadow-soft: 0 5px 18px rgb(0 0 0 / 18%);
   }
