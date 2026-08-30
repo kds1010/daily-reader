@@ -59,7 +59,7 @@ struct Repository: Codable, Identifiable, Hashable {
     let label: String
 }
 
-struct AgentJob: Decodable, Identifiable {
+struct AgentJob: Decodable, Identifiable, Equatable {
     let id: String
     let repository: String
     let prompt: String
@@ -81,7 +81,7 @@ struct AgentJob: Decodable, Identifiable {
     }
 }
 
-struct AgentEvent: Decodable, Identifiable {
+struct AgentEvent: Decodable, Identifiable, Equatable {
     var id: String { "\(createdAt)-\(kind)-\(message)" }
     let createdAt: String
     let kind: String

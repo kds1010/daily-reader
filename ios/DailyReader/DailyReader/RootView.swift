@@ -20,6 +20,9 @@ struct RootView: View {
 
 struct AgentView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var expandedAgentIDs = Set<String>()
+    @State private var expandedAgentOrder: [String] = []
+
     var body: some View {
         List {
             AgentComposer()
@@ -28,8 +31,10 @@ struct AgentView: View {
                 .agentListRow()
             CodexUsageCard()
                 .agentListRow()
-            ForEach(model.agents) { job in
-                AgentCard(job: job)
+            ForEach(displayedAgents) { job in
+                AgentCard(job: job) { isExpanded in
+                    setExpanded(job.id, isExpanded: isExpanded)
+                }
                     .agentListRow()
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
                         archiveButton(for: job)
@@ -61,10 +66,35 @@ struct AgentView: View {
                 if !Task.isCancelled { await model.refreshAgents() }
             }
         }
+        .onChange(of: model.agents.map(\.id)) { _, ids in
+            expandedAgentIDs.formIntersection(ids)
+            expandedAgentOrder.removeAll { !ids.contains($0) }
+            if expandedAgentIDs.isEmpty { expandedAgentOrder.removeAll() }
+        }
     }
+
+    private var displayedAgents: [AgentJob] {
+        guard !expandedAgentIDs.isEmpty else { return model.agents }
+        let jobsByID = Dictionary(uniqueKeysWithValues: model.agents.map { ($0.id, $0) })
+        let retained = expandedAgentOrder.compactMap { jobsByID[$0] }
+        let retainedIDs = Set(retained.map(\.id))
+        let newJobs = model.agents.filter { !retainedIDs.contains($0.id) }
+        return retained + newJobs
+    }
+
+    private func setExpanded(_ id: String, isExpanded: Bool) {
+        if isExpanded {
+            if expandedAgentIDs.isEmpty { expandedAgentOrder = model.agents.map(\.id) }
+            expandedAgentIDs.insert(id)
+        } else {
+            expandedAgentIDs.remove(id)
+            if expandedAgentIDs.isEmpty { expandedAgentOrder.removeAll() }
+        }
+    }
+
     private func archiveButton(for job: AgentJob) -> some View {
         Button {
-            Task { await model.hideAgent(job) }
+            Task { await model.hideAgent(jobID: job.id) }
         } label: {
             Label("非表示", systemImage: "archivebox.fill")
         }
@@ -173,11 +203,13 @@ struct AgentCard: View {
     @EnvironmentObject private var model: AppModel
     let job: AgentJob
     var archived = false
+    var onExpansionChange: ((Bool) -> Void)? = nil
     @State private var expanded = false
     @State private var showConversation = false
     @State private var fullEvents: [AgentEvent] = []
     @State private var instruction = ""
     @State private var sending = false
+    @State private var actionInFlight = false
 
     var body: some View {
         cardContent
@@ -186,7 +218,10 @@ struct AgentCard: View {
 
     private var cardContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button { withAnimation(.snappy) { expanded.toggle() } } label: {
+            Button {
+                expanded.toggle()
+                onExpansionChange?(expanded)
+            } label: {
                 HStack(spacing: 12) {
                     Image(systemName: statusIcon).foregroundStyle(statusColor).font(.title3)
                     VStack(alignment: .leading, spacing: 5) {
@@ -219,6 +254,7 @@ struct AgentCard: View {
                     }
                 }
                 .font(.caption.bold())
+                .buttonStyle(.borderless)
                 if showConversation {
                     if fullEvents.isEmpty { ProgressView().frame(maxWidth: .infinity) }
                     ForEach(fullEvents) { event in AgentEventRow(event: event) }
@@ -230,7 +266,7 @@ struct AgentCard: View {
                     Button(sendLabel) {
                         Task {
                             sending = true
-                            if await model.sendInstruction(to: job, instruction: instruction) { instruction = "" }
+                            if await model.sendInstruction(jobID: job.id, instruction: instruction) { instruction = "" }
                             sending = false
                         }
                     }
@@ -240,14 +276,31 @@ struct AgentCard: View {
                 }
                 HStack {
                     if !archived && ["queued", "running"].contains(job.status) {
-                        Button("停止", role: .destructive) { Task { await model.cancelAgent(job) } }
+                        Button("停止", role: .destructive) {
+                            guard !actionInFlight else { return }
+                            actionInFlight = true
+                            Task {
+                                await model.cancelAgent(jobID: job.id)
+                                actionInFlight = false
+                            }
+                        }
+                        .disabled(actionInFlight)
                     }
                     Spacer()
                     if !archived {
-                        Button("非表示") { Task { await model.hideAgent(job) } }
+                        Button("非表示") {
+                            guard !actionInFlight else { return }
+                            actionInFlight = true
+                            Task {
+                                await model.hideAgent(jobID: job.id)
+                                actionInFlight = false
+                            }
+                        }
+                        .disabled(actionInFlight)
                     }
                 }
                 .font(.caption.bold())
+                .buttonStyle(.borderless)
             }
         }
         .glassCard()

@@ -21,6 +21,7 @@ final class AppModel: ObservableObject {
     private let api = APIClient.shared
     private let health = HealthService()
     private var previousStates: [String: String] = [:]
+    private var agentRefreshGeneration = 0
 
     func start() async {
         do {
@@ -47,11 +48,7 @@ final class AppModel: ObservableObject {
             emails = mail.items
             updated = true
         }
-        if let agent = try? await api.get("api/agent-jobs", as: AgentEnvelope.self) {
-            notifyAgentChanges(agent.jobs)
-            agents = agent.jobs
-            archivedAgents = agent.archivedJobs
-            repositories = agent.repositories
+        if await refreshAgentSnapshot() {
             updated = true
         }
         do {
@@ -82,14 +79,21 @@ final class AppModel: ObservableObject {
     }
 
     func refreshAgents() async {
-        do {
-            let envelope = try await api.get("api/agent-jobs", as: AgentEnvelope.self)
-            notifyAgentChanges(envelope.jobs)
-            agents = envelope.jobs
-            archivedAgents = envelope.archivedJobs
-            repositories = envelope.repositories
-        } catch {
-        }
+        _ = await refreshAgentSnapshot()
+    }
+
+    @discardableResult
+    private func refreshAgentSnapshot() async -> Bool {
+        agentRefreshGeneration += 1
+        let generation = agentRefreshGeneration
+        guard let envelope = try? await api.get("api/agent-jobs", as: AgentEnvelope.self),
+              generation == agentRefreshGeneration else { return false }
+
+        notifyAgentChanges(envelope.jobs)
+        if agents != envelope.jobs { agents = envelope.jobs }
+        if archivedAgents != envelope.archivedJobs { archivedAgents = envelope.archivedJobs }
+        if repositories != envelope.repositories { repositories = envelope.repositories }
+        return true
     }
 
     func agentDetail(_ jobID: String) async -> AgentJob? {
@@ -102,11 +106,11 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func sendInstruction(to job: AgentJob, instruction: String) async -> Bool {
+    func sendInstruction(jobID: String, instruction: String) async -> Bool {
         do {
             let _: EmptyResponse = try await api.post(
                 "api/agent-jobs/attach",
-                body: AgentInstruction(jobID: job.id, instruction: instruction),
+                body: AgentInstruction(jobID: jobID, instruction: instruction),
                 as: EmptyResponse.self
             )
             await refreshAgents()
@@ -117,18 +121,18 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func cancelAgent(_ job: AgentJob) async {
-        await performAgentAction("api/agent-jobs/cancel", job: job)
+    func cancelAgent(jobID: String) async {
+        await performAgentAction("api/agent-jobs/cancel", jobID: jobID)
     }
 
-    func hideAgent(_ job: AgentJob) async {
-        await performAgentAction("api/agent-jobs/hide", job: job)
+    func hideAgent(jobID: String) async {
+        await performAgentAction("api/agent-jobs/hide", jobID: jobID)
     }
 
-    private func performAgentAction(_ path: String, job: AgentJob) async {
+    private func performAgentAction(_ path: String, jobID: String) async {
         do {
             let _: EmptyResponse = try await api.post(
-                path, body: AgentJobAction(jobID: job.id), as: EmptyResponse.self
+                path, body: AgentJobAction(jobID: jobID), as: EmptyResponse.self
             )
             await refreshAgents()
         } catch {
