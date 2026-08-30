@@ -36,6 +36,8 @@ final class AppModel: ObservableObject {
     private let agentNotifications = AgentNotificationCoordinator()
     #endif
     private var agentRefreshGeneration = 0
+    private var tanomiRefreshGeneration = 0
+    private var snapshotRefreshInProgress = false
 
     func start() async {
 #if os(iOS)
@@ -53,8 +55,12 @@ final class AppModel: ObservableObject {
     func refresh() async {
         guard !isRefreshing else { return }
         isRefreshing = true
+        snapshotRefreshInProgress = true
         errorMessage = nil
-        defer { isRefreshing = false }
+        defer {
+            snapshotRefreshInProgress = false
+            isRefreshing = false
+        }
         var updated = false
         if let day = try? await api.get("api/today", as: TodayEnvelope.self) {
             today = day
@@ -120,12 +126,17 @@ final class AppModel: ObservableObject {
     }
 
     func refreshAgents() async {
+        guard !isRefreshing, !snapshotRefreshInProgress else { return }
+        snapshotRefreshInProgress = true
+        defer { snapshotRefreshInProgress = false }
         _ = await refreshAgentSnapshot()
         _ = await refreshTanomiSnapshot()
     }
 
     @discardableResult
     private func refreshTanomiSnapshot() async -> Bool {
+        tanomiRefreshGeneration += 1
+        let generation = tanomiRefreshGeneration
         do {
             async let repositories: [TanomiRepository] = api.get("api/tanomi/repos")
             async let buckets: TanomiBuckets = api.get(
@@ -134,15 +145,19 @@ final class AppModel: ObservableObject {
             )
             async let health: TanomiHealth = api.get("api/tanomi/health")
             let (repos, tasks, status) = try await (repositories, buckets, health)
-            tanomiRepositories = repos
-            tanomiTasks = tasks.tasks
-            tanomiArchivedTasks = tasks.archived
-            tanomiAvailable = status.ok
-            tanomiStatusMessage = status.ok ? nil : "tanomiのヘルスチェックが失敗しました"
+            guard generation == tanomiRefreshGeneration else { return false }
+            if tanomiRepositories != repos { tanomiRepositories = repos }
+            if tanomiTasks != tasks.tasks { tanomiTasks = tasks.tasks }
+            if tanomiArchivedTasks != tasks.archived { tanomiArchivedTasks = tasks.archived }
+            if tanomiAvailable != status.ok { tanomiAvailable = status.ok }
+            let message = status.ok ? nil : "tanomiのヘルスチェックが失敗しました"
+            if tanomiStatusMessage != message { tanomiStatusMessage = message }
             return true
         } catch {
-            tanomiAvailable = false
-            tanomiStatusMessage = error.localizedDescription
+            guard generation == tanomiRefreshGeneration else { return false }
+            if tanomiAvailable { tanomiAvailable = false }
+            let message = error.localizedDescription
+            if tanomiStatusMessage != message { tanomiStatusMessage = message }
             return false
         }
     }

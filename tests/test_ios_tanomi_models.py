@@ -66,6 +66,15 @@ let task = buckets.tasks[0]
 precondition(task.createdAt == 1788070912.0)
 precondition(task.startedAt == 1788070913.5)
 precondition(task.endedAt == 1788070920.25)
+let sameBuckets = try decoder.decode(TanomiBuckets.self, from: Data(#"""
+{
+  "tasks":[{"id":"0123456789ab","status":"done","result":"完了"}],
+  "archived":[],
+  "deleted":[]
+}
+"""#.utf8))
+precondition(buckets.tasks[0] == buckets.tasks[0])
+precondition(buckets.tasks[0] != sameBuckets.tasks[0])
 print("tanomi contract decoded")
 ''',
         encoding="utf-8",

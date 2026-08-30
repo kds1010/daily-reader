@@ -87,7 +87,7 @@ struct TanomiHealth: Decodable {
     let running: Int?
 }
 
-struct TanomiTask: Decodable, Identifiable {
+struct TanomiTask: Decodable, Identifiable, Equatable {
     let id: String
     let title: String?
     let prompt: String?
