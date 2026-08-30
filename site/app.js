@@ -22,6 +22,8 @@ const state = {
   todayStatus: "今日の予定を読み込んでいます…",
   agentStatus: "Agentタスクを読み込んでいます…",
 };
+const pendingAgentArchives = new Set();
+let agentJobsLoadGeneration = 0;
 
 const elements = {
   articles: document.querySelector("#articles"),
@@ -492,33 +494,28 @@ function renderAgentJob(job, archived = false) {
   const hideJob = async (swiped = false) => {
     if (hiding) return;
     hiding = true;
+    pendingAgentArchives.add(job.id);
     hide.disabled = true;
     swipeContainer.classList.toggle("is-hiding", swiped);
+    swipeContainer.classList.add("is-archive-confirmed", "is-collapsing");
+    swipeContainer.style.height = `${swipeContainer.offsetHeight}px`;
+    requestAnimationFrame(() => { swipeContainer.style.height = "0px"; });
+    const request = postJson("./api/agent-jobs/hide", { job_id: job.id });
     try {
-      await postJson("./api/agent-jobs/hide", { job_id: job.id });
-      swipeContainer.classList.add("is-archive-confirmed");
-      await new Promise((resolve) => window.setTimeout(resolve, 360));
-      swipeContainer.classList.add("is-collapsing");
-      await new Promise((resolve) => {
-        let settled = false;
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          swipeContainer.removeEventListener("transitionend", finish);
-          resolve();
-        };
-        swipeContainer.addEventListener("transitionend", finish);
-        window.setTimeout(finish, 420);
-      });
+      await Promise.all([request, new Promise((resolve) => window.setTimeout(resolve, 220))]);
+      pendingAgentArchives.delete(job.id);
       swipeContainer.remove();
       await loadAgentJobs();
     } catch (error) {
+      pendingAgentArchives.delete(job.id);
       state.agentStatus = `タスクをアーカイブできませんでした：${error.message}`;
       elements.status.textContent = state.agentStatus;
       hide.disabled = false;
       hiding = false;
-      swipeContainer.classList.remove("is-hiding");
+      swipeContainer.classList.remove("is-hiding", "is-archive-confirmed", "is-collapsing");
+      swipeContainer.style.removeProperty("height");
       card.style.removeProperty("transform");
+      await loadAgentJobs();
     }
   };
   hide.addEventListener("click", () => hideJob());
@@ -714,15 +711,18 @@ function updateAgentModels(models, defaultModel) {
 }
 
 async function loadAgentJobs() {
+  const generation = ++agentJobsLoadGeneration;
   try {
     const response = await fetchWithTimeout("./api/agent-jobs", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
+    if (generation !== agentJobsLoadGeneration) return;
     const interactionActive = isAgentInteractionActive();
     if (!interactionActive) {
       updateAgentRepositories(payload.repositories);
       updateAgentModels(payload.models, payload.default_model);
-      elements.agentJobs.replaceChildren(...payload.jobs.map((job) => renderAgentJob(job)));
+      const visibleJobs = payload.jobs.filter((job) => !pendingAgentArchives.has(job.id));
+      elements.agentJobs.replaceChildren(...visibleJobs.map((job) => renderAgentJob(job)));
       const archivedJobs = payload.archived_jobs || [];
       elements.agentArchivedJobs.replaceChildren(
         ...archivedJobs.map((job) => renderAgentJob(job, true)),
@@ -730,9 +730,10 @@ async function loadAgentJobs() {
       elements.agentArchiveCount.textContent = String(archivedJobs.length);
       elements.agentArchive.hidden = archivedJobs.length === 0;
     }
-    elements.agentEmpty.hidden = payload.jobs.length !== 0;
-    const active = payload.jobs.filter((job) => ["queued", "running"].includes(job.status)).length;
-    const blocked = payload.jobs.filter((job) => job.status === "blocked").length;
+    const visibleJobs = payload.jobs.filter((job) => !pendingAgentArchives.has(job.id));
+    elements.agentEmpty.hidden = visibleJobs.length !== 0;
+    const active = visibleJobs.filter((job) => ["queued", "running"].includes(job.status)).length;
+    const blocked = visibleJobs.filter((job) => job.status === "blocked").length;
     elements.agentCount.textContent = String(active + blocked);
     elements.agentCount.hidden = active + blocked === 0;
     elements.agentJobsSummary.textContent = `実行・待機 ${active}件${blocked ? `・判断待ち ${blocked}件` : ""}`;

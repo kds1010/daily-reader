@@ -331,8 +331,7 @@ main,
   overflow: hidden;
   border-radius: 12px;
   background: #b43a32;
-  transition: max-height .28s ease, opacity .28s ease, margin .28s ease;
-  max-height: 1200px;
+  transition: height .22s ease, opacity .22s ease, margin .22s ease;
 }
 
 .agent-swipe-action {
@@ -379,7 +378,7 @@ main,
 .agent-swipe-container.is-archive-confirmed .agent-job { opacity: .18; }
 
 .agent-swipe-container.is-collapsing {
-  max-height: 0;
+  height: 0;
   margin-block: 0;
   opacity: 0;
 }

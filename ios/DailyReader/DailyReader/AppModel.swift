@@ -29,7 +29,6 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
     @Published var selectedTab = 0
-    @Published private(set) var archiveEffectIDs: Set<String> = []
 
     private let api = APIClient.shared
 #if os(iOS)
@@ -44,7 +43,12 @@ final class AppModel: ObservableObject {
     private var tanomiRefreshGeneration = 0
     private var snapshotRefreshInProgress = false
     private var pendingEmailActions: [String: (email: EmailReminder, index: Int)] = [:]
-    private var pendingArchiveIDs: Set<String> = []
+    private struct PendingArchive {
+        let index: Int
+    }
+    private var pendingArchives: [String: PendingArchive] = [:]
+    private var pendingAgentJobs: [String: AgentJob] = [:]
+    private var pendingTanomiTasks: [String: TanomiTask] = [:]
 
     func start() async {
 #if os(iOS)
@@ -134,7 +138,10 @@ final class AppModel: ObservableObject {
     }
 
     func hideTanomi(_ task: TanomiTask) async {
-        await archiveWithEffect(id: "tanomi-\(task.id)") {
+        guard let index = tanomiTasks.firstIndex(where: { $0.id == task.id }) else { return }
+        _ = withAnimation(.easeInOut(duration: 0.24)) { tanomiTasks.remove(at: index) }
+        pendingTanomiTasks[task.id] = task
+        await archiveWithEffect(id: "tanomi-\(task.id)", index: index) {
             try await self.api.post(
                 "api/tanomi/tasks/\(task.id)/archive",
                 body: EmptyRequest(),
@@ -153,7 +160,6 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     private func refreshTanomiSnapshot() async -> Bool {
-        guard !pendingArchiveIDs.contains(where: { $0.hasPrefix("tanomi-") }) else { return false }
         tanomiRefreshGeneration += 1
         let generation = tanomiRefreshGeneration
         do {
@@ -169,7 +175,9 @@ final class AppModel: ObservableObject {
             guard generation == tanomiRefreshGeneration else { return false }
             if tanomiRepositories != repos { tanomiRepositories = repos }
             if tanomiConfig != configSnapshot { tanomiConfig = configSnapshot }
-            if tanomiTasks != tasks.tasks { tanomiTasks = tasks.tasks }
+            let pending = Set(pendingArchives.keys.filter { $0.hasPrefix("tanomi-") }.map { String($0.dropFirst(7)) })
+            let visibleTasks = tasks.tasks.filter { !pending.contains($0.id) }
+            if tanomiTasks != visibleTasks { tanomiTasks = visibleTasks }
             if tanomiArchivedTasks != tasks.archived { tanomiArchivedTasks = tasks.archived }
             if tanomiAvailable != status.ok { tanomiAvailable = status.ok }
             if let usageSnapshot, tanomiUsage != usageSnapshot { tanomiUsage = usageSnapshot }
@@ -190,7 +198,6 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     private func refreshAgentSnapshot() async -> Bool {
-        guard !pendingArchiveIDs.contains(where: { $0.hasPrefix("daymeld-") }) else { return false }
         agentRefreshGeneration += 1
         let generation = agentRefreshGeneration
         guard let envelope = try? await api.get("api/agent-jobs", as: AgentEnvelope.self),
@@ -199,7 +206,9 @@ final class AppModel: ObservableObject {
         for job in agentNotifications.changedJobs(active: envelope.jobs, archived: envelope.archivedJobs) {
             await agentNotifications.schedule(for: job)
         }
-        if agents != envelope.jobs { agents = envelope.jobs }
+        let pending = Set(pendingArchives.keys.filter { $0.hasPrefix("daymeld-") }.map { String($0.dropFirst(8)) })
+        let visibleJobs = envelope.jobs.filter { !pending.contains($0.id) }
+        if agents != visibleJobs { agents = visibleJobs }
         if archivedAgents != envelope.archivedJobs { archivedAgents = envelope.archivedJobs }
         if repositories != envelope.repositories { repositories = envelope.repositories }
         if agentModels != envelope.models { agentModels = envelope.models }
@@ -236,7 +245,11 @@ final class AppModel: ObservableObject {
     }
 
     func hideAgent(jobID: String) async {
-        await archiveWithEffect(id: "daymeld-\(jobID)") {
+        guard let index = agents.firstIndex(where: { $0.id == jobID }) else { return }
+        let job = agents[index]
+        _ = withAnimation(.easeInOut(duration: 0.24)) { agents.remove(at: index) }
+        pendingAgentJobs[jobID] = job
+        await archiveWithEffect(id: "daymeld-\(jobID)", index: index) {
             try await self.api.post("api/agent-jobs/hide", body: AgentJobAction(jobID: jobID), as: EmptyResponse.self)
         }
     }
@@ -252,20 +265,27 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func archiveWithEffect(id: String, action: () async throws -> EmptyResponse) async {
-        guard pendingArchiveIDs.insert(id).inserted else { return }
-        if id.hasPrefix("daymeld-") { agentRefreshGeneration += 1 }
-        else { tanomiRefreshGeneration += 1 }
+    private func archiveWithEffect(id: String, index: Int, action: () async throws -> EmptyResponse) async {
+        guard pendingArchives[id] == nil else { return }
+        pendingArchives[id] = PendingArchive(index: index)
         do {
             _ = try await action()
-            archiveEffectIDs.insert(id)
-            try? await Task.sleep(for: .milliseconds(450))
-            pendingArchiveIDs.remove(id)
+            pendingArchives.removeValue(forKey: id)
+            pendingAgentJobs.removeValue(forKey: String(id.dropFirst(8)))
+            pendingTanomiTasks.removeValue(forKey: String(id.dropFirst(7)))
             await refreshAgents()
-            archiveEffectIDs.remove(id)
         } catch {
-            pendingArchiveIDs.remove(id)
-            archiveEffectIDs.remove(id)
+            let pending = pendingArchives.removeValue(forKey: id)
+            if id.hasPrefix("daymeld-"), let job = pendingAgentJobs.removeValue(forKey: String(id.dropFirst(8))) {
+                _ = withAnimation(.spring(response: 0.42, dampingFraction: 0.78)) {
+                    agents.insert(job, at: min(pending?.index ?? agents.count, agents.count))
+                }
+            }
+            if id.hasPrefix("tanomi-"), let task = pendingTanomiTasks.removeValue(forKey: String(id.dropFirst(7))) {
+                _ = withAnimation(.spring(response: 0.42, dampingFraction: 0.78)) {
+                    tanomiTasks.insert(task, at: min(pending?.index ?? tanomiTasks.count, tanomiTasks.count))
+                }
+            }
             errorMessage = error.localizedDescription
         }
     }
