@@ -2,13 +2,51 @@ import Foundation
 
 struct AgentEnvelope: Decodable {
     let repositories: [Repository]
+    let models: [AgentModelOption]
+    let defaultModel: String
+    let defaultReasoningEffort: String
     let jobs: [AgentJob]
     let archivedJobs: [AgentJob]
 
     enum CodingKeys: String, CodingKey {
-        case repositories, jobs
+        case repositories, jobs, models
+        case defaultModel = "default_model"
+        case defaultReasoningEffort = "default_reasoning_effort"
         case archivedJobs = "archived_jobs"
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        repositories = try container.decode([Repository].self, forKey: .repositories)
+        models = try container.decodeIfPresent([AgentModelOption].self, forKey: .models) ?? [.fallback]
+        defaultModel = try container.decodeIfPresent(String.self, forKey: .defaultModel) ?? AgentModelOption.fallback.slug
+        defaultReasoningEffort = try container.decodeIfPresent(String.self, forKey: .defaultReasoningEffort) ?? AgentModelOption.fallback.defaultReasoningEffort
+        jobs = try container.decode([AgentJob].self, forKey: .jobs)
+        archivedJobs = try container.decodeIfPresent([AgentJob].self, forKey: .archivedJobs) ?? []
+    }
+}
+
+struct AgentModelOption: Decodable, Identifiable, Hashable {
+    let slug: String
+    let displayName: String
+    let defaultReasoningEffort: String
+    let supportedReasoningEfforts: [String]
+
+    var id: String { slug }
+
+    enum CodingKeys: String, CodingKey {
+        case slug
+        case displayName = "display_name"
+        case defaultReasoningEffort = "default_reasoning_effort"
+        case supportedReasoningEfforts = "supported_reasoning_efforts"
+    }
+
+    static let fallback = AgentModelOption(
+        slug: "gpt-5.6-luna",
+        displayName: "GPT-5.6-Luna",
+        defaultReasoningEffort: "low",
+        supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max"]
+    )
 }
 
 struct TanomiRepository: Decodable, Identifiable, Hashable {

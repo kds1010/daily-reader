@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-reader-v60";
+const CACHE_NAME = "daily-reader-v61";
 const APP_ASSETS = [
   "./",
   "./index.html",

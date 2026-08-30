@@ -12,6 +12,19 @@ from typing import Any
 FINAL_STATES = {"completed", "blocked", "failed", "cancelled"}
 JOB_MODES = {"execute", "requirements"}
 ARCHIVE_RETENTION = timedelta(days=7)
+DEFAULT_MODEL = "gpt-5.6-luna"
+DEFAULT_REASONING_EFFORT = "low"
+
+# The app-server catalog is supplied by the local server.  This fallback keeps
+# older clients and an unavailable app-server compatible with the current route.
+FALLBACK_MODEL_OPTIONS = [
+    {
+        "slug": DEFAULT_MODEL,
+        "display_name": "GPT-5.6-Luna",
+        "default_reasoning_effort": DEFAULT_REASONING_EFFORT,
+        "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+    }
+]
 
 
 @contextmanager
@@ -88,6 +101,8 @@ def initialize_database(path: Path) -> None:
                 updated_at TEXT NOT NULL,
                 hidden_at TEXT,
                 follow_up INTEGER NOT NULL DEFAULT 0,
+                model TEXT NOT NULL DEFAULT 'gpt-5.6-luna',
+                reasoning_effort TEXT NOT NULL DEFAULT 'low',
                 finished_at TEXT
             );
             CREATE TABLE IF NOT EXISTS agent_events (
@@ -125,6 +140,14 @@ def initialize_database(path: Path) -> None:
             connection.execute(
                 "ALTER TABLE agent_jobs ADD COLUMN follow_up INTEGER NOT NULL DEFAULT 0"
             )
+        if "model" not in columns:
+            connection.execute(
+                "ALTER TABLE agent_jobs ADD COLUMN model TEXT NOT NULL DEFAULT 'gpt-5.6-luna'"
+            )
+        if "reasoning_effort" not in columns:
+            connection.execute(
+                "ALTER TABLE agent_jobs ADD COLUMN reasoning_effort TEXT NOT NULL DEFAULT 'low'"
+            )
         connection.execute("PRAGMA foreign_keys = ON")
 
 
@@ -136,22 +159,33 @@ def create_job(
     path: Path,
     repositories: dict[str, dict[str, str]],
     payload: dict[str, object],
+    model_options: list[dict[str, object]] | None = None,
 ) -> dict[str, Any]:
     repository = payload.get("repository")
     prompt = payload.get("prompt")
     mode = payload.get("mode", "execute")
+    model = payload.get("model", DEFAULT_MODEL)
+    reasoning_effort = payload.get("reasoning_effort", DEFAULT_REASONING_EFFORT)
     if repository not in repositories:
         raise ValueError("invalid repository")
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 20_000:
         raise ValueError("invalid prompt")
     if mode not in JOB_MODES:
         raise ValueError("invalid mode")
+    if not isinstance(model, str) or not isinstance(reasoning_effort, str):
+        raise ValueError("invalid model")
+    options = model_options or FALLBACK_MODEL_OPTIONS
+    option = next((item for item in options if item.get("slug") == model), None)
+    if option is None or reasoning_effort not in option.get("supported_reasoning_efforts", []):
+        raise ValueError("invalid model or reasoning effort")
     now = _now()
     job = {
         "id": uuid.uuid4().hex,
         "repository": repository,
         "prompt": prompt.strip(),
         "mode": mode,
+        "model": model,
+        "reasoning_effort": reasoning_effort,
         "status": "queued",
         "phase": "待機中",
         "created_at": now,
@@ -161,9 +195,11 @@ def create_job(
     with connect_database(path) as connection:
         connection.execute(
             """INSERT INTO agent_jobs (
-                id, repository, prompt, mode, status, phase, created_at, updated_at
+                id, repository, prompt, mode, model, reasoning_effort,
+                status, phase, created_at, updated_at
             ) VALUES (
-                :id, :repository, :prompt, :mode, :status, :phase, :created_at, :updated_at
+                :id, :repository, :prompt, :mode, :model, :reasoning_effort,
+                :status, :phase, :created_at, :updated_at
             )""",
             job,
         )

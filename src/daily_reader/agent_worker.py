@@ -15,6 +15,8 @@ from time import sleep
 from typing import Any
 
 from daily_reader.agent_jobs import (
+    DEFAULT_MODEL,
+    DEFAULT_REASONING_EFFORT,
     append_event,
     claim_next_job,
     delete_expired_archived_job,
@@ -28,8 +30,6 @@ from daily_reader.agent_jobs import (
 
 LOGGER = logging.getLogger(__name__)
 MAX_TURNS = 8
-IMPLEMENTATION_MODEL = "gpt-5.6-luna"
-IMPLEMENTATION_REASONING_EFFORT = "low"
 DEPLOYMENT_LOCK = Lock()
 ARCHIVE_CLEANUP_LOCK = Lock()
 
@@ -573,6 +573,10 @@ current worktree state. Continue autonomously until the task is committed and ve
             and not existing_worktree
             and job.get("mode", "execute") == "execute"
         )
+        implementation_model = job.get("model") or DEFAULT_MODEL
+        implementation_reasoning_effort = (
+            job.get("reasoning_effort") or DEFAULT_REASONING_EFFORT
+        )
         for attempt in range(1, MAX_TURNS + 1):
             current = get_job(database, job_id)
             if current and current["cancel_requested"]:
@@ -587,17 +591,21 @@ current worktree state. Continue autonomously until the task is committed and ve
                 cleanup_failed_worktree(repository, branch, worktree)
                 return
             update_job(database, job_id, attempts=attempt, phase=f"Codex実行中（{attempt}回目）")
-            use_implementation_model = not follow_up and not (
+            use_implementation_model = (
+                job.get("mode", "execute") == "execute"
+                and not follow_up
+                and not (
                 planning_turn and attempt == 1
+                )
             )
             thread_id, result, messages = run_codex_turn(
                 worktree,
                 schema,
                 prompt,
                 thread_id,
-                model=IMPLEMENTATION_MODEL if use_implementation_model else None,
+                model=implementation_model if use_implementation_model else None,
                 reasoning_effort=(
-                    IMPLEMENTATION_REASONING_EFFORT
+                    implementation_reasoning_effort
                     if use_implementation_model
                     else None
                 ),
@@ -615,7 +623,8 @@ current worktree state. Continue autonomously until the task is committed and ve
                     database,
                     job_id,
                     "model-routing",
-                    f"実装を低コストモデル（{IMPLEMENTATION_MODEL}）へ切り替えました",
+                    "実装モデルを "
+                    f"{implementation_model}（{implementation_reasoning_effort}）へ切り替えました",
                 )
                 continue
             attached = take_pending_instructions(database, job_id)

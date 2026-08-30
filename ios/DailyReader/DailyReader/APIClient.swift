@@ -63,7 +63,18 @@ enum APIClientError: LocalizedError {
     }
 }
 
-struct NewAgentJob: Encodable { let repository: String; let prompt: String; let mode = "execute" }
+struct NewAgentJob: Encodable {
+    let repository: String
+    let prompt: String
+    let model: String
+    let reasoningEffort: String
+    let mode = "execute"
+
+    enum CodingKeys: String, CodingKey {
+        case repository, prompt, model, mode
+        case reasoningEffort = "reasoning_effort"
+    }
+}
 struct NewTanomiTask: Encodable {
     let prompt: String
     let repo: String

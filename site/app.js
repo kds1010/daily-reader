@@ -71,6 +71,9 @@ const elements = {
   agentCount: document.querySelector("#agent-count"),
   agentForm: document.querySelector("#agent-form"),
   agentRepository: document.querySelector("#agent-repository"),
+  agentModel: document.querySelector("#agent-model"),
+  agentReasoningEffort: document.querySelector("#agent-reasoning-effort"),
+  agentModelSummary: document.querySelector("#agent-model-summary"),
   agentJobs: document.querySelector("#agent-jobs"),
   agentJobsSummary: document.querySelector("#agent-jobs-summary"),
   agentEmpty: document.querySelector("#agent-empty"),
@@ -581,6 +584,8 @@ function renderAgentJob(job, archived = false) {
 function isAgentInteractionActive() {
   const activeElement = document.activeElement;
   if (activeElement === elements.agentRepository
+      || activeElement === elements.agentModel
+      || activeElement === elements.agentReasoningEffort
       || elements.agentJobs.contains(activeElement)
       || elements.agentArchivedJobs.contains(activeElement)) {
     return true;
@@ -612,6 +617,85 @@ function updateAgentRepositories(repositories) {
   }
 }
 
+function selectedAgentModelOption() {
+  return [...elements.agentModel.options].find((option) => option.value === elements.agentModel.value);
+}
+
+function updateAgentModelSummary() {
+  const model = selectedAgentModelOption();
+  const modelLabel = model?.textContent || "モデル未選択";
+  const effort = elements.agentReasoningEffort.value || "effort未選択";
+  elements.agentModelSummary.textContent = `詳細（${modelLabel}・${effort}）`;
+}
+
+function updateAgentReasoningEfforts() {
+  const model = selectedAgentModelOption();
+  const efforts = model ? JSON.parse(model.dataset.efforts || "[]") : [];
+  const current = elements.agentReasoningEffort.value;
+  const nextOptions = efforts.map((effort) => ({ value: effort, label: effort }));
+  const existing = [...elements.agentReasoningEffort.options].map((option) => option.value);
+  if (JSON.stringify(existing) !== JSON.stringify(nextOptions.map((option) => option.value))) {
+    elements.agentReasoningEffort.replaceChildren();
+    for (const effort of nextOptions) {
+      const option = document.createElement("option");
+      option.value = effort.value;
+      option.textContent = effort.label;
+      elements.agentReasoningEffort.append(option);
+    }
+  }
+  if (efforts.includes(current)) {
+    elements.agentReasoningEffort.value = current;
+  } else if (model && efforts.includes(model.dataset.defaultEffort)) {
+    elements.agentReasoningEffort.value = model.dataset.defaultEffort;
+  } else if (efforts.length) {
+    elements.agentReasoningEffort.value = efforts[0];
+  }
+  elements.agentReasoningEffort.disabled = !efforts.length;
+  updateAgentModelSummary();
+}
+
+function updateAgentModels(models, defaultModel) {
+  const current = elements.agentModel.value;
+  const normalized = Array.isArray(models) ? models : [];
+  const existing = [...elements.agentModel.options].map((option) => ({
+    value: option.value,
+    label: option.textContent,
+    efforts: option.dataset.efforts,
+    defaultEffort: option.dataset.defaultEffort,
+  }));
+  const next = normalized.map((model) => ({
+    value: model.slug,
+    label: model.display_name || model.slug,
+    efforts: model.supported_reasoning_efforts || [],
+    defaultEffort: model.default_reasoning_effort || "",
+  }));
+  if (JSON.stringify(existing) !== JSON.stringify(next.map((model) => ({
+    value: model.value,
+    label: model.label,
+    efforts: JSON.stringify(model.efforts),
+    defaultEffort: model.defaultEffort,
+  })))) {
+    elements.agentModel.replaceChildren();
+    for (const model of next) {
+      const option = document.createElement("option");
+      option.value = model.value;
+      option.textContent = model.label;
+      option.dataset.efforts = JSON.stringify(model.efforts);
+      option.dataset.defaultEffort = model.defaultEffort;
+      elements.agentModel.append(option);
+    }
+  }
+  if ([...elements.agentModel.options].some((option) => option.value === current)) {
+    elements.agentModel.value = current;
+  } else if ([...elements.agentModel.options].some((option) => option.value === defaultModel)) {
+    elements.agentModel.value = defaultModel;
+  } else if (elements.agentModel.options.length) {
+    elements.agentModel.selectedIndex = 0;
+  }
+  elements.agentModel.disabled = elements.agentModel.options.length === 0;
+  updateAgentReasoningEfforts();
+}
+
 async function loadAgentJobs() {
   try {
     const response = await fetchWithTimeout("./api/agent-jobs", { cache: "no-store" });
@@ -620,6 +704,7 @@ async function loadAgentJobs() {
     const interactionActive = isAgentInteractionActive();
     if (!interactionActive) {
       updateAgentRepositories(payload.repositories);
+      updateAgentModels(payload.models, payload.default_model);
       elements.agentJobs.replaceChildren(...payload.jobs.map((job) => renderAgentJob(job)));
       const archivedJobs = payload.archived_jobs || [];
       elements.agentArchivedJobs.replaceChildren(
@@ -1595,6 +1680,8 @@ elements.agentForm.addEventListener("submit", async (event) => {
     await postJson("./api/agent-jobs", {
       repository: form.get("repository"),
       prompt: form.get("prompt"),
+      model: form.get("model"),
+      reasoning_effort: form.get("reasoning_effort"),
       mode: "execute",
     });
     document.querySelector("#agent-prompt").value = "";
@@ -1606,6 +1693,8 @@ elements.agentForm.addEventListener("submit", async (event) => {
     submits.forEach((button) => { button.disabled = false; });
   }
 });
+elements.agentModel.addEventListener("change", updateAgentReasoningEfforts);
+elements.agentReasoningEffort.addEventListener("change", updateAgentModelSummary);
 
 elements.tanomiForm.addEventListener("submit", async (event) => {
   event.preventDefault();

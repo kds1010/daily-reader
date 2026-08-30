@@ -233,6 +233,36 @@ main,
   font: inherit;
 }
 
+.agent-model-details {
+  grid-column: 1 / -1;
+  color: var(--ink);
+}
+
+.agent-model-details > summary {
+  padding: 8px 2px;
+  color: rgb(244 251 247 / 88%);
+  cursor: pointer;
+  font-size: .9rem;
+}
+
+.agent-model-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 2px 0 4px;
+}
+
+.agent-model-fields label {
+  display: grid;
+  gap: 4px;
+  color: rgb(244 251 247 / 88%);
+  font-size: .78rem;
+}
+
+.agent-model-fields select {
+  min-width: 0;
+}
+
 .agent-form textarea {
   grid-column: 1 / -1;
   min-height: 84px;

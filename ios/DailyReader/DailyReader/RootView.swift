@@ -419,6 +419,8 @@ struct AgentComposer: View {
     @EnvironmentObject private var model: AppModel
     @State private var prompt = ""
     @State private var repository = ""
+    @State private var agentModel = AgentModelOption.fallback.slug
+    @State private var reasoningEffort = AgentModelOption.fallback.defaultReasoningEffort
     @State private var sending = false
     @FocusState private var promptFocused: Bool
 
@@ -433,7 +435,7 @@ struct AgentComposer: View {
                 Button {
                     Task {
                         sending = true
-                        if await model.createAgent(prompt: prompt, repository: repository) {
+                        if await model.createAgent(prompt: prompt, repository: repository, model: agentModel, reasoningEffort: reasoningEffort) {
                             prompt = ""
                             promptFocused = false
                         }
@@ -447,7 +449,7 @@ struct AgentComposer: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.mint)
-                .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repository.isEmpty || sending)
+                .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repository.isEmpty || currentModel == nil || reasoningEffort.isEmpty || sending)
                 Spacer(minLength: 0)
                 Picker("リポジトリ", selection: $repository) {
                     ForEach(model.repositories) { Text($0.label).tag($0.name) }
@@ -455,11 +457,27 @@ struct AgentComposer: View {
                 .pickerStyle(.menu)
                 .disabled(model.repositories.isEmpty || sending)
             }
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 8) {
+                    Picker("実装モデル", selection: $agentModel) {
+                        ForEach(model.agentModels) { option in Text(option.displayName).tag(option.slug) }
+                    }
+                    Picker("Effort", selection: $reasoningEffort) {
+                        ForEach(currentModel?.supportedReasoningEfforts ?? [], id: \.self) { effort in Text(effort).tag(effort) }
+                    }
+                }
+            } label: {
+                Text("詳細（\(currentModel?.displayName ?? "GPT-5.6-Luna")・\(reasoningEffort)）").font(.caption)
+            }
+            .disabled(model.agentModels.isEmpty || sending)
         }
         .glassCard()
         .onAppear { synchronizeRepositorySelection() }
         .onChange(of: model.repositories, initial: true) { _, _ in synchronizeRepositorySelection() }
+        .onChange(of: model.agentModels, initial: true) { _, _ in synchronizeAgentSelection() }
     }
+
+    private var currentModel: AgentModelOption? { model.agentModels.first(where: { $0.slug == agentModel }) }
 
     private func synchronizeRepositorySelection() {
         guard !model.repositories.isEmpty else {
@@ -469,6 +487,13 @@ struct AgentComposer: View {
         if !model.repositories.contains(where: { $0.name == repository }) {
             repository = model.repositories[0].name
         }
+    }
+
+    private func synchronizeAgentSelection() {
+        guard !model.agentModels.isEmpty else { return }
+        if currentModel == nil { agentModel = model.agentModels[0].slug }
+        let efforts = currentModel?.supportedReasoningEfforts ?? []
+        if !efforts.contains(reasoningEffort) { reasoningEffort = currentModel?.defaultReasoningEffort ?? efforts.first ?? "" }
     }
 }
 

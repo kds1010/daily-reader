@@ -66,6 +66,17 @@ def test_agent_jobs_endpoint_presents_labels_for_active_and_archived_jobs(
         "daily_reader.local_server.list_archived_jobs",
         lambda _path: [{"id": "archived", "repository": "removed"}],
     )
+    model_options = [
+        {
+            "slug": "gpt-5.6-luna",
+            "display_name": "GPT-5.6-Luna",
+            "default_reasoning_effort": "low",
+            "supported_reasoning_efforts": ["low", "medium"],
+        }
+    ]
+    monkeypatch.setattr(
+        "daily_reader.local_server.agent_model_options", lambda: model_options
+    )
     handler_factory = make_handler(
         tmp_path / "site",
         tmp_path / "articles.json",
@@ -91,6 +102,9 @@ def test_agent_jobs_endpoint_presents_labels_for_active_and_archived_jobs(
                     {"name": "daily-reader", "label": "Daymeld"},
                     {"name": "old-repository", "label": "Old"},
                 ],
+                "models": model_options,
+                "default_model": "gpt-5.6-luna",
+                "default_reasoning_effort": "low",
                 "jobs": [
                     {
                         "id": "active",

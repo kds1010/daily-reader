@@ -51,6 +51,13 @@
           <form id="agent-form" class="agent-form">
             <textarea id="agent-prompt" name="prompt" required maxlength="20000" rows="3"
               aria-label="タスク" placeholder="実現したい結果を書いてください"></textarea>
+            <details id="agent-model-details" class="agent-model-details">
+              <summary id="agent-model-summary">詳細（GPT-5.6-Luna・low）</summary>
+              <div class="agent-model-fields">
+                <label>実装モデル<select id="agent-model" name="model" required aria-label="実装モデル"></select></label>
+                <label>Effort<select id="agent-reasoning-effort" name="reasoning_effort" required aria-label="Effort"></select></label>
+              </div>
+            </details>
             <select id="agent-repository" name="repository" required aria-label="リポジトリ"></select>
             <button type="submit" class="primary-button">依頼</button>
           </form>

@@ -11,6 +11,7 @@ final class AppModel: ObservableObject {
     @Published var tanomiRepositories: [TanomiRepository] = []
     @Published var tanomiAvailable = false
     @Published var repositories: [Repository] = []
+    @Published var agentModels: [AgentModelOption] = [.fallback]
     @Published var today: TodayEnvelope?
     @Published var emails: [EmailReminder] = []
     @Published var articles: [Article] = []
@@ -85,9 +86,9 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func createAgent(prompt: String, repository: String) async -> Bool {
+    func createAgent(prompt: String, repository: String, model: String, reasoningEffort: String) async -> Bool {
         do {
-            let _: AgentJob = try await api.post("api/agent-jobs", body: NewAgentJob(repository: repository, prompt: prompt), as: AgentJob.self)
+            let _: AgentJob = try await api.post("api/agent-jobs", body: NewAgentJob(repository: repository, prompt: prompt, model: model, reasoningEffort: reasoningEffort), as: AgentJob.self)
             await refresh()
             return true
         } catch { errorMessage = error.localizedDescription; return false }
@@ -136,6 +137,7 @@ final class AppModel: ObservableObject {
         if agents != envelope.jobs { agents = envelope.jobs }
         if archivedAgents != envelope.archivedJobs { archivedAgents = envelope.archivedJobs }
         if repositories != envelope.repositories { repositories = envelope.repositories }
+        if agentModels != envelope.models { agentModels = envelope.models }
         return true
     }
 

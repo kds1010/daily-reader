@@ -23,6 +23,9 @@ from pathlib import Path
 from time import monotonic, sleep
 
 from daily_reader.agent_jobs import (
+    DEFAULT_MODEL,
+    DEFAULT_REASONING_EFFORT,
+    FALLBACK_MODEL_OPTIONS,
     attach_to_job,
     create_job,
     get_job,
@@ -60,6 +63,9 @@ from daily_reader.tanomi_client import (
 )
 
 LOGGER = logging.getLogger(__name__)
+MODEL_CACHE_TTL = 300.0
+MODEL_CACHE_LOCK = threading.Lock()
+_model_cache: tuple[float, list[dict[str, object]]] | None = None
 READ_LOG_LOCK = threading.Lock()
 FEEDBACK_LOG_LOCK = threading.Lock()
 UPDATE_STATS_LOG_LOCK = threading.Lock()
@@ -170,6 +176,124 @@ def read_codex_rate_limits(timeout: float = 10) -> dict[str, object]:
             process.wait(timeout=1)
 
 
+def read_codex_models(timeout: float = 10) -> list[dict[str, object]]:
+    """Read visible model and reasoning-effort choices from the Codex app-server."""
+    process = subprocess.Popen(
+        ["codex", "app-server", "--stdio"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    request = {
+        "id": 2,
+        "method": "model/list",
+        "params": {},
+    }
+    try:
+        if process.stdin is None or process.stdout is None:
+            raise RuntimeError("Codex app server pipes are unavailable")
+        process.stdin.write(
+            json.dumps(
+                {
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {
+                        "clientInfo": {"name": "daily-reader", "version": "0.1"},
+                        "capabilities": {"experimentalApi": True},
+                    },
+                }
+            )
+            + "\n"
+        )
+        process.stdin.write(json.dumps(request) + "\n")
+        process.stdin.flush()
+        deadline = monotonic() + timeout
+        while (remaining := deadline - monotonic()) > 0:
+            readable, _, _ = select.select([process.stdout], [], [], remaining)
+            if not readable:
+                break
+            line = process.stdout.readline()
+            if not line:
+                break
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise RuntimeError("Codex returned invalid JSON") from error
+            if message.get("id") != request["id"]:
+                continue
+            if "error" in message:
+                raise RuntimeError("Codex rejected the model-list request")
+            result = message.get("result")
+            if not isinstance(result, dict):
+                raise RuntimeError("Codex returned an invalid model-list response")
+            raw_models = result.get("models", result.get("data", []))
+            if not isinstance(raw_models, list):
+                raise RuntimeError("Codex returned an invalid model list")
+            models = []
+            for raw in raw_models:
+                if not isinstance(raw, dict):
+                    continue
+                slug = raw.get("slug", raw.get("model"))
+                visibility = raw.get("visibility", "list")
+                if not isinstance(slug, str) or not slug or visibility != "list":
+                    continue
+                levels = raw.get(
+                    "supportedReasoningLevels",
+                    raw.get("supported_reasoning_levels", raw.get("supportedReasoningEfforts", [])),
+                )
+                efforts = []
+                if isinstance(levels, list):
+                    for level in levels:
+                        effort = level.get("effort") if isinstance(level, dict) else level
+                        if isinstance(effort, str) and effort and effort not in efforts:
+                            efforts.append(effort)
+                if not efforts:
+                    continue
+                display_name = raw.get("displayName", raw.get("display_name", slug))
+                default_effort = raw.get(
+                    "defaultReasoningLevel",
+                    raw.get("default_reasoning_level", raw.get("defaultReasoningEffort")),
+                )
+                if not isinstance(display_name, str):
+                    display_name = slug
+                if not isinstance(default_effort, str) or default_effort not in efforts:
+                    default_effort = efforts[0]
+                models.append(
+                    {
+                        "slug": slug,
+                        "display_name": display_name,
+                        "default_reasoning_effort": default_effort,
+                        "supported_reasoning_efforts": efforts,
+                    }
+                )
+            if not models:
+                raise RuntimeError("Codex returned no visible models")
+            return models
+        raise TimeoutError("Codex model-list request timed out")
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=1)
+
+
+def agent_model_options(*, now: float | None = None) -> list[dict[str, object]]:
+    """Return a cached model catalog, retaining the last good result on failure."""
+    global _model_cache
+    timestamp = monotonic() if now is None else now
+    with MODEL_CACHE_LOCK:
+        if _model_cache is not None and timestamp - _model_cache[0] < MODEL_CACHE_TTL:
+            return _model_cache[1]
+        try:
+            models = read_codex_models()
+        except (FileNotFoundError, OSError, RuntimeError, TimeoutError) as error:
+            LOGGER.warning("Could not read Codex models: %s", error)
+            models = _model_cache[1] if _model_cache is not None else FALLBACK_MODEL_OPTIONS
+        _model_cache = (timestamp, models)
+        return models
 def build_deployment_info(repository: Path, deployed_at: datetime) -> dict[str, str]:
     try:
         package_version = version("daily-reader")
@@ -452,6 +576,7 @@ def make_handler(
                     self._send_json(503, {"error": "Codexの使用状況を取得できませんでした"})
                 return
             if self.path == "/api/agent-jobs":
+                model_options = agent_model_options()
                 self._send_json(
                     200,
                     {
@@ -459,6 +584,9 @@ def make_handler(
                             {"name": item["name"], "label": item["label"]}
                             for item in repositories.values()
                         ],
+                        "models": model_options,
+                        "default_model": DEFAULT_MODEL,
+                        "default_reasoning_effort": DEFAULT_REASONING_EFFORT,
                         "jobs": present_agent_jobs(list_jobs(agent_db), repositories),
                         "archived_jobs": present_agent_jobs(
                             list_archived_jobs(agent_db), repositories
@@ -600,7 +728,12 @@ def make_handler(
                 now = datetime.now(UTC)
                 local_day = datetime.now().astimezone().date()
                 if self.path == "/api/agent-jobs":
-                    job = create_job(agent_db, repositories, request)
+                    job = create_job(
+                        agent_db,
+                        repositories,
+                        request,
+                        agent_model_options(),
+                    )
                     self._send_json(201, present_agent_job(job, repositories))
                     return
                 if self.path == "/api/agent-jobs/cancel":
