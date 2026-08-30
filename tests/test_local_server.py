@@ -191,6 +191,17 @@ def test_tanomi_route_maps_unavailable_upstream_to_503(tmp_path: Path) -> None:
     assert responses == [(503, {"error": "tanomi に接続できません"})]
 
 
+def test_tanomi_delete_rejects_non_tanomi_path(tmp_path: Path) -> None:
+    client = FakeTanomiClient()
+    handler, responses = tanomi_handler(tmp_path, client)
+    handler.path = "/api/other/tasks/0123456789ab"
+
+    handler.do_DELETE()
+
+    assert responses == [(404, {"error": "not found"})]
+    assert client.calls == []
+
+
 class FakeCodexProcess:
     def __init__(self) -> None:
         import io
@@ -272,7 +283,7 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.update_stats == Path("data/update-stats.jsonl")
     assert args.gmail_client_secret == Path("secrets/gmail-client.json")
     assert args.gmail_token == Path("secrets/gmail-token.json")
-    assert args.tanomi_base_url == "http://127.0.0.1:8765"
+    assert args.tanomi_base_url == "https://xh23040023-l.tailc193b2.ts.net"
 
 
 def test_local_server_accepts_legacy_sidestore_network_option(

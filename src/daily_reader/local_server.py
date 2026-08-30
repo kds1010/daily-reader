@@ -56,6 +56,7 @@ from daily_reader.email_assistant import (
 )
 from daily_reader.highlights import generate_highlights
 from daily_reader.tanomi_client import (
+    DEFAULT_BASE_URL,
     MODEL,
     MODES,
     TASK_ID,
@@ -869,6 +870,9 @@ def make_handler(
             self._send_json(202, {"recorded": True})
 
         def do_DELETE(self) -> None:  # noqa: N802
+            if not urllib.parse.urlsplit(self.path).path.startswith("/api/tanomi/"):
+                self._send_json(404, {"error": "not found"})
+                return
             if tanomi is None:
                 self._send_json(503, {"error": "tanomi は設定されていません"})
                 return
@@ -1358,7 +1362,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Serve Daymeld on localhost")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
-    parser.add_argument("--tanomi-base-url", default="http://127.0.0.1:8765")
+    parser.add_argument("--tanomi-base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--site", type=Path, default=Path("site"))
     parser.add_argument("--sidestore-lan-host", default="0.0.0.0")
     parser.add_argument("--sidestore-lan-port", type=int, default=8788)

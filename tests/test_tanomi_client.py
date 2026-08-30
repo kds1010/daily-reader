@@ -5,6 +5,7 @@ import urllib.error
 import pytest
 
 from daily_reader.tanomi_client import (
+    DEFAULT_BASE_URL,
     TanomiClient,
     TanomiError,
     TanomiProtocolError,
@@ -18,6 +19,10 @@ class Response(io.BytesIO):
 
     def __exit__(self, *_args):
         self.close()
+
+
+def test_client_defaults_to_tailscale_tanomi_service() -> None:
+    assert TanomiClient().base_url == DEFAULT_BASE_URL
 
 
 def test_client_rejects_unsafe_base_urls() -> None:

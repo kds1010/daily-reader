@@ -26,7 +26,7 @@
 - `src/daily_reader/daily_planner.py`: タスク、繰り返しルーティン、健康チェックインのSQLite状態管理。
 - `src/daily_reader/agent_jobs.py`: Agentタスクキュー、イベント、状態のSQLite永続化。
 - `src/daily_reader/agent_worker.py`: 専用worktreeでCodexを反復実行し、検証済み変更をmainへ統合する常駐ワーカー。
-- `src/daily_reader/tanomi_client.py`: tanomi（既定127.0.0.1:8765）の許可パスだけを8787から中継するBFFクライアント。
+- `src/daily_reader/tanomi_client.py`: tanomi（既定Tailscale Serve URL `https://xh23040023-l.tailc193b2.ts.net`）の許可パスだけを8787から中継するBFFクライアント。
 - Agentワーカーはpush後にローカルのデフォルトブランチを同期し、対象リポジトリの`AGENTS.md`に従ったデプロイと実環境確認が成功してからタスクを完了する。
 - iPhoneクライアント変更のデプロイ境界は、検証済みSideStore IPA・ソースを生成し、LAN配信とFunnel配信をMac側から検証するところまでとする。SideStoreでの再署名、iPhoneへのインストール、権限付与、外部回線・画面・操作確認は独立した実機工程であり、未実施でもAgentタスクを失敗させない。
 - ローカルのデフォルトブランチがリモートと分岐してfast-forwardできない場合は、リモートへrebaseし、競合をCodexで解消・再検証してからローカルコミットもpushする。
@@ -61,7 +61,7 @@
 - 初期画面は「Agent」。通常タスク、日別ルーティン、健康チェックインは「今日」に表示し、HealthKit集計は専用トークン付きAPIで受け取る。
 - Agentタブでは、依頼フォームを最上部に置き、その下にCodex app-serverのアカウントAPIから取得した利用枠ごとの使用率、残量、リセット日時（月日・時刻）を表示する。
 - Agentタブではtanomiも同じ画面で扱う。iPhone・ブラウザは8765へ直接接続せず、8787の同一オリジンBFFを使用する。tanomi停止時は既存Agentを表示し続ける。
-- tanomi本体はDaily Readerの構成物ではなく、別途8765番で起動する外部サービスである。導入元・実行ファイル・LaunchAgentはHome Manager管理の別設定で管理し、実環境では`/api/health`、`/api/repos`、`/api/tasks`のJSON応答を確認してから利用可能と判断する。
+- tanomi本体はDaily Readerの構成物ではなく、別ホストのTailscale Serve（既定 `https://xh23040023-l.tailc193b2.ts.net`）経由で起動する外部サービスである。導入元・実行ファイル・LaunchAgentはtanomiホストのHome Manager管理の別設定で管理し、実環境では`/api/health`、`/api/repos`、`/api/tasks`のJSON応答を確認してから利用可能と判断する。
 - ヘッダーには、稼働中のパッケージ版とGitコミットを組み合わせたデプロイバージョン、サーバー起動日時、および初期表示・手動再読み込み時の画面更新日時を表示する。画面更新日時は経過5分未満を緑、5分以上10分未満を黄緑、10分以上を黄色で示す。
 - 各タブは、画面上端から下へ引っ張る操作でもヘッダーの再読み込みボタンと同じ内容を更新する。
 - Agentタスクはカードを既定で折り畳み、状態アイコン、現在フェーズ、更新時刻を一覧表示する。カードを開くと「現在の進捗」と「やりとり」を分け、ユーザー・Agent・システム進捗を話者ごとに表示する。待機中・実行中・判断待ちの直近3件を表示し、5秒ごとに自動更新する。カードから全履歴も展開でき、「やりとりを非表示」または表示中のやりとりのタップで閉じられる。待機中・実行中・判断待ち、および作業環境を保持した失敗状態へ追加指示を送れる。実行中の指示は次のCodexターンで同じスレッドへ渡す。

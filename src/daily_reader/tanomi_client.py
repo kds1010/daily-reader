@@ -13,6 +13,7 @@ TASK_ID = re.compile(r"^[0-9a-f]{12}$")
 MODEL = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 MODES = {"acceptEdits", "plan", "bypassPermissions", "manual"}
 MAX_RESPONSE = 2 * 1024 * 1024
+DEFAULT_BASE_URL = "https://xh23040023-l.tailc193b2.ts.net"
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -36,7 +37,7 @@ class TanomiProtocolError(TanomiError):
 
 @dataclass(frozen=True)
 class TanomiClient:
-    base_url: str = "http://127.0.0.1:8765"
+    base_url: str = DEFAULT_BASE_URL
     timeout: float = 5.0
 
     def __post_init__(self) -> None:
