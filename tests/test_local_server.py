@@ -141,6 +141,8 @@ class FakeTanomiClient:
         self.calls.append((method, path, body, query))
         if self.error is not None:
             raise self.error
+        if path == "/api/repos":
+            return {"repos": [{"path": "/tmp/example", "label": "Example"}]}
         return {"tasks": [], "archived": [], "deleted": []}
 
     def stream(self, *_args: object, **_kwargs: object):
@@ -179,6 +181,17 @@ def test_tanomi_route_forwards_query_and_rejects_encoded_query_path(tmp_path: Pa
     handler.do_GET()
 
     assert responses == [(400, {"error": "invalid tanomi request"})]
+
+
+def test_tanomi_repositories_route_unwraps_envelope(tmp_path: Path) -> None:
+    client = FakeTanomiClient()
+    handler, responses = tanomi_handler(tmp_path, client)
+    handler.path = "/api/tanomi/repos"
+
+    handler.do_GET()
+
+    assert responses == [(200, [{"path": "/tmp/example", "label": "Example"}])]
+    assert client.calls == [("GET", "/api/repos", None, None)]
 
 
 def test_tanomi_route_maps_unavailable_upstream_to_503(tmp_path: Path) -> None:

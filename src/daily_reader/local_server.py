@@ -532,6 +532,8 @@ def make_handler(
                 try:
                     if parts == ["", "api", "tanomi", "repos"]:
                         payload = tanomi.request_json("GET", "/api/repos")
+                        if isinstance(payload, dict) and isinstance(payload.get("repos"), list):
+                            payload = payload["repos"]
                     elif parts == ["", "api", "tanomi", "tasks"]:
                         limit = int(query.get("limit", "50"))
                         if not 1 <= limit <= 200:
