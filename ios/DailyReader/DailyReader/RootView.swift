@@ -1073,6 +1073,10 @@ struct HealthCard: View {
 
 struct EmailView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var completingEmailIDs = Set<String>()
+    @State private var completionFeedback = 0
+
     var body: some View {
         List {
             if let error = model.emailSyncError {
@@ -1080,11 +1084,11 @@ struct EmailView: View {
                     .listRowBackground(Color.clear)
             }
             ForEach(model.emails) { email in
-                EmailCard(email: email)
+                EmailCard(email: email, completionPresented: completingEmailIDs.contains(email.threadID))
                     .listRowInsets(EdgeInsets(top: 7, leading: 0, bottom: 7, trailing: 0))
                     .listRowBackground(Color.clear)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button { Task { await model.act(on: email, action: "done") } } label: {
+                        Button { completeBySwipe(email) } label: {
                             Label("完了", systemImage: "checkmark.circle.fill")
                         }.tint(.mint)
                     }
@@ -1099,24 +1103,55 @@ struct EmailView: View {
         .background(AppBackground())
         .navigationTitle("未読メール")
         .refreshable { await model.refresh() }
+        .sensoryFeedback(.success, trigger: completionFeedback)
+    }
+
+    private func completeBySwipe(_ email: EmailReminder) {
+        guard !completingEmailIDs.contains(email.threadID) else { return }
+        completingEmailIDs.insert(email.threadID)
+        completionFeedback += 1
+        Task {
+            if !reduceMotion {
+                try? await Task.sleep(for: .milliseconds(260))
+            }
+            _ = await model.act(on: email, action: "done")
+            completingEmailIDs.remove(email.threadID)
+        }
     }
 }
 
 struct EmailCard: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let email: EmailReminder
+    var completionPresented = false
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            NavigationLink(destination: EmailDetailView(email: email)) {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack { Text(email.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
-                    Text(email.subject).appFont(.headline).foregroundStyle(.primary)
-                    Text(email.requiredAction).appFont(.subheadline).foregroundStyle(.secondary)
+        ZStack {
+            VStack(alignment: .leading, spacing: 10) {
+                NavigationLink(destination: EmailDetailView(email: email)) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack { Text(email.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
+                        Text(email.subject).appFont(.headline).foregroundStyle(.primary)
+                        Text(email.requiredAction).appFont(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                HStack { Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.appFont(.caption, weight: .semibold)
             }
-            HStack { Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.appFont(.caption, weight: .semibold)
-        }.glassCard()
+            if completionPresented {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 42, weight: .semibold))
+                    .foregroundStyle(.mint)
+                    .symbolEffect(.bounce, value: completionPresented)
+                    .transition(.scale(scale: 0.55).combined(with: .opacity))
+            }
+        }
+        .opacity(completionPresented ? 0.72 : 1)
+        .scaleEffect(completionPresented && !reduceMotion ? 0.96 : 1)
+        .animation(.easeOut(duration: 0.2), value: completionPresented)
+        .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .scale(scale: 0.88))))
+        .glassCard()
     }
 }
 

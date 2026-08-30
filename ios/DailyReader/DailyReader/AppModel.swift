@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 import UserNotifications
 
 @MainActor
@@ -273,20 +274,27 @@ final class AppModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
-    func act(on email: EmailReminder, action: String) async {
+    @discardableResult
+    func act(on email: EmailReminder, action: String) async -> Bool {
         guard pendingEmailActions[email.threadID] == nil,
-              let index = emails.firstIndex(where: { $0.threadID == email.threadID }) else { return }
+              let index = emails.firstIndex(where: { $0.threadID == email.threadID }) else { return false }
         pendingEmailActions[email.threadID] = (email, index)
-        emails.remove(at: index)
+        _ = withAnimation(.easeInOut(duration: 0.24)) {
+            emails.remove(at: index)
+        }
         do {
             let _: EmptyResponse = try await api.post("api/email-status", body: EmailAction(threadID: email.threadID, action: action), as: EmptyResponse.self)
             pendingEmailActions.removeValue(forKey: email.threadID)
+            return true
         } catch { errorMessage = error.localizedDescription }
         if pendingEmailActions[email.threadID] != nil {
             let pending = pendingEmailActions.removeValue(forKey: email.threadID)!
             let restoredIndex = min(pending.index, emails.count)
-            emails.insert(pending.email, at: restoredIndex)
+            _ = withAnimation(.spring(response: 0.42, dampingFraction: 0.78)) {
+                emails.insert(pending.email, at: restoredIndex)
+            }
         }
+        return false
     }
 
     func fetchEmailContent(threadID: String) async throws -> EmailThreadContent {
