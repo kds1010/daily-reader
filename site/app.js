@@ -1693,6 +1693,15 @@ elements.savedOnly.addEventListener("change", (event) => {
   state.savedOnly = event.target.checked;
   renderArticles();
 });
+
+document.addEventListener("pointerdown", (event) => {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) return;
+  if (event.target instanceof Element
+      && event.target.closest("input, textarea, select, [contenteditable='true']")) return;
+  active.blur();
+});
+
 async function refreshCurrentView() {
   if (currentView === "agent") {
     await Promise.all([loadAgentJobs(), loadCodexUsage()]);
