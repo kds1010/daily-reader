@@ -54,7 +54,9 @@ actor APIClient {
 }
 
 func makeAPIURL(baseURL: URL, path: String, queryItems: [URLQueryItem] = []) -> URL {
-    baseURL.appending(path: path).appending(queryItems: queryItems)
+    let url = baseURL.appending(path: path)
+    guard !queryItems.isEmpty else { return url }
+    return url.appending(queryItems: queryItems)
 }
 
 struct EmptyResponse: Decodable {}

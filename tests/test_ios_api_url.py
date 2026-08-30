@@ -16,6 +16,9 @@ def test_ios_api_url_builder_keeps_query_out_of_path(tmp_path: Path) -> None:
 import Foundation
 
 let base = URL(string: "https://example.test/")!
+let noQueryURL = makeAPIURL(baseURL: base, path: "api/agent-jobs")
+precondition(noQueryURL.absoluteString == "https://example.test/api/agent-jobs")
+precondition(!noQueryURL.absoluteString.hasSuffix("?"))
 let url = makeAPIURL(
     baseURL: base,
     path: "api/tanomi/tasks",
