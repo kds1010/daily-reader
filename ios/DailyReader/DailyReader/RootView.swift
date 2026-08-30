@@ -1,4 +1,88 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
+
+private struct AppContentScaleKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1
+}
+
+extension EnvironmentValues {
+    var appContentScale: CGFloat {
+        get { self[AppContentScaleKey.self] }
+        set { self[AppContentScaleKey.self] = newValue }
+    }
+}
+
+enum AppTypography {
+    static func font(
+        for style: Font.TextStyle,
+        scale: CGFloat,
+        weight: Font.Weight? = nil,
+        monospacedDigit: Bool = false
+    ) -> Font {
+        #if os(macOS)
+        let preferred = NSFont.preferredFont(forTextStyle: nsTextStyle(for: style), options: [:])
+        let scaled = NSFont(
+            descriptor: preferred.fontDescriptor,
+            size: preferred.pointSize * scale
+        ) ?? preferred
+        var result = Font(scaled)
+        if let weight { result = result.weight(weight) }
+        #else
+        var result = Font.system(style, weight: weight)
+        #endif
+        if monospacedDigit { result = result.monospacedDigit() }
+        return result
+    }
+
+    #if os(macOS)
+    private static func nsTextStyle(for style: Font.TextStyle) -> NSFont.TextStyle {
+        switch style {
+        case .largeTitle: .largeTitle
+        case .title: .title1
+        case .title2: .title2
+        case .title3: .title3
+        case .headline: .headline
+        case .subheadline: .subheadline
+        case .callout: .callout
+        case .footnote: .footnote
+        case .caption: .caption1
+        case .caption2: .caption2
+        default: .body
+        }
+    }
+    #endif
+}
+
+private struct AppFontModifier: ViewModifier {
+    @Environment(\.appContentScale) private var scale
+
+    let style: Font.TextStyle
+    let weight: Font.Weight?
+    let monospacedDigit: Bool
+
+    func body(content: Content) -> some View {
+        content.font(
+            AppTypography.font(
+                for: style,
+                scale: scale,
+                weight: weight,
+                monospacedDigit: monospacedDigit
+            )
+        )
+    }
+}
+
+extension View {
+    func appFont(
+        _ style: Font.TextStyle,
+        weight: Font.Weight? = nil,
+        monospacedDigit: Bool = false
+    ) -> some View {
+        modifier(AppFontModifier(style: style, weight: weight, monospacedDigit: monospacedDigit))
+    }
+}
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
@@ -126,10 +210,10 @@ struct TanomiSection: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("tanomi", systemImage: "terminal")
-                    .font(.headline)
+                    .appFont(.headline)
                 Spacer()
                 Text(model.tanomiAvailable ? "接続中" : "接続不可")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .appFont(.caption).foregroundStyle(.secondary)
             }
             TextField("tanomiへ依頼する内容", text: $prompt, axis: .vertical)
                 .lineLimit(2...5).textFieldStyle(.roundedBorder)
@@ -150,17 +234,17 @@ struct TanomiSection: View {
             }
             ForEach(model.tanomiTasks) { task in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(task.displayTitle).font(.subheadline.bold())
-                    Text("\(task.status)・\(task.displayRepository)").font(.caption).foregroundStyle(.secondary)
-                    if !task.displayResult.isEmpty { Text(task.displayResult).font(.caption) }
+                    Text(task.displayTitle).appFont(.subheadline, weight: .bold)
+                    Text("\(task.status)・\(task.displayRepository)").appFont(.caption).foregroundStyle(.secondary)
+                    if !task.displayResult.isEmpty { Text(task.displayResult).appFont(.caption) }
                     if ["queued", "running"].contains(task.status) {
-                        Button("停止") { Task { await model.stopTanomi(task) } }.font(.caption)
+                        Button("停止") { Task { await model.stopTanomi(task) } }.appFont(.caption)
                     }
                 }.padding(.vertical, 4)
             }
             if !model.tanomiAvailable && model.tanomiTasks.isEmpty {
                 Text(model.tanomiStatusMessage.map { "tanomiを利用できません：\($0)" } ?? "tanomiは現在利用できません。")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .appFont(.subheadline).foregroundStyle(.secondary)
             }
         }.glassCard()
         .onAppear { if repo.isEmpty { repo = model.tanomiRepositories.first?.path ?? "" } }
@@ -185,20 +269,20 @@ struct CodexUsageCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("Codex 使用状況", systemImage: "gauge.with.dots.needle.67percent")
-                    .font(.headline)
+                    .appFont(.headline)
                 Spacer()
                 if let plan = model.codexUsage?.rateLimits?.planType, !plan.isEmpty {
-                    Text(plan).font(.caption).foregroundStyle(.secondary)
+                    Text(plan).appFont(.caption).foregroundStyle(.secondary)
                 }
             }
             if model.codexUsageFailed {
                 Text("使用状況を取得できませんでした。")
-                    .font(.subheadline).foregroundStyle(.secondary)
+                    .appFont(.subheadline).foregroundStyle(.secondary)
             } else {
                 let limits = sortedLimits
                 if limits.isEmpty {
                     Text(model.codexUsage == nil ? "使用状況を読み込んでいます…" : "現在の利用枠はありません。")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .appFont(.subheadline).foregroundStyle(.secondary)
                 } else {
                     ForEach(limits, id: \.id) { item in
                         CodexLimitRow(name: item.name, window: item.window)
@@ -245,10 +329,10 @@ struct CodexLimitRow: View {
         let used = min(max(window.usedPercent ?? 0, 0), 100)
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text(name).font(.subheadline.weight(.semibold))
+                Text(name).appFont(.subheadline, weight: .semibold)
                 Spacer()
                 Text("\(used.formatted(.number.precision(.fractionLength(0...1))) )% 使用")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .appFont(.caption).foregroundStyle(.secondary)
             }
             ProgressView(value: used, total: 100)
                 .tint(.mint)
@@ -257,7 +341,7 @@ struct CodexLimitRow: View {
                 Spacer()
                 Text(resetLabel)
             }
-            .font(.caption2).foregroundStyle(.secondary)
+            .appFont(.caption2).foregroundStyle(.secondary)
         }
     }
 
@@ -291,11 +375,11 @@ struct AgentCard: View {
                 onExpansionChange?(expanded)
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: statusIcon).foregroundStyle(statusColor).font(.title3)
+                    Image(systemName: statusIcon).foregroundStyle(statusColor).appFont(.title3)
                     VStack(alignment: .leading, spacing: 5) {
-                        HStack { Text(statusLabel).font(.caption.bold()).foregroundStyle(statusColor); Text(job.repositoryLabel ?? job.repository).font(.caption).foregroundStyle(.secondary) }
-                        Text(job.prompt).font(.headline).foregroundStyle(.primary).lineLimit(expanded ? nil : 2)
-                        Text("\(job.phase)・\(job.updatedAt.relativeTime)").font(.caption).foregroundStyle(.secondary)
+                        HStack { Text(statusLabel).appFont(.caption, weight: .bold).foregroundStyle(statusColor); Text(job.repositoryLabel ?? job.repository).appFont(.caption).foregroundStyle(.secondary) }
+                        Text(job.prompt).appFont(.headline).foregroundStyle(.primary).lineLimit(expanded ? nil : 2)
+                        Text("\(job.phase)・\(job.updatedAt.relativeTime)").appFont(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down").foregroundStyle(.tertiary)
@@ -305,23 +389,23 @@ struct AgentCard: View {
 
             if expanded {
                 Divider()
-                Text("現在の進捗").font(.caption.bold()).foregroundStyle(statusColor)
+                Text("現在の進捗").appFont(.caption, weight: .bold).foregroundStyle(statusColor)
                 if let summary = job.summary, !summary.isEmpty {
-                    Text(job.status == "completed" || job.followUp == 1 ? "完了サマリー" : "現在の報告").font(.caption.bold()).foregroundStyle(.secondary)
-                    Text(summary).font(.subheadline).textSelection(.enabled)
+                    Text(job.status == "completed" || job.followUp == 1 ? "完了サマリー" : "現在の報告").appFont(.caption, weight: .bold).foregroundStyle(.secondary)
+                    Text(summary).appFont(.subheadline).textSelection(.enabled)
                 }
                 if ["queued", "running", "blocked"].contains(job.status) {
-                    Label(job.status == "blocked" ? "回答を待っています" : "進捗を自動更新中", systemImage: "waveform.path.ecg").font(.caption.bold()).foregroundStyle(statusColor)
+                    Label(job.status == "blocked" ? "回答を待っています" : "進捗を自動更新中", systemImage: "waveform.path.ecg").appFont(.caption, weight: .bold).foregroundStyle(statusColor)
                     ForEach(job.recentEvents ?? []) { event in AgentEventRow(event: event) }
                 }
-                Text("やりとり").font(.caption.bold()).foregroundStyle(.secondary)
+                Text("やりとり").appFont(.caption, weight: .bold).foregroundStyle(.secondary)
                 Button(showConversation ? "やりとりを非表示" : "やりとりを表示") {
                     showConversation.toggle()
                     if showConversation && fullEvents.isEmpty {
                         Task { fullEvents = await model.agentDetail(job.id)?.events ?? [] }
                     }
                 }
-                .font(.caption.bold())
+                .appFont(.caption, weight: .bold)
                 .buttonStyle(.borderless)
                 if showConversation {
                     if fullEvents.isEmpty { ProgressView().frame(maxWidth: .infinity) }
@@ -367,7 +451,7 @@ struct AgentCard: View {
                         .disabled(actionInFlight)
                     }
                 }
-                .font(.caption.bold())
+                .appFont(.caption, weight: .bold)
                 .buttonStyle(.borderless)
             }
         }
@@ -407,9 +491,9 @@ struct AgentEventRow: View {
             Circle().fill(event.kind == "user" ? .mint : .secondary).frame(width: 7, height: 7).padding(.top, 6)
             VStack(alignment: .leading, spacing: 3) {
                 Text(event.kind == "user" ? "あなた" : event.kind == "codex" ? "Agent" : "進捗")
-                    .font(.caption2.bold()).foregroundStyle(event.kind == "user" ? .mint : .secondary)
-                Text(event.message).font(.caption).textSelection(.enabled)
-                Text(event.createdAt.relativeTime).font(.caption2).foregroundStyle(.tertiary)
+                    .appFont(.caption2, weight: .bold).foregroundStyle(event.kind == "user" ? .mint : .secondary)
+                Text(event.message).appFont(.caption).textSelection(.enabled)
+                Text(event.createdAt.relativeTime).appFont(.caption2).foregroundStyle(.tertiary)
             }
         }
     }
@@ -467,7 +551,7 @@ struct AgentComposer: View {
                     }
                 }
             } label: {
-                Text("詳細（\(currentModel?.displayName ?? "GPT-5.6-Luna")・\(reasoningEffort)）").font(.caption)
+                Text("詳細（\(currentModel?.displayName ?? "GPT-5.6-Luna")・\(reasoningEffort)）").appFont(.caption)
             }
             .disabled(model.agentModels.isEmpty || sending)
         }
@@ -535,7 +619,7 @@ struct TaskRow: View {
     let task: PlannerTask
     var body: some View {
         Button { Task { await model.toggle(task) } } label: {
-            HStack(spacing: 14) { Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(task.isCompleted ? .green : .secondary); VStack(alignment: .leading) { Text(task.title).foregroundStyle(.primary); if let due = task.dueDate { Text(due).font(.caption).foregroundStyle(.secondary) } }; Spacer() }
+            HStack(spacing: 14) { Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle").appFont(.title2).foregroundStyle(task.isCompleted ? .green : .secondary); VStack(alignment: .leading) { Text(task.title).foregroundStyle(.primary); if let due = task.dueDate { Text(due).appFont(.caption).foregroundStyle(.secondary) } }; Spacer() }
         }.glassCard()
     }
 }
@@ -547,15 +631,15 @@ struct HealthCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("HealthKit", systemImage: "heart.fill")
-                    .font(.headline)
+                    .appFont(.headline)
                     .foregroundStyle(.pink)
                 Spacer()
 #if os(iOS)
                 Button("同期") { Task { await model.syncHealth() } }
-                    .font(.caption.weight(.semibold))
+                    .appFont(.caption, weight: .semibold)
 #else
                 Text("iPhoneから同期済み")
-                    .font(.caption)
+                    .appFont(.caption)
                     .foregroundStyle(.secondary)
 #endif
             }
@@ -570,7 +654,7 @@ struct EmailView: View {
         ScrollView {
             LazyVStack(spacing: 14) {
                 if let error = model.emailSyncError {
-                    Text(error).font(.footnote).foregroundStyle(.orange).frame(maxWidth: .infinity, alignment: .leading).glassCard()
+                    Text(error).appFont(.footnote).foregroundStyle(.orange).frame(maxWidth: .infinity, alignment: .leading).glassCard()
                 }
                 ForEach(model.emails) { email in EmailCard(email: email) }
                 if model.emails.isEmpty { EmptyState(icon: "tray", title: "未読メールはありません", detail: "迷惑メールとゴミ箱を除く未読メールを表示します。") }
@@ -585,10 +669,10 @@ struct EmailCard: View {
     let email: EmailReminder
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Text(email.sender).font(.caption.weight(.semibold)).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
-            Text(email.subject).font(.headline)
-            Text(email.requiredAction).font(.subheadline).foregroundStyle(.secondary)
-            HStack { if let url = email.gmailURL { Link("Gmailで開く", destination: url) }; Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.font(.caption.weight(.semibold))
+            HStack { Text(email.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
+            Text(email.subject).appFont(.headline)
+            Text(email.requiredAction).appFont(.subheadline).foregroundStyle(.secondary)
+            HStack { if let url = email.gmailURL { Link("Gmailで開く", destination: url) }; Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.appFont(.caption, weight: .semibold)
         }.glassCard()
     }
 }
@@ -606,9 +690,9 @@ struct ArticleCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let image = article.imageURL { AsyncImage(url: image) { phase in if let loaded = phase.image { loaded.resizable().scaledToFill() } else { Rectangle().fill(.quaternary) } }.frame(height: 170).clipShape(RoundedRectangle(cornerRadius: 16)).clipped() }
-            HStack { Text(article.category).badgeStyle(.indigo); Spacer(); Text(article.source).font(.caption).foregroundStyle(.secondary) }
-            Text(article.title).font(.headline).foregroundStyle(.primary)
-            Text(article.summary).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
+            HStack { Text(article.category).badgeStyle(.indigo); Spacer(); Text(article.source).appFont(.caption).foregroundStyle(.secondary) }
+            Text(article.title).appFont(.headline).foregroundStyle(.primary)
+            Text(article.summary).appFont(.subheadline).foregroundStyle(.secondary).lineLimit(3)
         }.glassCard()
     }
 }
@@ -640,13 +724,13 @@ struct SettingsView: View {
                     }
                 }
                 if !tokenStatus.isEmpty {
-                    Text(tokenStatus).font(.caption).foregroundStyle(.secondary)
+                    Text(tokenStatus).appFont(.caption).foregroundStyle(.secondary)
                 }
 #else
                 TextField("サーバーURL", text: $serverURL)
                     .textFieldStyle(.roundedBorder)
                 Text("Agent・タスク・メール・ニュースは、このMac mini APIをiPhone版と共有します。")
-                    .font(.caption)
+                    .appFont(.caption)
                     .foregroundStyle(.secondary)
 #endif
             }
@@ -676,11 +760,11 @@ struct SettingsView: View {
 
 struct StatusHero: View {
     let title: String; let subtitle: String; let icon: String; let color: Color
-    var body: some View { HStack(spacing: 18) { ZStack { Circle().fill(color.gradient).frame(width: 58, height: 58); Image(systemName: icon).font(.title2).foregroundStyle(.black) }; VStack(alignment: .leading, spacing: 4) { Text(title).font(.title2.bold()); Text(subtitle).foregroundStyle(.secondary) }; Spacer() }.padding(20).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28)).overlay(RoundedRectangle(cornerRadius: 28).stroke(color.opacity(0.25))) }
+    var body: some View { HStack(spacing: 18) { ZStack { Circle().fill(color.gradient).frame(width: 58, height: 58); Image(systemName: icon).appFont(.title2).foregroundStyle(.black) }; VStack(alignment: .leading, spacing: 4) { Text(title).appFont(.title2, weight: .bold); Text(subtitle).foregroundStyle(.secondary) }; Spacer() }.padding(20).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28)).overlay(RoundedRectangle(cornerRadius: 28).stroke(color.opacity(0.25))) }
 }
-struct Metric: View { let value: String; let label: String; var body: some View { VStack(alignment: .leading) { Text(value).font(.title3.bold().monospacedDigit()); Text(label).font(.caption).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading) } }
-struct SectionTitle: View { let title: String; init(_ title: String) { self.title = title }; var body: some View { Text(title).font(.title3.bold()).frame(maxWidth: .infinity, alignment: .leading) } }
-struct EmptyState: View { let icon: String; let title: String; let detail: String; var body: some View { VStack(spacing: 12) { Image(systemName: icon).font(.largeTitle).foregroundStyle(.secondary); Text(title).font(.headline); Text(detail).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center) }.frame(maxWidth: .infinity).padding(40).glassCard() } }
+struct Metric: View { let value: String; let label: String; var body: some View { VStack(alignment: .leading) { Text(value).appFont(.title3, weight: .bold, monospacedDigit: true); Text(label).appFont(.caption).foregroundStyle(.secondary) }.frame(maxWidth: .infinity, alignment: .leading) } }
+struct SectionTitle: View { let title: String; init(_ title: String) { self.title = title }; var body: some View { Text(title).appFont(.title3, weight: .bold).frame(maxWidth: .infinity, alignment: .leading) } }
+struct EmptyState: View { let icon: String; let title: String; let detail: String; var body: some View { VStack(spacing: 12) { Image(systemName: icon).appFont(.largeTitle).foregroundStyle(.secondary); Text(title).appFont(.headline); Text(detail).appFont(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center) }.frame(maxWidth: .infinity).padding(40).glassCard() } }
 private enum ScreenRefreshFreshness {
     case fresh
     case aging
@@ -741,7 +825,7 @@ struct RuntimeInfo: View {
                     }
                 }
             }
-            .font(.caption)
+            .appFont(.caption)
             .foregroundStyle(.secondary)
             .padding(.horizontal, 4)
         }
@@ -754,5 +838,5 @@ struct AppBackground: View { var body: some View { LinearGradient(colors: [Color
 
 extension View {
     func glassCard() -> some View { self.padding(16).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22)).overlay(RoundedRectangle(cornerRadius: 22).stroke(.white.opacity(0.08))) }
-    func badgeStyle(_ color: Color) -> some View { self.font(.caption2.weight(.bold)).padding(.horizontal, 8).padding(.vertical, 4).background(color.opacity(0.2), in: Capsule()).foregroundStyle(color) }
+    func badgeStyle(_ color: Color) -> some View { self.appFont(.caption2, weight: .bold).padding(.horizontal, 8).padding(.vertical, 4).background(color.opacity(0.2), in: Capsule()).foregroundStyle(color) }
 }

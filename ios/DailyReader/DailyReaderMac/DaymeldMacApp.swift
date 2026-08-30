@@ -152,15 +152,8 @@ private struct MacContentZoomView<Content: View>: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            content
-                .frame(
-                    width: geometry.size.width / scale,
-                    height: geometry.size.height / scale,
-                    alignment: .topLeading
-                )
-                .scaleEffect(scale, anchor: .topLeading)
-        }
-        .clipped()
+        content
+            .environment(\.appContentScale, scale)
+            .environment(\.font, AppTypography.font(for: .body, scale: scale))
     }
 }
