@@ -146,7 +146,7 @@ Codex CLIがログイン済みの場合は、更新時に注目記事から今�
 
 Agent画面のtanomi欄は、Daymeldの`127.0.0.1:8787`を経由する同一オリジンBFFから、既定のTailscale Serve URL `https://xh23040023-l.tailc193b2.ts.net`へ接続します。ブラウザやiPhoneからtanomiへ直接接続せず、CORSも追加しません。別ホストのtanomiを使う場合は`--tanomi-base-url`でURLを変更できます。tanomiの停止中もDaymeldの既存Agent・ニュース・メールは利用できます。
 
-tanomi本体はDaymeldに含まれず、別途起動しておく必要があります。利用可能と判断するには、tanomiホストの`/api/health`、`/api/repos`、`/api/tasks`がJSONを返すことを確認してください。8765番を別のHTTPサーバーで代用してもBFFは利用できません。tanomiの実行ファイルと常駐設定はこのリポジトリでは管理せず、tanomiホストのHome Manager設定で別途管理します。
+tanomi本体はDaymeldに含まれず、別ホストのTailscale Serveで別途起動しておく必要があります。利用可能と判断するには、tanomiホストの`/api/health`、`/api/repos`、`/api/tasks`がJSONを返すことを確認してください。8765番を別のHTTPサーバーで代用してもBFFは利用できません。tanomiの実行ファイルと常駐設定はこのリポジトリでは管理せず、tonoi/config側で別途管理する対象です。
 
 `bypassPermissions`、deploy、完全削除は強い実行権限または破壊的操作を伴うため、画面で明示確認を行います。8765のtanomi APIをDaymeld以外の公開ポートやSideStore Funnelへ転送しないでください。
 

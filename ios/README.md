@@ -1,6 +1,6 @@
 # Daymeld for iPhone and Mac
 
-DaymeldのSwiftUIネイティブクライアントです。iPhone版とmacOS版は共通の画面・モデルを使い、既存のMac mini APIへ接続します。Agent画面ではCodexに加えて、別途8765番で起動したMac上のtanomiをDaymeldの8787 BFF経由で利用できます。クライアントからtanomiの8765へ直接接続しません。iPhoneのXcodeターゲットとBundle IDは更新互換性のため維持しています。tanomi本体の導入・常駐化はこのリポジトリの責務外です。
+DaymeldのSwiftUIネイティブクライアントです。iPhone版とmacOS版は共通の画面・モデルを使い、既存のMac mini APIへ接続します。Agent画面ではCodexに加えて、別ホストのTailscale Serveで公開されたtanomiをDaymeldの8787 BFF経由で利用できます。クライアントからtanomiへ直接接続しません。iPhoneのXcodeターゲットとBundle IDは更新互換性のため維持しています。tanomi本体の導入・常駐化はこのリポジトリの責務外です。
 
 ## 実機で試す
 

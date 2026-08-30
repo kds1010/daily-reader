@@ -84,7 +84,7 @@ struct TanomiBuckets: Decodable {
 
 struct TanomiHealth: Decodable {
     let ok: Bool
-    let running: Bool?
+    let running: Int?
 }
 
 struct TanomiTask: Decodable, Identifiable {
@@ -98,9 +98,9 @@ struct TanomiTask: Decodable, Identifiable {
     let error: String?
     let model: String?
     let permissionMode: String?
-    let createdAt: String?
-    let startedAt: String?
-    let endedAt: String?
+    let createdAt: TimeInterval?
+    let startedAt: TimeInterval?
+    let endedAt: TimeInterval?
 
     enum CodingKeys: String, CodingKey {
         case id, title, prompt, cwd, status, result, error, model
