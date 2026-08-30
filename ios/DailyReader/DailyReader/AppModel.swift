@@ -27,17 +27,21 @@ final class AppModel: ObservableObject {
     @Published var selectedTab = 0
 
     private let api = APIClient.shared
+#if os(iOS)
     private let health = HealthService()
+#endif
     private let agentNotifications = AgentNotificationCoordinator()
     private var agentRefreshGeneration = 0
 
     func start() async {
+#if os(iOS)
         do {
             try SecretStore.importBootstrapHealthToken()
             try SecretStore.prepareBootstrapHealthTokenFile()
         } catch {
             errorMessage = "HealthKit同期トークンを安全に取り込めませんでした：\(error.localizedDescription)"
         }
+#endif
         await requestNotifications()
         await refresh()
     }
@@ -214,6 +218,7 @@ final class AppModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
+#if os(iOS)
     func syncHealth() async {
         do {
             let token = try SecretStore.readHealthToken() ?? ""
@@ -223,6 +228,7 @@ final class AppModel: ObservableObject {
             await refresh()
         } catch { errorMessage = error.localizedDescription }
     }
+#endif
 
     private func requestNotifications() async {
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])

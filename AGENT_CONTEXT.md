@@ -42,8 +42,10 @@
 - tonoiとconfigは`config/agent-repositories.toml`の`deploy = false`により、検証済み変更を`main`へ統合してpushした時点で完了とし、実環境デプロイは行わない。
 - `config/agent-repositories.toml`: Agentが操作できるGitリポジトリの許可リスト。Daily Reader、soan、宿直（tonoi）、configを登録し、ホーム相対パスにも対応する。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
-- `ios/DailyReader/`: SwiftUIで全面実装したiPhoneネイティブクライアント。Agent、今日、メール、ニュース、設定をネイティブ表示し、Tailscale Serve上の既存APIへ接続する。
-- ネイティブクライアントはHealthKit日次集計、Agentの完了・判断待ち・失敗遷移に対するローカル通知、App Intents、Keychainでの同期トークン保存に対応する。初回一覧取得は通知せず、停止中の遷移は次回の成功した一覧更新時に一度だけ通知する。APNsではないため、強制終了中の即時通知は保証しない。無料Personal TeamのApp ID消費を抑えるため、初期版は単一アプリターゲットとし、ウィジェットや通知Extensionは実機署名検証後に追加する。
+- `ios/DailyReader/`: SwiftUIで全面実装したiPhone・macOSネイティブクライアント。`DailyReader` iPhoneターゲットと`DaymeldMac` macOSターゲットがAgent、今日、メール、ニュース、設定の画面とAPIモデルを共有する。iPhoneのBundle IDとHealthKit entitlementは更新互換性のためmacOSターゲットから分離する。
+- iPhoneネイティブクライアントはHealthKit日次集計、Agentの完了・判断待ち・失敗遷移に対するローカル通知、App Intents、Keychainでの同期トークン保存に対応する。初回一覧取得は通知せず、停止中の遷移は次回の成功した一覧更新時に一度だけ通知する。APNsではないため、強制終了中の即時通知は保証しない。無料Personal TeamのApp ID消費を抑えるため、iPhone版は単一アプリターゲットを維持し、ウィジェットや通知Extensionは実機署名検証後に追加する。
+- macOS版はMac mini API上のAgent、Planner、Gmail、ニュース、tanomi、Codex利用状況と、iPhoneから同期済みの健康集計を共有する。MacにはHealthKitデータストアがないため、HealthKit同期とトークン入力はiPhone版だけに表示する。macOS版はApp Sandboxと外向きネットワークだけを許可し、HealthKit entitlementを含めない。
+- `scripts/build_macos_release.py`: 現在のコミット数を版にしたarm64 macOS Releaseをビルドし、アドホック署名、Sandbox・network client entitlement、HealthKit entitlement非混入、Bundle ID・版・アーキテクチャを検証して、Git管理外の`data/macos/Daymeld.app`とZIPを生成する。個人Mac以外へ配布する場合はDeveloper ID署名とnotarizationを別途行う。
 - SideStore配布物は`scripts/build_sidestore_release.py`でHealthKit entitlementを含むアドホック署名済みseed IPAとして、メイン静的ルート外の`data/sidestore/`へ生成する。SideStoreはseed署名からentitlementを読み、端末上のApple Accountで再署名する。LAN用`0.0.0.0:8788`は`source.json`、`DailyReader.ipa`、`icon.png`だけを配信し、接続元をMac自身、自宅LANの`192.168.10.0/24`、IPv4 link-localの`169.254.0.0/16`（現環境ではiPhoneのUSB直接リンク）へ制限する。外出先用`127.0.0.1:8789`はスクリプト生成の32-byte random path tokenをconstant-timeで照合し、`remote-source.json`を`source.json`として、アイコンとソースに列挙した最大10版のIPAだけを配信する。サーバーログへ秘密URLを出さず、tokenファイルと`remote-source.json`は`0600`で保存する。SideStore自身は失敗時等にURLをiPhone診断ログへ記録し得るため、そのログも共有しない。Tailscale Funnelは`8443`番だけを8789へ中継する。配布ファイル不足や補助ポートの起動失敗時もメインサーバーは継続する。Agent、Gmail、健康情報のAPIは引き続き`127.0.0.1:8787`とTailscale Serveの`443`番に限定する。更新時はiPhoneのTailscaleを切り、LocalDevVPNを使用する。LAN用ソースは同一Wi-Fi、外出先用ソースは通常のWi-Fiまたはモバイル回線で取得する。LAN版からの移行時はremote source追加後、その一覧から一度installして更新元を関連付け、LAN sourceを削除する。
 - 公式SideStore 0.6.3のAltSignはHealthKit entitlementをApple Developer Portal featureへ対応付けず、Daily Readerの再署名時にHealthKitを除去する。この端末ではSideStore 0.6.3（commit `4deda922`）へ`ios/patches/sidestore-0.6.3-healthkit.patch`を適用した自己ビルド版を使用する。パッチは`com.apple.developer.healthkit`とfeature ID `HK421J6T7P`を双方向に変換する。公式SideStoreへ更新せず、更新する場合は同等修正の有無を実装で確認する。再ビルド・IPA梱包・iLoader導入・AppleDouble除外・実機検証の詳細は`ios/README.md`に従う。HealthKit対応SideStore自体を新規作成・更新した際の手動適格性確認では、HealthKit許可画面の表示だけでなく、Tailscale接続下で実データ同期が成功することまで確認する。この手動確認は通常のDaily Reader IPA配信の完了条件には含めない。
 - `site/data/articles.json`, `site/data/highlights.json`: 公開中の生成済みスナップショット。起動時・定期更新時に再生成するGit管理対象外の実行時データ。
@@ -178,6 +180,15 @@ xcodebuild -project ios/DailyReader/DailyReader.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
+共有SwiftUIまたはmacOSネイティブクライアントを変更した場合は、署名なしのmacOSビルドも実行する。
+
+```bash
+xcodebuild -project ios/DailyReader/DailyReader.xcodeproj \
+  -scheme DaymeldMac -sdk macosx -configuration Debug \
+  -derivedDataPath /tmp/daily-reader-macos-derived \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
 HealthKit capabilityとSideStore再署名の可否はSimulatorでは確定できないため、XcodeでPersonal Teamを選択した実機ビルドを別途行う。Apple Accountへのログイン、Developer Mode、HealthKit・通知権限の許可はユーザー本人が操作する。
 
 サーバー起動:
@@ -208,6 +219,7 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 - 再起動後は、PID の更新、LaunchAgent の稼働、`http://127.0.0.1:8787/` の成功応答、`https://sk-mins-mac-mini.tailc193b2.ts.net/` の成功応答、および変更機能の代表的な動作を確認する。iPhoneクライアント変更の代表確認は次項の配信検証を指し、物理端末上の操作確認は含めない。
 - SideStore配信を変更した場合は、生成IPAのバージョンとコード署名にHealthKitの2 entitlementが含まれること、`0.0.0.0:8788`の待ち受けと、MacのLAN IPおよび`sk-mins-Mac-mini.local`から`source.json`とIPAを取得できることを確認する。さらに`127.0.0.1:8789`だけで外出先用サーバーが待ち受け、`scripts/verify_sidestore_remote.py`でFunnelの現行3成果物がローカルと一致し、tokenなし、誤token、traversal、APIパス、非GETメソッドが404になることを確認する。同スクリプトでServe/Funnel JSONが`443 -> 8787`のtailnet限定と`8443 -> 8789`のFunnelだけであることも検証する。ここまで成功すれば配信デプロイは完了とし、検証出力へ秘密URLを含めない。
 - iPhoneへのインストール、SideStoreによる再署名、Tailscaleを切った外部回線からの8443取得と443拒否、HealthKit・通知権限、実データ同期、画面・操作確認は配信後にユーザーが実施する独立工程とする。iPhone未接続やユーザー操作待ちをAgentタスクの失敗にせず、完了報告へ配信済みバージョンと実機導入の実施状況を分けて記載する。
+- macOSクライアントを変更した場合は、main統合後に`scripts/build_macos_release.py`で最新アプリとZIPを再生成し、Bundle ID、版、arm64、アドホック署名、Sandbox・外向きネットワーク entitlement、HealthKit entitlement非混入を確認する。アプリを起動し、同じMac mini APIから代表データを取得できれば、このMac向け配布は完了とする。`/Applications`へのコピーは必須ではない。
 - デプロイまたは実環境確認に失敗した状態を完了として扱わない。実行できない場合は未デプロイと阻害要因を明示する。
 - 文書、コメント、テストだけの変更で実行時成果物が変わらない場合は再起動不要だが、その判断を完了報告へ明記する。
 

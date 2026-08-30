@@ -503,7 +503,23 @@ struct TodayView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 StatusHero(title: "今日", subtitle: remaining == 0 ? "すべて完了しました" : "あと\(remaining)件です", icon: "sun.max.fill", color: .orange)
-                if let health = model.today?.health { HealthCard(health: health) } else { Button { Task { await model.syncHealth() } } label: { Label("HealthKitを同期", systemImage: "heart.fill").frame(maxWidth: .infinity) }.buttonStyle(.borderedProminent).tint(.pink) }
+                if let health = model.today?.health {
+                    HealthCard(health: health)
+                } else {
+#if os(iOS)
+                    Button { Task { await model.syncHealth() } } label: {
+                        Label("HealthKitを同期", systemImage: "heart.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.pink)
+#else
+                    Label("健康情報はiPhoneから同期すると表示されます", systemImage: "iphone")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(.secondary)
+                        .glassCard()
+#endif
+                }
                 SectionTitle("タスク")
                 ForEach(model.today?.tasks ?? []) { task in TaskRow(task: task) }
                 SectionTitle("ルーティン")
@@ -529,7 +545,20 @@ struct HealthCard: View {
     let health: HealthSnapshot
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack { Label("HealthKit", systemImage: "heart.fill").font(.headline).foregroundStyle(.pink); Spacer(); Button("同期") { Task { await model.syncHealth() } }.font(.caption.weight(.semibold)) }
+            HStack {
+                Label("HealthKit", systemImage: "heart.fill")
+                    .font(.headline)
+                    .foregroundStyle(.pink)
+                Spacer()
+#if os(iOS)
+                Button("同期") { Task { await model.syncHealth() } }
+                    .font(.caption.weight(.semibold))
+#else
+                Text("iPhoneから同期済み")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+#endif
+            }
             HStack { Metric(value: health.sleepMinutes.map { "\($0 / 60)h \($0 % 60)m" } ?? "—", label: "睡眠"); Metric(value: health.steps.map { $0.formatted() } ?? "—", label: "歩数"); Metric(value: health.hrvMS.map { String(format: "%.0f", $0) } ?? "—", label: "HRV") }
         }.glassCard()
     }
@@ -595,9 +624,53 @@ struct SettingsView: View {
         return build.isEmpty ? version : "\(version) (\(build))"
     }
     var body: some View {
-        Form { Section("接続") { TextField("サーバーURL", text: $serverURL).textInputAutocapitalization(.never).keyboardType(.URL); SecureField("HealthKit同期トークン", text: $healthToken); Button("トークンを安全に保存") { do { try SecretStore.saveHealthToken(healthToken); tokenStatus = "Keychainへ保存しました" } catch { tokenStatus = error.localizedDescription } }; if !tokenStatus.isEmpty { Text(tokenStatus).font(.caption).foregroundStyle(.secondary) } }; Section("プライバシー") { Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield") }; Section("バージョン") { LabeledContent("Daymeld", value: versionText); if let info = model.deploymentInfo { LabeledContent("サーバー", value: info.version); if let date = info.deployedDate { LabeledContent("デプロイ", value: date.runtimeDisplay) } } } }
+        Form {
+            Section("接続") {
+#if os(iOS)
+                TextField("サーバーURL", text: $serverURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                SecureField("HealthKit同期トークン", text: $healthToken)
+                Button("トークンを安全に保存") {
+                    do {
+                        try SecretStore.saveHealthToken(healthToken)
+                        tokenStatus = "Keychainへ保存しました"
+                    } catch {
+                        tokenStatus = error.localizedDescription
+                    }
+                }
+                if !tokenStatus.isEmpty {
+                    Text(tokenStatus).font(.caption).foregroundStyle(.secondary)
+                }
+#else
+                TextField("サーバーURL", text: $serverURL)
+                    .textFieldStyle(.roundedBorder)
+                Text("Agent・タスク・メール・ニュースは、このMac mini APIをiPhone版と共有します。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+#endif
+            }
+            Section("プライバシー") {
+#if os(iOS)
+                Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield")
+#else
+                Label("健康情報はiPhoneが同期したMac mini上の集計だけを表示します", systemImage: "lock.shield")
+#endif
+            }
+            Section("バージョン") {
+                LabeledContent("Daymeld", value: versionText)
+                if let info = model.deploymentInfo {
+                    LabeledContent("サーバー", value: info.version)
+                    if let date = info.deployedDate {
+                        LabeledContent("デプロイ", value: date.runtimeDisplay)
+                    }
+                }
+            }
+        }
             .navigationTitle("設定")
+#if os(iOS)
             .onAppear { healthToken = (try? SecretStore.readHealthToken()) ?? "" }
+#endif
     }
 }
 

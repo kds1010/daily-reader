@@ -1,8 +1,8 @@
 # Daymeld (内部プロジェクト名: Daily Reader)
 
-> SwiftUIネイティブiPhone版は[`ios/README.md`](ios/README.md)を参照してください。
+> SwiftUIネイティブiPhone・macOS版は[`ios/README.md`](ios/README.md)を参照してください。
 
-Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部サーバーやデータベースは必要ありません。SideStoreの更新成果物だけは、秘密URLで保護したTailscale Funnelの専用ポートから配信できます。起動時はAgentタブを最初に表示します。
+Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneとMacで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部サーバーやデータベースは必要ありません。SideStoreの更新成果物だけは、秘密URLで保護したTailscale Funnelの専用ポートから配信できます。起動時はAgentタブを最初に表示します。
 
 ## 主な機能
 
@@ -38,6 +38,7 @@ Codexへの自律タスク投入、今日やること、重要メール、関心
 - Gmailスレッドへのリンク、Gmailへ反映される既読操作、対応済み・保留・対応不要の記録
 - 「今日」画面でのタスク、期限、優先度、毎日・平日・毎週のルーティン管理
 - 疲労度・気分・体調メモと、iPhoneショートカットから同期したHealthKit日次集計の表示
+- iPhoneと同じAgent・今日・メール・ニュースを表示するネイティブmacOSアプリ
 
 ## 今日のタスクと体調
 
@@ -230,6 +231,25 @@ Codex CLI、Git worktree、LaunchAgent、ローカルGmail OAuth、HealthKit同�
 
 「あとで読む」と既読状態はiPhoneのブラウザ内にだけ保存されます。ブラウザデータを消去した場合や別の端末には引き継がれません。
 「表示したくない」はMac miniにも保存されるため、別端末での表示と次回更新時のCodexによる選定にも反映されます。少数の指定だけでカテゴリ全体を除外せず、タイトル・情報元・カテゴリに繰り返し現れる傾向を減点材料として扱います。
+
+## ネイティブmacOSアプリ
+
+macOS版はiPhone版と同じMac mini APIへ接続し、Agent、今日のタスク、メール、ニュース、
+tanomi、Codex利用状況を共有します。iPhoneから同期済みの健康集計も表示しますが、Macには
+HealthKitデータストアがないため、macOS版からHealthKitを新規同期する操作は表示しません。
+
+このMacで使うアドホック署名済みアプリとZIPは次のコマンドで生成します。
+
+```bash
+uv run --frozen python scripts/build_macos_release.py
+```
+
+成果物はGit管理外の`data/macos/Daymeld.app`と`data/macos/Daymeld-macOS.zip`です。
+初回は`Daymeld.app`を開き、通知を許可してください。他のMacへ配布する場合は、この個人用
+アドホック署名とは別にDeveloper ID署名とnotarizationが必要です。
+
+ニュースの「既読」「あとで読む」はWeb版のブラウザ内保存であり、ネイティブアプリ間で
+共有するサーバー状態にはまだ含まれません。
 
 ## 開発時の検証
 

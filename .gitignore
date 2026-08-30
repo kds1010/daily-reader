@@ -24,3 +24,6 @@ xcuserdata/
 
 # Locally published SideStore release artifacts
 data/sidestore/
+
+# Locally published native macOS release artifacts
+data/macos/

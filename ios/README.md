@@ -1,6 +1,6 @@
-# Daymeld for iPhone
+# Daymeld for iPhone and Mac
 
-DaymeldのSwiftUIネイティブクライアントです。既存のMac mini APIへTailscale経由で接続します。Agent画面ではCodexに加えて、別途8765番で起動したMac上のtanomiをDaymeldの8787 BFF経由で利用できます。iPhoneからtanomiの8765へ直接接続しません。XcodeプロジェクトとBundle IDは更新互換性のため維持しています。tanomi本体の導入・常駐化はこのリポジトリの責務外です。
+DaymeldのSwiftUIネイティブクライアントです。iPhone版とmacOS版は共通の画面・モデルを使い、既存のMac mini APIへ接続します。Agent画面ではCodexに加えて、別途8765番で起動したMac上のtanomiをDaymeldの8787 BFF経由で利用できます。クライアントからtanomiの8765へ直接接続しません。iPhoneのXcodeターゲットとBundle IDは更新互換性のため維持しています。tanomi本体の導入・常駐化はこのリポジトリの責務外です。
 
 ## 実機で試す
 
@@ -24,6 +24,26 @@ Documents領域へ転送して再起動します。アプリはトークンをKe
 無料Personal TeamでHealthKitのプロビジョニングに失敗する場合は、まず
 `DailyReader.entitlements`から`com.apple.developer.healthkit.background-delivery`だけを外し、
 前景同期で実機検証してください。
+
+## Macで使う
+
+`DaymeldMac`は専用のネイティブmacOSターゲットです。Agent、今日、メール、ニュース、
+tanomiなどはiPhoneと同じMac mini上の状態を表示します。健康情報はiPhoneからサーバーへ
+同期済みの集計を表示できますが、MacにはHealthKitデータストアがないため、Mac側には
+HealthKit同期ボタンやトークン入力を表示しません。
+
+Xcodeでは`DaymeldMac` schemeと`My Mac`を選択して実行できます。このMac用のアドホック
+署名済み成果物を生成する場合は、リポジトリ直下で次を実行します。
+
+```bash
+uv run --frozen python scripts/build_macos_release.py
+```
+
+`data/macos/Daymeld.app`と`data/macos/Daymeld-macOS.zip`が生成されます。アプリはApp Sandboxを
+有効にし、Mac mini APIへ接続するための外向きネットワーク通信を許可します。HealthKit
+entitlementは含みません。
+この成果物は同じMacでの個人利用向けです。他のMacへ配布する場合はDeveloper ID署名と
+notarizationを別途行ってください。
 
 ## SideStoreで更新する
 
@@ -117,5 +137,10 @@ SideStoreまたはiPhoneの診断ログを共有した場合はトークン漏�
 ```bash
 xcodebuild -project ios/DailyReader/DailyReader.xcodeproj \
   -scheme DailyReader -sdk iphonesimulator -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO build
+
+xcodebuild -project ios/DailyReader/DailyReader.xcodeproj \
+  -scheme DaymeldMac -sdk macosx -configuration Debug \
+  -derivedDataPath /tmp/daily-reader-macos-derived \
   CODE_SIGNING_ALLOWED=NO build
 ```

@@ -1,7 +1,7 @@
 [project]
 name = "daily-reader"
 version = "0.1.0"
-description = "A zero-cost personal news and information dashboard for iPhone"
+description = "A zero-cost personal news and information dashboard for iPhone and Mac"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
