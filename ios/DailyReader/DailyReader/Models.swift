@@ -239,6 +239,18 @@ struct HealthSnapshot: Codable {
 
 struct EmailEnvelope: Decodable {
     let items: [EmailReminder]
+    let lastSyncAt: String?
+    let syncError: String?
+    let authorizationRequired: Bool?
+    let canMarkRead: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case items
+        case lastSyncAt = "last_sync_at"
+        case syncError = "sync_error"
+        case authorizationRequired = "authorization_required"
+        case canMarkRead = "can_mark_read"
+    }
 }
 
 struct EmailReminder: Decodable, Identifiable {
@@ -251,6 +263,8 @@ struct EmailReminder: Decodable, Identifiable {
     let requiredAction: String
     let dueDate: String?
     let gmailURL: URL?
+    let status: String?
+    let receivedAt: String?
 
     enum CodingKeys: String, CodingKey {
         case sender, subject, importance, reason
@@ -258,6 +272,8 @@ struct EmailReminder: Decodable, Identifiable {
         case requiredAction = "required_action"
         case dueDate = "due_date"
         case gmailURL = "gmail_url"
+        case status
+        case receivedAt = "received_at"
     }
 }
 

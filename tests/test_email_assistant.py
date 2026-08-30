@@ -1,15 +1,25 @@
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from daily_reader.email_assistant import (
+    GMAIL_READONLY_SCOPE,
+    GmailAuthorizationRequired,
     GmailThreadRecord,
     assess_email,
     clean_message_body,
     get_gmail_sync_state,
+    get_gmail_sync_status,
     gmail_thread_url,
     list_reminders,
+    list_unread_threads,
+    load_credentials,
     mark_gmail_thread_read,
     reconcile_unread_threads,
+    record_gmail_sync_status,
+    sync_gmail,
     update_status,
     upsert_thread,
 )
@@ -87,6 +97,153 @@ def test_read_thread_is_not_listed_as_a_reminder(tmp_path: Path) -> None:
     upsert_thread(database, record, NOW)
 
     assert list_reminders(database, "daily", NOW) == []
+
+
+def test_unread_inbox_includes_low_and_old_threads_but_not_completed_or_read(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "assistant.sqlite3"
+    records = [
+        GmailThreadRecord(
+            "low-old", "message-1", "me@example.com", "お知らせ", "a@example.com",
+            "2020-01-01T00:00:00+00:00", "本文", "https://example.com", "low", 0,
+            "明確な期限・依頼・警告を検出していません", "対応不要の可能性", None,
+            "open", "classified",
+        ),
+        GmailThreadRecord(
+            "done", "message-2", "me@example.com", "完了", "a@example.com",
+            NOW.isoformat(), "本文", "https://example.com", "high", 8, "要対応", "確認する",
+            None, "done", "marked_done",
+        ),
+        GmailThreadRecord(
+            "read", "message-3", "me@example.com", "既読", "a@example.com",
+            NOW.isoformat(), "本文", "https://example.com", "high", 8, "要対応", "確認する",
+            None, "open", "classified", is_unread=False,
+        ),
+    ]
+    for record in records:
+        upsert_thread(database, record, NOW)
+
+    items = list_unread_threads(database, NOW)
+
+    assert [item["thread_id"] for item in items] == ["low-old"]
+
+
+def test_sync_status_is_recorded_without_exposing_error_details(tmp_path: Path) -> None:
+    database = tmp_path / "assistant.sqlite3"
+
+    record_gmail_sync_status(database, NOW, "authorization_required", True, False)
+
+    assert get_gmail_sync_status(database) == {
+        "last_attempt_at": NOW.isoformat(),
+        "last_error": "authorization_required",
+        "authorization_required": 1,
+        "can_mark_read": 0,
+    }
+
+
+def test_thread_listing_follows_all_pages() -> None:
+    pages = {
+        None: {"threads": [{"id": "thread-1"}], "nextPageToken": "next"},
+        "next": {"threads": [{"id": "thread-2"}]},
+    }
+
+    class Request:
+        def __init__(self, token):
+            self.token = token
+
+        def execute(self):
+            return pages[self.token]
+
+    class Threads:
+        def list(self, **kwargs):
+            assert kwargs["maxResults"] == 500
+            return Request(kwargs.get("pageToken"))
+
+    class Users:
+        def threads(self):
+            return Threads()
+
+    class Service:
+        def users(self):
+            return Users()
+
+    from daily_reader.email_assistant import _list_thread_ids
+
+    assert _list_thread_ids(Service(), "is:unread") == ["thread-1", "thread-2"]
+
+
+def test_readonly_credentials_are_accepted_but_modify_is_rejected(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    token_path = tmp_path / "token.json"
+    token_path.write_text(json.dumps({"scopes": [GMAIL_READONLY_SCOPE]}), encoding="utf-8")
+    requested = []
+
+    class CredentialsStub:
+        valid = True
+        expired = False
+        refresh_token = None
+        scopes = [GMAIL_READONLY_SCOPE]
+
+        def to_json(self):
+            return json.dumps({"scopes": self.scopes})
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.Credentials.from_authorized_user_info",
+        lambda token, scopes: (requested.append(scopes), CredentialsStub())[1],
+    )
+
+    assert load_credentials(tmp_path / "client.json", token_path, False).valid
+    assert requested == [[GMAIL_READONLY_SCOPE]]
+    with pytest.raises(GmailAuthorizationRequired):
+        load_credentials(tmp_path / "client.json", token_path, False, require_modify=True)
+
+
+def test_sync_failure_does_not_reconcile_existing_unread_threads(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    database = tmp_path / "assistant.sqlite3"
+    upsert_thread(
+        database,
+        GmailThreadRecord(
+            "existing", "message-1", "me@example.com", "件名", "a@example.com",
+            NOW.isoformat(), "本文", "https://example.com", "low", 0, "理由",
+            "確認する", None, "open", "classified",
+        ),
+        NOW,
+    )
+
+    class CredentialsStub:
+        scopes = [GMAIL_READONLY_SCOPE]
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.load_credentials", lambda *args, **kwargs: CredentialsStub()
+    )
+    class ProfileRequest:
+        def execute(self):
+            return {"emailAddress": "me@example.com"}
+
+    class Users:
+        def getProfile(self, **kwargs):
+            return ProfileRequest()
+
+    class Service:
+        def users(self):
+            return Users()
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.build", lambda *args, **kwargs: Service()
+    )
+    monkeypatch.setattr(
+        "daily_reader.email_assistant._list_thread_ids",
+        lambda *args: (_ for _ in ()).throw(RuntimeError("page failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="page failed"):
+        sync_gmail(database, tmp_path / "client.json", tmp_path / "token.json")
+
+    assert [item["thread_id"] for item in list_unread_threads(database, NOW)] == ["existing"]
 
 
 def test_mark_gmail_thread_read_updates_gmail_and_local_state(

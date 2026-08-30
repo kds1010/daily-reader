@@ -47,7 +47,9 @@ from daily_reader.daily_planner import (
 from daily_reader.email_assistant import (
     fetch_gmail_thread_content,
     get_gmail_sync_state,
+    get_gmail_sync_status,
     list_reminders,
+    list_unread_threads,
     mark_gmail_thread_read,
     sync_gmail,
     update_status,
@@ -628,6 +630,23 @@ def make_handler(
                     {"hidden_article_ids": list(dict.fromkeys(
                         event["article_id"] for event in events
                     ))},
+                )
+                return
+            if self.path == "/api/emails/unread":
+                sync_state = get_gmail_sync_state(assistant_db)
+                sync_status = get_gmail_sync_status(assistant_db) or {}
+                self._send_json(
+                    200,
+                    {
+                        "generated_at": datetime.now(UTC).isoformat(),
+                        "last_sync_at": sync_state["completed_at"] if sync_state else None,
+                        "synced_thread_count": sync_state["thread_count"] if sync_state else 0,
+                        "last_attempt_at": sync_status.get("last_attempt_at"),
+                        "sync_error": sync_status.get("last_error"),
+                        "authorization_required": bool(sync_status.get("authorization_required")),
+                        "can_mark_read": bool(sync_status.get("can_mark_read")),
+                        "items": list_unread_threads(assistant_db, datetime.now(UTC)),
+                    },
                 )
                 return
             if self.path in {"/api/email-reminders/daily", "/api/email-reminders/weekly"}:

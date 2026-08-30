@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from daily_reader.email_assistant import GmailThreadRecord, upsert_thread
 from daily_reader.local_server import (
     SideStoreLANServer,
     append_feedback_event,
@@ -312,6 +313,35 @@ def test_main_handler_never_serves_sidestore_release(tmp_path: Path) -> None:
     handler.do_GET()
 
     assert responses == [(404, {"error": "not found"})]
+
+
+def test_main_handler_exposes_all_unread_emails(tmp_path: Path) -> None:
+    database = tmp_path / "assistant.sqlite3"
+    upsert_thread(
+        database,
+        GmailThreadRecord(
+            "thread-1", "message-1", "me@example.com", "お知らせ", "a@example.com",
+            "2020-01-01T00:00:00+00:00", "本文", "https://example.com", "low", 0,
+            "明確な期限・依頼・警告を検出していません", "対応不要の可能性", None,
+            "open", "classified",
+        ),
+        datetime.fromisoformat("2026-08-12T03:00:00+00:00"),
+    )
+    handler_factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", database, tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.path = "/api/emails/unread"
+
+    handler.do_GET()
+
+    assert responses[0][0] == 200
+    assert [item["thread_id"] for item in responses[0][1]["items"]] == ["thread-1"]
+    assert responses[0][1]["sync_error"] is None
 
 
 def test_sidestore_lan_server_parses_and_applies_trusted_networks(

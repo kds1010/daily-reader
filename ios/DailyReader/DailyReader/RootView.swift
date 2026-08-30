@@ -538,8 +538,16 @@ struct HealthCard: View {
 struct EmailView: View {
     @EnvironmentObject private var model: AppModel
     var body: some View {
-        ScrollView { LazyVStack(spacing: 14) { ForEach(model.emails) { email in EmailCard(email: email) }; if model.emails.isEmpty { EmptyState(icon: "tray", title: "未対応メールはありません", detail: "重要な未読メールだけを表示します。") } }.padding() }
-            .background(AppBackground()).navigationTitle("重要メール").refreshable { await model.refresh() }
+        ScrollView {
+            LazyVStack(spacing: 14) {
+                if let error = model.emailSyncError {
+                    Text(error).font(.footnote).foregroundStyle(.orange).frame(maxWidth: .infinity, alignment: .leading).glassCard()
+                }
+                ForEach(model.emails) { email in EmailCard(email: email) }
+                if model.emails.isEmpty { EmptyState(icon: "tray", title: "未読メールはありません", detail: "迷惑メールとゴミ箱を除く未読メールを表示します。") }
+            }.padding()
+        }
+            .background(AppBackground()).navigationTitle("未読メール").refreshable { await model.refresh() }
     }
 }
 
@@ -551,7 +559,7 @@ struct EmailCard: View {
             HStack { Text(email.sender).font(.caption.weight(.semibold)).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
             Text(email.subject).font(.headline)
             Text(email.requiredAction).font(.subheadline).foregroundStyle(.secondary)
-            HStack { if let url = email.gmailURL { Link("Gmailで開く", destination: url) }; Spacer(); Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.font(.caption.weight(.semibold))
+            HStack { if let url = email.gmailURL { Link("Gmailで開く", destination: url) }; Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.font(.caption.weight(.semibold))
         }.glassCard()
     }
 }

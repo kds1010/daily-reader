@@ -9,6 +9,7 @@ import os
 import re
 import sqlite3
 import urllib.parse
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -19,7 +20,10 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
+GMAIL_UNREAD_QUERY = "is:unread -in:spam -in:trash"
+GMAIL_RECENT_QUERY = "newer_than:7d -in:spam -in:trash"
 TAG_PATTERN = re.compile(r"<[^>]+>")
 SPACE_PATTERN = re.compile(r"\s+")
 HTML_IGNORED_PATTERN = re.compile(
@@ -67,6 +71,19 @@ ACTION_SIGNALS = (
 )
 
 
+@contextmanager
+def database_connection(path: Path):
+    connection = sqlite3.connect(path)
+    try:
+        yield connection
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 @dataclass(frozen=True)
 class EmailAssessment:
     importance: str
@@ -94,6 +111,10 @@ class GmailThreadRecord:
     status: str
     status_source: str
     is_unread: bool = True
+
+
+class GmailAuthorizationRequired(RuntimeError):
+    """Raised when the stored Gmail token cannot perform the requested operation."""
 
 
 def clean_message_text(value: str, max_length: int = 1200) -> str:
@@ -177,7 +198,7 @@ def assess_email(
 
 def initialize_database(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as connection:
+    with database_connection(path) as connection:
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS email_threads (
@@ -189,6 +210,17 @@ def initialize_database(path: Path) -> None:
                 status TEXT NOT NULL, status_source TEXT NOT NULL, remind_after TEXT,
                 is_unread INTEGER NOT NULL DEFAULT 1,
                 updated_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gmail_sync_status (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                last_attempt_at TEXT NOT NULL,
+                last_error TEXT,
+                authorization_required INTEGER NOT NULL DEFAULT 0,
+                can_mark_read INTEGER NOT NULL DEFAULT 0
             )
             """
         )
@@ -218,7 +250,7 @@ def gmail_thread_url(account_email: str, thread_id: str) -> str:
 def upsert_thread(path: Path, record: GmailThreadRecord, now: datetime) -> None:
     initialize_database(path)
     values = asdict(record) | {"updated_at": now.isoformat()}
-    with sqlite3.connect(path) as connection:
+    with database_connection(path) as connection:
         connection.execute(
             """
             INSERT INTO email_threads (
@@ -258,7 +290,7 @@ def list_reminders(path: Path, period: str, now: datetime) -> list[dict[str, Any
         raise ValueError("period must be daily or weekly")
     initialize_database(path)
     cutoff = now - timedelta(days=1 if period == "daily" else 7)
-    with sqlite3.connect(path) as connection:
+    with database_connection(path) as connection:
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
             """
@@ -283,7 +315,7 @@ def list_reminders(path: Path, period: str, now: datetime) -> list[dict[str, Any
 
 def get_gmail_sync_state(path: Path) -> dict[str, Any] | None:
     initialize_database(path)
-    with sqlite3.connect(path) as connection:
+    with database_connection(path) as connection:
         connection.row_factory = sqlite3.Row
         row = connection.execute(
             "SELECT completed_at, thread_count FROM gmail_sync_state WHERE id = 1"
@@ -293,7 +325,7 @@ def get_gmail_sync_state(path: Path) -> dict[str, Any] | None:
 
 def reconcile_unread_threads(path: Path, synchronized_thread_ids: set[str]) -> None:
     initialize_database(path)
-    with sqlite3.connect(path) as connection:
+    with database_connection(path) as connection:
         if synchronized_thread_ids:
             placeholders = ",".join("?" for _ in synchronized_thread_ids)
             connection.execute(
@@ -314,7 +346,7 @@ def update_status(path: Path, thread_id: str, action: str, now: datetime) -> boo
     if action not in mapping:
         return False
     status, source, remind_after = mapping[action]
-    with sqlite3.connect(path) as connection:
+    with database_connection(path) as connection:
         cursor = connection.execute(
             """UPDATE email_threads SET status=?, status_source=?, remind_after=?, updated_at=?
             WHERE thread_id=?""",
@@ -331,21 +363,23 @@ def mark_gmail_thread_read(
     now: datetime,
 ) -> bool:
     initialize_database(database)
-    with sqlite3.connect(database) as connection:
+    with database_connection(database) as connection:
         stored = connection.execute(
             "SELECT 1 FROM email_threads WHERE thread_id = ?", (thread_id,)
         ).fetchone()
     if stored is None:
         return False
 
-    credentials = load_credentials(client_secret, token_path, interactive=False)
+    credentials = load_credentials(
+        client_secret, token_path, interactive=False, require_modify=True
+    )
     service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
     service.users().threads().modify(
         userId="me",
         id=thread_id,
         body={"removeLabelIds": ["UNREAD"]},
     ).execute()
-    with sqlite3.connect(database) as connection:
+    with database_connection(database) as connection:
         connection.execute(
             "UPDATE email_threads SET is_unread=0, updated_at=? WHERE thread_id=?",
             (now.isoformat(), thread_id),
@@ -353,19 +387,32 @@ def mark_gmail_thread_read(
     return True
 
 
-def load_credentials(client_secret: Path, token_path: Path, interactive: bool) -> Credentials:
+def load_credentials(
+    client_secret: Path,
+    token_path: Path,
+    interactive: bool,
+    require_modify: bool = False,
+) -> Credentials:
     credentials = None
     if token_path.exists():
         token = json.loads(token_path.read_text(encoding="utf-8"))
-        if GMAIL_MODIFY_SCOPE in token.get("scopes", []):
+        token_scopes = set(token.get("scopes", []))
+        read_scope = (
+            GMAIL_MODIFY_SCOPE
+            if GMAIL_MODIFY_SCOPE in token_scopes
+            else GMAIL_READONLY_SCOPE
+        )
+        if (GMAIL_MODIFY_SCOPE if require_modify else read_scope) in token_scopes:
             credentials = Credentials.from_authorized_user_info(
-                token, [GMAIL_MODIFY_SCOPE]
+                token, [GMAIL_MODIFY_SCOPE if require_modify else read_scope]
             )
     if credentials and credentials.expired and credentials.refresh_token:
         credentials.refresh(Request())
     if not credentials or not credentials.valid:
         if not interactive:
-            raise RuntimeError("Gmail authorization required: run daily-reader-gmail auth")
+            raise GmailAuthorizationRequired(
+                "Gmail authorization required: run daily-reader-gmail auth"
+            )
         flow = InstalledAppFlow.from_client_secrets_file(client_secret, [GMAIL_MODIFY_SCOPE])
         credentials = flow.run_local_server(
             host="127.0.0.1", port=0, open_browser=True, prompt="consent"
@@ -374,6 +421,62 @@ def load_credentials(client_secret: Path, token_path: Path, interactive: bool) -
     token_path.write_text(credentials.to_json(), encoding="utf-8")
     os.chmod(token_path, 0o600)
     return credentials
+
+
+def get_gmail_sync_status(path: Path) -> dict[str, Any] | None:
+    initialize_database(path)
+    with database_connection(path) as connection:
+        connection.row_factory = sqlite3.Row
+        row = connection.execute(
+            "SELECT last_attempt_at, last_error, authorization_required, can_mark_read "
+            "FROM gmail_sync_status WHERE id = 1"
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def record_gmail_sync_status(
+    path: Path,
+    attempted_at: datetime,
+    error: str | None,
+    authorization_required: bool,
+    can_mark_read: bool,
+) -> None:
+    initialize_database(path)
+    with database_connection(path) as connection:
+        connection.execute(
+            """
+            INSERT INTO gmail_sync_status (
+                id, last_attempt_at, last_error, authorization_required, can_mark_read
+            ) VALUES (1, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                last_attempt_at=excluded.last_attempt_at,
+                last_error=excluded.last_error,
+                authorization_required=excluded.authorization_required,
+                can_mark_read=excluded.can_mark_read
+            """,
+            (attempted_at.isoformat(), error, authorization_required, can_mark_read),
+        )
+
+
+def list_unread_threads(path: Path, now: datetime) -> list[dict[str, Any]]:
+    initialize_database(path)
+    with database_connection(path) as connection:
+        connection.row_factory = sqlite3.Row
+        rows = connection.execute(
+            """
+            SELECT * FROM email_threads
+            WHERE status IN ('open', 'awaiting_reply', 'snoozed')
+              AND is_unread = 1
+              AND (remind_after IS NULL OR remind_after <= ?)
+            ORDER BY CASE importance WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+              received_at DESC
+            """,
+            (now.isoformat(),),
+        ).fetchall()
+    items = [dict(row) for row in rows]
+    for item in items:
+        item["gmail_url"] = gmail_thread_url(item["account_email"], item["thread_id"])
+    return items
 
 
 def _headers(message: dict[str, Any]) -> dict[str, str]:
@@ -408,7 +511,7 @@ def fetch_gmail_thread_content(
     thread_id: str,
 ) -> dict[str, Any] | None:
     initialize_database(database)
-    with sqlite3.connect(database) as connection:
+    with database_connection(database) as connection:
         connection.row_factory = sqlite3.Row
         stored = connection.execute(
             "SELECT subject, account_email FROM email_threads WHERE thread_id = ?",
@@ -446,81 +549,118 @@ def fetch_gmail_thread_content(
     }
 
 
+def _list_thread_ids(service: Any, query: str) -> list[str]:
+    thread_ids: list[str] = []
+    page_token = None
+    while True:
+        request = service.users().threads().list(
+            userId="me", q=query, maxResults=500, **(
+                {"pageToken": page_token} if page_token else {}
+            )
+        )
+        response = request.execute()
+        thread_ids.extend(
+            item["id"] for item in response.get("threads", []) if item.get("id")
+        )
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            return thread_ids
+
+
 def sync_gmail(
     database: Path,
     client_secret: Path,
     token_path: Path,
-    query: str = "newer_than:7d -in:spam -in:trash",
+    query: str = GMAIL_RECENT_QUERY,
     account_index: int = 0,
     interactive: bool = False,
 ) -> int:
-    credentials = load_credentials(client_secret, token_path, interactive)
-    service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
-    account_email = service.users().getProfile(userId="me").execute()["emailAddress"]
-    response = service.users().threads().list(userId="me", q=query, maxResults=100).execute()
-    now = datetime.now(UTC)
-    count = 0
-    synchronized_thread_ids: set[str] = set()
-    for item in response.get("threads", []):
-        thread = service.users().threads().get(userId="me", id=item["id"], format="full").execute()
-        messages = sorted(thread.get("messages", []), key=lambda value: int(value["internalDate"]))
-        if not messages:
-            continue
-        latest = messages[-1]
-        headers = _headers(latest)
-        sender = headers.get("from", "")
-        from_user = email.utils.parseaddr(sender)[1].casefold() == account_email.casefold()
-        inbound = next(
-            (
-                message
-                for message in reversed(messages)
-                if email.utils.parseaddr(_headers(message).get("from", ""))[1].casefold()
-                != account_email.casefold()
-            ),
-            latest,
-        )
-        assessment_headers = _headers(inbound)
-        assessment = assess_email(
-            assessment_headers.get("subject", headers.get("subject", "(件名なし)")),
-            _message_body(inbound),
-            assessment_headers,
-            now,
-        )
-        received_at = datetime.fromtimestamp(int(latest["internalDate"]) / 1000, tz=UTC)
-        upsert_thread(
-            database,
-            GmailThreadRecord(
-                thread_id=thread["id"], latest_message_id=latest["id"],
-                account_email=account_email, subject=headers.get("subject", "(件名なし)"),
-                sender=sender, received_at=received_at.isoformat(),
-                snippet=clean_message_text(latest.get("snippet", ""), 300),
-                gmail_url=gmail_thread_url(account_email, thread["id"]),
-                importance=assessment.importance, importance_score=assessment.score,
-                reason=assessment.reason, required_action=assessment.required_action,
-                due_date=assessment.due_date,
-                status="awaiting_reply" if from_user else "open",
-                status_source="replied_by_user" if from_user else "classified",
-                is_unread=any(
-                    "UNREAD" in message.get("labelIds", []) for message in messages
+    attempted_at = datetime.now(UTC)
+    credentials = None
+    try:
+        credentials = load_credentials(client_secret, token_path, interactive)
+        can_mark_read = GMAIL_MODIFY_SCOPE in set(credentials.scopes or ())
+        service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
+        account_email = service.users().getProfile(userId="me").execute()["emailAddress"]
+        unread_thread_ids = set(_list_thread_ids(service, GMAIL_UNREAD_QUERY))
+        target_thread_ids = set(unread_thread_ids)
+        if query != GMAIL_UNREAD_QUERY:
+            target_thread_ids.update(_list_thread_ids(service, query))
+        now = datetime.now(UTC)
+        records: list[GmailThreadRecord] = []
+        for thread_id in sorted(target_thread_ids):
+            thread = service.users().threads().get(
+                userId="me", id=thread_id, format="full"
+            ).execute()
+            messages = sorted(
+                thread.get("messages", []), key=lambda value: int(value["internalDate"])
+            )
+            if not messages:
+                continue
+            latest = messages[-1]
+            headers = _headers(latest)
+            sender = headers.get("from", "")
+            from_user = email.utils.parseaddr(sender)[1].casefold() == account_email.casefold()
+            inbound = next(
+                (
+                    message
+                    for message in reversed(messages)
+                    if email.utils.parseaddr(_headers(message).get("from", ""))[1].casefold()
+                    != account_email.casefold()
                 ),
-            ),
-            now,
+                latest,
+            )
+            assessment_headers = _headers(inbound)
+            assessment = assess_email(
+                assessment_headers.get("subject", headers.get("subject", "(件名なし)")),
+                _message_body(inbound),
+                assessment_headers,
+                now,
+            )
+            received_at = datetime.fromtimestamp(int(latest["internalDate"]) / 1000, tz=UTC)
+            records.append(
+                GmailThreadRecord(
+                    thread_id=thread["id"], latest_message_id=latest["id"],
+                    account_email=account_email, subject=headers.get("subject", "(件名なし)"),
+                    sender=sender, received_at=received_at.isoformat(),
+                    snippet=clean_message_text(latest.get("snippet", ""), 300),
+                    gmail_url=gmail_thread_url(account_email, thread["id"]),
+                    importance=assessment.importance, importance_score=assessment.score,
+                    reason=assessment.reason, required_action=assessment.required_action,
+                    due_date=assessment.due_date,
+                    status="awaiting_reply" if from_user else "open",
+                    status_source="replied_by_user" if from_user else "classified",
+                    is_unread=any("UNREAD" in message.get("labelIds", []) for message in messages),
+                )
+            )
+        for record in records:
+            upsert_thread(database, record, now)
+        reconcile_unread_threads(database, unread_thread_ids)
+        with database_connection(database) as connection:
+            connection.execute(
+                """
+                INSERT INTO gmail_sync_state (id, completed_at, thread_count)
+                VALUES (1, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    completed_at=excluded.completed_at,
+                    thread_count=excluded.thread_count
+                """,
+                (datetime.now(UTC).isoformat(), len(records)),
+            )
+        record_gmail_sync_status(database, attempted_at, None, False, can_mark_read)
+        return len(records)
+    except GmailAuthorizationRequired:
+        record_gmail_sync_status(database, attempted_at, "authorization_required", True, False)
+        raise
+    except Exception:
+        record_gmail_sync_status(
+            database,
+            attempted_at,
+            "sync_failed",
+            False,
+            bool(credentials and GMAIL_MODIFY_SCOPE in set(credentials.scopes or ())),
         )
-        synchronized_thread_ids.add(thread["id"])
-        count += 1
-    reconcile_unread_threads(database, synchronized_thread_ids)
-    with sqlite3.connect(database) as connection:
-        connection.execute(
-            """
-            INSERT INTO gmail_sync_state (id, completed_at, thread_count)
-            VALUES (1, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                completed_at=excluded.completed_at,
-                thread_count=excluded.thread_count
-            """,
-            (datetime.now(UTC).isoformat(), count),
-        )
-    return count
+        raise
 
 
 def build_parser() -> argparse.ArgumentParser:

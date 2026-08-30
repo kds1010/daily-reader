@@ -988,7 +988,7 @@ async function updateEmailStatus(threadId, action) {
 
 async function loadEmailReminders(period = "daily") {
   state.emailStatus = "メールを読み込んでいます…";
-  if (currentView === "email") elements.status.textContent = state.emailStatus;
+  if (currentView === "today") elements.status.textContent = state.emailStatus;
   try {
     const response = await fetchWithTimeout(`./api/email-reminders/${period}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1016,6 +1016,19 @@ async function loadEmailReminders(period = "daily") {
     }
     elements.todayEmailItems.replaceChildren(todayEmailFragment);
     elements.todayEmailEmpty.hidden = Boolean(payload.items?.length);
+  } catch (error) {
+    state.emailStatus = `メールの読み込みに失敗しました：${error.message}`;
+    if (currentView === "today") elements.status.textContent = state.emailStatus;
+  }
+}
+
+async function loadUnreadEmails() {
+  state.emailStatus = "メールを読み込んでいます…";
+  if (currentView === "email") elements.status.textContent = state.emailStatus;
+  try {
+    const response = await fetchWithTimeout("./api/emails/unread", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
     const fragment = document.createDocumentFragment();
     for (const email of payload.items || []) {
       const card = document.createElement("article");
@@ -1080,6 +1093,7 @@ async function loadEmailReminders(period = "daily") {
       });
       controls.append(showContent);
       for (const [value, label] of [["read", "既読"], ["done", "対応済み"], ["snooze", "明日"], ["dismiss", "対応不要"]]) {
+        if (value === "read" && payload.can_mark_read === false) continue;
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = label;
@@ -1116,14 +1130,18 @@ async function loadEmailReminders(period = "daily") {
           minute: "2-digit",
         }).format(new Date(payload.last_sync_at))
       : "未同期";
-    state.emailStatus = `${syncedAt} Gmail取得・対応メール ${count}件`;
+    state.emailStatus = `${syncedAt} Gmail取得・未読メール ${count}件`;
+    if (payload.sync_error) {
+      state.emailStatus += payload.authorization_required
+        ? "（Gmailの再認証が必要です）"
+        : "（同期に失敗したため保存済みデータを表示中）";
+    } else if (payload.can_mark_read === false) {
+      state.emailStatus += "（既読反映にはGmailの再認証が必要です）";
+    }
     elements.emailSyncStatus.textContent = payload.last_sync_at
-      ? `最終取得：${syncedAt}（Gmailから${payload.synced_thread_count}スレッド取得）`
+      ? `最終取得：${syncedAt}（Gmailから${payload.synced_thread_count}スレッド取得）${payload.sync_error ? "・同期失敗" : ""}`
       : "Gmailの同期はまだ完了していません。";
     if (currentView === "email") elements.status.textContent = state.emailStatus;
-    document.querySelectorAll("[data-email-period]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.emailPeriod === period);
-    });
   } catch (error) {
     elements.emailAssistant.hidden = true;
     state.emailStatus = error.name === "AbortError"
@@ -1577,9 +1595,9 @@ async function refreshCurrentView() {
   if (currentView === "agent") {
     await Promise.all([loadAgentJobs(), loadCodexUsage()]);
   } else if (currentView === "email") {
-    await loadEmailReminders();
+    await loadUnreadEmails();
   } else if (currentView === "today") {
-    await loadToday();
+    await Promise.all([loadToday(), loadEmailReminders()]);
   } else {
     await loadArticles();
   }
@@ -1761,9 +1779,6 @@ elements.healthForm.addEventListener("submit", async (event) => {
 document.querySelectorAll("[data-app-view]").forEach((button) => {
   button.addEventListener("click", () => switchView(button.dataset.appView));
 });
-document.querySelectorAll("[data-email-period]").forEach((button) => {
-  button.addEventListener("click", () => loadEmailReminders(button.dataset.emailPeriod));
-});
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
@@ -1777,6 +1792,7 @@ updateScreenUpdatedAt();
 loadArticles();
 loadHighlights();
 loadEmailReminders();
+loadUnreadEmails();
 loadToday();
 loadFeedback().then(() => {
   document.querySelectorAll("[data-article-id]").forEach((item) => {

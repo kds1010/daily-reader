@@ -64,7 +64,7 @@ def build_source(version: str, ipa_size: int, base_url: str) -> dict[str, object
                 "subtitle": "生活・情報・Codex Agentをまとめる個人ダッシュボード",
                 "localizedDescription": (
                     "Tailscale内のMac miniへ接続し、Agent操作、今日の予定、HealthKit、"
-                    "重要メール、ニュースをネイティブ表示します。"
+                    "未読メール、ニュースをネイティブ表示します。"
                 ),
                 "iconURL": f"{base_url}/icon.png",
                 "tintColor": "#34D399",

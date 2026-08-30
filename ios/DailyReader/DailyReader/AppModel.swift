@@ -14,6 +14,8 @@ final class AppModel: ObservableObject {
     @Published var agentModels: [AgentModelOption] = [.fallback]
     @Published var today: TodayEnvelope?
     @Published var emails: [EmailReminder] = []
+    @Published var emailSyncError: String?
+    @Published var emailCanMarkRead = true
     @Published var articles: [Article] = []
     @Published var codexUsage: CodexUsageEnvelope?
     @Published var codexUsageFailed = false
@@ -49,9 +51,14 @@ final class AppModel: ObservableObject {
             today = day
             updated = true
         }
-        if let mail = try? await api.get("api/email-reminders/daily", as: EmailEnvelope.self) {
+        do {
+            let mail = try await api.get("api/emails/unread", as: EmailEnvelope.self)
             emails = mail.items
+            emailSyncError = mail.syncError
+            emailCanMarkRead = mail.canMarkRead ?? true
             updated = true
+        } catch {
+            emailSyncError = "メール同期結果を取得できませんでした：\(error.localizedDescription)"
         }
         if await refreshAgentSnapshot() {
             updated = true
