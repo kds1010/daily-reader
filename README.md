@@ -237,6 +237,8 @@ Codex CLI、Git worktree、LaunchAgent、ローカルGmail OAuth、HealthKit同�
 macOS版はiPhone版と同じMac mini APIへ接続し、Agent、今日のタスク、メール、ニュース、
 tanomi、Codex利用状況を共有します。iPhoneから同期済みの健康集計も表示しますが、Macには
 HealthKitデータストアがないため、macOS版からHealthKitを新規同期する操作は表示しません。
+画面内容は`Command`+`=`（`Command`+`+`も可）／`Command`+`-`で80%から140%まで
+拡大・縮小でき、`Command`+`0`で100%へ戻せます。選択した倍率は次回起動時も維持されます。
 
 このMacで使うアドホック署名済みアプリとZIPは次のコマンドで生成します。
 
