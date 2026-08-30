@@ -233,14 +233,7 @@ struct TanomiSection: View {
                 }.buttonStyle(.borderedProminent).disabled(!model.tanomiAvailable || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo.isEmpty || sending)
             }
             ForEach(model.tanomiTasks) { task in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(task.displayTitle).appFont(.subheadline, weight: .bold)
-                    Text("\(task.status)・\(task.displayRepository)").appFont(.caption).foregroundStyle(.secondary)
-                    if !task.displayResult.isEmpty { Text(task.displayResult).appFont(.caption) }
-                    if ["queued", "running"].contains(task.status) {
-                        Button("停止") { Task { await model.stopTanomi(task) } }.appFont(.caption)
-                    }
-                }.padding(.vertical, 4)
+                TanomiTaskCard(task: task)
             }
             if !model.tanomiAvailable && model.tanomiTasks.isEmpty {
                 Text(model.tanomiStatusMessage.map { "tanomiを利用できません：\($0)" } ?? "tanomiは現在利用できません。")
@@ -251,6 +244,52 @@ struct TanomiSection: View {
         .onChange(of: model.tanomiRepositories, initial: true) { _, values in
             if !values.contains(where: { $0.path == repo }) { repo = values.first?.path ?? "" }
         }
+    }
+}
+
+private struct TanomiTaskCard: View {
+    @EnvironmentObject private var model: AppModel
+    let task: TanomiTask
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                expanded.toggle()
+            } label: {
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(task.displayTitle)
+                            .appFont(.subheadline, weight: .bold)
+                            .lineLimit(expanded ? nil : 2)
+                            .multilineTextAlignment(.leading)
+                        Text("\(task.status)・\(task.displayRepository)")
+                            .appFont(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if expanded {
+                Divider()
+                if let prompt = task.prompt, !prompt.isEmpty {
+                    Text("依頼内容").appFont(.caption, weight: .bold).foregroundStyle(.secondary)
+                    Text(prompt).appFont(.caption).textSelection(.enabled)
+                }
+                if !task.displayResult.isEmpty {
+                    Text(task.error != nil ? "エラー" : "結果")
+                        .appFont(.caption, weight: .bold).foregroundStyle(.secondary)
+                    Text(task.displayResult).appFont(.caption).textSelection(.enabled)
+                }
+                if ["queued", "running"].contains(task.status) {
+                    Button("停止") { Task { await model.stopTanomi(task) } }.appFont(.caption)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 

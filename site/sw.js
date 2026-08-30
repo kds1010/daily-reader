@@ -1,9 +1,9 @@
-const CACHE_NAME = "daily-reader-v63";
+const CACHE_NAME = "daily-reader-v64";
 const APP_ASSETS = [
   "./",
   "./index.html",
-  "./style.css?v=50",
-  "./app.js?v=56",
+  "./style.css?v=51",
+  "./app.js?v=57",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

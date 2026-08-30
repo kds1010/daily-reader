@@ -181,6 +181,7 @@ const agentStatusLabels = {
 
 const openAgentConversations = new Set();
 const openAgentJobs = new Set();
+const openTanomiJobs = new Set();
 
 const agentStatusIcons = {
   queued: "◷",
@@ -730,15 +731,54 @@ async function loadAgentJobs() {
 }
 
 function renderTanomiJob(task) {
-  const card = document.createElement("article");
+  const card = document.createElement("details");
   card.className = `agent-job status-${({ done: "completed", error: "failed", stopped: "cancelled" }[task.status] || task.status)}`;
+  card.open = openTanomiJobs.has(task.id);
+  card.addEventListener("toggle", () => {
+    if (card.open) openTanomiJobs.add(task.id);
+    else openTanomiJobs.delete(task.id);
+  });
+  const overview = document.createElement("summary");
+  overview.className = "agent-job-overview";
+  const icon = document.createElement("span");
+  icon.className = "agent-status-icon";
+  icon.textContent = { queued: "…", running: "•", done: "✓", error: "!", stopped: "×" }[task.status] || "•";
+  icon.setAttribute("aria-hidden", "true");
+  const overviewText = document.createElement("span");
+  overviewText.className = "agent-overview-text";
   const title = document.createElement("strong");
+  title.className = "agent-job-title";
   title.textContent = task.title || task.prompt || task.id;
-  const meta = document.createElement("p");
+  const meta = document.createElement("span");
+  meta.className = "agent-phase";
   meta.textContent = `${task.status}・${task.repo_path || task.cwd || "tanomi"}`;
-  const prompt = document.createElement("p");
-  prompt.textContent = task.result || task.error || task.prompt || "";
-  card.append(title, meta, prompt);
+  overviewText.append(title, meta);
+  const chevron = document.createElement("span");
+  chevron.className = "agent-job-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  overview.append(icon, overviewText, chevron);
+  card.append(overview);
+  const body = document.createElement("div");
+  body.className = "agent-job-body tanomi-job-body";
+  if (task.prompt) {
+    const promptLabel = document.createElement("strong");
+    promptLabel.className = "agent-summary-label";
+    promptLabel.textContent = "依頼内容";
+    const prompt = document.createElement("p");
+    prompt.className = "agent-summary";
+    prompt.textContent = task.prompt;
+    body.append(promptLabel, prompt);
+  }
+  const result = task.result || task.error;
+  if (result) {
+    const resultLabel = document.createElement("strong");
+    resultLabel.className = "agent-summary-label";
+    resultLabel.textContent = task.result ? "結果" : "エラー";
+    const resultText = document.createElement("p");
+    resultText.className = "agent-summary";
+    resultText.textContent = result;
+    body.append(resultLabel, resultText);
+  }
   if (["queued", "running"].includes(task.status)) {
     const stop = document.createElement("button");
     stop.type = "button";
@@ -749,8 +789,9 @@ function renderTanomiJob(task) {
       try { await postJson(`./api/tanomi/tasks/${encodeURIComponent(task.id)}/stop`, {}); await loadTanomiTasks(); }
       catch (error) { elements.tanomiStatus.textContent = `停止できませんでした：${error.message}`; stop.disabled = false; }
     });
-    card.append(stop);
+    body.append(stop);
   }
+  card.append(body);
   return card;
 }
 
@@ -789,6 +830,10 @@ async function loadTanomiTasks() {
       return option;
     }));
     const tasks = Array.isArray(buckets.tasks) ? buckets.tasks : [];
+    const taskIDs = new Set(tasks.map((task) => task.id));
+    for (const taskID of openTanomiJobs) {
+      if (!taskIDs.has(taskID)) openTanomiJobs.delete(taskID);
+    }
     elements.tanomiJobs.replaceChildren(...tasks.map(renderTanomiJob));
     elements.tanomiStatus.textContent = `${tasks.length}件・5秒ごとに更新`;
     elements.tanomiHealth.textContent = "接続中";
