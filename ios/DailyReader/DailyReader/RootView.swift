@@ -87,6 +87,9 @@ extension View {
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
+    #if os(macOS)
+    @EnvironmentObject private var macAgentKeyboard: MacAgentKeyboardController
+    #endif
 
     var body: some View {
         TabView(selection: $model.selectedTab) {
@@ -117,76 +120,112 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openAgentFromNotification)) { _ in
             model.selectedTab = 0
         }
+        #if os(macOS)
+        .onAppear { macAgentKeyboard.isEnabled = model.selectedTab == 0 }
+        .onChange(of: model.selectedTab) { _, tab in
+            macAgentKeyboard.isEnabled = tab == 0
+        }
+        #endif
     }
 }
 
 struct AgentView: View {
     @EnvironmentObject private var model: AppModel
+    #if os(macOS)
+    @EnvironmentObject private var macAgentKeyboard: MacAgentKeyboardController
+    #endif
     @State private var expandedTaskIDs = Set<String>()
     @State private var expandedTaskOrder: [String] = []
+    @State private var selectedTaskID: String?
 
     var body: some View {
-        List {
-            AgentComposer()
-                .agentListRow()
-            RuntimeInfo(info: model.deploymentInfo, refreshedAt: model.lastUpdated)
-                .agentListRow()
-            AgentUsageCard()
-                .agentListRow()
-            TanomiComposer()
-                .agentListRow()
-            ForEach(displayedTasks) { item in
-                switch item {
-                case .daymeld(let job):
-                    AgentCard(job: job) { isExpanded in
-                        setExpanded(item.id, isExpanded: isExpanded)
-                    }
-                        .agentListRow()
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            archiveButton(for: job)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            archiveButton(for: job)
-                        }
-                case .tanomi(let task):
-                    TanomiTaskCard(task: task) { isExpanded in
-                        setExpanded(item.id, isExpanded: isExpanded)
-                    }
-                        .agentListRow()
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            archiveButton(for: task)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            archiveButton(for: task)
-                        }
-                }
-            }
-            if activeTasks.isEmpty {
-                EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。")
+        ScrollViewReader { proxy in
+            List {
+                AgentComposer()
                     .agentListRow()
-            }
-            if !archivedTasks.isEmpty {
-                DisclosureGroup("アーカイブ（\(archivedTasks.count)）") {
-                    ForEach(archivedTasks) { item in
-                        switch item {
-                        case .daymeld(let job): AgentCard(job: job, archived: true)
-                        case .tanomi(let task): TanomiTaskCard(task: task, archived: true)
+                RuntimeInfo(info: model.deploymentInfo, refreshedAt: model.lastUpdated)
+                    .agentListRow()
+                AgentUsageCard()
+                    .agentListRow()
+                TanomiComposer()
+                    .agentListRow()
+                #if os(macOS)
+                Text("j/k 選択 · Enter/l 開く · Esc/h 閉じる · Ctrl+u/d · gg/G · zt/zz/zb · dd/dj/dk 非表示")
+                    .appFont(.caption2)
+                    .foregroundStyle(.secondary)
+                    .agentListRow()
+                #endif
+                ForEach(displayedTasks) { item in
+                    switch item {
+                    case .daymeld(let job):
+                        AgentCard(
+                            job: job,
+                            requestedExpanded: expandedTaskIDs.contains(item.id),
+                            keyboardSelected: isKeyboardSelected(item.id)
+                        ) { isExpanded in
+                            setExpanded(item.id, isExpanded: isExpanded)
                         }
+                            .id(item.id)
+                            .agentListRow()
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                archiveButton(for: job)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                archiveButton(for: job)
+                            }
+                    case .tanomi(let task):
+                        TanomiTaskCard(
+                            task: task,
+                            requestedExpanded: expandedTaskIDs.contains(item.id),
+                            keyboardSelected: isKeyboardSelected(item.id)
+                        ) { isExpanded in
+                            setExpanded(item.id, isExpanded: isExpanded)
+                        }
+                            .id(item.id)
+                            .agentListRow()
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                archiveButton(for: task)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                archiveButton(for: task)
+                            }
                     }
                 }
-                .glassCard()
-                .agentListRow()
+                if activeTasks.isEmpty {
+                    EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。")
+                        .agentListRow()
+                }
+                if !archivedTasks.isEmpty {
+                    DisclosureGroup("アーカイブ（\(archivedTasks.count)）") {
+                        ForEach(archivedTasks) { item in
+                            switch item {
+                            case .daymeld(let job): AgentCard(job: job, archived: true)
+                            case .tanomi(let task): TanomiTaskCard(task: task, archived: true)
+                            }
+                        }
+                    }
+                    .glassCard()
+                    .agentListRow()
+                }
             }
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(AppBackground())
-        .navigationTitle("Daymeld")
-        .refreshable { await model.refresh() }
-        .onChange(of: activeTasks.map(\.id)) { _, ids in
-            expandedTaskIDs.formIntersection(ids)
-            expandedTaskOrder.removeAll { !ids.contains($0) }
-            if expandedTaskIDs.isEmpty { expandedTaskOrder.removeAll() }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(AppBackground())
+            .navigationTitle("Daymeld")
+            .refreshable { await model.refresh() }
+            .onAppear { synchronizeSelection(with: activeTasks.map(\.id)) }
+            .onChange(of: activeTasks.map(\.id)) { _, ids in
+                expandedTaskIDs.formIntersection(ids)
+                expandedTaskOrder.removeAll { !ids.contains($0) }
+                if expandedTaskIDs.isEmpty { expandedTaskOrder.removeAll() }
+                synchronizeSelection(with: ids)
+            }
+            #if os(macOS)
+            .onChange(of: macAgentKeyboard.invocation) { _, invocation in
+                guard let invocation else { return }
+                handle(invocation.command, proxy: proxy)
+            }
+            #endif
         }
     }
 
@@ -218,6 +257,96 @@ struct AgentView: View {
             if expandedTaskIDs.isEmpty { expandedTaskOrder.removeAll() }
         }
     }
+
+    private func synchronizeSelection(with ids: [String]) {
+        guard !ids.isEmpty else {
+            selectedTaskID = nil
+            return
+        }
+        if selectedTaskID.map({ !ids.contains($0) }) ?? true {
+            selectedTaskID = ids.first
+        }
+    }
+
+    private func isKeyboardSelected(_ id: String) -> Bool {
+        #if os(macOS)
+        selectedTaskID == id
+        #else
+        false
+        #endif
+    }
+
+    #if os(macOS)
+    private func handle(_ command: MacAgentNavigationCommand, proxy: ScrollViewProxy) {
+        let tasks = displayedTasks
+        guard !tasks.isEmpty else { return }
+        let currentIndex = tasks.firstIndex { $0.id == selectedTaskID } ?? 0
+
+        switch command {
+        case .move(let offset):
+            select(tasks, index: currentIndex + offset, anchor: .center, proxy: proxy)
+        case .page(let direction):
+            select(tasks, index: currentIndex + (direction * 5), anchor: .center, proxy: proxy)
+        case .first:
+            select(tasks, index: 0, anchor: .top, proxy: proxy)
+        case .last:
+            select(tasks, index: tasks.count - 1, anchor: .bottom, proxy: proxy)
+        case .open:
+            let id = tasks[currentIndex].id
+            selectedTaskID = id
+            setExpanded(id, isExpanded: true)
+            withAnimation { proxy.scrollTo(id, anchor: .center) }
+        case .close:
+            let id = tasks[currentIndex].id
+            selectedTaskID = id
+            setExpanded(id, isExpanded: false)
+        case .alignTop:
+            proxy.scrollTo(tasks[currentIndex].id, anchor: .top)
+        case .alignCenter:
+            proxy.scrollTo(tasks[currentIndex].id, anchor: .center)
+        case .alignBottom:
+            proxy.scrollTo(tasks[currentIndex].id, anchor: .bottom)
+        case .archive(let direction):
+            archive(tasks[currentIndex], at: currentIndex, direction: direction, tasks: tasks, proxy: proxy)
+        }
+    }
+
+    private func select(_ tasks: [AgentTaskItem], index: Int, anchor: UnitPoint, proxy: ScrollViewProxy) {
+        let boundedIndex = min(max(index, 0), tasks.count - 1)
+        let id = tasks[boundedIndex].id
+        selectedTaskID = id
+        withAnimation { proxy.scrollTo(id, anchor: anchor) }
+    }
+
+    private func archive(
+        _ item: AgentTaskItem,
+        at index: Int,
+        direction: MacTaskArchiveDirection,
+        tasks: [AgentTaskItem],
+        proxy: ScrollViewProxy
+    ) {
+        if case .tanomi(let task) = item, ["queued", "running"].contains(task.status) {
+            NSSound.beep()
+            return
+        }
+
+        let nextIndex = direction == .previous ? index - 1 : index + 1
+        let remaining = tasks.filter { $0.id != item.id }
+        if !remaining.isEmpty {
+            let adjusted = direction == .previous ? nextIndex : min(index, remaining.count - 1)
+            select(remaining, index: adjusted, anchor: .center, proxy: proxy)
+        } else {
+            selectedTaskID = nil
+        }
+
+        switch item {
+        case .daymeld(let job):
+            Task { await model.hideAgent(jobID: job.id) }
+        case .tanomi(let task):
+            Task { await model.hideTanomi(task) }
+        }
+    }
+    #endif
 
     private func archiveButton(for job: AgentJob) -> some View {
         Button {
@@ -311,6 +440,8 @@ private struct TanomiTaskCard: View {
     @EnvironmentObject private var model: AppModel
     let task: TanomiTask
     var archived = false
+    var requestedExpanded: Bool? = nil
+    var keyboardSelected = false
     var onExpansionChange: ((Bool) -> Void)? = nil
     @State private var expanded = false
 
@@ -370,7 +501,12 @@ private struct TanomiTaskCard: View {
                 }
             }
         }
-        .agentTaskCard(accent: .purple)
+        .agentTaskCard(accent: .purple, selected: keyboardSelected)
+        .accessibilityAddTraits(keyboardSelected ? .isSelected : [])
+        .onChange(of: requestedExpanded, initial: true) { _, requested in
+            guard let requested, expanded != requested else { return }
+            expanded = requested
+        }
     }
 
     private var statusAndTime: String {
@@ -585,6 +721,8 @@ struct AgentCard: View {
     @EnvironmentObject private var model: AppModel
     let job: AgentJob
     var archived = false
+    var requestedExpanded: Bool? = nil
+    var keyboardSelected = false
     var onExpansionChange: ((Bool) -> Void)? = nil
     @State private var expanded = false
     @State private var showConversation = false
@@ -596,6 +734,11 @@ struct AgentCard: View {
     var body: some View {
         cardContent
             .clipShape(RoundedRectangle(cornerRadius: 22))
+            .accessibilityAddTraits(keyboardSelected ? .isSelected : [])
+            .onChange(of: requestedExpanded, initial: true) { _, requested in
+                guard let requested, expanded != requested else { return }
+                expanded = requested
+            }
     }
 
     private var cardContent: some View {
@@ -694,7 +837,7 @@ struct AgentCard: View {
                 .buttonStyle(.borderless)
             }
         }
-        .agentTaskCard(accent: .mint)
+        .agentTaskCard(accent: .mint, selected: keyboardSelected)
     }
 
     private var canAttach: Bool {
@@ -1131,7 +1274,7 @@ struct AppBackground: View { var body: some View { LinearGradient(colors: [Color
 
 extension View {
     func glassCard() -> some View { self.padding(16).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22)).overlay(RoundedRectangle(cornerRadius: 22).stroke(.white.opacity(0.08))) }
-    func agentTaskCard(accent: Color) -> some View {
+    func agentTaskCard(accent: Color, selected: Bool = false) -> some View {
         padding(16)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22))
             .overlay(alignment: .leading) {
@@ -1141,7 +1284,10 @@ extension View {
                     .padding(.vertical, 14)
                     .padding(.leading, 5)
             }
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(accent.opacity(0.28)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22)
+                    .stroke(selected ? accent.opacity(0.95) : accent.opacity(0.28), lineWidth: selected ? 2 : 1)
+            )
     }
     func badgeStyle(_ color: Color) -> some View { self.appFont(.caption2, weight: .bold).padding(.horizontal, 8).padding(.vertical, 4).background(color.opacity(0.2), in: Capsule()).foregroundStyle(color) }
 }

@@ -34,12 +34,14 @@ struct DaymeldMacApp: App {
     @NSApplicationDelegateAdaptor(DaymeldMacAppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
     @StateObject private var contentZoom = MacContentZoomController()
+    @StateObject private var agentKeyboard = MacAgentKeyboardController()
 
     var body: some Scene {
         WindowGroup {
             MacContentZoomView(scale: MacContentZoom.scale(for: contentZoom.level)) {
                 RootView()
                     .environmentObject(model)
+                    .environmentObject(agentKeyboard)
                     .preferredColorScheme(.dark)
                     .task { await model.start() }
             }
@@ -75,6 +77,58 @@ struct DaymeldMacApp: App {
                 .disabled(contentZoom.level == MacContentZoom.defaultLevel)
             }
         }
+    }
+}
+
+@MainActor
+final class MacAgentKeyboardController: ObservableObject {
+    @Published private(set) var invocation: MacAgentNavigationInvocation?
+    var isEnabled = false
+
+    private var parser = MacVimKeyParser()
+    private var keyboardMonitor: Any?
+    private var serial = 0
+
+    init() {
+        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.isEnabled, !Self.isEditingText else { return event }
+            guard let stroke = Self.stroke(for: event) else { return event }
+            if let command = self.parser.handle(stroke, at: event.timestamp) {
+                self.serial += 1
+                self.invocation = MacAgentNavigationInvocation(serial: self.serial, command: command)
+            }
+            return nil
+        }
+    }
+
+    deinit {
+        if let keyboardMonitor {
+            NSEvent.removeMonitor(keyboardMonitor)
+        }
+    }
+
+    private static var isEditingText: Bool {
+        guard let responder = NSApp.keyWindow?.firstResponder else { return false }
+        return responder is NSTextView || responder is NSTextField
+    }
+
+    private static func stroke(for event: NSEvent) -> MacVimKeyStroke? {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard !modifiers.contains(.command), !modifiers.contains(.option) else { return nil }
+
+        if event.keyCode == 53 { return .escape }
+        if event.keyCode == 36 || event.keyCode == 76 { return .enter }
+
+        let character = event.charactersIgnoringModifiers?.lowercased().first
+        if modifiers.contains(.control) {
+            if character == "d" { return .controlD }
+            if character == "u" { return .controlU }
+            return nil
+        }
+        guard !modifiers.contains(.function) else { return nil }
+        if modifiers.contains(.shift), character == "g" { return .shiftedG }
+        guard let character, "hjkldgztb".contains(character) else { return nil }
+        return .character(character)
     }
 }
 

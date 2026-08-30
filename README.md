@@ -241,6 +241,9 @@ macOS版はiPhone版と同じMac mini APIへ接続し、Agent、今日のタス�
 tanomi、Codex利用状況を共有します。iPhoneから同期済みの健康集計も表示しますが、Macには
 HealthKitデータストアがないため、macOS版からHealthKitを新規同期する操作は表示しません。
 Agent画面には、インストール中の版と最新のmacOS配布版を比較した更新状態を表示します。
+Agent一覧では`j`/`k`、`h`/`l`、`Enter`/`Esc`、`Ctrl`+`u`/`Ctrl`+`d`、`gg`/`G`、
+`zt`/`zz`/`zb`で選択・展開・移動でき、`dd`/`dj`/`dk`で選択タスクを非表示にできます。
+テキスト入力欄を編集中は、これらのキーを通常の文字入力として扱います。
 `Command`+`R`で、表示に使うすべてのデータをMac mini APIから再読み込みできます。
 画面内容は`Command`+`=`（`Command`+`+`も可）／`Command`+`-`で80%から140%まで
 拡大・縮小でき、`Command`+`0`で100%へ戻せます。選択した倍率は次回起動時も維持されます。

@@ -1,5 +1,87 @@
 import Foundation
 
+enum MacVimKeyStroke: Equatable {
+    case character(Character)
+    case shiftedG
+    case controlD
+    case controlU
+    case enter
+    case escape
+}
+
+enum MacTaskArchiveDirection: Equatable {
+    case next
+    case previous
+}
+
+enum MacAgentNavigationCommand: Equatable {
+    case move(Int)
+    case first
+    case last
+    case open
+    case close
+    case page(Int)
+    case alignTop
+    case alignCenter
+    case alignBottom
+    case archive(MacTaskArchiveDirection)
+}
+
+struct MacAgentNavigationInvocation: Equatable {
+    let serial: Int
+    let command: MacAgentNavigationCommand
+}
+
+struct MacVimKeyParser {
+    private var pendingPrefix: Character?
+    private var pendingAt: TimeInterval = 0
+    private let sequenceTimeout: TimeInterval
+
+    init(sequenceTimeout: TimeInterval = 1) {
+        self.sequenceTimeout = sequenceTimeout
+    }
+
+    mutating func handle(_ stroke: MacVimKeyStroke, at timestamp: TimeInterval) -> MacAgentNavigationCommand? {
+        if pendingPrefix != nil && timestamp - pendingAt > sequenceTimeout {
+            pendingPrefix = nil
+        }
+
+        if let prefix = pendingPrefix {
+            pendingPrefix = nil
+            if let command = sequenceCommand(prefix: prefix, stroke: stroke) {
+                return command
+            }
+        }
+
+        switch stroke {
+        case .character(let character) where character == "d" || character == "g" || character == "z":
+            pendingPrefix = character
+            pendingAt = timestamp
+            return nil
+        case .character("j"): return .move(1)
+        case .character("k"): return .move(-1)
+        case .character("h"), .escape: return .close
+        case .character("l"), .enter: return .open
+        case .shiftedG: return .last
+        case .controlD: return .page(1)
+        case .controlU: return .page(-1)
+        default: return nil
+        }
+    }
+
+    private func sequenceCommand(prefix: Character, stroke: MacVimKeyStroke) -> MacAgentNavigationCommand? {
+        switch (prefix, stroke) {
+        case ("g", .character("g")): .first
+        case ("z", .character("t")): .alignTop
+        case ("z", .character("z")): .alignCenter
+        case ("z", .character("b")): .alignBottom
+        case ("d", .character("d")), ("d", .character("j")): .archive(.next)
+        case ("d", .character("k")): .archive(.previous)
+        default: nil
+        }
+    }
+}
+
 struct AgentEnvelope: Decodable {
     let repositories: [Repository]
     let models: [AgentModelOption]
