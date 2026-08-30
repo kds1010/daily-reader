@@ -399,7 +399,6 @@ struct EmailReminder: Decodable, Identifiable {
     let reason: String
     let requiredAction: String
     let dueDate: String?
-    let gmailURL: URL?
     let status: String?
     let receivedAt: String?
 
@@ -408,7 +407,6 @@ struct EmailReminder: Decodable, Identifiable {
         case threadID = "thread_id"
         case requiredAction = "required_action"
         case dueDate = "due_date"
-        case gmailURL = "gmail_url"
         case status
         case receivedAt = "received_at"
     }

@@ -1103,10 +1103,15 @@ struct EmailCard: View {
     let email: EmailReminder
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Text(email.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
-            Text(email.subject).appFont(.headline)
-            Text(email.requiredAction).appFont(.subheadline).foregroundStyle(.secondary)
-            HStack { NavigationLink("本文を読む", destination: EmailDetailView(email: email)); if let url = email.gmailURL { Link("Gmailで開く", destination: url) }; Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.appFont(.caption, weight: .semibold)
+            NavigationLink(destination: EmailDetailView(email: email)) {
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack { Text(email.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan); Spacer(); if email.importance == "high" { Text("重要").badgeStyle(.red) } }
+                    Text(email.subject).appFont(.headline).foregroundStyle(.primary)
+                    Text(email.requiredAction).appFont(.subheadline).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack { Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.appFont(.caption, weight: .semibold)
         }.glassCard()
     }
 }
