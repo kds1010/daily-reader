@@ -78,6 +78,11 @@ struct TanomiBuckets: Decodable {
     let deleted: [TanomiTask]
 }
 
+struct TanomiHealth: Decodable {
+    let ok: Bool
+    let running: Bool?
+}
+
 struct TanomiTask: Decodable, Identifiable {
     let id: String
     let title: String?

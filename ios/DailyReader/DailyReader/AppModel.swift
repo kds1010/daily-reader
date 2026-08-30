@@ -10,6 +10,7 @@ final class AppModel: ObservableObject {
     @Published var tanomiArchivedTasks: [TanomiTask] = []
     @Published var tanomiRepositories: [TanomiRepository] = []
     @Published var tanomiAvailable = false
+    @Published var tanomiStatusMessage: String?
     @Published var repositories: [Repository] = []
     @Published var agentModels: [AgentModelOption] = [.fallback]
     @Published var today: TodayEnvelope?
@@ -63,17 +64,7 @@ final class AppModel: ObservableObject {
         if await refreshAgentSnapshot() {
             updated = true
         }
-        if let repos = try? await api.get("api/tanomi/repos", as: [TanomiRepository].self) {
-            tanomiRepositories = repos
-        }
-        if let buckets = try? await api.get("api/tanomi/tasks?limit=50", as: TanomiBuckets.self) {
-            tanomiTasks = buckets.tasks
-            tanomiArchivedTasks = buckets.archived
-            tanomiAvailable = true
-            updated = true
-        } else {
-            tanomiAvailable = false
-        }
+        if await refreshTanomiSnapshot() { updated = true }
         do {
             codexUsage = try await api.get("api/codex-usage", as: CodexUsageEnvelope.self)
             codexUsageFailed = false
@@ -122,12 +113,29 @@ final class AppModel: ObservableObject {
 
     func refreshAgents() async {
         _ = await refreshAgentSnapshot()
-        if let buckets = try? await api.get("api/tanomi/tasks?limit=50", as: TanomiBuckets.self) {
-            tanomiTasks = buckets.tasks
-            tanomiArchivedTasks = buckets.archived
-            tanomiAvailable = true
-        } else {
+        _ = await refreshTanomiSnapshot()
+    }
+
+    @discardableResult
+    private func refreshTanomiSnapshot() async -> Bool {
+        do {
+            async let repositories: [TanomiRepository] = api.get("api/tanomi/repos")
+            async let buckets: TanomiBuckets = api.get(
+                "api/tanomi/tasks",
+                queryItems: [URLQueryItem(name: "limit", value: "50")]
+            )
+            async let health: TanomiHealth = api.get("api/tanomi/health")
+            let (repos, tasks, status) = try await (repositories, buckets, health)
+            tanomiRepositories = repos
+            tanomiTasks = tasks.tasks
+            tanomiArchivedTasks = tasks.archived
+            tanomiAvailable = status.ok
+            tanomiStatusMessage = status.ok ? nil : "tanomiのヘルスチェックが失敗しました"
+            return true
+        } catch {
             tanomiAvailable = false
+            tanomiStatusMessage = error.localizedDescription
+            return false
         }
     }
 

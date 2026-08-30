@@ -30,6 +30,7 @@ from daily_reader.local_server import (
     summarize_read_events,
     update_articles,
 )
+from daily_reader.tanomi_client import TanomiUnavailable
 
 TOKEN = "a" * 42 + "A"
 
@@ -123,6 +124,71 @@ def test_agent_jobs_endpoint_presents_labels_for_active_and_archived_jobs(
             },
         )
     ]
+
+
+class FakeTanomiClient:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.calls: list[tuple[str, str, object | None, dict[str, str] | None]] = []
+        self.error = error
+
+    def request_json(
+        self,
+        method: str,
+        path: str,
+        body: object | None = None,
+        query: dict[str, str] | None = None,
+    ) -> object:
+        self.calls.append((method, path, body, query))
+        if self.error is not None:
+            raise self.error
+        return {"tasks": [], "archived": [], "deleted": []}
+
+    def stream(self, *_args: object, **_kwargs: object):
+        return iter(())
+
+
+def tanomi_handler(tmp_path: Path, client: FakeTanomiClient):
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+        tanomi_client=client,
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses: list[tuple[int, object]] = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    return handler, responses
+
+
+def test_tanomi_route_forwards_query_and_rejects_encoded_query_path(tmp_path: Path) -> None:
+    client = FakeTanomiClient()
+    handler, responses = tanomi_handler(tmp_path, client)
+
+    handler.path = "/api/tanomi/tasks?limit=50"
+    handler.do_GET()
+
+    assert responses == [(200, {"tasks": [], "archived": [], "deleted": []})]
+    assert client.calls == [("GET", "/api/tasks", None, {"limit": "50"})]
+
+    responses.clear()
+    handler.path = "/api/tanomi/tasks%3Flimit=50"
+    handler.do_GET()
+
+    assert responses == [(400, {"error": "invalid tanomi request"})]
+
+
+def test_tanomi_route_maps_unavailable_upstream_to_503(tmp_path: Path) -> None:
+    client = FakeTanomiClient(TanomiUnavailable("tanomi に接続できません"))
+    handler, responses = tanomi_handler(tmp_path, client)
+    handler.path = "/api/tanomi/health"
+
+    handler.do_GET()
+
+    assert responses == [(503, {"error": "tanomi に接続できません"})]
 
 
 class FakeCodexProcess:

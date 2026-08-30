@@ -138,7 +138,7 @@ struct TanomiSection: View {
                     ForEach(model.tanomiRepositories) { item in
                         Text(item.label ?? item.path).tag(item.path)
                     }
-                }.pickerStyle(.menu).disabled(model.tanomiRepositories.isEmpty || sending)
+                }.pickerStyle(.menu).disabled(model.tanomiRepositories.isEmpty || !model.tanomiAvailable || sending)
                 Spacer()
                 Button("依頼") {
                     Task {
@@ -146,7 +146,7 @@ struct TanomiSection: View {
                         if await model.createTanomi(prompt: prompt, repo: repo, model: "opus", permissionMode: "acceptEdits") { prompt = "" }
                         sending = false
                     }
-                }.buttonStyle(.borderedProminent).disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo.isEmpty || sending)
+                }.buttonStyle(.borderedProminent).disabled(!model.tanomiAvailable || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo.isEmpty || sending)
             }
             ForEach(model.tanomiTasks) { task in
                 VStack(alignment: .leading, spacing: 4) {
@@ -159,7 +159,7 @@ struct TanomiSection: View {
                 }.padding(.vertical, 4)
             }
             if !model.tanomiAvailable && model.tanomiTasks.isEmpty {
-                Text("tanomiは現在利用できません。")
+                Text(model.tanomiStatusMessage.map { "tanomiを利用できません：\($0)" } ?? "tanomiは現在利用できません。")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
         }.glassCard()

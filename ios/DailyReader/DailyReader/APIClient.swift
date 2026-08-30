@@ -13,8 +13,8 @@ actor APIClient {
         return URL(string: stored ?? "https://sk-mins-mac-mini.tailc193b2.ts.net/")!
     }
 
-    func get<T: Decodable>(_ path: String, as type: T.Type = T.self) async throws -> T {
-        let url = baseURL.appending(path: path)
+    func get<T: Decodable>(_ path: String, queryItems: [URLQueryItem] = [], as type: T.Type = T.self) async throws -> T {
+        let url = makeAPIURL(baseURL: baseURL, path: path, queryItems: queryItems)
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 15
@@ -22,7 +22,7 @@ actor APIClient {
     }
 
     func post<T: Encodable, R: Decodable>(_ path: String, body: T, as type: R.Type) async throws -> R {
-        let url = baseURL.appending(path: path)
+        let url = makeAPIURL(baseURL: baseURL, path: path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -51,6 +51,10 @@ actor APIClient {
         }
         return try decoder.decode(type, from: data)
     }
+}
+
+func makeAPIURL(baseURL: URL, path: String, queryItems: [URLQueryItem] = []) -> URL {
+    baseURL.appending(path: path).appending(queryItems: queryItems)
 }
 
 struct EmptyResponse: Decodable {}

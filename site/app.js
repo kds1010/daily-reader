@@ -754,6 +754,21 @@ function renderTanomiJob(task) {
   return card;
 }
 
+async function tanomiResponseError(response) {
+  try {
+    const payload = await response.clone().json();
+    if (payload && typeof payload.error === "string" && payload.error) return payload.error;
+  } catch { /* use the status below */ }
+  return `HTTP ${response.status}`;
+}
+
+function setTanomiEnabled(enabled) {
+  elements.tanomiForm.dataset.available = enabled ? "true" : "false";
+  elements.tanomiForm.querySelectorAll("textarea, select, input, button").forEach((control) => {
+    control.disabled = !enabled;
+  });
+}
+
 async function loadTanomiTasks() {
   try {
     const [reposResponse, tasksResponse, healthResponse] = await Promise.all([
@@ -761,9 +776,12 @@ async function loadTanomiTasks() {
       fetchWithTimeout("./api/tanomi/tasks?limit=50", { cache: "no-store" }),
       fetchWithTimeout("./api/tanomi/health", { cache: "no-store" }),
     ]);
-    if (!reposResponse.ok || !tasksResponse.ok) throw new Error(`HTTP ${reposResponse.status || tasksResponse.status}`);
-    const repos = await reposResponse.json();
-    const buckets = await tasksResponse.json();
+    const failedResponse = [reposResponse, tasksResponse, healthResponse].find((response) => !response.ok);
+    if (failedResponse) throw new Error(await tanomiResponseError(failedResponse));
+    const [repos, buckets, health] = await Promise.all([
+      reposResponse.json(), tasksResponse.json(), healthResponse.json(),
+    ]);
+    if (!health || health.ok !== true) throw new Error("tanomiのヘルスチェックが失敗しました");
     elements.tanomiRepository.replaceChildren(...(Array.isArray(repos) ? repos : []).map((repo) => {
       const option = document.createElement("option");
       option.value = typeof repo === "string" ? repo : repo.path;
@@ -773,10 +791,12 @@ async function loadTanomiTasks() {
     const tasks = Array.isArray(buckets.tasks) ? buckets.tasks : [];
     elements.tanomiJobs.replaceChildren(...tasks.map(renderTanomiJob));
     elements.tanomiStatus.textContent = `${tasks.length}件・5秒ごとに更新`;
-    elements.tanomiHealth.textContent = healthResponse.ok ? "接続中" : "接続不可";
+    elements.tanomiHealth.textContent = "接続中";
+    setTanomiEnabled(true);
   } catch (error) {
     elements.tanomiStatus.textContent = `tanomiを利用できません：${error.message}`;
     elements.tanomiHealth.textContent = "接続不可";
+    setTanomiEnabled(false);
   }
 }
 
@@ -1716,6 +1736,7 @@ elements.agentReasoningEffort.addEventListener("change", updateAgentModelSummary
 
 elements.tanomiForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (elements.tanomiForm.dataset.available !== "true") return;
   const submit = elements.tanomiForm.querySelector("button[type='submit']");
   submit.disabled = true;
   try {
