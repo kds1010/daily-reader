@@ -153,6 +153,10 @@ class FakeTanomiClient:
             return {"repos": [{"path": "/tmp/example", "label": "Example"}]}
         return {"tasks": [], "archived": [], "deleted": []}
 
+    def request_usage(self) -> object:
+        self.calls.append(("GET", "/api/usage", None, None))
+        return {"limits": {}, "running": 0}
+
     def stream(self, *_args: object, **_kwargs: object):
         return iter(())
 
@@ -200,6 +204,17 @@ def test_tanomi_repositories_route_unwraps_envelope(tmp_path: Path) -> None:
 
     assert responses == [(200, [{"path": "/tmp/example", "label": "Example"}])]
     assert client.calls == [("GET", "/api/repos", None, None)]
+
+
+def test_tanomi_usage_route_uses_resilient_client_method(tmp_path: Path) -> None:
+    client = FakeTanomiClient()
+    handler, responses = tanomi_handler(tmp_path, client)
+    handler.path = "/api/tanomi/usage"
+
+    handler.do_GET()
+
+    assert responses == [(200, {"limits": {}, "running": 0})]
+    assert client.calls == [("GET", "/api/usage", None, None)]
 
 
 def test_tanomi_route_maps_unavailable_upstream_to_503(tmp_path: Path) -> None:

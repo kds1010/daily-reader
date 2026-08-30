@@ -603,6 +603,10 @@ struct AgentUsageCard: View {
                     Text("実行中 \(running)件").appFont(.caption).foregroundStyle(.secondary)
                 }
             }
+            if model.tanomiUsage?.stale == true {
+                Text("前回取得した使用状況を表示しています。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
             if model.tanomiUsageFailed {
                 Text("tanomiの使用状況を取得できませんでした。")
                     .appFont(.subheadline).foregroundStyle(.secondary)

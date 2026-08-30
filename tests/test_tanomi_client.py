@@ -1,5 +1,6 @@
 import io
 import json
+import time
 import urllib.error
 
 import pytest
@@ -77,6 +78,54 @@ def test_request_json_maps_transport_and_protocol_errors(monkeypatch: pytest.Mon
     monkeypatch.setattr(TanomiClient, "_open", lambda *_args, **_kwargs: Response(b"not json"))
     with pytest.raises(TanomiProtocolError):
         TanomiClient().request_json("GET", "/api/health")
+
+
+def test_request_usage_validates_and_caches(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    def open_url(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        return Response(b'{"limits":{"five_hour":{"utilization":5,"resets_at":null}},"running":0}')
+
+    monkeypatch.setattr(TanomiClient, "_open", open_url)
+    client = TanomiClient()
+    assert client.request_usage()["limits"]["five_hour"]["utilization"] == 5
+    assert client.request_usage()["limits"]["five_hour"]["utilization"] == 5
+    assert calls == 1
+
+
+def test_request_usage_uses_stale_snapshot_for_upstream_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    responses = [Response(b'{"limits":{"five_hour":{"utilization":5}},"running":0}')]
+
+    def open_url(*_args, **_kwargs):
+        if responses:
+            return responses.pop()
+        raise urllib.error.HTTPError(
+            "http://tanomi/api/usage", 429, "Too Many Requests", {}, io.BytesIO()
+        )
+
+    monkeypatch.setattr(TanomiClient, "_open", open_url)
+    client = TanomiClient()
+    first = client.request_usage()
+    object.__setattr__(client, "_usage_cached", (time.monotonic() - 301, first))
+    stale = client.request_usage()
+    assert stale["stale"] is True
+    assert stale["limits"] == first["limits"]
+
+
+def test_request_usage_rejects_embedded_upstream_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        TanomiClient,
+        "_open",
+        lambda *_args, **_kwargs: Response(
+            b'{"limits":{"error":"HTTP Error 429: Too Many Requests"},"running":0}'
+        ),
+    )
+    with pytest.raises(TanomiUnavailable, match="429"):
+        TanomiClient().request_usage()
 
 
 def test_stream_requires_hex_id_and_forwards_lines(monkeypatch: pytest.MonkeyPatch) -> None:

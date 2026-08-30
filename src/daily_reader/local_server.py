@@ -631,7 +631,7 @@ def make_handler(
                             "GET", "/api/tasks", query={"limit": str(limit)}
                         )
                     elif parts == ["", "api", "tanomi", "usage"]:
-                        payload = tanomi.request_json("GET", "/api/usage")
+                        payload = tanomi.request_usage()
                     elif parts == ["", "api", "tanomi", "health"]:
                         payload = tanomi.request_json("GET", "/api/health")
                     elif len(parts) == 5 and parts[4] == "tasks":

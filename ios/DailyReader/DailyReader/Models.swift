@@ -181,6 +181,7 @@ struct TanomiHealth: Decodable {
 struct TanomiUsage: Decodable, Equatable {
     let limits: [String: TanomiUsageLimit]
     let running: Int
+    let stale: Bool?
 }
 
 struct TanomiUsageLimit: Decodable, Equatable {
