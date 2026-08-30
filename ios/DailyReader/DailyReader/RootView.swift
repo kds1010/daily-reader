@@ -165,7 +165,7 @@ struct CodexLimitRow: View {
 
     private var resetLabel: String {
         guard let timestamp = window.resetsAt else { return "リセット時刻不明" }
-        return "リセット \(Date(timeIntervalSince1970: TimeInterval(timestamp)).formatted(date: .omitted, time: .shortened))"
+        return "リセット \(Date(timeIntervalSince1970: TimeInterval(timestamp)).runtimeDisplay)"
     }
 }
 
