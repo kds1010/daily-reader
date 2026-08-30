@@ -420,12 +420,6 @@ struct TanomiComposer: View {
             TextField("tanomiへ依頼する内容", text: $prompt, axis: .vertical)
                 .lineLimit(2...5).textFieldStyle(.roundedBorder)
             HStack {
-                Picker("リポジトリ", selection: $repo) {
-                    ForEach(model.tanomiRepositories) { item in
-                        Text(item.label ?? item.path).tag(item.path)
-                    }
-                }.pickerStyle(.menu).disabled(model.tanomiRepositories.isEmpty || !model.tanomiAvailable || sending)
-                Spacer()
                 Button("依頼") {
                     Task {
                         sending = true
@@ -433,6 +427,12 @@ struct TanomiComposer: View {
                         sending = false
                     }
                 }.buttonStyle(.borderedProminent).disabled(!model.tanomiAvailable || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo.isEmpty || sending)
+                Spacer(minLength: 0)
+                Picker("リポジトリ", selection: $repo) {
+                    ForEach(model.tanomiRepositories) { item in
+                        Text(item.label ?? item.path).tag(item.path)
+                    }
+                }.pickerStyle(.menu).disabled(model.tanomiRepositories.isEmpty || !model.tanomiAvailable || sending)
             }
             if !model.tanomiAvailable && model.tanomiTasks.isEmpty {
                 Text(model.tanomiStatusMessage.map { "tanomiを利用できません：\($0)" } ?? "tanomiは現在利用できません。")
