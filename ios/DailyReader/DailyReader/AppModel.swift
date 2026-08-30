@@ -27,6 +27,7 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
     @Published var selectedTab = 0
+    @Published private(set) var archiveEffectIDs: Set<String> = []
 
     private let api = APIClient.shared
 #if os(iOS)
@@ -41,6 +42,7 @@ final class AppModel: ObservableObject {
     private var tanomiRefreshGeneration = 0
     private var snapshotRefreshInProgress = false
     private var pendingEmailActions: [String: (email: EmailReminder, index: Int)] = [:]
+    private var pendingArchiveIDs: Set<String> = []
 
     func start() async {
 #if os(iOS)
@@ -130,14 +132,13 @@ final class AppModel: ObservableObject {
     }
 
     func hideTanomi(_ task: TanomiTask) async {
-        do {
-            let _: EmptyResponse = try await api.post(
+        await archiveWithEffect(id: "tanomi-\(task.id)") {
+            try await self.api.post(
                 "api/tanomi/tasks/\(task.id)/archive",
                 body: EmptyRequest(),
                 as: EmptyResponse.self
             )
-            await refreshAgents()
-        } catch { errorMessage = error.localizedDescription }
+        }
     }
 
     func refreshAgents() async {
@@ -150,6 +151,7 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     private func refreshTanomiSnapshot() async -> Bool {
+        guard !pendingArchiveIDs.contains(where: { $0.hasPrefix("tanomi-") }) else { return false }
         tanomiRefreshGeneration += 1
         let generation = tanomiRefreshGeneration
         do {
@@ -184,6 +186,7 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     private func refreshAgentSnapshot() async -> Bool {
+        guard !pendingArchiveIDs.contains(where: { $0.hasPrefix("daymeld-") }) else { return false }
         agentRefreshGeneration += 1
         let generation = agentRefreshGeneration
         guard let envelope = try? await api.get("api/agent-jobs", as: AgentEnvelope.self),
@@ -229,7 +232,9 @@ final class AppModel: ObservableObject {
     }
 
     func hideAgent(jobID: String) async {
-        await performAgentAction("api/agent-jobs/hide", jobID: jobID)
+        await archiveWithEffect(id: "daymeld-\(jobID)") {
+            try await self.api.post("api/agent-jobs/hide", body: AgentJobAction(jobID: jobID), as: EmptyResponse.self)
+        }
     }
 
     private func performAgentAction(_ path: String, jobID: String) async {
@@ -239,6 +244,24 @@ final class AppModel: ObservableObject {
             )
             await refreshAgents()
         } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func archiveWithEffect(id: String, action: () async throws -> EmptyResponse) async {
+        guard pendingArchiveIDs.insert(id).inserted else { return }
+        if id.hasPrefix("daymeld-") { agentRefreshGeneration += 1 }
+        else { tanomiRefreshGeneration += 1 }
+        do {
+            _ = try await action()
+            archiveEffectIDs.insert(id)
+            try? await Task.sleep(for: .milliseconds(450))
+            pendingArchiveIDs.remove(id)
+            await refreshAgents()
+            archiveEffectIDs.remove(id)
+        } catch {
+            pendingArchiveIDs.remove(id)
+            archiveEffectIDs.remove(id)
             errorMessage = error.localizedDescription
         }
     }

@@ -220,6 +220,8 @@ struct AgentView: View {
             .scrollContentBackground(.hidden)
             .background(AppBackground())
             .navigationTitle("Daymeld")
+            .animation(.easeInOut(duration: 0.28), value: activeSnapshot.map(\.id))
+            .animation(.easeOut(duration: 0.22), value: model.archiveEffectIDs)
             .refreshable { await model.refresh() }
             .onAppear { synchronizeSelection(with: activeSnapshot.map(\.id)) }
             .onChange(of: activeSnapshot.map(\.id)) { _, ids in
@@ -510,6 +512,7 @@ private struct TanomiTaskCard: View {
             }
         }
         .agentTaskCard(accent: .purple, selected: keyboardSelected)
+        .archiveConfirmation(id: "tanomi-\(task.id)", isPresented: model.archiveEffectIDs.contains("tanomi-\(task.id)"))
         .accessibilityAddTraits(keyboardSelected ? .isSelected : [])
         .onChange(of: requestedExpanded, initial: true) { _, requested in
             guard let requested, expanded != requested else { return }
@@ -741,6 +744,12 @@ struct AgentCard: View {
 
     var body: some View {
         cardContent
+            .opacity(model.archiveEffectIDs.contains("daymeld-\(job.id)") ? 0.18 : 1)
+            .overlay {
+                if model.archiveEffectIDs.contains("daymeld-\(job.id)") {
+                    ArchiveConfirmationOverlay()
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 22))
             .accessibilityAddTraits(keyboardSelected ? .isSelected : [])
             .onChange(of: requestedExpanded, initial: true) { _, requested in
@@ -1359,4 +1368,25 @@ extension View {
             )
     }
     func badgeStyle(_ color: Color) -> some View { self.appFont(.caption2, weight: .bold).padding(.horizontal, 8).padding(.vertical, 4).background(color.opacity(0.2), in: Capsule()).foregroundStyle(color) }
+
+    func archiveConfirmation(id: String, isPresented: Bool) -> some View {
+        opacity(isPresented ? 0.18 : 1)
+            .overlay {
+                if isPresented { ArchiveConfirmationOverlay() }
+            }
+    }
+}
+
+private struct ArchiveConfirmationOverlay: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 22)
+                .fill(Color.orange.opacity(0.92))
+            Label("アーカイブしました", systemImage: "checkmark.circle.fill")
+                .appFont(.subheadline, weight: .bold)
+                .foregroundStyle(.white)
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        .accessibilityLabel("アーカイブしました")
+    }
 }
