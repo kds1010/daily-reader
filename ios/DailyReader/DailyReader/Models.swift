@@ -222,9 +222,10 @@ struct TanomiTask: Decodable, Identifiable, Equatable {
     let createdAt: TimeInterval?
     let startedAt: TimeInterval?
     let endedAt: TimeInterval?
+    let sessionID: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, prompt, cwd, status, result, error, model
+        case id, title, prompt, cwd, status, result, error, model, sessionID = "session_id"
         case repoPath = "repo_path"
         case permissionMode = "permission_mode"
         case createdAt = "created_at"
@@ -239,6 +240,7 @@ struct TanomiTask: Decodable, Identifiable, Equatable {
         return name.isEmpty ? value : name
     }
     var displayResult: String { result ?? error ?? "" }
+    var canContinue: Bool { sessionID?.isEmpty == false && !["queued", "running"].contains(status) }
     var updatedDate: Date? {
         [endedAt, startedAt, createdAt]
             .compactMap { $0 }

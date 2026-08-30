@@ -83,8 +83,14 @@ let task = buckets.tasks[0]
 precondition(task.createdAt == 1788070912.0)
 precondition(task.startedAt == 1788070913.5)
 precondition(task.endedAt == 1788070920.25)
-precondition(task.updatedDate == Date(timeIntervalSince1970: 1788070920.25))
-precondition(task.displayRepository == "tonoi")
+    precondition(task.updatedDate == Date(timeIntervalSince1970: 1788070920.25))
+    precondition(task.displayRepository == "tonoi")
+    precondition(task.canContinue == false)
+let followUp = try decoder.decode(
+    TanomiTask.self,
+    from: Data(#"{"id":"0123456789ab","status":"done","session_id":"session"}"#.utf8)
+)
+precondition(followUp.canContinue)
 let sameBuckets = try decoder.decode(TanomiBuckets.self, from: Data(#"""
 {
   "tasks":[{"id":"0123456789ab","status":"done","result":"完了"}],

@@ -137,6 +137,18 @@ final class AppModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    func sendTanomiInstruction(taskID: String, instruction: String) async -> Bool {
+        do {
+            let _: EmptyResponse = try await api.post(
+                "api/tanomi/tasks",
+                body: TanomiFollowUp(prompt: instruction, parentID: taskID),
+                as: EmptyResponse.self
+            )
+            await refreshAgents()
+            return true
+        } catch { errorMessage = error.localizedDescription; return false }
+    }
+
     func hideTanomi(_ task: TanomiTask) async {
         guard let index = tanomiTasks.firstIndex(where: { $0.id == task.id }) else { return }
         _ = withAnimation(.easeInOut(duration: 0.24)) { tanomiTasks.remove(at: index) }

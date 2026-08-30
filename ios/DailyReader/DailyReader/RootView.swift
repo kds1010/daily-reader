@@ -474,6 +474,8 @@ private struct TanomiTaskCard: View {
     var keyboardSelected = false
     var onExpansionChange: ((Bool) -> Void)? = nil
     @State private var expanded = false
+    @State private var instruction = ""
+    @State private var sending = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -517,6 +519,19 @@ private struct TanomiTaskCard: View {
                     Text(task.error != nil ? "エラー" : "結果")
                         .appFont(.caption, weight: .bold).foregroundStyle(.secondary)
                     Text(task.displayResult).appFont(.caption).textSelection(.enabled)
+                }
+                if !archived && task.canContinue {
+                    TextField("このtanomiタスクへの追加指示", text: $instruction, axis: .vertical)
+                        .lineLimit(2...5).textFieldStyle(.roundedBorder)
+                    Button("追加指示を送信") {
+                        Task {
+                            sending = true
+                            if await model.sendTanomiInstruction(taskID: task.id, instruction: instruction) { instruction = "" }
+                            sending = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent).tint(.purple)
+                    .disabled(instruction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sending)
                 }
                 if ["queued", "running"].contains(task.status) {
                     Button("停止") { Task { await model.stopTanomi(task) } }.appFont(.caption)

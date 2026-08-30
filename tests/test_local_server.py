@@ -268,6 +268,28 @@ def test_tanomi_post_forwards_valid_effort(tmp_path: Path) -> None:
     ]
 
 
+def test_tanomi_post_forwards_follow_up_parent_only(tmp_path: Path) -> None:
+    client = FakeTanomiClient()
+    handler, responses = tanomi_handler(tmp_path, client)
+    handler.path = "/api/tanomi/tasks"
+    handler._read_json = lambda *_args: {"prompt": "追加確認", "parent_id": "0123456789ab"}
+    handler.do_POST()
+    assert responses == [(201, {"tasks": [], "archived": [], "deleted": []})]
+    assert client.calls == [
+        ("POST", "/api/tasks", {"prompt": "追加確認", "parent_id": "0123456789ab"}, None)
+    ]
+
+
+def test_tanomi_post_rejects_invalid_follow_up_parent(tmp_path: Path) -> None:
+    client = FakeTanomiClient()
+    handler, responses = tanomi_handler(tmp_path, client)
+    handler.path = "/api/tanomi/tasks"
+    handler._read_json = lambda *_args: {"prompt": "追加確認", "parent_id": "not-a-task"}
+    handler.do_POST()
+    assert responses == [(400, {"error": "invalid tanomi request"})]
+    assert client.calls == []
+
+
 def test_tanomi_route_maps_unavailable_upstream_to_503(tmp_path: Path) -> None:
     client = FakeTanomiClient(TanomiUnavailable("tanomi に接続できません"))
     handler, responses = tanomi_handler(tmp_path, client)

@@ -796,6 +796,36 @@ function renderTanomiJob(task) {
     resultText.textContent = result;
     body.append(resultLabel, resultText);
   }
+  if (task.session_id && !["queued", "running"].includes(task.status)) {
+    const responseForm = document.createElement("form");
+    responseForm.className = "agent-response-form";
+    const instruction = document.createElement("textarea");
+    instruction.required = true;
+    instruction.maxLength = 100000;
+    instruction.rows = 3;
+    instruction.placeholder = "このtanomiタスクへの追加指示を入力してください";
+    instruction.setAttribute("aria-label", "tanomiへの追加指示");
+    const send = document.createElement("button");
+    send.type = "submit";
+    send.className = "primary-button";
+    send.textContent = "追加指示を送信";
+    responseForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!instruction.value.trim()) return;
+      send.disabled = true;
+      try {
+        await postJson("./api/tanomi/tasks", { prompt: instruction.value, parent_id: task.id });
+        instruction.value = "";
+        instruction.blur();
+        await loadTanomiTasks();
+      } catch (error) {
+        elements.tanomiStatus.textContent = `追加指示を送信できませんでした：${error.message}`;
+        send.disabled = false;
+      }
+    });
+    responseForm.append(instruction, send);
+    body.append(responseForm);
+  }
   if (["queued", "running"].includes(task.status)) {
     const stop = document.createElement("button");
     stop.type = "button";
@@ -868,7 +898,11 @@ async function loadTanomiTasks() {
     for (const taskID of openTanomiJobs) {
       if (!taskIDs.has(taskID)) openTanomiJobs.delete(taskID);
     }
-    elements.tanomiJobs.replaceChildren(...tasks.map(renderTanomiJob));
+    const active = document.activeElement;
+    const editing = elements.tanomiJobs.contains(active)
+      || (window.getSelection?.() && !window.getSelection().isCollapsed
+        && elements.tanomiJobs.contains(window.getSelection().anchorNode));
+    if (!editing) elements.tanomiJobs.replaceChildren(...tasks.map(renderTanomiJob));
     elements.tanomiStatus.textContent = `${tasks.length}件・5秒ごとに更新`;
     elements.tanomiHealth.textContent = "接続中";
     setTanomiEnabled(true);

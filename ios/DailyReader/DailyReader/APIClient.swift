@@ -89,6 +89,11 @@ struct NewTanomiTask: Encodable {
     let effort: String?
     enum CodingKeys: String, CodingKey { case prompt, repo, model, effort; case permissionMode = "permission_mode" }
 }
+struct TanomiFollowUp: Encodable {
+    let prompt: String
+    let parentID: String
+    enum CodingKeys: String, CodingKey { case prompt; case parentID = "parent_id" }
+}
 struct NewTask: Encodable { let title: String; let dueDate: String?; let priority: Int; let recurrence: String
     enum CodingKeys: String, CodingKey { case title, priority, recurrence; case dueDate = "due_date" }
 }
