@@ -22,6 +22,23 @@ let health = try decoder.decode(
 precondition(health.ok)
 precondition(health.running == 0)
 
+let usage = try decoder.decode(
+    TanomiUsage.self,
+    from: Data(#"""
+{
+  "limits": {
+    "five_hour": {"utilization": 5.0, "resets_at": "2026-08-30T15:30:00.298366+00:00"},
+    "seven_day": {"utilization": 76.0, "resets_at": "2026-09-01T00:00:00.298386+00:00"}
+  },
+  "running": 0
+}
+"""#.utf8)
+)
+precondition(usage.running == 0)
+precondition(usage.limits["five_hour"]?.utilization == 5.0)
+precondition(usage.limits["seven_day"]?.utilization == 76.0)
+precondition(usage.limits["seven_day"]?.resetsAt?.iso8601Date != nil)
+
 let repositories = try decoder.decode(
     [TanomiRepository].self,
     from: Data(#"[{"path":"/workspace/tonoi","label":"tonoi"}]"#.utf8)
@@ -66,6 +83,8 @@ let task = buckets.tasks[0]
 precondition(task.createdAt == 1788070912.0)
 precondition(task.startedAt == 1788070913.5)
 precondition(task.endedAt == 1788070920.25)
+precondition(task.updatedDate == Date(timeIntervalSince1970: 1788070920.25))
+precondition(task.displayRepository == "tonoi")
 let sameBuckets = try decoder.decode(TanomiBuckets.self, from: Data(#"""
 {
   "tasks":[{"id":"0123456789ab","status":"done","result":"完了"}],

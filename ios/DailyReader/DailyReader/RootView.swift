@@ -122,8 +122,8 @@ struct RootView: View {
 
 struct AgentView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var expandedAgentIDs = Set<String>()
-    @State private var expandedAgentOrder: [String] = []
+    @State private var expandedTaskIDs = Set<String>()
+    @State private var expandedTaskOrder: [String] = []
 
     var body: some View {
         List {
@@ -131,29 +131,48 @@ struct AgentView: View {
                 .agentListRow()
             RuntimeInfo(info: model.deploymentInfo, refreshedAt: model.lastUpdated)
                 .agentListRow()
-            CodexUsageCard()
+            AgentUsageCard()
                 .agentListRow()
-            TanomiSection()
+            TanomiComposer()
                 .agentListRow()
-            ForEach(displayedAgents) { job in
-                AgentCard(job: job) { isExpanded in
-                    setExpanded(job.id, isExpanded: isExpanded)
+            ForEach(displayedTasks) { item in
+                switch item {
+                case .daymeld(let job):
+                    AgentCard(job: job) { isExpanded in
+                        setExpanded(item.id, isExpanded: isExpanded)
+                    }
+                        .agentListRow()
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            archiveButton(for: job)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            archiveButton(for: job)
+                        }
+                case .tanomi(let task):
+                    TanomiTaskCard(task: task) { isExpanded in
+                        setExpanded(item.id, isExpanded: isExpanded)
+                    }
+                        .agentListRow()
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            archiveButton(for: task)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            archiveButton(for: task)
+                        }
                 }
-                    .agentListRow()
-                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        archiveButton(for: job)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        archiveButton(for: job)
-                    }
             }
-            if model.agents.isEmpty {
+            if activeTasks.isEmpty {
                 EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。")
                     .agentListRow()
             }
-            if !model.archivedAgents.isEmpty {
-                DisclosureGroup("アーカイブ（\(model.archivedAgents.count)）") {
-                    ForEach(model.archivedAgents) { job in AgentCard(job: job, archived: true) }
+            if !archivedTasks.isEmpty {
+                DisclosureGroup("アーカイブ（\(archivedTasks.count)）") {
+                    ForEach(archivedTasks) { item in
+                        switch item {
+                        case .daymeld(let job): AgentCard(job: job, archived: true)
+                        case .tanomi(let task): TanomiTaskCard(task: task, archived: true)
+                        }
+                    }
                 }
                 .glassCard()
                 .agentListRow()
@@ -164,29 +183,39 @@ struct AgentView: View {
         .background(AppBackground())
         .navigationTitle("Daymeld")
         .refreshable { await model.refresh() }
-        .onChange(of: model.agents.map(\.id)) { _, ids in
-            expandedAgentIDs.formIntersection(ids)
-            expandedAgentOrder.removeAll { !ids.contains($0) }
-            if expandedAgentIDs.isEmpty { expandedAgentOrder.removeAll() }
+        .onChange(of: activeTasks.map(\.id)) { _, ids in
+            expandedTaskIDs.formIntersection(ids)
+            expandedTaskOrder.removeAll { !ids.contains($0) }
+            if expandedTaskIDs.isEmpty { expandedTaskOrder.removeAll() }
         }
     }
 
-    private var displayedAgents: [AgentJob] {
-        guard !expandedAgentIDs.isEmpty else { return model.agents }
-        let jobsByID = Dictionary(uniqueKeysWithValues: model.agents.map { ($0.id, $0) })
-        let retained = expandedAgentOrder.compactMap { jobsByID[$0] }
+    private var activeTasks: [AgentTaskItem] {
+        (model.agents.map(AgentTaskItem.daymeld) + model.tanomiTasks.map(AgentTaskItem.tanomi))
+            .sorted(by: AgentTaskItem.newestFirst)
+    }
+
+    private var archivedTasks: [AgentTaskItem] {
+        (model.archivedAgents.map(AgentTaskItem.daymeld) + model.tanomiArchivedTasks.map(AgentTaskItem.tanomi))
+            .sorted(by: AgentTaskItem.newestFirst)
+    }
+
+    private var displayedTasks: [AgentTaskItem] {
+        guard !expandedTaskIDs.isEmpty else { return activeTasks }
+        let tasksByID = Dictionary(uniqueKeysWithValues: activeTasks.map { ($0.id, $0) })
+        let retained = expandedTaskOrder.compactMap { tasksByID[$0] }
         let retainedIDs = Set(retained.map(\.id))
-        let newJobs = model.agents.filter { !retainedIDs.contains($0.id) }
-        return retained + newJobs
+        let newTasks = activeTasks.filter { !retainedIDs.contains($0.id) }
+        return retained + newTasks
     }
 
     private func setExpanded(_ id: String, isExpanded: Bool) {
         if isExpanded {
-            if expandedAgentIDs.isEmpty { expandedAgentOrder = model.agents.map(\.id) }
-            expandedAgentIDs.insert(id)
+            if expandedTaskIDs.isEmpty { expandedTaskOrder = activeTasks.map(\.id) }
+            expandedTaskIDs.insert(id)
         } else {
-            expandedAgentIDs.remove(id)
-            if expandedAgentIDs.isEmpty { expandedAgentOrder.removeAll() }
+            expandedTaskIDs.remove(id)
+            if expandedTaskIDs.isEmpty { expandedTaskOrder.removeAll() }
         }
     }
 
@@ -198,9 +227,43 @@ struct AgentView: View {
         }
         .tint(.orange)
     }
+
+    private func archiveButton(for task: TanomiTask) -> some View {
+        Button {
+            Task { await model.hideTanomi(task) }
+        } label: {
+            Label("非表示", systemImage: "archivebox.fill")
+        }
+        .tint(.orange)
+        .disabled(["queued", "running"].contains(task.status))
+    }
 }
 
-struct TanomiSection: View {
+private enum AgentTaskItem: Identifiable {
+    case daymeld(AgentJob)
+    case tanomi(TanomiTask)
+
+    var id: String {
+        switch self {
+        case .daymeld(let job): "daymeld-\(job.id)"
+        case .tanomi(let task): "tanomi-\(task.id)"
+        }
+    }
+
+    private var updatedDate: Date {
+        switch self {
+        case .daymeld(let job): job.updatedAt.iso8601Date ?? .distantPast
+        case .tanomi(let task): task.updatedDate ?? .distantPast
+        }
+    }
+
+    static func newestFirst(_ left: AgentTaskItem, _ right: AgentTaskItem) -> Bool {
+        if left.updatedDate != right.updatedDate { return left.updatedDate > right.updatedDate }
+        return left.id > right.id
+    }
+}
+
+struct TanomiComposer: View {
     @EnvironmentObject private var model: AppModel
     @State private var prompt = ""
     @State private var repo = ""
@@ -232,9 +295,6 @@ struct TanomiSection: View {
                     }
                 }.buttonStyle(.borderedProminent).disabled(!model.tanomiAvailable || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repo.isEmpty || sending)
             }
-            ForEach(model.tanomiTasks) { task in
-                TanomiTaskCard(task: task)
-            }
             if !model.tanomiAvailable && model.tanomiTasks.isEmpty {
                 Text(model.tanomiStatusMessage.map { "tanomiを利用できません：\($0)" } ?? "tanomiは現在利用できません。")
                     .appFont(.subheadline).foregroundStyle(.secondary)
@@ -250,21 +310,34 @@ struct TanomiSection: View {
 private struct TanomiTaskCard: View {
     @EnvironmentObject private var model: AppModel
     let task: TanomiTask
+    var archived = false
+    var onExpansionChange: ((Bool) -> Void)? = nil
     @State private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
                 expanded.toggle()
+                onExpansionChange?(expanded)
             } label: {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: statusIcon)
+                        .foregroundStyle(statusColor)
+                        .appFont(.title3)
                     VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            AgentSourceBadge(label: "tanomi", color: .purple)
+                            Text(task.displayRepository)
+                                .appFont(.caption).foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                         Text(task.displayTitle)
-                            .appFont(.subheadline, weight: .bold)
+                            .appFont(.headline)
+                            .foregroundStyle(.primary)
                             .lineLimit(expanded ? nil : 2)
                             .multilineTextAlignment(.leading)
-                        Text("\(task.status)・\(task.displayRepository)")
-                            .appFont(.caption).foregroundStyle(.secondary)
+                        Text(statusAndTime)
+                            .appFont(.caption).foregroundStyle(statusColor)
                     }
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
@@ -287,9 +360,52 @@ private struct TanomiTaskCard: View {
                 if ["queued", "running"].contains(task.status) {
                     Button("停止") { Task { await model.stopTanomi(task) } }.appFont(.caption)
                 }
+                if !archived && !["queued", "running"].contains(task.status) {
+                    HStack {
+                        Spacer()
+                        Button("非表示") { Task { await model.hideTanomi(task) } }
+                            .appFont(.caption, weight: .bold)
+                            .buttonStyle(.borderless)
+                    }
+                }
             }
         }
-        .padding(.vertical, 4)
+        .agentTaskCard(accent: .purple)
+    }
+
+    private var statusAndTime: String {
+        guard let date = task.updatedDate else { return statusLabel }
+        return "\(statusLabel)・\(date.formatted(.relative(presentation: .named)))"
+    }
+
+    private var statusLabel: String {
+        switch task.status {
+        case "queued": "待機中"
+        case "running": "実行中"
+        case "done": "完了"
+        case "error": "失敗"
+        case "stopped": "停止済み"
+        default: task.status
+        }
+    }
+
+    private var statusIcon: String {
+        switch task.status {
+        case "done": "checkmark.circle.fill"
+        case "error": "exclamationmark.triangle.fill"
+        case "running": "bolt.circle.fill"
+        case "stopped": "minus.circle.fill"
+        default: "clock.fill"
+        }
+    }
+
+    private var statusColor: Color {
+        switch task.status {
+        case "done": .green
+        case "error": .red
+        case "running": .cyan
+        default: .secondary
+        }
     }
 }
 
@@ -301,14 +417,18 @@ private extension View {
     }
 }
 
-struct CodexUsageCard: View {
+struct AgentUsageCard: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Label("Codex 使用状況", systemImage: "gauge.with.dots.needle.67percent")
+                Label("AI 使用状況", systemImage: "gauge.with.dots.needle.67percent")
                     .appFont(.headline)
+                Spacer()
+            }
+            HStack {
+                AgentSourceBadge(label: "Codex", color: .mint)
                 Spacer()
                 if let plan = model.codexUsage?.rateLimits?.planType, !plan.isEmpty {
                     Text(plan).appFont(.caption).foregroundStyle(.secondary)
@@ -325,6 +445,28 @@ struct CodexUsageCard: View {
                 } else {
                     ForEach(limits, id: \.id) { item in
                         CodexLimitRow(name: item.name, window: item.window)
+                    }
+                }
+            }
+            Divider()
+            HStack {
+                AgentSourceBadge(label: "tanomi", color: .purple)
+                Spacer()
+                if let running = model.tanomiUsage?.running {
+                    Text("実行中 \(running)件").appFont(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if model.tanomiUsageFailed {
+                Text("tanomiの使用状況を取得できませんでした。")
+                    .appFont(.subheadline).foregroundStyle(.secondary)
+            } else {
+                let limits = sortedTanomiLimits
+                if limits.isEmpty {
+                    Text(model.tanomiUsage == nil ? "使用状況を読み込んでいます…" : "現在の利用枠はありません。")
+                        .appFont(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    ForEach(limits, id: \.id) { item in
+                        TanomiLimitRow(name: item.name, limit: item.limit)
                     }
                 }
             }
@@ -358,6 +500,25 @@ struct CodexUsageCard: View {
         if minutes % 60 == 0 { return "\(minutes / 60)時間" }
         return "\(minutes)分"
     }
+
+    private var sortedTanomiLimits: [(id: String, name: String, limit: TanomiUsageLimit)] {
+        (model.tanomiUsage?.limits ?? [:])
+            .sorted {
+                let rank = ["five_hour": 0, "seven_day": 1]
+                let leftRank = rank[$0.key] ?? 2
+                let rightRank = rank[$1.key] ?? 2
+                if leftRank != rightRank { return leftRank < rightRank }
+                return $0.key < $1.key
+            }
+            .map { id, limit in
+                let name = switch id {
+                case "five_hour": "5時間"
+                case "seven_day": "週次"
+                default: id.replacingOccurrences(of: "_", with: " ")
+                }
+                return (id, name, limit)
+            }
+    }
 }
 
 struct CodexLimitRow: View {
@@ -390,6 +551,36 @@ struct CodexLimitRow: View {
     }
 }
 
+struct TanomiLimitRow: View {
+    let name: String
+    let limit: TanomiUsageLimit
+
+    var body: some View {
+        let used = min(max(limit.utilization, 0), 100)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(name).appFont(.subheadline, weight: .semibold)
+                Spacer()
+                Text("\(used.formatted(.number.precision(.fractionLength(0...1))) )% 使用")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            ProgressView(value: used, total: 100)
+                .tint(.purple)
+            HStack {
+                Text("残り \(max(0, 100 - used).formatted(.number.precision(.fractionLength(0...1))) )%")
+                Spacer()
+                Text(resetLabel)
+            }
+            .appFont(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    private var resetLabel: String {
+        guard let date = limit.resetsAt?.iso8601Date else { return "リセット時刻不明" }
+        return "リセット \(date.runtimeDisplay)"
+    }
+}
+
 struct AgentCard: View {
     @EnvironmentObject private var model: AppModel
     let job: AgentJob
@@ -416,9 +607,15 @@ struct AgentCard: View {
                 HStack(spacing: 12) {
                     Image(systemName: statusIcon).foregroundStyle(statusColor).appFont(.title3)
                     VStack(alignment: .leading, spacing: 5) {
-                        HStack { Text(statusLabel).appFont(.caption, weight: .bold).foregroundStyle(statusColor); Text(job.repositoryLabel ?? job.repository).appFont(.caption).foregroundStyle(.secondary) }
+                        HStack(spacing: 8) {
+                            AgentSourceBadge(label: "Daymeld", color: .mint)
+                            Text(job.repositoryLabel ?? job.repository)
+                                .appFont(.caption).foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                         Text(job.prompt).appFont(.headline).foregroundStyle(.primary).lineLimit(expanded ? nil : 2)
-                        Text("\(job.phase)・\(job.updatedAt.relativeTime)").appFont(.caption).foregroundStyle(.secondary)
+                        Text("\(statusLabel)・\(job.phase)・\(job.updatedAt.relativeTime)")
+                            .appFont(.caption).foregroundStyle(statusColor)
                     }
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down").foregroundStyle(.tertiary)
@@ -494,7 +691,7 @@ struct AgentCard: View {
                 .buttonStyle(.borderless)
             }
         }
-        .glassCard()
+        .agentTaskCard(accent: .mint)
     }
 
     private var canAttach: Bool {
@@ -520,6 +717,23 @@ struct AgentCard: View {
     }
     private var statusColor: Color {
         switch job.status { case "completed": .green; case "blocked": .orange; case "failed": .red; case "running": .cyan; default: .secondary }
+    }
+}
+
+private struct AgentSourceBadge: View {
+    let label: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(label)
+        }
+        .appFont(.caption2, weight: .bold)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(color.opacity(0.18), in: Capsule())
+        .foregroundStyle(color)
     }
 }
 
@@ -911,5 +1125,17 @@ struct AppBackground: View { var body: some View { LinearGradient(colors: [Color
 
 extension View {
     func glassCard() -> some View { self.padding(16).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22)).overlay(RoundedRectangle(cornerRadius: 22).stroke(.white.opacity(0.08))) }
+    func agentTaskCard(accent: Color) -> some View {
+        padding(16)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 22))
+            .overlay(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(accent)
+                    .frame(width: 4)
+                    .padding(.vertical, 14)
+                    .padding(.leading, 5)
+            }
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(accent.opacity(0.28)))
+    }
     func badgeStyle(_ color: Color) -> some View { self.appFont(.caption2, weight: .bold).padding(.horizontal, 8).padding(.vertical, 4).background(color.opacity(0.2), in: Capsule()).foregroundStyle(color) }
 }

@@ -11,6 +11,8 @@ final class AppModel: ObservableObject {
     @Published var tanomiRepositories: [TanomiRepository] = []
     @Published var tanomiAvailable = false
     @Published var tanomiStatusMessage: String?
+    @Published var tanomiUsage: TanomiUsage?
+    @Published var tanomiUsageFailed = false
     @Published var repositories: [Repository] = []
     @Published var agentModels: [AgentModelOption] = [.fallback]
     @Published var today: TodayEnvelope?
@@ -125,6 +127,17 @@ final class AppModel: ObservableObject {
         } catch { errorMessage = error.localizedDescription }
     }
 
+    func hideTanomi(_ task: TanomiTask) async {
+        do {
+            let _: EmptyResponse = try await api.post(
+                "api/tanomi/tasks/\(task.id)/archive",
+                body: EmptyRequest(),
+                as: EmptyResponse.self
+            )
+            await refreshAgents()
+        } catch { errorMessage = error.localizedDescription }
+    }
+
     func refreshAgents() async {
         guard !isRefreshing, !snapshotRefreshInProgress else { return }
         snapshotRefreshInProgress = true
@@ -144,18 +157,22 @@ final class AppModel: ObservableObject {
                 queryItems: [URLQueryItem(name: "limit", value: "50")]
             )
             async let health: TanomiHealth = api.get("api/tanomi/health")
-            let (repos, tasks, status) = try await (repositories, buckets, health)
+            async let usage: TanomiUsage? = try? api.get("api/tanomi/usage")
+            let (repos, tasks, status, usageSnapshot) = try await (repositories, buckets, health, usage)
             guard generation == tanomiRefreshGeneration else { return false }
             if tanomiRepositories != repos { tanomiRepositories = repos }
             if tanomiTasks != tasks.tasks { tanomiTasks = tasks.tasks }
             if tanomiArchivedTasks != tasks.archived { tanomiArchivedTasks = tasks.archived }
             if tanomiAvailable != status.ok { tanomiAvailable = status.ok }
+            if let usageSnapshot, tanomiUsage != usageSnapshot { tanomiUsage = usageSnapshot }
+            tanomiUsageFailed = usageSnapshot == nil
             let message = status.ok ? nil : "tanomiのヘルスチェックが失敗しました"
             if tanomiStatusMessage != message { tanomiStatusMessage = message }
             return true
         } catch {
             guard generation == tanomiRefreshGeneration else { return false }
             if tanomiAvailable { tanomiAvailable = false }
+            tanomiUsageFailed = true
             let message = error.localizedDescription
             if tanomiStatusMessage != message { tanomiStatusMessage = message }
             return false

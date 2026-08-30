@@ -87,6 +87,21 @@ struct TanomiHealth: Decodable {
     let running: Int?
 }
 
+struct TanomiUsage: Decodable, Equatable {
+    let limits: [String: TanomiUsageLimit]
+    let running: Int
+}
+
+struct TanomiUsageLimit: Decodable, Equatable {
+    let utilization: Double
+    let resetsAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case utilization
+        case resetsAt = "resets_at"
+    }
+}
+
 struct TanomiTask: Decodable, Identifiable, Equatable {
     let id: String
     let title: String?
@@ -112,8 +127,18 @@ struct TanomiTask: Decodable, Identifiable, Equatable {
     }
 
     var displayTitle: String { title ?? prompt ?? id }
-    var displayRepository: String { repoPath ?? cwd ?? "tanomi" }
+    var displayRepository: String {
+        let value = repoPath ?? cwd ?? "tanomi"
+        let name = URL(fileURLWithPath: value).lastPathComponent
+        return name.isEmpty ? value : name
+    }
     var displayResult: String { result ?? error ?? "" }
+    var updatedDate: Date? {
+        [endedAt, startedAt, createdAt]
+            .compactMap { $0 }
+            .first
+            .map(Date.init(timeIntervalSince1970:))
+    }
 }
 
 struct CodexUsageEnvelope: Decodable {
@@ -320,8 +345,14 @@ struct Article: Decodable, Identifiable {
 struct APIErrorPayload: Decodable { let error: String }
 
 extension String {
+    var iso8601Date: Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: self) ?? ISO8601DateFormatter().date(from: self)
+    }
+
     var relativeTime: String {
-        guard let date = ISO8601DateFormatter().date(from: self) else { return self }
+        guard let date = iso8601Date else { return self }
         return date.formatted(.relative(presentation: .named))
     }
 }
