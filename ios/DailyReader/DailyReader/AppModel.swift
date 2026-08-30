@@ -173,7 +173,7 @@ final class AppModel: ObservableObject {
         } catch {
             guard generation == tanomiRefreshGeneration else { return false }
             if tanomiAvailable { tanomiAvailable = false }
-            tanomiUsageFailed = true
+            if !tanomiUsageFailed { tanomiUsageFailed = true }
             let message = error.localizedDescription
             if tanomiStatusMessage != message { tanomiStatusMessage = message }
             return false

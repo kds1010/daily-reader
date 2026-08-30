@@ -140,6 +140,9 @@ struct AgentView: View {
     @State private var archiveExpanded = false
 
     var body: some View {
+        let activeSnapshot = activeTasks
+        let archivedSnapshot = archivedTasks
+        let displayedSnapshot = displayedTasks(from: activeSnapshot)
         ScrollViewReader { proxy in
             List {
                 AgentComposer()
@@ -156,7 +159,7 @@ struct AgentView: View {
                     .foregroundStyle(.secondary)
                     .agentListRow()
                 #endif
-                ForEach(displayedTasks) { item in
+                ForEach(displayedSnapshot) { item in
                     switch item {
                     case .daymeld(let job):
                         AgentCard(
@@ -192,14 +195,14 @@ struct AgentView: View {
                             }
                     }
                 }
-                if activeTasks.isEmpty {
+                if activeSnapshot.isEmpty {
                     EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。")
                         .agentListRow()
                 }
-                if !archivedTasks.isEmpty {
+                if !archivedSnapshot.isEmpty {
                     DisclosureGroup(isExpanded: $archiveExpanded) {
                         if archiveExpanded {
-                            ForEach(archivedTasks) { item in
+                            ForEach(archivedSnapshot) { item in
                                 switch item {
                                 case .daymeld(let job): AgentCard(job: job, archived: true)
                                 case .tanomi(let task): TanomiTaskCard(task: task, archived: true)
@@ -207,7 +210,7 @@ struct AgentView: View {
                             }
                         }
                     } label: {
-                        Text("アーカイブ（\(archivedTasks.count)）")
+                        Text("アーカイブ（\(archivedSnapshot.count)）")
                     }
                     .glassCard()
                     .agentListRow()
@@ -218,8 +221,8 @@ struct AgentView: View {
             .background(AppBackground())
             .navigationTitle("Daymeld")
             .refreshable { await model.refresh() }
-            .onAppear { synchronizeSelection(with: activeTasks.map(\.id)) }
-            .onChange(of: activeTasks.map(\.id)) { _, ids in
+            .onAppear { synchronizeSelection(with: activeSnapshot.map(\.id)) }
+            .onChange(of: activeSnapshot.map(\.id)) { _, ids in
                 expandedTaskIDs.formIntersection(ids)
                 expandedTaskOrder.removeAll { !ids.contains($0) }
                 if expandedTaskIDs.isEmpty { expandedTaskOrder.removeAll() }
@@ -244,7 +247,7 @@ struct AgentView: View {
             .sorted(by: AgentTaskItem.newestFirst)
     }
 
-    private var displayedTasks: [AgentTaskItem] {
+    private func displayedTasks(from activeTasks: [AgentTaskItem]) -> [AgentTaskItem] {
         guard !expandedTaskIDs.isEmpty else { return activeTasks }
         let tasksByID = Dictionary(uniqueKeysWithValues: activeTasks.map { ($0.id, $0) })
         let retained = expandedTaskOrder.compactMap { tasksByID[$0] }
@@ -283,7 +286,7 @@ struct AgentView: View {
 
     #if os(macOS)
     private func handle(_ command: MacAgentNavigationCommand, proxy: ScrollViewProxy) {
-        let tasks = displayedTasks
+        let tasks = displayedTasks(from: activeTasks)
         guard !tasks.isEmpty else { return }
         let currentIndex = tasks.firstIndex { $0.id == selectedTaskID } ?? 0
 
