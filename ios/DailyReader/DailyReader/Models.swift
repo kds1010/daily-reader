@@ -26,6 +26,10 @@ struct AgentEnvelope: Decodable {
     }
 }
 
+struct AgentNotificationEnvelope: Decodable {
+    let jobs: [AgentJob]
+}
+
 struct AgentModelOption: Decodable, Identifiable, Hashable {
     let slug: String
     let displayName: String

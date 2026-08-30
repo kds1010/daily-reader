@@ -42,6 +42,15 @@ REQUIRED_SIDESTORE_ENTITLEMENTS = frozenset(
 REMOTE_TOKEN_CHARACTERS = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
 )
+BACKGROUND_REFRESH_IDENTIFIER = "net.skmin.DailyReader.agent-refresh"
+
+
+def validate_background_refresh_metadata(app: Path) -> None:
+    info = plistlib.loads((app / "Info.plist").read_bytes())
+    if "fetch" not in info.get("UIBackgroundModes", []):
+        raise RuntimeError("DailyReader.app is missing Background Fetch mode")
+    if BACKGROUND_REFRESH_IDENTIFIER not in info.get("BGTaskSchedulerPermittedIdentifiers", []):
+        raise RuntimeError("DailyReader.app is missing the agent refresh identifier")
 
 
 def run(*command: str, cwd: Path = REPOSITORY_ROOT) -> str:
@@ -373,6 +382,7 @@ def main() -> None:
     app = args.derived_data / "Build/Products/Release-iphoneos/DailyReader.app"
     if not app.is_dir():
         raise FileNotFoundError(f"built application not found: {app}")
+    validate_background_refresh_metadata(app)
     sign_app_for_sidestore(app)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)

@@ -30,7 +30,11 @@ final class AppModel: ObservableObject {
 #if os(iOS)
     private let health = HealthService()
 #endif
+    #if os(iOS)
+    private let agentNotifications = AgentNotificationCoordinator.shared
+    #else
     private let agentNotifications = AgentNotificationCoordinator()
+    #endif
     private var agentRefreshGeneration = 0
 
     func start() async {
@@ -151,7 +155,7 @@ final class AppModel: ObservableObject {
               generation == agentRefreshGeneration else { return false }
 
         for job in agentNotifications.changedJobs(active: envelope.jobs, archived: envelope.archivedJobs) {
-            agentNotifications.schedule(for: job)
+            await agentNotifications.schedule(for: job)
         }
         if agents != envelope.jobs { agents = envelope.jobs }
         if archivedAgents != envelope.archivedJobs { archivedAgents = envelope.archivedJobs }

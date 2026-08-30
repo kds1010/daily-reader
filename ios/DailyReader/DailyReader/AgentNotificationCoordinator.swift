@@ -3,6 +3,7 @@ import UserNotifications
 
 @MainActor
 final class AgentNotificationCoordinator {
+    static let shared = AgentNotificationCoordinator()
     private struct StoredState: Codable {
         var initialized: Bool
         var statuses: [String: String]
@@ -50,7 +51,7 @@ final class AgentNotificationCoordinator {
         return changed
     }
 
-    func schedule(for job: AgentJob) {
+    func schedule(for job: AgentJob) async {
         let content = UNMutableNotificationContent()
         switch job.status {
         case "completed":
@@ -67,10 +68,10 @@ final class AgentNotificationCoordinator {
         content.sound = .default
         content.userInfo = ["agent_job_id": job.id]
         let identifier = "agent-\(job.id)-\(job.status)-\(job.updatedAt)"
-        center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { error in
-            if let error {
-                NSLog("Daymeld agent notification failed: %@", error.localizedDescription)
-            }
+        do {
+            try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
+        } catch {
+            NSLog("Daymeld agent notification failed: %@", error.localizedDescription)
         }
     }
 

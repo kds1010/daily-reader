@@ -1,13 +1,17 @@
 import SwiftUI
 import UIKit
 import UserNotifications
+import BackgroundTasks
 
+@MainActor
 final class DailyReaderAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        AgentBackgroundRefresh.register()
+        AgentBackgroundRefresh.schedule()
         return true
     }
 

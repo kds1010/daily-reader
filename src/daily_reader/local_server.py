@@ -106,6 +106,11 @@ def present_agent_jobs(
     return [present_agent_job(job, repositories) for job in jobs]
 
 
+def present_agent_notification_jobs(jobs: list[dict[str, object]]) -> list[dict[str, object]]:
+    fields = ("id", "repository", "prompt", "status", "phase", "summary", "updated_at")
+    return [{key: job[key] for key in fields if key in job} for job in jobs]
+
+
 def _without_codex_spark_limits(result: dict[str, object]) -> dict[str, object]:
     limits = result.get("rateLimitsByLimitId")
     if not isinstance(limits, dict):
@@ -595,6 +600,9 @@ def make_handler(
                         ),
                     },
                 )
+                return
+            if self.path == "/api/agent-notifications":
+                self._send_json(200, {"jobs": present_agent_notification_jobs(list_jobs(agent_db))})
                 return
             if self.path.startswith("/api/agent-jobs/"):
                 job_id = urllib.parse.unquote(self.path.rsplit("/", 1)[-1])

@@ -13,6 +13,8 @@
     <key>NSHealthShareUsageDescription</key><string>睡眠、歩数、心拍などをDaymeldの体調画面へ同期します。</string>
     <key>NSHealthUpdateUsageDescription</key><string>DaymeldはHealthKitへの書き込みを行いません。</string>
     <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
+    <key>UIBackgroundModes</key><array><string>fetch</string></array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key><array><string>net.skmin.DailyReader.agent-refresh</string></array>
     <key>UILaunchScreen</key><dict><key>UIColorName</key><string></string></dict>
     <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
 </dict></plist>
