@@ -343,11 +343,13 @@ def test_follow_up_prompt_is_read_only_and_uses_completion_context() -> None:
     prompt = _follow_up_prompt(
         "Add task summaries",
         "Added a completion summary and verified the UI",
+        "Previous answer",
         ["Which checks ran?"],
     )
 
     assert "Add task summaries" in prompt
     assert "Added a completion summary and verified the UI" in prompt
+    assert "Previous answer" in prompt
     assert "Which checks ran?" in prompt
     assert "read-only confirmation conversation" in prompt
     assert "do not edit files" in prompt

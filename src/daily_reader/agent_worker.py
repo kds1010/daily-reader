@@ -297,7 +297,12 @@ autonomously until the task is committed and verified.
 """
 
 
-def _follow_up_prompt(task: str, summary: str, instructions: list[str]) -> str:
+def _follow_up_prompt(
+    task: str,
+    completion_summary: str,
+    latest_summary: str,
+    instructions: list[str],
+) -> str:
     messages = "\n\n".join(
         f"User message {index}:\n{instruction}"
         for index, instruction in enumerate(instructions, start=1)
@@ -308,7 +313,10 @@ Original task:
 {task}
 
 Completion summary:
-{summary}
+{completion_summary}
+
+Latest answer in this confirmation conversation:
+{latest_summary}
 
 {messages}
 
@@ -559,7 +567,12 @@ current worktree state. Continue autonomously until the task is committed and ve
             )
         attached = take_pending_instructions(database, job_id)
         if follow_up:
-            prompt = _follow_up_prompt(job["prompt"], job.get("summary", ""), attached)
+            prompt = _follow_up_prompt(
+                job["prompt"],
+                job.get("completion_summary") or job.get("summary", ""),
+                job.get("summary", ""),
+                attached,
+            )
             append_event(database, job_id, "follow-up", "完了内容を確認しています")
         elif attached:
             prompt = f"{prompt}\n\n{_attached_prompt(attached)}"
@@ -613,8 +626,7 @@ current worktree state. Continue autonomously until the task is committed and ve
             )
             final_result = result
             update_fields = {"thread_id": thread_id}
-            if not follow_up:
-                update_fields["summary"] = result["summary"]
+            update_fields["summary"] = result["summary"]
             update_job(database, job_id, **update_fields)
             append_event(database, job_id, "codex", messages or result["summary"])
             if planning_turn and attempt == 1 and result["state"] != "blocked":
@@ -630,7 +642,12 @@ current worktree state. Continue autonomously until the task is committed and ve
             attached = take_pending_instructions(database, job_id)
             if attached:
                 prompt = (
-                    _follow_up_prompt(job["prompt"], job.get("summary", ""), attached)
+                    _follow_up_prompt(
+                        job["prompt"],
+                        job.get("completion_summary") or job.get("summary", ""),
+                        result["summary"],
+                        attached,
+                    )
                     if follow_up
                     else _attached_prompt(attached)
                 )
@@ -821,6 +838,7 @@ clean. Return done only when the rebase and verification succeed."""
             status="completed",
             phase="完了",
             summary=summary,
+            completion_summary=summary,
             worktree=None,
             finished_at=datetime.now(UTC).isoformat(),
         )

@@ -93,6 +93,7 @@ def initialize_database(path: Path) -> None:
                 status TEXT NOT NULL,
                 phase TEXT NOT NULL,
                 summary TEXT NOT NULL DEFAULT '',
+                completion_summary TEXT NOT NULL DEFAULT '',
                 thread_id TEXT,
                 branch TEXT,
                 worktree TEXT,
@@ -140,6 +141,14 @@ def initialize_database(path: Path) -> None:
         if "follow_up" not in columns:
             connection.execute(
                 "ALTER TABLE agent_jobs ADD COLUMN follow_up INTEGER NOT NULL DEFAULT 0"
+            )
+        if "completion_summary" not in columns:
+            connection.execute(
+                "ALTER TABLE agent_jobs ADD COLUMN completion_summary TEXT NOT NULL DEFAULT ''"
+            )
+            connection.execute(
+                """UPDATE agent_jobs SET completion_summary = summary
+                WHERE status = 'completed' AND completion_summary = '' AND summary != ''"""
             )
         if "model" not in columns:
             connection.execute(
@@ -498,6 +507,7 @@ def update_job(path: Path, job_id: str, **fields: object) -> None:
         "status",
         "phase",
         "summary",
+        "completion_summary",
         "thread_id",
         "branch",
         "worktree",

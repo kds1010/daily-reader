@@ -275,6 +275,33 @@ def test_existing_agent_database_is_migrated_with_execute_mode(tmp_path: Path) -
     )
 
     assert list_jobs(database)[0]["mode"] == "execute"
+    assert list_jobs(database)[0]["completion_summary"] == ""
+
+
+def test_existing_completed_job_backfills_completion_summary(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """CREATE TABLE agent_jobs (
+            id TEXT PRIMARY KEY, repository TEXT NOT NULL, prompt TEXT NOT NULL,
+            status TEXT NOT NULL, phase TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '',
+            thread_id TEXT, branch TEXT, worktree TEXT, attempts INTEGER NOT NULL DEFAULT 0,
+            cancel_requested INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL, finished_at TEXT
+            )"""
+        )
+        connection.execute(
+            """INSERT INTO agent_jobs
+            (id, repository, prompt, status, phase, summary, created_at, updated_at)
+            VALUES ('job', 'repo', 'Task', 'completed', '完了', 'Original', 'a', 'b')"""
+        )
+
+    from daily_reader.agent_jobs import initialize_database
+
+    initialize_database(database)
+    stored = get_job(database, "job")
+    assert stored is not None
+    assert stored["completion_summary"] == "Original"
 
 
 def test_queued_job_can_be_cancelled(tmp_path: Path) -> None:
