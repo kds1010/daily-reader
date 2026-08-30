@@ -7,6 +7,7 @@ import functools
 import hmac
 import json
 import logging
+import plistlib
 import select
 import stat
 import subprocess
@@ -86,6 +87,8 @@ SIDESTORE_REMOTE_SOURCE_SUBTITLE = "個人用の外出先更新ソース"
 SIDESTORE_REMOTE_TOKEN_CHARACTERS = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
 )
+IOS_BUNDLE_IDENTIFIER = "net.skmin.DailyReader"
+MACOS_BUNDLE_IDENTIFIER = "net.skmin.DailyReader.mac"
 
 
 def present_agent_job(
@@ -326,6 +329,89 @@ def build_deployment_info(repository: Path, deployed_at: datetime) -> dict[str, 
     }
 
 
+def _validated_release_version(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    parts = value.split(".")
+    if len(parts) != 3 or not all(part.isdigit() for part in parts):
+        return None
+    return value
+
+
+def sidestore_release_version(directory: Path) -> str | None:
+    source_path = directory / "source.json"
+    ipa_path = directory / "DailyReader.ipa"
+    icon_path = directory / "icon.png"
+    if not all(
+        path.is_file() and not path.is_symlink()
+        for path in (source_path, ipa_path, icon_path)
+    ):
+        return None
+    try:
+        source = json.loads(source_path.read_text(encoding="utf-8"))
+        app = source["apps"][0]
+        release = app["versions"][0]
+    except (IndexError, KeyError, OSError, TypeError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(app, dict) or not isinstance(release, dict):
+        return None
+    version_value = _validated_release_version(release.get("version"))
+    size_value = release.get("size")
+    download_url = release.get("downloadURL")
+    try:
+        ipa_size = ipa_path.stat().st_size
+    except OSError:
+        return None
+    if (
+        app.get("bundleIdentifier") != IOS_BUNDLE_IDENTIFIER
+        or version_value is None
+        or not isinstance(size_value, int)
+        or isinstance(size_value, bool)
+        or size_value != ipa_size
+        or not isinstance(download_url, str)
+        or urllib.parse.urlsplit(download_url).path.rsplit("/", 1)[-1]
+        != "DailyReader.ipa"
+    ):
+        return None
+    return version_value
+
+
+def macos_release_version(app: Path) -> str | None:
+    contents = app / "Contents"
+    macos_directory = contents / "MacOS"
+    info_path = app / "Contents/Info.plist"
+    executable = app / "Contents/MacOS/Daymeld"
+    if (
+        not app.is_dir()
+        or app.is_symlink()
+        or contents.is_symlink()
+        or macos_directory.is_symlink()
+        or not info_path.is_file()
+        or info_path.is_symlink()
+        or not executable.is_file()
+        or executable.is_symlink()
+    ):
+        return None
+    try:
+        info = plistlib.loads(info_path.read_bytes())
+    except (OSError, plistlib.InvalidFileException):
+        return None
+    if info.get("CFBundleIdentifier") != MACOS_BUNDLE_IDENTIFIER:
+        return None
+    return _validated_release_version(info.get("CFBundleShortVersionString"))
+
+
+def build_native_release_info(
+    sidestore_directory: Path, macos_app: Path
+) -> dict[str, str]:
+    releases = {}
+    if ios_version := sidestore_release_version(sidestore_directory):
+        releases["ios_release_version"] = ios_version
+    if mac_version := macos_release_version(macos_app):
+        releases["macos_release_version"] = mac_version
+    return releases
+
+
 def health_sync_authorized(token_path: Path, authorization: str) -> bool:
     try:
         expected = token_path.read_text(encoding="utf-8").strip()
@@ -470,6 +556,8 @@ def make_handler(
     agent_repositories: dict[str, dict[str, str]] | None = None,
     deployment_info: dict[str, str] | None = None,
     tanomi_client: TanomiClient | None = None,
+    sidestore_directory: Path = Path("data/sidestore"),
+    macos_release_app: Path = Path("data/macos/Daymeld.app"),
 ):
     repositories = agent_repositories or {}
     tanomi = tanomi_client
@@ -576,7 +664,14 @@ def make_handler(
                     self._tanomi_error(error)
                 return
             if self.path == "/api/deployment":
-                self._send_json(200, deployment_info or {})
+                payload = dict(deployment_info or {})
+                payload.update(
+                    build_native_release_info(
+                        sidestore_directory,
+                        macos_release_app,
+                    )
+                )
+                self._send_json(200, payload)
                 return
             if self.path == "/api/codex-usage":
                 try:
@@ -1375,6 +1470,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="192.168.10.0/24,169.254.0.0/16",
     )
     parser.add_argument("--sidestore-dir", type=Path, default=Path("data/sidestore"))
+    parser.add_argument(
+        "--macos-release-app",
+        type=Path,
+        default=Path("data/macos/Daymeld.app"),
+    )
     parser.add_argument("--sidestore-remote-port", type=int, default=8789)
     parser.add_argument(
         "--sidestore-remote-token",
@@ -1471,6 +1571,8 @@ def main() -> None:
         agent_repositories,
         deployment_info,
         TanomiClient(args.tanomi_base_url),
+        sidestore_directory=args.sidestore_dir,
+        macos_release_app=args.macos_release_app,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     sidestore_server = start_sidestore_server(

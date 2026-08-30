@@ -1,4 +1,5 @@
 import json
+import plistlib
 import subprocess
 from datetime import datetime
 from io import BytesIO
@@ -14,17 +15,20 @@ from daily_reader.local_server import (
     append_read_event,
     append_update_stats,
     build_deployment_info,
+    build_native_release_info,
     build_parser,
     build_update_stats,
     current_sidestore_remote_ipa,
     load_feedback_events,
     load_sidestore_remote_token,
+    macos_release_version,
     make_handler,
     make_sidestore_handler,
     make_sidestore_remote_handler,
     present_agent_job,
     present_agent_jobs,
     read_codex_rate_limits,
+    sidestore_release_version,
     start_sidestore_remote_server,
     start_sidestore_server,
     summarize_read_events,
@@ -275,6 +279,117 @@ def test_deployment_info_includes_package_version_and_revision(
     }
 
 
+def write_native_release_artifacts(
+    directory: Path,
+    *,
+    ios_version: str = "0.1.41",
+    macos_version: str = "0.1.42",
+) -> tuple[Path, Path]:
+    sidestore = directory / "sidestore"
+    sidestore.mkdir()
+    ipa = sidestore / "DailyReader.ipa"
+    ipa.write_bytes(b"ipa")
+    (sidestore / "icon.png").write_bytes(b"png")
+    (sidestore / "source.json").write_text(
+        json.dumps(
+            {
+                "apps": [
+                    {
+                        "bundleIdentifier": "net.skmin.DailyReader",
+                        "versions": [
+                            {
+                                "version": ios_version,
+                                "downloadURL": "http://reader.test/DailyReader.ipa",
+                                "size": ipa.stat().st_size,
+                            }
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    macos_app = directory / "Daymeld.app"
+    contents = macos_app / "Contents"
+    executable_directory = contents / "MacOS"
+    executable_directory.mkdir(parents=True)
+    (executable_directory / "Daymeld").write_bytes(b"app")
+    (contents / "Info.plist").write_bytes(
+        plistlib.dumps(
+            {
+                "CFBundleIdentifier": "net.skmin.DailyReader.mac",
+                "CFBundleShortVersionString": macos_version,
+            }
+        )
+    )
+    return sidestore, macos_app
+
+
+def test_native_release_info_reads_published_ios_and_macos_versions(
+    tmp_path: Path,
+) -> None:
+    sidestore, macos_app = write_native_release_artifacts(tmp_path)
+
+    assert sidestore_release_version(sidestore) == "0.1.41"
+    assert macos_release_version(macos_app) == "0.1.42"
+    assert build_native_release_info(sidestore, macos_app) == {
+        "ios_release_version": "0.1.41",
+        "macos_release_version": "0.1.42",
+    }
+
+
+def test_native_release_info_omits_incomplete_or_unsafe_artifacts(
+    tmp_path: Path,
+) -> None:
+    sidestore, macos_app = write_native_release_artifacts(tmp_path)
+    (sidestore / "DailyReader.ipa").write_bytes(b"different size")
+    executable = macos_app / "Contents/MacOS/Daymeld"
+    executable.unlink()
+    executable.symlink_to(tmp_path / "outside")
+
+    assert build_native_release_info(sidestore, macos_app) == {}
+
+
+def test_deployment_endpoint_reads_current_native_release_versions(
+    tmp_path: Path,
+) -> None:
+    sidestore, macos_app = write_native_release_artifacts(tmp_path)
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+        deployment_info={
+            "version": "0.1.0+abc123def456",
+            "deployed_at": "2026-08-25T01:23:45+00:00",
+        },
+        sidestore_directory=sidestore,
+        macos_release_app=macos_app,
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.path = "/api/deployment"
+
+    handler.do_GET()
+
+    assert responses == [
+        (
+            200,
+            {
+                "version": "0.1.0+abc123def456",
+                "deployed_at": "2026-08-25T01:23:45+00:00",
+                "ios_release_version": "0.1.41",
+                "macos_release_version": "0.1.42",
+            },
+        )
+    ]
+
+
 def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.argv", ["daily-reader-local"])
 
@@ -287,6 +402,7 @@ def test_local_server_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert args.sidestore_lan_port == 8788
     assert args.sidestore_lan_networks == "192.168.10.0/24,169.254.0.0/16"
     assert args.sidestore_dir == Path("data/sidestore")
+    assert args.macos_release_app == Path("data/macos/Daymeld.app")
     assert args.sidestore_remote_port == 8789
     assert args.sidestore_remote_token == Path("secrets/sidestore-remote-token.txt")
     assert args.update_hours == "8,10,12,17,20,22"

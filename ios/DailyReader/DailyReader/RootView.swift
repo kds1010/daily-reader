@@ -849,6 +849,7 @@ struct RuntimeInfo: View {
                         Spacer()
                         if let date = info.deployedDate { Text("デプロイ \(date.runtimeDisplay)") }
                     }
+                    NativeReleaseStatus(info: info)
                 }
                 if let refreshedAt {
                     TimelineView(.periodic(from: refreshedAt, by: 60)) { context in
@@ -870,6 +871,39 @@ struct RuntimeInfo: View {
         }
     }
 }
+
+private struct NativeReleaseStatus: View {
+    let info: DeploymentInfo
+
+    private var updateAvailableLabel: String {
+#if os(iOS)
+        "SideStore更新あり"
+#else
+        "アプリ更新あり"
+#endif
+    }
+
+    private var installedVersion: String? {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+    }
+
+    var body: some View {
+        if let installedVersion, let releaseVersion = info.nativeReleaseVersion {
+            let isLatest = installedVersion == releaseVersion
+            HStack {
+                Label(
+                    isLatest ? "アプリ最新版" : updateAvailableLabel,
+                    systemImage: isLatest ? "checkmark.circle.fill" : "arrow.down.circle.fill"
+                )
+                Spacer()
+                Text(isLatest ? installedVersion : "\(installedVersion) → \(releaseVersion)")
+            }
+            .foregroundStyle(isLatest ? .green : .yellow)
+            .accessibilityElement(children: .combine)
+        }
+    }
+}
+
 private extension Date {
     var runtimeDisplay: String { formatted(.dateTime.month().day().hour().minute()) }
 }

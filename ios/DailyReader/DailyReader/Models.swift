@@ -145,10 +145,22 @@ struct CodexLimitWindow: Decodable {
 struct DeploymentInfo: Decodable {
     let version: String
     let deployedAt: String
+    let iOSReleaseVersion: String?
+    let macOSReleaseVersion: String?
 
     enum CodingKeys: String, CodingKey {
         case version
         case deployedAt = "deployed_at"
+        case iOSReleaseVersion = "ios_release_version"
+        case macOSReleaseVersion = "macos_release_version"
+    }
+
+    var nativeReleaseVersion: String? {
+#if os(iOS)
+        iOSReleaseVersion
+#else
+        macOSReleaseVersion
+#endif
     }
 
     var deployedDate: Date? {
