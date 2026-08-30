@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 FINAL_STATES = {"completed", "blocked", "failed", "cancelled"}
+LIVE_STATES = {"queued", "running", "blocked"}
 JOB_MODES = {"execute", "requirements"}
 ARCHIVE_RETENTION = timedelta(days=7)
 DEFAULT_MODEL = "gpt-5.6-luna"
@@ -230,6 +231,8 @@ def list_jobs(path: Path, limit: int = 50) -> list[dict[str, Any]]:
         ).fetchall()
         jobs = [dict(row) for row in rows]
         for job in jobs:
+            if job["status"] not in LIVE_STATES:
+                continue
             events = connection.execute(
                 """SELECT created_at, kind, message FROM agent_events
                 WHERE job_id = ? ORDER BY id DESC LIMIT 3""",
@@ -254,6 +257,10 @@ def list_archived_jobs(
         ).fetchall()
         jobs = [dict(row) for row in rows]
         for job in jobs:
+            # Archived cards only show metadata. Full history remains available
+            # through get_job() when a conversation is opened.
+            if job["status"] not in LIVE_STATES:
+                continue
             events = connection.execute(
                 """SELECT created_at, kind, message FROM agent_events
                 WHERE job_id = ? ORDER BY id DESC LIMIT 3""",

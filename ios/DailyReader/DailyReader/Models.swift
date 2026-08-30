@@ -82,6 +82,15 @@ struct MacVimKeyParser {
     }
 }
 
+private enum DateParsing {
+    static let iso8601 = ISO8601DateFormatter()
+    static let iso8601WithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+}
+
 struct AgentEnvelope: Decodable {
     let repositories: [Repository]
     let models: [AgentModelOption]
@@ -428,9 +437,8 @@ struct APIErrorPayload: Decodable { let error: String }
 
 extension String {
     var iso8601Date: Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: self) ?? ISO8601DateFormatter().date(from: self)
+        DateParsing.iso8601WithFractionalSeconds.date(from: self)
+            ?? DateParsing.iso8601.date(from: self)
     }
 
     var relativeTime: String {

@@ -438,3 +438,15 @@ def test_running_job_accepts_attached_messages_in_order(tmp_path: Path) -> None:
         "First addition",
         "Second addition",
     ]
+
+
+def test_final_jobs_omit_recent_events_from_list_payload(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    configured = repositories(tmp_path)
+    job = create_job(database, configured, {"repository": "repo", "prompt": "Do it"})
+    claim_next_job(database)
+    update_job(database, job["id"], status="completed", phase="完了", summary="Done")
+
+    listed = list_jobs(database)[0]
+
+    assert "recent_events" not in listed

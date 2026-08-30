@@ -165,7 +165,8 @@ final class AppModel: ObservableObject {
             if tanomiArchivedTasks != tasks.archived { tanomiArchivedTasks = tasks.archived }
             if tanomiAvailable != status.ok { tanomiAvailable = status.ok }
             if let usageSnapshot, tanomiUsage != usageSnapshot { tanomiUsage = usageSnapshot }
-            tanomiUsageFailed = usageSnapshot == nil
+            let usageFailed = usageSnapshot == nil
+            if tanomiUsageFailed != usageFailed { tanomiUsageFailed = usageFailed }
             let message = status.ok ? nil : "tanomiのヘルスチェックが失敗しました"
             if tanomiStatusMessage != message { tanomiStatusMessage = message }
             return true

@@ -137,6 +137,7 @@ struct AgentView: View {
     @State private var expandedTaskIDs = Set<String>()
     @State private var expandedTaskOrder: [String] = []
     @State private var selectedTaskID: String?
+    @State private var archiveExpanded = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -196,13 +197,17 @@ struct AgentView: View {
                         .agentListRow()
                 }
                 if !archivedTasks.isEmpty {
-                    DisclosureGroup("アーカイブ（\(archivedTasks.count)）") {
-                        ForEach(archivedTasks) { item in
-                            switch item {
-                            case .daymeld(let job): AgentCard(job: job, archived: true)
-                            case .tanomi(let task): TanomiTaskCard(task: task, archived: true)
+                    DisclosureGroup(isExpanded: $archiveExpanded) {
+                        if archiveExpanded {
+                            ForEach(archivedTasks) { item in
+                                switch item {
+                                case .daymeld(let job): AgentCard(job: job, archived: true)
+                                case .tanomi(let task): TanomiTaskCard(task: task, archived: true)
+                                }
                             }
                         }
+                    } label: {
+                        Text("アーカイブ（\(archivedTasks.count)）")
                     }
                     .glassCard()
                     .agentListRow()
