@@ -71,6 +71,25 @@ SIDESTORE_REMOTE_TOKEN_CHARACTERS = frozenset(
 )
 
 
+def present_agent_job(
+    job: dict[str, object], repositories: dict[str, dict[str, str]]
+) -> dict[str, object]:
+    """Add the configured display label without changing the worker repository key."""
+    presented = dict(job)
+    repository = presented.get("repository")
+    configured = repositories.get(repository) if isinstance(repository, str) else None
+    presented["repository_label"] = (
+        configured.get("label", repository) if configured is not None else repository
+    )
+    return presented
+
+
+def present_agent_jobs(
+    jobs: list[dict[str, object]], repositories: dict[str, dict[str, str]]
+) -> list[dict[str, object]]:
+    return [present_agent_job(job, repositories) for job in jobs]
+
+
 def _without_codex_spark_limits(result: dict[str, object]) -> dict[str, object]:
     limits = result.get("rateLimitsByLimitId")
     if not isinstance(limits, dict):
@@ -366,8 +385,10 @@ def make_handler(
                             {"name": item["name"], "label": item["label"]}
                             for item in repositories.values()
                         ],
-                        "jobs": list_jobs(agent_db),
-                        "archived_jobs": list_archived_jobs(agent_db),
+                        "jobs": present_agent_jobs(list_jobs(agent_db), repositories),
+                        "archived_jobs": present_agent_jobs(
+                            list_archived_jobs(agent_db), repositories
+                        ),
                     },
                 )
                 return
@@ -377,7 +398,7 @@ def make_handler(
                 if job is None:
                     self._send_json(404, {"error": "agent job not found"})
                 else:
-                    self._send_json(200, job)
+                    self._send_json(200, present_agent_job(job, repositories))
                 return
             if self.path == "/api/today":
                 self._send_json(200, list_today(planner_db, datetime.now().astimezone().date()))
@@ -449,7 +470,8 @@ def make_handler(
                 now = datetime.now(UTC)
                 local_day = datetime.now().astimezone().date()
                 if self.path == "/api/agent-jobs":
-                    self._send_json(201, create_job(agent_db, repositories, request))
+                    job = create_job(agent_db, repositories, request)
+                    self._send_json(201, present_agent_job(job, repositories))
                     return
                 if self.path == "/api/agent-jobs/cancel":
                     if not request_cancel(agent_db, request.get("job_id", "")):

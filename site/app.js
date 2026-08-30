@@ -282,9 +282,10 @@ function renderAgentJob(job, archived = false) {
   status.className = "agent-status";
   status.textContent = agentStatusLabels[job.status] || job.status;
   const repository = document.createElement("span");
+  const repositoryLabel = job.repository_label || job.repository;
   repository.textContent = job.mode === "requirements"
-    ? `${job.repository}・要件深掘り`
-    : job.repository;
+    ? `${repositoryLabel}・要件深掘り`
+    : repositoryLabel;
   heading.append(status, repository);
   const title = document.createElement("span");
   title.className = "agent-job-title";

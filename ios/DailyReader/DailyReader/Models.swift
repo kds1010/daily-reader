@@ -62,6 +62,7 @@ struct Repository: Codable, Identifiable, Hashable {
 struct AgentJob: Decodable, Identifiable, Equatable {
     let id: String
     let repository: String
+    let repositoryLabel: String?
     let prompt: String
     let status: String
     let phase: String
@@ -75,6 +76,7 @@ struct AgentJob: Decodable, Identifiable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case id, repository, prompt, status, phase, summary, events, mode, worktree
+        case repositoryLabel = "repository_label"
         case updatedAt = "updated_at"
         case recentEvents = "recent_events"
         case followUp = "follow_up"

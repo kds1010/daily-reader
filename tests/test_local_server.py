@@ -21,6 +21,8 @@ from daily_reader.local_server import (
     make_handler,
     make_sidestore_handler,
     make_sidestore_remote_handler,
+    present_agent_job,
+    present_agent_jobs,
     read_codex_rate_limits,
     start_sidestore_remote_server,
     start_sidestore_server,
@@ -29,6 +31,83 @@ from daily_reader.local_server import (
 )
 
 TOKEN = "a" * 42 + "A"
+
+
+def test_present_agent_job_uses_display_label_without_changing_repository_key() -> None:
+    job = {"id": "job-1", "repository": "daily-reader", "prompt": "Do it"}
+    repositories = {"daily-reader": {"name": "daily-reader", "label": "Daymeld"}}
+
+    presented = present_agent_job(job, repositories)
+
+    assert presented == {**job, "repository_label": "Daymeld"}
+    assert job == {"id": "job-1", "repository": "daily-reader", "prompt": "Do it"}
+
+
+def test_present_agent_jobs_falls_back_for_removed_repository() -> None:
+    jobs = [{"id": "job-1", "repository": "old-repository"}]
+
+    assert present_agent_jobs(jobs, {}) == [
+        {"id": "job-1", "repository": "old-repository", "repository_label": "old-repository"}
+    ]
+
+
+def test_agent_jobs_endpoint_presents_labels_for_active_and_archived_jobs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repositories = {
+        "daily-reader": {"name": "daily-reader", "label": "Daymeld"},
+        "old-repository": {"name": "old-repository", "label": "Old"},
+    }
+    monkeypatch.setattr(
+        "daily_reader.local_server.list_jobs",
+        lambda _path: [{"id": "active", "repository": "daily-reader"}],
+    )
+    monkeypatch.setattr(
+        "daily_reader.local_server.list_archived_jobs",
+        lambda _path: [{"id": "archived", "repository": "removed"}],
+    )
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+        agent_repositories=repositories,
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.path = "/api/agent-jobs"
+
+    handler.do_GET()
+
+    assert responses == [
+        (
+            200,
+            {
+                "repositories": [
+                    {"name": "daily-reader", "label": "Daymeld"},
+                    {"name": "old-repository", "label": "Old"},
+                ],
+                "jobs": [
+                    {
+                        "id": "active",
+                        "repository": "daily-reader",
+                        "repository_label": "Daymeld",
+                    }
+                ],
+                "archived_jobs": [
+                    {
+                        "id": "archived",
+                        "repository": "removed",
+                        "repository_label": "removed",
+                    }
+                ],
+            },
+        )
+    ]
 
 
 class FakeCodexProcess:

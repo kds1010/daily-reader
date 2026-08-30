@@ -225,7 +225,7 @@ struct AgentCard: View {
                 HStack(spacing: 12) {
                     Image(systemName: statusIcon).foregroundStyle(statusColor).font(.title3)
                     VStack(alignment: .leading, spacing: 5) {
-                        HStack { Text(statusLabel).font(.caption.bold()).foregroundStyle(statusColor); Text(job.repository).font(.caption).foregroundStyle(.secondary) }
+                        HStack { Text(statusLabel).font(.caption.bold()).foregroundStyle(statusColor); Text(job.repositoryLabel ?? job.repository).font(.caption).foregroundStyle(.secondary) }
                         Text(job.prompt).font(.headline).foregroundStyle(.primary).lineLimit(expanded ? nil : 2)
                         Text("\(job.phase)・\(job.updatedAt.relativeTime)").font(.caption).foregroundStyle(.secondary)
                     }
