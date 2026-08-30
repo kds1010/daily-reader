@@ -609,12 +609,15 @@ struct AgentCard: View {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 8) {
                             AgentSourceBadge(label: "Daymeld", color: .mint)
-                            Text(job.repositoryLabel ?? job.repository)
-                                .appFont(.caption).foregroundStyle(.secondary)
-                                .lineLimit(1)
+                            let repository = job.repositoryLabel ?? job.repository
+                            if repository.caseInsensitiveCompare("Daymeld") != .orderedSame {
+                                Text(repository)
+                                    .appFont(.caption).foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
                         Text(job.prompt).appFont(.headline).foregroundStyle(.primary).lineLimit(expanded ? nil : 2)
-                        Text("\(statusLabel)・\(job.phase)・\(job.updatedAt.relativeTime)")
+                        Text("\(phaseLabel)・\(job.updatedAt.relativeTime)")
                             .appFont(.caption).foregroundStyle(statusColor)
                     }
                     Spacer()
@@ -717,6 +720,9 @@ struct AgentCard: View {
     }
     private var statusColor: Color {
         switch job.status { case "completed": .green; case "blocked": .orange; case "failed": .red; case "running": .cyan; default: .secondary }
+    }
+    private var phaseLabel: String {
+        job.phase == statusLabel ? statusLabel : "\(statusLabel)・\(job.phase)"
     }
 }
 
