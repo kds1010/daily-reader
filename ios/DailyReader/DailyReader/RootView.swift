@@ -418,12 +418,6 @@ struct AgentComposer: View {
                 .focused($promptFocused)
                 .accessibilityLabel("Agentへの依頼")
             HStack(spacing: 10) {
-                Picker("リポジトリ", selection: $repository) {
-                    ForEach(model.repositories) { Text($0.label).tag($0.name) }
-                }
-                .pickerStyle(.menu)
-                .disabled(model.repositories.isEmpty || sending)
-                Spacer(minLength: 0)
                 Button {
                     Task {
                         sending = true
@@ -442,6 +436,12 @@ struct AgentComposer: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.mint)
                 .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || repository.isEmpty || sending)
+                Spacer(minLength: 0)
+                Picker("リポジトリ", selection: $repository) {
+                    ForEach(model.repositories) { Text($0.label).tag($0.name) }
+                }
+                .pickerStyle(.menu)
+                .disabled(model.repositories.isEmpty || sending)
             }
         }
         .glassCard()
