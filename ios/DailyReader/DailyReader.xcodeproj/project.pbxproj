@@ -15,6 +15,7 @@
 		A10000000000000000000007 /* AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* AppIntents.swift */; };
 		A10000000000000000000008 /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* SecretStore.swift */; };
 		A10000000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* Assets.xcassets */; };
+		A1000000000000000000000A /* AgentNotificationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* AgentNotificationCoordinator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +31,7 @@
 		A2000000000000000000000A /* DailyReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DailyReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000B /* SecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecretStore.swift; sourceTree = "<group>"; };
 		A2000000000000000000000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000000000000000000000D /* AgentNotificationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentNotificationCoordinator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,7 +40,7 @@
 
 /* Begin PBXGroup section */
 		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002, A40000000000000000000003); sourceTree = "<group>"; };
-		A40000000000000000000002 /* DailyReader */ = {isa = PBXGroup; children = (A20000000000000000000001, A20000000000000000000002, A20000000000000000000003, A20000000000000000000004, A20000000000000000000005, A20000000000000000000006, A20000000000000000000007, A2000000000000000000000B, A20000000000000000000008, A20000000000000000000009, A2000000000000000000000C); path = DailyReader; sourceTree = "<group>"; };
+		A40000000000000000000002 /* DailyReader */ = {isa = PBXGroup; children = (A20000000000000000000001, A20000000000000000000002, A20000000000000000000003, A20000000000000000000004, A20000000000000000000005, A20000000000000000000006, A20000000000000000000007, A2000000000000000000000B, A20000000000000000000008, A20000000000000000000009, A2000000000000000000000C, A2000000000000000000000D); path = DailyReader; sourceTree = "<group>"; };
 		A40000000000000000000003 /* Products */ = {isa = PBXGroup; children = (A2000000000000000000000A); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
@@ -55,7 +57,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A60000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A1000000000000000000000A); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */

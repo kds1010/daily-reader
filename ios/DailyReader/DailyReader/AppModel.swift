@@ -24,7 +24,7 @@ final class AppModel: ObservableObject {
 
     private let api = APIClient.shared
     private let health = HealthService()
-    private var previousStates: [String: String] = [:]
+    private let agentNotifications = AgentNotificationCoordinator()
     private var agentRefreshGeneration = 0
 
     func start() async {
@@ -130,7 +130,9 @@ final class AppModel: ObservableObject {
         guard let envelope = try? await api.get("api/agent-jobs", as: AgentEnvelope.self),
               generation == agentRefreshGeneration else { return false }
 
-        notifyAgentChanges(envelope.jobs)
+        for job in agentNotifications.changedJobs(active: envelope.jobs, archived: envelope.archivedJobs) {
+            agentNotifications.schedule(for: job)
+        }
         if agents != envelope.jobs { agents = envelope.jobs }
         if archivedAgents != envelope.archivedJobs { archivedAgents = envelope.archivedJobs }
         if repositories != envelope.repositories { repositories = envelope.repositories }
@@ -207,17 +209,5 @@ final class AppModel: ObservableObject {
 
     private func requestNotifications() async {
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
-    }
-
-    private func notifyAgentChanges(_ jobs: [AgentJob]) {
-        defer { previousStates = Dictionary(uniqueKeysWithValues: jobs.map { ($0.id, $0.status) }) }
-        guard !previousStates.isEmpty else { return }
-        for job in jobs where previousStates[job.id] != job.status && ["completed", "blocked", "failed"].contains(job.status) {
-            let content = UNMutableNotificationContent()
-            content.title = job.status == "completed" ? "Agentが完了しました" : job.status == "blocked" ? "Agentが判断を待っています" : "Agentが失敗しました"
-            content.body = job.summary?.isEmpty == false ? job.summary! : job.prompt
-            content.sound = .default
-            UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: job.id, content: content, trigger: nil))
-        }
     }
 }

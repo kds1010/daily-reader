@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $model.selectedTab) {
@@ -15,6 +16,23 @@ struct RootView: View {
         .alert("接続できませんでした", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {
             Button("閉じる", role: .cancel) {}
         } message: { Text(model.errorMessage ?? "") }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                if !Task.isCancelled {
+                    await model.refreshAgents()
+                }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await model.refreshAgents() }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openAgentFromNotification)) { _ in
+            model.selectedTab = 0
+        }
     }
 }
 
@@ -62,12 +80,6 @@ struct AgentView: View {
         .background(AppBackground())
         .navigationTitle("Daymeld")
         .refreshable { await model.refresh() }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                if !Task.isCancelled { await model.refreshAgents() }
-            }
-        }
         .onChange(of: model.agents.map(\.id)) { _, ids in
             expandedAgentIDs.formIntersection(ids)
             expandedAgentOrder.removeAll { !ids.contains($0) }
