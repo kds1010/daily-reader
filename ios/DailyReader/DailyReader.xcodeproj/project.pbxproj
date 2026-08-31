@@ -25,12 +25,6 @@
 		B10000000000000000000006 /* AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* AppIntents.swift */; };
 		B10000000000000000000007 /* AgentNotificationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* AgentNotificationCoordinator.swift */; };
 		B10000000000000000000008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* Assets.xcassets */; };
-		C10000000000000000000001 /* KeyHintsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000001 /* KeyHintsApp.swift */; };
-		C10000000000000000000002 /* AXElementSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000002 /* AXElementSnapshot.swift */; };
-		C10000000000000000000003 /* AccessibilityScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000003 /* AccessibilityScanner.swift */; };
-		C10000000000000000000004 /* HotKeyController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000004 /* HotKeyController.swift */; };
-		C10000000000000000000005 /* HintPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000005 /* HintPanel.swift */; };
-		C10000000000000000000006 /* OverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C20000000000000000000006 /* OverlayController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,13 +46,6 @@
 		B20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B20000000000000000000003 /* DailyReaderMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DailyReaderMac.entitlements; sourceTree = "<group>"; };
 		B20000000000000000000004 /* Daymeld.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Daymeld.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		C20000000000000000000001 /* KeyHintsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHints/KeyHintsApp.swift; sourceTree = "<group>"; };
-		C20000000000000000000002 /* AXElementSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHints/AXElementSnapshot.swift; sourceTree = "<group>"; };
-		C20000000000000000000003 /* AccessibilityScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHints/AccessibilityScanner.swift; sourceTree = "<group>"; };
-		C20000000000000000000004 /* HotKeyController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHints/HotKeyController.swift; sourceTree = "<group>"; };
-		C20000000000000000000005 /* HintPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHints/HintPanel.swift; sourceTree = "<group>"; };
-		C20000000000000000000006 /* OverlayController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyHints/OverlayController.swift; sourceTree = "<group>"; };
-		C20000000000000000000007 /* KeyHints.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KeyHints.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,29 +59,24 @@
 		A40000000000000000000002 /* DailyReader */ = {isa = PBXGroup; children = (A20000000000000000000001, A20000000000000000000002, A20000000000000000000003, A20000000000000000000004, A20000000000000000000005, A20000000000000000000006, A20000000000000000000007, A2000000000000000000000B, A20000000000000000000008, A20000000000000000000009, A2000000000000000000000C, A2000000000000000000000D, A2000000000000000000000E); path = DailyReader; sourceTree = "<group>"; };
 		A40000000000000000000003 /* Products */ = {isa = PBXGroup; children = (A2000000000000000000000A, B20000000000000000000004); name = Products; sourceTree = "<group>"; };
 		B40000000000000000000001 /* DailyReaderMac */ = {isa = PBXGroup; children = (B20000000000000000000001, B20000000000000000000002, B20000000000000000000003); path = DailyReaderMac; sourceTree = "<group>"; };
-		C40000000000000000000001 /* KeyHints */ = {isa = PBXGroup; children = (C20000000000000000000001, C20000000000000000000002, C20000000000000000000003, C20000000000000000000004, C20000000000000000000005, C20000000000000000000006); path = KeyHints; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
 		A50000000000000000000001 /* DailyReader */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000002; buildPhases = (A60000000000000000000001, A30000000000000000000001, A70000000000000000000001); buildRules = (); dependencies = (); name = DailyReader; productName = DailyReader; productReference = A2000000000000000000000A; productType = "com.apple.product-type.application"; };
 		B50000000000000000000001 /* DaymeldMac */ = {isa = PBXNativeTarget; buildConfigurationList = B90000000000000000000001; buildPhases = (B60000000000000000000001, B30000000000000000000001, B70000000000000000000001); buildRules = (); dependencies = (); name = DaymeldMac; productName = Daymeld; productReference = B20000000000000000000004; productType = "com.apple.product-type.application"; };
-		C50000000000000000000001 /* KeyHintsMac */ = {isa = PBXNativeTarget; buildConfigurationList = C90000000000000000000001; buildPhases = (C60000000000000000000001, C30000000000000000000001, C70000000000000000000001); buildRules = (); dependencies = (); name = KeyHintsMac; productName = KeyHints; productReference = C20000000000000000000007; productType = "com.apple.product-type.application"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		A80000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1630; LastUpgradeCheck = 1630; TargetAttributes = {A50000000000000000000001 = {CreatedOnToolsVersion = 16.3; SystemCapabilities = {com.apple.BackgroundModes = {enabled = 1; }; }; }; B50000000000000000000001 = {CreatedOnToolsVersion = 26.0; }; C50000000000000000000001 = {CreatedOnToolsVersion = 26.0; }; }; }; buildConfigurationList = A90000000000000000000001; compatibilityVersion = "Xcode 16.0"; developmentRegion = ja; hasScannedForEncodings = 0; knownRegions = (ja, Base); mainGroup = A40000000000000000000001; productRefGroup = A40000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (A50000000000000000000001, B50000000000000000000001, C50000000000000000000001); };
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A70000000000000000000001 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000009); runOnlyForDeploymentPostprocessing = 0; };
 		B70000000000000000000001 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (B10000000000000000000008); runOnlyForDeploymentPostprocessing = 0; };
-		C70000000000000000000001 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A60000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000003, A10000000000000000000004, A10000000000000000000005, A10000000000000000000006, A10000000000000000000007, A10000000000000000000008, A1000000000000000000000A, A1000000000000000000000B); runOnlyForDeploymentPostprocessing = 0; };
 		B60000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B10000000000000000000001, B10000000000000000000002, B10000000000000000000003, B10000000000000000000004, B10000000000000000000005, B10000000000000000000006, B10000000000000000000007); runOnlyForDeploymentPostprocessing = 0; };
-		C60000000000000000000001 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000001, C10000000000000000000002, C10000000000000000000003, C10000000000000000000004, C10000000000000000000005, C10000000000000000000006); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
@@ -104,15 +86,12 @@
 		AA0000000000000000000004 = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_ENTITLEMENTS = DailyReader/DailyReader.entitlements; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_PREVIEWS = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = DailyReader/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = net.skmin.DailyReader; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = targeted; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1; VALIDATE_PRODUCT = YES; }; name = Release; };
 		BA0000000000000000000001 = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon; CODE_SIGN_ENTITLEMENTS = DailyReaderMac/DailyReaderMac.entitlements; CODE_SIGN_STYLE = Automatic; COMBINE_HIDPI_IMAGES = YES; CURRENT_PROJECT_VERSION = 1; ENABLE_APP_SANDBOX = YES; ENABLE_HARDENED_RUNTIME = YES; ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES; ENABLE_PREVIEWS = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = DailyReaderMac/Info.plist; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = net.skmin.DailyReader.mac; PRODUCT_NAME = Daymeld; SDKROOT = macosx; SUPPORTED_PLATFORMS = macosx; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = targeted; SWIFT_VERSION = 5.0; }; name = Debug; };
 		BA0000000000000000000002 = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = MacAppIcon; CODE_SIGN_ENTITLEMENTS = DailyReaderMac/DailyReaderMac.entitlements; CODE_SIGN_STYLE = Automatic; COMBINE_HIDPI_IMAGES = YES; CURRENT_PROJECT_VERSION = 1; ENABLE_APP_SANDBOX = YES; ENABLE_HARDENED_RUNTIME = YES; ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES; ENABLE_PREVIEWS = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = DailyReaderMac/Info.plist; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks"; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = net.skmin.DailyReader.mac; PRODUCT_NAME = Daymeld; SDKROOT = macosx; SUPPORTED_PLATFORMS = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_STRICT_CONCURRENCY = targeted; SWIFT_VERSION = 5.0; VALIDATE_PRODUCT = YES; }; name = Release; };
-		CA0000000000000000000001 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = KeyHints/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = net.skmin.KeyHints; PRODUCT_NAME = KeyHints; SDKROOT = macosx; SUPPORTED_PLATFORMS = macosx; SWIFT_VERSION = 5.0; }; name = Debug; };
-		CA0000000000000000000002 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = KeyHints/Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = net.skmin.KeyHints; PRODUCT_NAME = KeyHints; SDKROOT = macosx; SUPPORTED_PLATFORMS = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_VERSION = 5.0; VALIDATE_PRODUCT = YES; }; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
 		A90000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000001, AA0000000000000000000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		A90000000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (AA0000000000000000000003, AA0000000000000000000004); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		B90000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (BA0000000000000000000001, BA0000000000000000000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		C90000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (CA0000000000000000000001, CA0000000000000000000002); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = A80000000000000000000001 /* Project object */;
