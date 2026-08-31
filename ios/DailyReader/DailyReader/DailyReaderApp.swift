@@ -7,29 +7,41 @@ private struct KeyboardDismissalBridge: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
+        let view = WindowTrackingView(frame: .zero)
         view.isUserInteractionEnabled = false
+        view.onWindowChange = { [weak coordinator = context.coordinator] window in
+            coordinator?.updateWindow(window)
+        }
         return view
     }
 
-    func updateUIView(_ view: UIView, context: Context) {
-        guard context.coordinator.window == nil else { return }
-        DispatchQueue.main.async {
-            guard let window = view.window else { return }
-            context.coordinator.install(in: window)
-        }
-    }
+    func updateUIView(_ view: UIView, context: Context) {}
 
     static func dismantleUIView(_ view: UIView, coordinator: Coordinator) {
         coordinator.remove()
+    }
+
+    private final class WindowTrackingView: UIView {
+        var onWindowChange: ((UIWindow?) -> Void)?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            onWindowChange?(window)
+        }
     }
 
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         weak var window: UIWindow?
         private var recognizer: UITapGestureRecognizer?
 
-        func install(in window: UIWindow) {
-            guard self.window == nil else { return }
+        func updateWindow(_ window: UIWindow?) {
+            guard self.window !== window else { return }
+            remove()
+            guard let window else { return }
+            install(in: window)
+        }
+
+        private func install(in window: UIWindow) {
             let recognizer = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
             recognizer.cancelsTouchesInView = false
             recognizer.delegate = self
