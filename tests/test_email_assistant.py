@@ -201,6 +201,28 @@ def test_readonly_credentials_are_accepted_but_modify_is_rejected(
         load_credentials(tmp_path / "client.json", token_path, False, require_modify=True)
 
 
+def test_interactive_sync_requires_modify_scope(tmp_path: Path, monkeypatch) -> None:
+    requested = []
+
+    def fake_load_credentials(client_secret, token_path, interactive, require_modify=False):
+        requested.append((interactive, require_modify))
+        raise GmailAuthorizationRequired("authorization required")
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.load_credentials", fake_load_credentials
+    )
+
+    with pytest.raises(GmailAuthorizationRequired):
+        sync_gmail(
+            tmp_path / "assistant.sqlite3",
+            tmp_path / "client.json",
+            tmp_path / "token.json",
+            interactive=True,
+        )
+
+    assert requested == [(True, True)]
+
+
 def test_sync_failure_does_not_reconcile_existing_unread_threads(
     tmp_path: Path, monkeypatch,
 ) -> None:

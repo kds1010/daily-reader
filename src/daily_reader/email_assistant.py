@@ -578,7 +578,12 @@ def sync_gmail(
     attempted_at = datetime.now(UTC)
     credentials = None
     try:
-        credentials = load_credentials(client_secret, token_path, interactive)
+        credentials = load_credentials(
+            client_secret,
+            token_path,
+            interactive,
+            require_modify=interactive,
+        )
         can_mark_read = GMAIL_MODIFY_SCOPE in set(credentials.scopes or ())
         service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
         account_email = service.users().getProfile(userId="me").execute()["emailAddress"]
