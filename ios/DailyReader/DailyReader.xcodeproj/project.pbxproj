@@ -67,6 +67,7 @@
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
+		A80000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 1630; LastUpgradeCheck = 1630; TargetAttributes = {A50000000000000000000001 = {CreatedOnToolsVersion = 16.3; SystemCapabilities = {com.apple.BackgroundModes = {enabled = 1; }; }; }; B50000000000000000000001 = {CreatedOnToolsVersion = 26.0; }; }; }; buildConfigurationList = A90000000000000000000001; compatibilityVersion = "Xcode 16.0"; developmentRegion = ja; hasScannedForEncodings = 0; knownRegions = (ja, Base); mainGroup = A40000000000000000000001; productRefGroup = A40000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (A50000000000000000000001, B50000000000000000000001); };
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
