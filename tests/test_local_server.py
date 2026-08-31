@@ -643,6 +643,66 @@ def test_main_handler_exposes_all_unread_emails(tmp_path: Path) -> None:
     assert responses[0][1]["sync_error"] is None
 
 
+def test_main_handler_completion_marks_gmail_thread_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "daily_reader.local_server.mark_gmail_thread_read",
+        lambda *_args: calls.append(("read", "thread-1")) or True,
+    )
+    monkeypatch.setattr(
+        "daily_reader.local_server.update_status",
+        lambda _db, thread_id, action, _now: calls.append((action, thread_id)) or True,
+    )
+    handler_factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json", tmp_path / "gmail-token.json",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler._read_json = lambda: {"thread_id": "thread-1", "action": "done"}
+    handler.path = "/api/email-status"
+
+    handler.do_POST()
+
+    assert responses == [(202, {"updated": True})]
+    assert calls == [("read", "thread-1"), ("done", "thread-1")]
+
+
+def test_main_handler_does_not_complete_when_gmail_read_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    status_calls: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        "daily_reader.local_server.mark_gmail_thread_read",
+        lambda *_args: (_ for _ in ()).throw(
+            GmailAuthorizationRequired("Gmail authorization required")
+        ),
+    )
+    monkeypatch.setattr(
+        "daily_reader.local_server.update_status",
+        lambda _db, thread_id, action, _now: status_calls.append((action, thread_id)) or True,
+    )
+    handler_factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json", tmp_path / "gmail-token.json",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler._read_json = lambda: {"thread_id": "thread-1", "action": "done"}
+    handler.path = "/api/email-status"
+
+    handler.do_POST()
+
+    assert responses == [(503, {"error": "Gmail authorization required"})]
+    assert status_calls == []
+
+
 def test_main_handler_maps_gmail_content_authorization_error_to_json(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

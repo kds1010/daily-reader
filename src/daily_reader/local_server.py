@@ -946,7 +946,8 @@ def make_handler(
                     )
                     return
                 if self.path == "/api/email-status":
-                    if request.get("action") == "read":
+                    action = request.get("action")
+                    if action in {"read", "done"}:
                         try:
                             updated = mark_gmail_thread_read(
                                 assistant_db,
@@ -960,6 +961,10 @@ def make_handler(
                             return
                         if not updated:
                             raise ValueError("invalid email thread")
+                        if action == "done" and not update_status(
+                            assistant_db, request["thread_id"], action, now
+                        ):
+                            raise ValueError("invalid email action")
                         self._send_json(202, {"updated": True})
                         return
                     if not update_status(
