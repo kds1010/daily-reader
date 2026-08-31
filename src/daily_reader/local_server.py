@@ -190,6 +190,69 @@ def read_codex_rate_limits(timeout: float = 10) -> dict[str, object]:
             process.wait(timeout=1)
 
 
+def _normalize_codex_models(result: dict[str, object]) -> list[dict[str, object]]:
+    """Normalize current and legacy Codex app-server model-list responses."""
+    raw_models = result.get("data", result.get("models", []))
+    if not isinstance(raw_models, list):
+        raise RuntimeError("Codex returned an invalid model list")
+
+    models = []
+    for raw in raw_models:
+        if not isinstance(raw, dict):
+            continue
+        slug = raw.get("slug") or raw.get("id") or raw.get("model")
+        if not isinstance(slug, str) or not slug:
+            continue
+        if raw.get("hidden") is True or raw.get("visibility", "list") != "list":
+            continue
+        levels = raw.get(
+            "supportedReasoningEfforts",
+            raw.get(
+                "supportedReasoningLevels",
+                raw.get("supported_reasoning_levels", []),
+            ),
+        )
+        efforts = []
+        if isinstance(levels, list):
+            for level in levels:
+                if isinstance(level, dict):
+                    effort = (
+                        level.get("reasoningEffort")
+                        or level.get("reasoning_effort")
+                        or level.get("effort")
+                    )
+                else:
+                    effort = level
+                if isinstance(effort, str) and effort and effort not in efforts:
+                    efforts.append(effort)
+        if not efforts:
+            continue
+        display_name = raw.get("displayName", raw.get("display_name", slug))
+        default_effort = raw.get(
+            "defaultReasoningEffort",
+            raw.get(
+                "defaultReasoningLevel",
+                raw.get(
+                    "default_reasoning_effort",
+                    raw.get("default_reasoning_level"),
+                ),
+            ),
+        )
+        if not isinstance(display_name, str):
+            display_name = slug
+        if not isinstance(default_effort, str) or default_effort not in efforts:
+            default_effort = efforts[0]
+        models.append(
+            {
+                "slug": slug,
+                "display_name": display_name,
+                "default_reasoning_effort": default_effort,
+                "supported_reasoning_efforts": efforts,
+            }
+        )
+    return models
+
+
 def read_codex_models(timeout: float = 10) -> list[dict[str, object]]:
     """Read visible model and reasoning-effort choices from the Codex app-server."""
     process = subprocess.Popen(
@@ -241,46 +304,7 @@ def read_codex_models(timeout: float = 10) -> list[dict[str, object]]:
             result = message.get("result")
             if not isinstance(result, dict):
                 raise RuntimeError("Codex returned an invalid model-list response")
-            raw_models = result.get("models", result.get("data", []))
-            if not isinstance(raw_models, list):
-                raise RuntimeError("Codex returned an invalid model list")
-            models = []
-            for raw in raw_models:
-                if not isinstance(raw, dict):
-                    continue
-                slug = raw.get("slug", raw.get("model"))
-                visibility = raw.get("visibility", "list")
-                if not isinstance(slug, str) or not slug or visibility != "list":
-                    continue
-                levels = raw.get(
-                    "supportedReasoningLevels",
-                    raw.get("supported_reasoning_levels", raw.get("supportedReasoningEfforts", [])),
-                )
-                efforts = []
-                if isinstance(levels, list):
-                    for level in levels:
-                        effort = level.get("effort") if isinstance(level, dict) else level
-                        if isinstance(effort, str) and effort and effort not in efforts:
-                            efforts.append(effort)
-                if not efforts:
-                    continue
-                display_name = raw.get("displayName", raw.get("display_name", slug))
-                default_effort = raw.get(
-                    "defaultReasoningLevel",
-                    raw.get("default_reasoning_level", raw.get("defaultReasoningEffort")),
-                )
-                if not isinstance(display_name, str):
-                    display_name = slug
-                if not isinstance(default_effort, str) or default_effort not in efforts:
-                    default_effort = efforts[0]
-                models.append(
-                    {
-                        "slug": slug,
-                        "display_name": display_name,
-                        "default_reasoning_effort": default_effort,
-                        "supported_reasoning_efforts": efforts,
-                    }
-                )
+            models = _normalize_codex_models(result)
             if not models:
                 raise RuntimeError("Codex returned no visible models")
             return models

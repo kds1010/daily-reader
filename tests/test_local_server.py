@@ -15,6 +15,7 @@ from daily_reader.email_assistant import (
 )
 from daily_reader.local_server import (
     SideStoreLANServer,
+    _normalize_codex_models,
     append_feedback_event,
     append_read_event,
     append_update_stats,
@@ -41,6 +42,87 @@ from daily_reader.local_server import (
 from daily_reader.tanomi_client import TanomiUnavailable
 
 TOKEN = "a" * 42 + "A"
+
+
+def test_normalize_codex_models_supports_current_catalog_and_ultra() -> None:
+    result = {
+        "data": [
+            {
+                "id": "gpt-5.6-sol",
+                "displayName": "GPT-5.6-Sol",
+                "hidden": False,
+                "supportedReasoningEfforts": [
+                    {"reasoningEffort": "low"},
+                    {"reasoningEffort": "ultra"},
+                    {"reasoningEffort": "ultra"},
+                ],
+                "defaultReasoningEffort": "low",
+            },
+            {
+                "id": "gpt-5.6-luna",
+                "displayName": "GPT-5.6-Luna",
+                "hidden": False,
+                "supportedReasoningEfforts": [
+                    {"reasoningEffort": "low"},
+                    {"reasoningEffort": "medium"},
+                    {"reasoningEffort": "max"},
+                ],
+                "defaultReasoningEffort": "medium",
+            },
+            {
+                "id": "hidden-model",
+                "hidden": True,
+                "supportedReasoningEfforts": [{"reasoningEffort": "low"}],
+            },
+        ]
+    }
+
+    assert _normalize_codex_models(result) == [
+        {
+            "slug": "gpt-5.6-sol",
+            "display_name": "GPT-5.6-Sol",
+            "default_reasoning_effort": "low",
+            "supported_reasoning_efforts": ["low", "ultra"],
+        },
+        {
+            "slug": "gpt-5.6-luna",
+            "display_name": "GPT-5.6-Luna",
+            "default_reasoning_effort": "medium",
+            "supported_reasoning_efforts": ["low", "medium", "max"],
+        },
+    ]
+
+
+def test_normalize_codex_models_keeps_legacy_catalog_compatibility() -> None:
+    result = {
+        "models": [
+            {
+                "slug": "legacy-model",
+                "visibility": "list",
+                "display_name": "Legacy model",
+                "supportedReasoningLevels": [
+                    {"effort": "medium"},
+                    "high",
+                ],
+                "default_reasoning_level": "high",
+            },
+            {
+                "slug": "unlisted-model",
+                "visibility": "hidden",
+                "supportedReasoningLevels": [{"effort": "low"}],
+            },
+            {"slug": "malformed-model", "supportedReasoningLevels": []},
+        ]
+    }
+
+    assert _normalize_codex_models(result) == [
+        {
+            "slug": "legacy-model",
+            "display_name": "Legacy model",
+            "default_reasoning_effort": "high",
+            "supported_reasoning_efforts": ["medium", "high"],
+        }
+    ]
 
 
 def test_present_agent_job_uses_display_label_without_changing_repository_key() -> None:

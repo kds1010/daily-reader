@@ -239,6 +239,48 @@ def test_agent_job_validates_repository_and_prompt(tmp_path: Path) -> None:
         )
 
 
+def test_agent_job_validates_effort_against_selected_model(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    configured = repositories(tmp_path)
+    model_options = [
+        {
+            "slug": "gpt-5.6-sol",
+            "supported_reasoning_efforts": ["low", "max", "ultra"],
+        },
+        {
+            "slug": "gpt-5.6-luna",
+            "supported_reasoning_efforts": ["low", "max"],
+        },
+    ]
+
+    job = create_job(
+        database,
+        configured,
+        {
+            "repository": "repo",
+            "prompt": "Use the strongest supported mode",
+            "model": "gpt-5.6-sol",
+            "reasoning_effort": "ultra",
+        },
+        model_options=model_options,
+    )
+
+    assert job["model"] == "gpt-5.6-sol"
+    assert job["reasoning_effort"] == "ultra"
+    with pytest.raises(ValueError, match="model or reasoning effort"):
+        create_job(
+            database,
+            configured,
+            {
+                "repository": "repo",
+                "prompt": "Use an unsupported mode",
+                "model": "gpt-5.6-luna",
+                "reasoning_effort": "ultra",
+            },
+            model_options=model_options,
+        )
+
+
 def test_requirements_job_persists_mode_and_distinct_event(tmp_path: Path) -> None:
     database = tmp_path / "agent.sqlite3"
     configured = repositories(tmp_path)

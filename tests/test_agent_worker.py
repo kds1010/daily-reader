@@ -192,6 +192,21 @@ def test_resumed_codex_command_can_switch_to_low_cost_model() -> None:
     assert 'model_reasoning_effort="low"' in command
 
 
+def test_resumed_codex_command_passes_ultra_for_supported_model() -> None:
+    command = _codex_command(
+        Path("/tmp/worktree"),
+        Path("schema.json"),
+        "Implement the task",
+        "thread-1",
+        Path("result.json"),
+        "gpt-5.6-sol",
+        "ultra",
+    )
+
+    assert command[command.index("--model") + 1] == "gpt-5.6-sol"
+    assert 'model_reasoning_effort="ultra"' in command
+
+
 def test_deployment_starts_fresh_automatic_approval_session(monkeypatch) -> None:
     calls = []
 
