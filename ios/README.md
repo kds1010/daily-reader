@@ -31,6 +31,12 @@ Documents領域へ転送して再起動します。アプリはトークンをKe
 
 ## Macで使う
 
+`KeyHintsMac`はDaymeldとは独立したメニューバー常駐ユーティリティです。`Command-Shift-Space`で前面アプリのAccessibility APIが公開する可視操作要素へ短いラベルを表示し、ラベル入力で`AXPress`します。初回のみ「システム設定 > プライバシーとセキュリティ > アクセシビリティ」で許可してください。canvasやアクセシビリティツリーを公開しないアプリは対象外です。画面キャプチャやOCRは使用しません。
+
+```bash
+uv run --frozen python scripts/build_keyhints_release.py
+```
+
 `DaymeldMac`は専用のネイティブmacOSターゲットです。Agent、今日、メール、ニュース、
 tanomiなどはiPhoneと同じMac mini上の状態を表示します。健康情報はiPhoneからサーバーへ
 同期済みの集計を表示できますが、MacにはHealthKitデータストアがないため、Mac側には
