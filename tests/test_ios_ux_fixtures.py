@@ -22,6 +22,9 @@ precondition(standard.agents.count >= 6)
 precondition(standard.referenceDate == Date(timeIntervalSince1970: 1_788_220_800))
 let expectedStatuses = Set(["queued", "running", "blocked", "completed", "failed", "cancelled"])
 precondition(Set(standard.agents.map(\.status)) == expectedStatuses)
+precondition(standard.agents.contains(where: {
+    $0.model == "gpt-5.6-sol" && $0.reasoningEffort == "xhigh"
+}))
 precondition(standard.tanomiTasks.contains(where: { $0.status == "running" }))
 precondition(standard.tanomiTasks.contains(where: { $0.status == "error" }))
 precondition(standard.today?.tasks.contains(where: { $0.dueDate == "2026-08-31" }) == true)
@@ -70,7 +73,17 @@ if !stress.tanomiTasks.contains(where: { ($0.result?.count ?? 0) > 4000 }) {
 
 let inFlight = DaymeldFixture.scenario(.inFlight)
 precondition(inFlight.agents.allSatisfy { $0.status == "running" })
+precondition(inFlight.agents.allSatisfy { $0.model != nil && $0.reasoningEffort != nil })
 precondition(inFlight.tanomiTasks.allSatisfy { $0.status == "running" })
+
+let notificationJSON = """
+{"id":"notification","repository":"daily-reader",
+"prompt":"通知","status":"completed","phase":"完了",
+"updated_at":"2026-09-01T09:00:00+09:00"}
+"""
+let notificationData = Data(notificationJSON.utf8)
+let notificationJob = try! JSONDecoder().decode(AgentJob.self, from: notificationData)
+precondition(notificationJob.model == nil && notificationJob.reasoningEffort == nil)
 
 func jsonObject(_ value: some Encodable) -> [String: Any] {
     (try! JSONSerialization.jsonObject(with: JSONEncoder().encode(value))) as! [String: Any]

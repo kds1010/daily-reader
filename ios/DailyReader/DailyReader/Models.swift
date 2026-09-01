@@ -335,6 +335,8 @@ struct AgentJob: Decodable, Identifiable, Equatable {
     let status: String
     let phase: String
     let summary: String?
+    let model: String?
+    let reasoningEffort: String?
     let updatedAt: String
     let recentEvents: [AgentEvent]?
     let events: [AgentEvent]?
@@ -343,8 +345,9 @@ struct AgentJob: Decodable, Identifiable, Equatable {
     let worktree: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, repository, prompt, status, phase, summary, events, mode, worktree
+        case id, repository, prompt, status, phase, summary, model, events, mode, worktree
         case repositoryLabel = "repository_label"
+        case reasoningEffort = "reasoning_effort"
         case updatedAt = "updated_at"
         case recentEvents = "recent_events"
         case followUp = "follow_up"

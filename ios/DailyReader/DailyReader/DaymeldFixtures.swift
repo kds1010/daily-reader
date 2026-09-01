@@ -111,39 +111,39 @@ struct DaymeldFixture {
             AgentJob(
                 id: "fixture-queued", repository: "daily-reader", repositoryLabel: "Daymeld",
                 prompt: "待機中の依頼を確認する長めのサンプル", status: "queued", phase: "キュー待ち",
-                summary: nil, updatedAt: "2026-09-01T09:00:00+09:00", recentEvents: nil,
+                summary: nil, model: "gpt-5.6-luna", reasoningEffort: "low", updatedAt: "2026-09-01T09:00:00+09:00", recentEvents: nil,
                 events: events, mode: "execute", followUp: nil, worktree: nil
             ),
             AgentJob(
                 id: "fixture-running", repository: "daily-reader", repositoryLabel: "Daymeld",
                 prompt: "実行中のタスク：画面状態を調整しています", status: "running", phase: "実装",
-                summary: "テスト用fixtureと状態表示を調査中です。", updatedAt: "2026-09-01T08:58:00+09:00",
+                summary: "テスト用fixtureと状態表示を調査中です。", model: "gpt-5.6-sol", reasoningEffort: "xhigh", updatedAt: "2026-09-01T08:58:00+09:00",
                 recentEvents: Array(events.suffix(2)), events: events, mode: "execute", followUp: nil, worktree: "/tmp/daymeld-fixture"
             ),
             AgentJob(
                 id: "fixture-blocked", repository: "soan", repositoryLabel: "soan",
                 prompt: "判断が必要な依頼", status: "blocked", phase: "確認待ち",
-                summary: "どの表示密度を標準にするか判断してください。", updatedAt: "2026-09-01T08:55:00+09:00",
+                summary: "どの表示密度を標準にするか判断してください。", model: "gpt-5.6-luna", reasoningEffort: "medium", updatedAt: "2026-09-01T08:55:00+09:00",
                 recentEvents: [events[0], AgentEvent(createdAt: "2026-09-01T08:55:00+09:00", kind: "codex", message: "表示密度について選択が必要です")],
                 events: events, mode: "execute", followUp: nil, worktree: "/tmp/daymeld-blocked"
             ),
             AgentJob(
                 id: "fixture-completed", repository: "tonoi", repositoryLabel: "tonoi",
                 prompt: "完了済みのタスクについて確認する", status: "completed", phase: "完了",
-                summary: "長い完了サマリーを表示し、同じカードから質問できます。", updatedAt: "2026-09-01T08:50:00+09:00",
+                summary: "長い完了サマリーを表示し、同じカードから質問できます。", model: "gpt-5.6-sol", reasoningEffort: "high", updatedAt: "2026-09-01T08:50:00+09:00",
                 recentEvents: nil, events: events, mode: "execute", followUp: nil, worktree: nil
             ),
             AgentJob(
                 id: "fixture-failed", repository: "config", repositoryLabel: "設定",
                 prompt: "保持した作業環境から再開できる失敗", status: "failed", phase: "失敗",
-                summary: "検証の一部が失敗しました。追加指示で再開できます。", updatedAt: "2026-09-01T08:45:00+09:00",
+                summary: "検証の一部が失敗しました。追加指示で再開できます。", model: "gpt-5.6-luna", reasoningEffort: "low", updatedAt: "2026-09-01T08:45:00+09:00",
                 recentEvents: [AgentEvent(createdAt: "2026-09-01T08:45:00+09:00", kind: "system", message: "テストが失敗しました")],
                 events: events, mode: "execute", followUp: nil, worktree: "/tmp/daymeld-failed"
             ),
             AgentJob(
                 id: "fixture-cancelled", repository: "daily-reader", repositoryLabel: "Daymeld",
                 prompt: "キャンセル済みの履歴", status: "cancelled", phase: "キャンセル済み",
-                summary: nil, updatedAt: "2026-08-31T22:10:00+09:00", recentEvents: nil,
+                summary: nil, model: "gpt-5.6-luna", reasoningEffort: "low", updatedAt: "2026-08-31T22:10:00+09:00", recentEvents: nil,
                 events: [], mode: "execute", followUp: nil, worktree: nil
             )
         ]
@@ -153,7 +153,7 @@ struct DaymeldFixture {
                 repositoryLabel: repositories[index % repositories.count].label,
                 prompt: "アーカイブ済みタスク \(index + 1)", status: "completed", phase: "完了",
                 summary: index == 0 ? "アーカイブからも内容を確認できます。" : nil,
-                updatedAt: "2026-08-\(String(format: "%02d", max(1, 31 - index)))T12:00:00+09:00",
+                model: "gpt-5.6-luna", reasoningEffort: "low", updatedAt: "2026-08-\(String(format: "%02d", max(1, 31 - index)))T12:00:00+09:00",
                 recentEvents: nil, events: [], mode: "execute", followUp: nil, worktree: nil
             )
         }
@@ -280,7 +280,7 @@ struct DaymeldFixture {
         case .inFlight:
             var fixture = standard
             fixture.agents = fixture.agents.map { job in
-                AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: "running", phase: "実行中", summary: nil, updatedAt: job.updatedAt, recentEvents: job.recentEvents, events: job.events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
+                AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: "running", phase: "実行中", summary: nil, model: job.model, reasoningEffort: job.reasoningEffort, updatedAt: job.updatedAt, recentEvents: job.recentEvents, events: job.events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
             }
             fixture.tanomiTasks = fixture.tanomiTasks.map { task in
                 TanomiTask(id: task.id, title: task.title, prompt: task.prompt, repoPath: task.repoPath, cwd: task.cwd, status: "running", result: nil, error: nil, model: task.model, permissionMode: task.permissionMode, createdAt: task.createdAt, startedAt: task.startedAt, endedAt: nil, sessionID: task.sessionID)
@@ -293,7 +293,7 @@ struct DaymeldFixture {
             var fixture = standard
             fixture.agents = (0..<42).map { index in
                 let base = standard.agents[index % standard.agents.count]
-                return AgentJob(id: "fixture-stress-agent-\(index)", repository: base.repository, repositoryLabel: base.repositoryLabel, prompt: "大量データ用の長い依頼タイトル \(index)：" + String(repeating: "折返し確認 ", count: 8), status: ["queued", "running", "blocked", "completed", "failed"][index % 5], phase: "fixtureフェーズ", summary: index % 3 == 0 ? String(repeating: "長い完了サマリーです。", count: 40) : nil, updatedAt: "2026-09-01T09:\(String(format: "%02d", index % 60)):00+09:00", recentEvents: base.recentEvents, events: base.events, mode: "execute", followUp: nil, worktree: index % 5 == 4 ? "/tmp/stress-\(index)" : nil)
+                return AgentJob(id: "fixture-stress-agent-\(index)", repository: base.repository, repositoryLabel: base.repositoryLabel, prompt: "大量データ用の長い依頼タイトル \(index)：" + String(repeating: "折返し確認 ", count: 8), status: ["queued", "running", "blocked", "completed", "failed"][index % 5], phase: "fixtureフェーズ", summary: index % 3 == 0 ? String(repeating: "長い完了サマリーです。", count: 40) : nil, model: base.model, reasoningEffort: base.reasoningEffort, updatedAt: "2026-09-01T09:\(String(format: "%02d", index % 60)):00+09:00", recentEvents: base.recentEvents, events: base.events, mode: "execute", followUp: nil, worktree: index % 5 == 4 ? "/tmp/stress-\(index)" : nil)
             }
             let tanomiStatuses = ["queued", "running", "done", "error", "stopped"]
             fixture.tanomiTasks = (0..<30).map { index -> TanomiTask in

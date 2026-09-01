@@ -890,6 +890,11 @@ struct AgentCard: View {
                             }
                         }
                         Text(job.prompt).appFont(.headline).foregroundStyle(.primary).lineLimit(expanded ? nil : 2)
+                        if let implementationConfiguration {
+                            Text(implementationConfiguration)
+                                .appFont(.caption).foregroundStyle(.secondary)
+                                .lineLimit(expanded ? nil : 2)
+                        }
                         Text("\(phaseLabel)・\(job.updatedAt.relativeTime)")
                             .appFont(.caption).foregroundStyle(statusColor)
                     }
@@ -1007,6 +1012,10 @@ struct AgentCard: View {
     }
     private var phaseLabel: String {
         job.phase == statusLabel ? statusLabel : "\(statusLabel)・\(job.phase)"
+    }
+    private var implementationConfiguration: String? {
+        guard job.model != nil || job.reasoningEffort != nil else { return nil }
+        return "実装モデル \(job.model ?? "未設定")・Effort \(job.reasoningEffort ?? "未設定")"
     }
 
     private func loadFullEvents() {

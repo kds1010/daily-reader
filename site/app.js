@@ -341,10 +341,18 @@ function renderAgentJob(job, archived = false) {
   const title = document.createElement("span");
   title.className = "agent-job-title";
   title.textContent = job.prompt;
+  if (job.model || job.reasoning_effort) {
+    const execution = document.createElement("span");
+    execution.className = "agent-execution";
+    execution.textContent = `実装モデル ${job.model || "未設定"}・Effort ${job.reasoning_effort || "未設定"}`;
+    overviewText.append(heading, title, execution);
+  } else {
+    overviewText.append(heading, title);
+  }
   const phase = document.createElement("span");
   phase.className = "agent-phase";
   phase.textContent = `${job.phase}・${formatAgentTime(job.updated_at)}`;
-  overviewText.append(heading, title, phase);
+  overviewText.append(phase);
   const chevron = document.createElement("span");
   chevron.className = "agent-job-chevron";
   chevron.setAttribute("aria-hidden", "true");

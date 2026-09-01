@@ -204,6 +204,7 @@ final class AppModel: ObservableObject {
                 id: "fixture-created-\(UUID().uuidString)", repository: repository,
                 repositoryLabel: repositories.first(where: { $0.name == repository })?.label,
                 prompt: prompt, status: "queued", phase: "キュー待ち", summary: nil,
+                model: model, reasoningEffort: reasoningEffort,
                 updatedAt: ISO8601DateFormatter().string(from: .now), recentEvents: nil,
                 events: [AgentEvent(createdAt: ISO8601DateFormatter().string(from: .now), kind: "user", message: prompt)],
                 mode: "execute", followUp: nil, worktree: nil
@@ -388,7 +389,7 @@ final class AppModel: ObservableObject {
             guard let index = agents.firstIndex(where: { $0.id == jobID }) else { return false }
             let job = agents[index]
             let events = (job.events ?? []) + [AgentEvent(createdAt: ISO8601DateFormatter().string(from: .now), kind: "user", message: instruction)]
-            agents[index] = AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: job.status, phase: job.phase, summary: job.summary, updatedAt: ISO8601DateFormatter().string(from: .now), recentEvents: events.suffix(3).map { $0 }, events: events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
+            agents[index] = AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: job.status, phase: job.phase, summary: job.summary, model: job.model, reasoningEffort: job.reasoningEffort, updatedAt: ISO8601DateFormatter().string(from: .now), recentEvents: events.suffix(3).map { $0 }, events: events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
             return true
         }
         do {
@@ -409,7 +410,7 @@ final class AppModel: ObservableObject {
         if fixture != nil {
             guard let index = agents.firstIndex(where: { $0.id == jobID }) else { return }
             let job = agents[index]
-            agents[index] = AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: "cancelled", phase: "キャンセル済み", summary: job.summary, updatedAt: ISO8601DateFormatter().string(from: .now), recentEvents: job.recentEvents, events: job.events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
+            agents[index] = AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: "cancelled", phase: "キャンセル済み", summary: job.summary, model: job.model, reasoningEffort: job.reasoningEffort, updatedAt: ISO8601DateFormatter().string(from: .now), recentEvents: job.recentEvents, events: job.events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
             return
         }
         await performAgentAction("api/agent-jobs/cancel", jobID: jobID)
