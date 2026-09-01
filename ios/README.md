@@ -149,6 +149,24 @@ SideStoreまたはiPhoneの診断ログを共有した場合はトークン漏�
 
 ## 検証
 
+### UX fixture とプレビュー
+
+Debugビルドでは起動引数 `-daymeld-fixture` に次のシナリオを指定して、実データへ接続せずに
+画面状態を再現できます。
+
+```text
+standard         通常状態（Agent全状態、今日、体調、メール、ニュース）
+empty            空状態とtanomi停止
+partial-failure  一部API失敗と、前回データを残した再試行
+stress           大量カード、長い本文、狭い画面での折返し
+in-flight        Agent・tanomiが実行中、操作中表示
+```
+
+XcodeのSchemeのArgumentsへ `-daymeld-fixture standard` を追加するか、Previewの
+`DaymeldRootPreview`を使って確認してください。fixtureは匿名の固定データだけで構成され、
+Releaseビルドでは起動引数から選択できません。fixtureからのタスク・メール・記事操作は
+ローカルの画面状態だけを変更し、Mac miniのDBやGmailへ書き込みません。
+
 ```bash
 xcodebuild -project ios/DailyReader/DailyReader.xcodeproj \
   -scheme DailyReader -sdk iphonesimulator -configuration Debug \

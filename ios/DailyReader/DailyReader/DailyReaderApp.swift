@@ -115,7 +115,15 @@ extension Notification.Name {
 @main
 struct DailyReaderApp: App {
     @UIApplicationDelegateAdaptor(DailyReaderAppDelegate.self) private var appDelegate
-    @StateObject private var model = AppModel()
+    @StateObject private var model: AppModel
+
+    init() {
+#if DEBUG
+        _model = StateObject(wrappedValue: AppModel(fixture: DaymeldFixture.fromProcessArguments()))
+#else
+        _model = StateObject(wrappedValue: AppModel())
+#endif
+    }
 
     var body: some Scene {
         WindowGroup {

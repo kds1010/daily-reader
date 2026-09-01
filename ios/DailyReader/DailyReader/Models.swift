@@ -1,5 +1,23 @@
 import Foundation
 
+enum ResourceLoadState: Equatable {
+    case idle
+    case loading
+    case loaded
+    case failed(String)
+
+    var isLoading: Bool {
+        if case .loading = self { return true }
+        return false
+    }
+
+    var errorMessage: String? {
+        if case .failed(let message) = self { return message }
+        return nil
+    }
+
+}
+
 enum MacVimKeyStroke: Equatable {
     case character(Character)
     case shiftedG
@@ -347,9 +365,9 @@ struct AgentEvent: Decodable, Identifiable, Equatable {
 
 struct TodayEnvelope: Decodable {
     let date: String
-    let tasks: [PlannerTask]
-    let routines: [PlannerTask]
-    let health: HealthSnapshot?
+    var tasks: [PlannerTask]
+    var routines: [PlannerTask]
+    var health: HealthSnapshot?
 }
 
 struct PlannerTask: Decodable, Identifiable {

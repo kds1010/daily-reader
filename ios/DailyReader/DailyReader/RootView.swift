@@ -84,6 +84,26 @@ extension View {
     }
 }
 
+#if DEBUG
+#if os(iOS)
+struct DaymeldRootPreview: PreviewProvider {
+    static var previews: some View {
+        RootView()
+            .environmentObject(AppModel(fixture: .scenario(.standard)))
+    }
+}
+#else
+struct DaymeldRootPreview: PreviewProvider {
+    static var previews: some View {
+        RootView()
+            .environmentObject(AppModel(fixture: .scenario(.standard)))
+            .environmentObject(MacAgentKeyboardController())
+            .frame(width: 1120, height: 760)
+    }
+}
+#endif
+#endif
+
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
@@ -129,6 +149,42 @@ struct RootView: View {
     }
 }
 
+struct ResourceStatusView: View {
+    let state: ResourceLoadState
+    let label: String
+    let retry: (() -> Void)?
+
+    var body: some View {
+        switch state {
+        case .idle, .loading:
+            ProgressView("\(label)を読み込んでいます…")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassCard()
+        case .failed(let message):
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "wifi.exclamationmark")
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(label)を更新できませんでした")
+                        .appFont(.subheadline, weight: .semibold)
+                    Text(message)
+                        .appFont(.caption)
+                        .foregroundStyle(.secondary)
+                    if let retry {
+                        Button("再試行", action: retry)
+                            .buttonStyle(.bordered)
+                            .appFont(.caption, weight: .semibold)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .glassCard()
+        case .loaded:
+            EmptyView()
+        }
+    }
+}
+
 struct AgentView: View {
     @EnvironmentObject private var model: AppModel
     #if os(macOS)
@@ -149,10 +205,22 @@ struct AgentView: View {
                     .agentListRow()
                 RuntimeInfo(info: model.deploymentInfo, refreshedAt: model.lastUpdated)
                     .agentListRow()
+                if model.agentLoadState != .loaded {
+                    ResourceStatusView(state: model.agentLoadState, label: "Agent") {
+                        Task { await model.refresh() }
+                    }
+                    .agentListRow()
+                }
                 AgentUsageCard()
                     .agentListRow()
                 TanomiComposer()
                     .agentListRow()
+                if model.tanomiLoadState != .loaded {
+                    ResourceStatusView(state: model.tanomiLoadState, label: "tanomi") {
+                        Task { await model.refresh() }
+                    }
+                    .agentListRow()
+                }
                 #if os(macOS)
                 Text("j/k 選択 · Enter/l 開く · Esc/h 閉じる · Ctrl+u/d · gg/G · zt/zz/zb · dd/dj/dk 非表示")
                     .appFont(.caption2)
@@ -195,7 +263,7 @@ struct AgentView: View {
                             }
                     }
                 }
-                if activeSnapshot.isEmpty {
+                if activeSnapshot.isEmpty && model.agentLoadState == .loaded {
                     EmptyState(icon: "sparkles", title: "Agentは待機中です", detail: "新しい依頼を送ると、ここに進捗が表示されます。")
                         .agentListRow()
                 }
@@ -476,6 +544,7 @@ private struct TanomiTaskCard: View {
     @State private var expanded = false
     @State private var instruction = ""
     @State private var sending = false
+    @State private var showFullResult = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -518,7 +587,17 @@ private struct TanomiTaskCard: View {
                 if !task.displayResult.isEmpty {
                     Text(task.error != nil ? "エラー" : "結果")
                         .appFont(.caption, weight: .bold).foregroundStyle(.secondary)
-                    Text(task.displayResult).appFont(.caption).textSelection(.enabled)
+                    Text(task.displayResult)
+                        .appFont(.caption)
+                        .lineLimit(showFullResult ? nil : 8)
+                        .textSelection(.enabled)
+                    if task.displayResult.count > 600 {
+                        Button(showFullResult ? "結果を折りたたむ" : "結果を全文表示") {
+                            showFullResult.toggle()
+                        }
+                        .appFont(.caption, weight: .semibold)
+                        .buttonStyle(.borderless)
+                    }
                 }
                 if !archived && task.canContinue {
                     TextField("このtanomiタスクへの追加指示", text: $instruction, axis: .vertical)
@@ -776,6 +855,8 @@ struct AgentCard: View {
     @State private var expanded = false
     @State private var showConversation = false
     @State private var fullEvents: [AgentEvent] = []
+    @State private var fullEventsLoaded = false
+    @State private var fullEventsError: String?
     @State private var instruction = ""
     @State private var sending = false
     @State private var actionInFlight = false
@@ -832,15 +913,26 @@ struct AgentCard: View {
                 Text("やりとり").appFont(.caption, weight: .bold).foregroundStyle(.secondary)
                 Button(showConversation ? "やりとりを非表示" : "やりとりを表示") {
                     showConversation.toggle()
-                    if showConversation && fullEvents.isEmpty {
-                        Task { fullEvents = await model.agentDetail(job.id)?.events ?? [] }
+                    if showConversation && !fullEventsLoaded {
+                        loadFullEvents()
                     }
                 }
                 .appFont(.caption, weight: .bold)
                 .buttonStyle(.borderless)
                 if showConversation {
-                    if fullEvents.isEmpty { ProgressView().frame(maxWidth: .infinity) }
-                    ForEach(fullEvents) { event in AgentEventRow(event: event) }
+                    if let fullEventsError {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(fullEventsError).appFont(.caption).foregroundStyle(.orange)
+                            Button("履歴を再取得") { loadFullEvents() }
+                                .appFont(.caption, weight: .semibold)
+                        }
+                    } else if !fullEventsLoaded {
+                        ProgressView("履歴を取得しています…").frame(maxWidth: .infinity)
+                    } else if fullEvents.isEmpty {
+                        Text("やりとりはまだありません。").appFont(.caption).foregroundStyle(.secondary)
+                    } else {
+                        ForEach(fullEvents) { event in AgentEventRow(event: event) }
+                    }
                 }
                 if canAttach {
                     TextField(instructionPlaceholder, text: $instruction, axis: .vertical)
@@ -915,6 +1007,18 @@ struct AgentCard: View {
     }
     private var phaseLabel: String {
         job.phase == statusLabel ? statusLabel : "\(statusLabel)・\(job.phase)"
+    }
+
+    private func loadFullEvents() {
+        fullEventsError = nil
+        Task {
+            guard let detail = await model.agentDetail(job.id) else {
+                fullEventsError = "履歴を取得できませんでした。"
+                return
+            }
+            fullEvents = detail.events ?? []
+            fullEventsLoaded = true
+        }
     }
 }
 
@@ -1037,41 +1141,252 @@ struct TodayView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
-                StatusHero(title: "今日", subtitle: remaining == 0 ? "すべて完了しました" : "あと\(remaining)件です", icon: "sun.max.fill", color: .orange)
-                if let health = model.today?.health {
-                    HealthCard(health: health)
-                } else {
-#if os(iOS)
-                    Button { Task { await model.syncHealth() } } label: {
-                        Label("HealthKitを同期", systemImage: "heart.fill")
-                            .frame(maxWidth: .infinity)
+                StatusHero(title: "今日", subtitle: todaySubtitle, icon: "sun.max.fill", color: .orange)
+                if model.today == nil && model.todayLoadState != .loaded {
+                    ResourceStatusView(state: model.todayLoadState, label: "今日") {
+                        Task { await model.refresh() }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.pink)
-#else
-                    Label("健康情報はiPhoneから同期すると表示されます", systemImage: "iphone")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(.secondary)
-                        .glassCard()
+                } else {
+                    if model.todayLoadState != .loaded {
+                        ResourceStatusView(state: model.todayLoadState, label: "今日") {
+                            Task { await model.refresh() }
+                        }
+                    }
+                    TaskComposer()
+                    HealthCheckinCard(health: model.today?.health)
+#if os(iOS)
+                    if model.today?.health == nil && !model.isFixture {
+                        Button { Task { await model.syncHealth() } } label: {
+                            Label("HealthKitを同期", systemImage: "heart.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.pink)
+                    }
 #endif
+                    if (model.today?.tasks.isEmpty ?? true) && (model.today?.routines.isEmpty ?? true) {
+                        EmptyState(icon: "checkmark.circle", title: "今日のタスクはありません", detail: "上のフォームから、今日やることを追加できます。")
+                    } else {
+                        SectionTitle("タスク")
+                        ForEach(model.today?.tasks ?? []) { task in TaskRow(task: task) }
+                        SectionTitle("ルーティン")
+                        ForEach(model.today?.routines ?? []) { task in TaskRow(task: task) }
+                    }
                 }
-                SectionTitle("タスク")
-                ForEach(model.today?.tasks ?? []) { task in TaskRow(task: task) }
-                SectionTitle("ルーティン")
-                ForEach(model.today?.routines ?? []) { task in TaskRow(task: task) }
             }.padding()
         }.background(AppBackground()).navigationTitle("今日").refreshable { await model.refresh() }
     }
     private var remaining: Int { (model.today?.tasks.count ?? 0) + (model.today?.routines.filter { !$0.isCompleted }.count ?? 0) }
+    private var todaySubtitle: String {
+        switch model.todayLoadState {
+        case .idle, .loading:
+            return "読み込み中…"
+        case .failed:
+            return model.today == nil ? "読み込みに失敗しました" : "前回のデータを表示中"
+        case .loaded:
+            return remaining == 0 ? "すべて完了しました" : "あと\(remaining)件です"
+        }
+    }
+}
+
+struct TaskComposer: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var title = ""
+    @State private var dueDateEnabled = false
+    @State private var dueDate = Date()
+    @State private var priority = 2
+    @State private var recurrence = "none"
+    @State private var saving = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("タスクを追加", systemImage: "plus.circle.fill")
+                .appFont(.headline)
+                .foregroundStyle(.orange)
+            TextField("今日やること", text: $title)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Picker("優先度", selection: $priority) {
+                    Text("高").tag(1)
+                    Text("中").tag(2)
+                    Text("低").tag(3)
+                }
+                .pickerStyle(.menu)
+                Picker("繰り返し", selection: $recurrence) {
+                    Text("なし").tag("none")
+                    Text("毎日").tag("daily")
+                    Text("平日").tag("weekdays")
+                    Text("毎週").tag("weekly")
+                }
+                .pickerStyle(.menu)
+            }
+            Toggle("期限を設定", isOn: $dueDateEnabled)
+                .appFont(.caption)
+            if dueDateEnabled {
+                DatePicker("期限", selection: $dueDate, displayedComponents: .date)
+                    .appFont(.caption)
+            }
+            Button {
+                Task {
+                    saving = true
+                    let success = await model.createTask(title: title, dueDate: dueDateEnabled ? Self.dateOnly(dueDate) : nil, priority: priority, recurrence: recurrence)
+                    if success { title = ""; dueDateEnabled = false; recurrence = "none"; priority = 2 }
+                    saving = false
+                }
+            } label: {
+                HStack {
+                    if saving { ProgressView() }
+                    Text("追加")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.orange)
+            .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || saving)
+        }
+        .glassCard()
+    }
+
+    private static func dateOnly(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+    }
 }
 
 struct TaskRow: View {
     @EnvironmentObject private var model: AppModel
     let task: PlannerTask
+    @State private var confirmDelete = false
+    @State private var actionInFlight = false
+
     var body: some View {
-        Button { Task { await model.toggle(task) } } label: {
-            HStack(spacing: 14) { Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle").appFont(.title2).foregroundStyle(task.isCompleted ? .green : .secondary); VStack(alignment: .leading) { Text(task.title).foregroundStyle(.primary); if let due = task.dueDate { Text(due).appFont(.caption).foregroundStyle(.secondary) } }; Spacer() }
-        }.glassCard()
+        HStack(spacing: 12) {
+            Button {
+                guard !actionInFlight else { return }
+                actionInFlight = true
+                Task {
+                    await model.toggle(task)
+                    actionInFlight = false
+                }
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .appFont(.title2)
+                        .foregroundStyle(task.isCompleted ? .green : .secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(task.title).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                        HStack(spacing: 6) {
+                            if let due = task.dueDate {
+                                Text(Self.dateLabel(due))
+                                    .foregroundStyle(Self.isOverdue(due) && !task.isCompleted ? .red : .secondary)
+                            } else if task.recurrence == "none" {
+                                Text("期限なし").foregroundStyle(.secondary)
+                            }
+                            if task.priority == 1 { Text("高").badgeStyle(.red) }
+                            if task.recurrence != "none" { Text(Self.recurrenceLabel(task.recurrence)).badgeStyle(.indigo) }
+                        }
+                        .appFont(.caption2)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if actionInFlight { ProgressView().controlSize(.small) }
+            }
+            .buttonStyle(.plain)
+            .disabled(actionInFlight)
+            Spacer(minLength: 0)
+            Menu {
+                Button("削除", role: .destructive) { confirmDelete = true }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("タスクの操作")
+            }
+        }
+        .glassCard()
+        .confirmationDialog("このタスクを削除しますか？", isPresented: $confirmDelete) {
+            Button("削除", role: .destructive) { Task { _ = await model.deleteTask(task) } }
+            Button("キャンセル", role: .cancel) {}
+        }
+    }
+
+    private static func dateLabel(_ value: String) -> String {
+        guard let date = DateFormatter.isoDate.date(from: value) else { return value }
+        return date.formatted(.dateTime.month().day())
+    }
+
+    private static func isOverdue(_ value: String) -> Bool {
+        value < DateFormatter.isoDate.string(from: .now)
+    }
+
+    private static func recurrenceLabel(_ value: String) -> String {
+        switch value {
+        case "daily": "毎日"
+        case "weekdays": "平日"
+        case "weekly": "毎週"
+        default: value
+        }
+    }
+}
+
+struct HealthCheckinCard: View {
+    @EnvironmentObject private var model: AppModel
+    let health: HealthSnapshot?
+    @State private var fatigue = 3
+    @State private var mood = 3
+    @State private var note = ""
+    @State private var saving = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("体調チェックイン", systemImage: "face.smiling")
+                .appFont(.headline)
+                .foregroundStyle(.pink)
+            Picker("疲労度", selection: $fatigue) {
+                ForEach(1...5, id: \.self) { Text("\($0)").tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("疲労度 1から5")
+            Picker("気分", selection: $mood) {
+                ForEach(1...5, id: \.self) { Text("\($0)").tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("気分 1から5")
+            TextField("メモ（任意）", text: $note, axis: .vertical)
+                .lineLimit(2...4)
+                .textFieldStyle(.roundedBorder)
+            Button {
+                Task {
+                    saving = true
+                    let current = health
+                    let snapshot = HealthSnapshot(
+                        date: current?.date ?? model.today?.date ?? Self.dateOnly(.now),
+                        sleepMinutes: current?.sleepMinutes, steps: current?.steps,
+                        restingHeartRate: current?.restingHeartRate, hrvMS: current?.hrvMS,
+                        respiratoryRate: current?.respiratoryRate, fatigue: fatigue,
+                        mood: mood, note: note
+                    )
+                    _ = await model.saveHealthCheckin(snapshot)
+                    saving = false
+                }
+            } label: {
+                HStack { if saving { ProgressView() }; Text("体調を保存") }
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(.pink)
+            .disabled(saving)
+        }
+        .glassCard()
+        .onAppear {
+            fatigue = health?.fatigue ?? 3
+            mood = health?.mood ?? 3
+            note = health?.note ?? ""
+        }
+    }
+
+    private static func dateOnly(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
     }
 }
 
@@ -1086,8 +1401,14 @@ struct HealthCard: View {
                     .foregroundStyle(.pink)
                 Spacer()
 #if os(iOS)
-                Button("同期") { Task { await model.syncHealth() } }
-                    .appFont(.caption, weight: .semibold)
+                if model.isFixture {
+                    Text("fixtureデータ")
+                        .appFont(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button("同期") { Task { await model.syncHealth() } }
+                        .appFont(.caption, weight: .semibold)
+                }
 #else
                 Text("iPhoneから同期済み")
                     .appFont(.caption)
@@ -1095,6 +1416,9 @@ struct HealthCard: View {
 #endif
             }
             HStack { Metric(value: health.sleepMinutes.map { "\($0 / 60)h \($0 % 60)m" } ?? "—", label: "睡眠"); Metric(value: health.steps.map { $0.formatted() } ?? "—", label: "歩数"); Metric(value: health.hrvMS.map { String(format: "%.0f", $0) } ?? "—", label: "HRV") }
+            HStack { Metric(value: health.restingHeartRate.map { String(format: "%.0f", $0) } ?? "—", label: "安静時心拍"); Metric(value: health.respiratoryRate.map { String(format: "%.1f", $0) } ?? "—", label: "呼吸数"); Metric(value: health.fatigue.map(String.init) ?? "—", label: "疲労度") }
+            HStack { Metric(value: health.mood.map(String.init) ?? "—", label: "気分"); Spacer() }
+            if let note = health.note, !note.isEmpty { Text(note).appFont(.subheadline).foregroundStyle(.secondary).textSelection(.enabled) }
         }.glassCard()
     }
 }
@@ -1107,6 +1431,12 @@ struct EmailView: View {
 
     var body: some View {
         List {
+            if model.emailLoadState != .loaded {
+                ResourceStatusView(state: model.emailLoadState, label: "メール") {
+                    Task { await model.refresh() }
+                }
+                .listRowBackground(Color.clear)
+            }
             if let error = model.emailSyncError {
                 Text(error).appFont(.footnote).foregroundStyle(.orange)
                     .listRowBackground(Color.clear)
@@ -1121,7 +1451,7 @@ struct EmailView: View {
                         }.tint(.mint)
                     }
             }
-            if model.emails.isEmpty {
+            if model.emails.isEmpty && model.emailLoadState == .loaded {
                 EmptyState(icon: "tray", title: "未読メールはありません", detail: "迷惑メールとゴミ箱を除く未読メールを表示します。")
                     .listRowBackground(Color.clear)
             }
@@ -1153,6 +1483,7 @@ struct EmailCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let email: EmailReminder
     var completionPresented = false
+    @State private var actionInFlight = false
 
     var body: some View {
         ZStack {
@@ -1165,10 +1496,32 @@ struct EmailCard: View {
                         }
                         Text(email.subject).appFont(.headline).foregroundStyle(.primary)
                         Text(email.requiredAction).appFont(.subheadline).foregroundStyle(.secondary)
+                        if !email.reason.isEmpty { Text(email.reason).appFont(.caption).foregroundStyle(.secondary) }
+                        HStack(spacing: 8) {
+                            Text(Self.statusLabel(email.status))
+                                .badgeStyle(email.status == "awaiting_reply" ? .orange : .secondary)
+                            if let dueDate = email.dueDate { Text("期限 \(dueDate)").appFont(.caption2).foregroundStyle(.red) }
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                HStack { Spacer(); if model.emailCanMarkRead { Button("既読") { Task { await model.act(on: email, action: "read") } } }; Button("対応不要") { Task { await model.act(on: email, action: "dismiss") } }; Button("保留") { Task { await model.act(on: email, action: "snooze") } }; Button("完了") { Task { await model.act(on: email, action: "done") } }.buttonStyle(.borderedProminent).tint(.mint) }.appFont(.caption, weight: .semibold)
+                HStack {
+                    Spacer()
+                    if actionInFlight { ProgressView().controlSize(.small) }
+                    Menu {
+                        if model.emailCanMarkRead { Button("既読") { perform("read") } }
+                        Button("明日へ保留") { perform("snooze") }
+                        Button("対応不要") { perform("dismiss") }
+                    } label: {
+                        Label("その他の操作", systemImage: "ellipsis.circle")
+                    }
+                    .disabled(actionInFlight)
+                    Button("完了") { perform("done") }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.mint)
+                        .disabled(actionInFlight)
+                }
+                .appFont(.caption, weight: .semibold)
             }
             if completionPresented {
                 Image(systemName: "checkmark.circle.fill")
@@ -1183,6 +1536,25 @@ struct EmailCard: View {
         .animation(.easeOut(duration: 0.2), value: completionPresented)
         .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .scale(scale: 0.88))))
         .glassCard()
+    }
+
+    private func perform(_ action: String) {
+        guard !actionInFlight else { return }
+        actionInFlight = true
+        Task {
+            _ = await model.act(on: email, action: action)
+            actionInFlight = false
+        }
+    }
+
+    private static func statusLabel(_ status: String?) -> String {
+        switch status {
+        case "awaiting_reply": "返信待ち"
+        case "snoozed": "明日へ保留"
+        case "done": "完了"
+        case "dismissed": "対応不要"
+        default: "未対応"
+        }
     }
 }
 
@@ -1203,13 +1575,17 @@ struct EmailDetailView: View {
                     Text(errorMessage).appFont(.subheadline).foregroundStyle(.orange)
                     Button("再取得") { Task { await load() } }.buttonStyle(.borderedProminent)
                 } else if let content {
-                    ForEach(Array(content.messages.enumerated()), id: \.offset) { _, message in
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(message.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan)
-                            Text(message.receivedAt.relativeTime).appFont(.caption2).foregroundStyle(.secondary)
-                            Text(message.body.isEmpty ? "本文を取得できませんでした。" : message.body)
-                                .appFont(.body).textSelection(.enabled)
-                        }.glassCard()
+                    if content.messages.isEmpty {
+                        EmptyState(icon: "envelope.open", title: "本文はありません", detail: "このスレッドには表示できる本文がありません。")
+                    } else {
+                        ForEach(Array(content.messages.enumerated()), id: \.offset) { _, message in
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text(message.sender).appFont(.caption, weight: .semibold).foregroundStyle(.cyan)
+                                Text(message.receivedAt.relativeTime).appFont(.caption2).foregroundStyle(.secondary)
+                                Text(message.body.isEmpty ? "本文を取得できませんでした。" : message.body)
+                                    .appFont(.body).textSelection(.enabled)
+                            }.glassCard()
+                        }
                     }
                 }
             }.padding()
@@ -1234,21 +1610,161 @@ struct EmailDetailView: View {
 
 struct NewsView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var query = ""
+    @State private var category = "すべて"
+    @State private var savedOnly = false
+    @State private var visibleLimit = 50
+
     var body: some View {
-        ScrollView { LazyVStack(spacing: 16) { ForEach(model.articles.prefix(80)) { article in Link(destination: article.url) { ArticleCard(article: article) }.buttonStyle(.plain) } }.padding() }
-            .background(AppBackground()).navigationTitle("ニュース").refreshable { await model.refresh() }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 16) {
+                if model.newsLoadState != .loaded {
+                    ResourceStatusView(state: model.newsLoadState, label: "ニュース") {
+                        Task { await model.refresh() }
+                    }
+                }
+                // A failed initial load has no snapshot to filter.  A failed
+                // refresh with existing articles still keeps the previous
+                // snapshot visible so the user can continue reading.
+                if model.newsLoadState == .loaded || !model.articles.isEmpty {
+                    NewsFilterBar(query: $query, category: $category, savedOnly: $savedOnly, categories: categories)
+                    let articles = filteredArticles
+                    if articles.isEmpty {
+                        EmptyState(icon: savedOnly ? "bookmark" : "magnifyingglass", title: savedOnly ? "あとで読む記事はありません" : "条件に一致する記事はありません", detail: savedOnly ? "記事カードの「あとで読む」から保存できます。" : "検索語や分野を変えてお試しください。")
+                    } else {
+                        ForEach(articles.prefix(visibleLimit)) { article in
+                            ArticleCard(article: article)
+                        }
+                        if articles.count > visibleLimit {
+                            Button("さらに表示（残り \(articles.count - visibleLimit)件）") {
+                                visibleLimit += 50
+                            }
+                            .frame(maxWidth: .infinity)
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
+        .background(AppBackground())
+        .navigationTitle("ニュース")
+        .refreshable { await model.refresh() }
+        .onChange(of: query) { _, _ in visibleLimit = 50 }
+        .onChange(of: category) { _, _ in visibleLimit = 50 }
+        .onChange(of: savedOnly) { _, _ in visibleLimit = 50 }
+    }
+
+    private var categories: [String] {
+        ["すべて"] + Array(Set(model.articles.map(\.category))).sorted()
+    }
+
+    private var filteredArticles: [Article] {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).localizedLowercase
+        return model.articles
+            .filter { !model.hiddenArticleIDs.contains($0.id) }
+            .filter { category == "すべて" || $0.category == category }
+            .filter { !savedOnly || model.savedArticleIDs.contains($0.id) }
+            .filter {
+                guard !normalizedQuery.isEmpty else { return true }
+                return [$0.title, $0.summary, $0.source, $0.category]
+                    .joined(separator: " ")
+                    .localizedLowercase
+                    .contains(normalizedQuery)
+            }
+            .sorted { left, right in
+                (left.publishedAt.iso8601Date ?? .distantPast) > (right.publishedAt.iso8601Date ?? .distantPast)
+            }
+    }
+}
+
+struct NewsFilterBar: View {
+    @Binding var query: String
+    @Binding var category: String
+    @Binding var savedOnly: Bool
+    let categories: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            TextField("タイトル・概要・情報元を検索", text: $query)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("ニュース検索")
+            HStack {
+                Picker("分野", selection: $category) {
+                    ForEach(categories, id: \.self) { Text($0).tag($0) }
+                }
+                .pickerStyle(.menu)
+                Toggle("あとで読む", isOn: $savedOnly)
+                    .toggleStyle(.button)
+                    .tint(.indigo)
+            }
+        }
+        .glassCard()
     }
 }
 
 struct ArticleCard: View {
+    @EnvironmentObject private var model: AppModel
     let article: Article
+    @State private var confirmHide = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let image = article.imageURL { AsyncImage(url: image) { phase in if let loaded = phase.image { loaded.resizable().scaledToFill() } else { Rectangle().fill(.quaternary) } }.frame(height: 170).clipShape(RoundedRectangle(cornerRadius: 16)).clipped() }
-            HStack { Text(article.category).badgeStyle(.indigo); Spacer(); Text(article.source).appFont(.caption).foregroundStyle(.secondary) }
-            Text(article.title).appFont(.headline).foregroundStyle(.primary)
-            Text(article.summary).appFont(.subheadline).foregroundStyle(.secondary).lineLimit(3)
-        }.glassCard()
+            Link(destination: article.url) {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let imageURL = article.imageURL {
+                        AsyncImage(url: imageURL) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image.resizable().scaledToFill()
+                                    .frame(height: 170)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .clipped()
+                            case .failure:
+                                EmptyView()
+                            default:
+                                ProgressView().frame(maxWidth: .infinity).frame(height: 80)
+                            }
+                        }
+                    }
+                    HStack {
+                        Text(article.category).badgeStyle(.indigo)
+                        if model.readArticleIDs.contains(article.id) { Text("既読").badgeStyle(.secondary) }
+                        Spacer()
+                        Text(article.source).appFont(.caption).foregroundStyle(.secondary)
+                    }
+                    Text(article.title).appFont(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                    if !article.summary.isEmpty { Text(article.summary).appFont(.subheadline).foregroundStyle(.secondary).lineLimit(3) }
+                    Text(Self.dateLabel(article.publishedAt)).appFont(.caption2).foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded {
+                Task { _ = await model.markArticleRead(article) }
+            })
+            HStack {
+                Button(model.savedArticleIDs.contains(article.id) ? "保存済み" : "あとで読む") {
+                    model.toggleArticleSaved(article)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(model.savedArticleIDs.contains(article.id) ? .indigo : .secondary)
+                Spacer()
+                Button("表示しない", role: .destructive) { confirmHide = true }
+                    .buttonStyle(.borderless)
+            }
+            .appFont(.caption, weight: .semibold)
+        }
+        .glassCard()
+        .confirmationDialog("この記事を今後表示しませんか？", isPresented: $confirmHide) {
+            Button("表示しない", role: .destructive) { Task { _ = await model.hideArticle(article) } }
+            Button("キャンセル", role: .cancel) {}
+        }
+    }
+
+    private static func dateLabel(_ value: String) -> String {
+        guard let date = value.iso8601Date else { return value }
+        return date.formatted(.dateTime.year().month().day().hour().minute())
     }
 }
 
@@ -1423,6 +1939,18 @@ private struct NativeReleaseStatus: View {
 private extension Date {
     var runtimeDisplay: String { formatted(.dateTime.month().day().hour().minute()) }
 }
+
+private extension DateFormatter {
+    static let isoDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+}
+
 struct AppBackground: View { var body: some View { LinearGradient(colors: [Color(red: 0.04, green: 0.06, blue: 0.1), Color(red: 0.07, green: 0.05, blue: 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea() } }
 
 extension View {

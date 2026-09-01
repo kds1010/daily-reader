@@ -32,9 +32,17 @@ final class DaymeldMacAppDelegate: NSObject, NSApplicationDelegate, UNUserNotifi
 @main
 struct DaymeldMacApp: App {
     @NSApplicationDelegateAdaptor(DaymeldMacAppDelegate.self) private var appDelegate
-    @StateObject private var model = AppModel()
+    @StateObject private var model: AppModel
     @StateObject private var contentZoom = MacContentZoomController()
     @StateObject private var agentKeyboard = MacAgentKeyboardController()
+
+    init() {
+#if DEBUG
+        _model = StateObject(wrappedValue: AppModel(fixture: DaymeldFixture.fromProcessArguments()))
+#else
+        _model = StateObject(wrappedValue: AppModel())
+#endif
+    }
 
     var body: some Scene {
         WindowGroup {

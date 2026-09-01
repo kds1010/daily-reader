@@ -97,6 +97,9 @@ struct TanomiFollowUp: Encodable {
 struct NewTask: Encodable { let title: String; let dueDate: String?; let priority: Int; let recurrence: String
     enum CodingKeys: String, CodingKey { case title, priority, recurrence; case dueDate = "due_date" }
 }
+struct TaskAction: Encodable { let taskID: String
+    enum CodingKeys: String, CodingKey { case taskID = "task_id" }
+}
 struct TaskStatus: Encodable { let taskID: String; let completed: Bool
     enum CodingKeys: String, CodingKey { case completed; case taskID = "task_id" }
 }
@@ -108,4 +111,7 @@ struct AgentJobAction: Encodable { let jobID: String
 }
 struct EmailAction: Encodable { let threadID: String; let action: String
     enum CodingKeys: String, CodingKey { case action; case threadID = "thread_id" }
+}
+struct ArticleInteraction: Encodable { let articleID: String; let surface: String
+    enum CodingKeys: String, CodingKey { case surface; case articleID = "article_id" }
 }

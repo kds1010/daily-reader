@@ -29,8 +29,19 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
     @Published var selectedTab = 0
+    @Published private(set) var todayLoadState: ResourceLoadState = .idle
+    @Published private(set) var emailLoadState: ResourceLoadState = .idle
+    @Published private(set) var agentLoadState: ResourceLoadState = .idle
+    @Published private(set) var tanomiLoadState: ResourceLoadState = .idle
+    @Published private(set) var codexUsageLoadState: ResourceLoadState = .idle
+    @Published private(set) var newsLoadState: ResourceLoadState = .idle
+    @Published private(set) var deploymentLoadState: ResourceLoadState = .idle
+    @Published private(set) var readArticleIDs: Set<String>
+    @Published private(set) var savedArticleIDs: Set<String>
+    @Published private(set) var hiddenArticleIDs: Set<String>
 
     private let api = APIClient.shared
+    private var fixture: DaymeldFixture?
 #if os(iOS)
     private let health = HealthService()
 #endif
@@ -50,7 +61,65 @@ final class AppModel: ObservableObject {
     private var pendingAgentJobs: [String: AgentJob] = [:]
     private var pendingTanomiTasks: [String: TanomiTask] = [:]
 
+    var isFixture: Bool { fixture != nil }
+
+    init(fixture: DaymeldFixture? = nil) {
+        if fixture == nil {
+            readArticleIDs = Self.loadArticleIDs(forKey: "daily-reader.native.read")
+            savedArticleIDs = Self.loadArticleIDs(forKey: "daily-reader.native.saved")
+            hiddenArticleIDs = Self.loadArticleIDs(forKey: "daily-reader.native.hidden")
+        } else {
+            readArticleIDs = []
+            savedArticleIDs = []
+            hiddenArticleIDs = []
+        }
+        self.fixture = fixture
+        if let fixture {
+            applyFixture(fixture)
+        }
+    }
+
+    private func applyFixture(_ fixture: DaymeldFixture) {
+        repositories = fixture.repositories
+        agentModels = fixture.agentModels
+        agents = fixture.agents
+        archivedAgents = fixture.archivedAgents
+        tanomiRepositories = fixture.tanomiRepositories
+        tanomiConfig = fixture.tanomiConfig
+        tanomiTasks = fixture.tanomiTasks
+        tanomiArchivedTasks = fixture.tanomiArchivedTasks
+        tanomiUsage = fixture.tanomiUsage
+        tanomiAvailable = fixture.tanomiAvailable
+        tanomiStatusMessage = fixture.tanomiStatusMessage
+        today = fixture.today
+        emails = fixture.emails
+        articles = fixture.articles
+        codexUsage = fixture.codexUsage
+        deploymentInfo = fixture.deploymentInfo
+        let errors = fixture.failedResources
+        todayLoadState = errors.contains(.today) ? .failed("fixture: 今日のデータを取得できません") : .loaded
+        emailLoadState = errors.contains(.email) ? .failed("fixture: メールを取得できません") : .loaded
+        agentLoadState = errors.contains(.agents) ? .failed("fixture: Agentを取得できません") : .loaded
+        tanomiLoadState = errors.contains(.tanomi) ? .failed(fixture.tanomiStatusMessage ?? "fixture: tanomiを取得できません") : .loaded
+        codexUsageLoadState = errors.contains(.codexUsage) ? .failed("fixture: 使用状況を取得できません") : .loaded
+        newsLoadState = errors.contains(.news) ? .failed("fixture: ニュースを取得できません") : .loaded
+        deploymentLoadState = errors.contains(.deployment) ? .failed("fixture: バージョン情報を取得できません") : .loaded
+        lastUpdated = fixture.referenceDate ?? .now
+    }
+
+    private static func loadArticleIDs(forKey key: String) -> Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+    }
+
+    private func persistArticleIDs(_ values: Set<String>, forKey key: String) {
+        UserDefaults.standard.set(Array(values).sorted(), forKey: key)
+    }
+
     func start() async {
+        if let fixture {
+            applyFixture(fixture)
+            return
+        }
 #if os(iOS)
         do {
             try SecretStore.importBootstrapHealthToken()
@@ -65,6 +134,12 @@ final class AppModel: ObservableObject {
 
     func refresh() async {
         guard !isRefreshing else { return }
+        if let fixture {
+            isRefreshing = true
+            defer { isRefreshing = false }
+            applyFixture(fixture)
+            return
+        }
         isRefreshing = true
         snapshotRefreshInProgress = true
         errorMessage = nil
@@ -73,44 +148,70 @@ final class AppModel: ObservableObject {
             isRefreshing = false
         }
         var updated = false
-        if let day = try? await api.get("api/today", as: TodayEnvelope.self) {
-            today = day
+        todayLoadState = .loading
+        do {
+            today = try await api.get("api/today", as: TodayEnvelope.self)
+            todayLoadState = .loaded
             updated = true
-        }
+        } catch { todayLoadState = .failed(error.localizedDescription) }
+        emailLoadState = .loading
         do {
             let mail = try await api.get("api/emails/unread", as: EmailEnvelope.self)
             let pendingIDs = Set(pendingEmailActions.keys)
             emails = mail.items.filter { !pendingIDs.contains($0.threadID) }
             emailSyncError = mail.syncError
             emailCanMarkRead = mail.canMarkRead ?? true
+            emailLoadState = .loaded
             updated = true
         } catch {
+            emailLoadState = .failed(error.localizedDescription)
             emailSyncError = "メール同期結果を取得できませんでした：\(error.localizedDescription)"
         }
         if await refreshAgentSnapshot() {
             updated = true
         }
         if await refreshTanomiSnapshot() { updated = true }
+        codexUsageLoadState = .loading
         do {
             codexUsage = try await api.get("api/codex-usage", as: CodexUsageEnvelope.self)
             codexUsageFailed = false
+            codexUsageLoadState = .loaded
             updated = true
         } catch {
             codexUsageFailed = true
+            codexUsageLoadState = .failed(error.localizedDescription)
         }
-        if let news = try? await api.get("data/articles.json", as: ArticleEnvelope.self) {
+        newsLoadState = .loading
+        do {
+            let news = try await api.get("data/articles.json", as: ArticleEnvelope.self)
             articles = news.articles
+            newsLoadState = .loaded
             updated = true
-        }
-        if let deployment = try? await api.get("api/deployment", as: DeploymentInfo.self) {
-            deploymentInfo = deployment
-        }
+        } catch { newsLoadState = .failed(error.localizedDescription) }
+        deploymentLoadState = .loading
+        do {
+            deploymentInfo = try await api.get("api/deployment", as: DeploymentInfo.self)
+            deploymentLoadState = .loaded
+        } catch { deploymentLoadState = .failed(error.localizedDescription) }
         if updated {
             lastUpdated = .now
         }
     }
 
     func createAgent(prompt: String, repository: String, model: String, reasoningEffort: String) async -> Bool {
+        if fixture != nil {
+            let job = AgentJob(
+                id: "fixture-created-\(UUID().uuidString)", repository: repository,
+                repositoryLabel: repositories.first(where: { $0.name == repository })?.label,
+                prompt: prompt, status: "queued", phase: "キュー待ち", summary: nil,
+                updatedAt: ISO8601DateFormatter().string(from: .now), recentEvents: nil,
+                events: [AgentEvent(createdAt: ISO8601DateFormatter().string(from: .now), kind: "user", message: prompt)],
+                mode: "execute", followUp: nil, worktree: nil
+            )
+            agents.insert(job, at: 0)
+            agentLoadState = .loaded
+            return true
+        }
         do {
             let _: AgentJob = try await api.post("api/agent-jobs", body: NewAgentJob(repository: repository, prompt: prompt, model: model, reasoningEffort: reasoningEffort), as: AgentJob.self)
             await refresh()
@@ -119,6 +220,18 @@ final class AppModel: ObservableObject {
     }
 
     func createTanomi(prompt: String, repo: String, model: String, permissionMode: String, effort: String?) async -> Bool {
+        if fixture != nil {
+            let task = TanomiTask(
+                id: "fixture-created-\(UUID().uuidString)", title: prompt,
+                prompt: prompt, repoPath: repo, cwd: nil, status: "queued", result: nil,
+                error: nil, model: model, permissionMode: permissionMode,
+                createdAt: Date.now.timeIntervalSince1970, startedAt: nil, endedAt: nil,
+                sessionID: "fixture-session-created"
+            )
+            tanomiTasks.insert(task, at: 0)
+            tanomiLoadState = .loaded
+            return true
+        }
         do {
             let _: EmptyResponse = try await api.post(
                 "api/tanomi/tasks",
@@ -131,6 +244,16 @@ final class AppModel: ObservableObject {
     }
 
     func stopTanomi(_ task: TanomiTask) async {
+        if fixture != nil {
+            let stopped = TanomiTask(
+                id: task.id, title: task.title, prompt: task.prompt, repoPath: task.repoPath,
+                cwd: task.cwd, status: "stopped", result: task.result, error: task.error,
+                model: task.model, permissionMode: task.permissionMode, createdAt: task.createdAt,
+                startedAt: task.startedAt, endedAt: Date.now.timeIntervalSince1970, sessionID: task.sessionID
+            )
+            tanomiTasks = tanomiTasks.map { $0.id == task.id ? stopped : $0 }
+            return
+        }
         do {
             let _: EmptyResponse = try await api.post("api/tanomi/tasks/\(task.id)/stop", body: EmptyRequest(), as: EmptyResponse.self)
             await refreshAgents()
@@ -138,6 +261,7 @@ final class AppModel: ObservableObject {
     }
 
     func sendTanomiInstruction(taskID: String, instruction: String) async -> Bool {
+        if fixture != nil { return true }
         do {
             let _: EmptyResponse = try await api.post(
                 "api/tanomi/tasks",
@@ -152,6 +276,11 @@ final class AppModel: ObservableObject {
     func hideTanomi(_ task: TanomiTask) async {
         guard let index = tanomiTasks.firstIndex(where: { $0.id == task.id }) else { return }
         _ = withAnimation(.easeInOut(duration: 0.24)) { tanomiTasks.remove(at: index) }
+        if fixture != nil {
+            tanomiArchivedTasks.insert(task, at: 0)
+            pendingTanomiTasks.removeValue(forKey: task.id)
+            return
+        }
         pendingTanomiTasks[task.id] = task
         await archiveWithEffect(id: "tanomi-\(task.id)", index: index) {
             try await self.api.post(
@@ -164,6 +293,7 @@ final class AppModel: ObservableObject {
 
     func refreshAgents() async {
         guard !isRefreshing, !snapshotRefreshInProgress else { return }
+        if fixture != nil { return }
         snapshotRefreshInProgress = true
         defer { snapshotRefreshInProgress = false }
         _ = await refreshAgentSnapshot()
@@ -172,6 +302,11 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     private func refreshTanomiSnapshot() async -> Bool {
+        if fixture != nil {
+            tanomiLoadState = fixture?.failedResources.contains(.tanomi) == true
+                ? .failed(fixture?.tanomiStatusMessage ?? "fixture: tanomiを取得できません") : .loaded
+            return true
+        }
         tanomiRefreshGeneration += 1
         let generation = tanomiRefreshGeneration
         do {
@@ -185,6 +320,7 @@ final class AppModel: ObservableObject {
             async let usage: TanomiUsage? = try? api.get("api/tanomi/usage")
             let (repos, configSnapshot, tasks, status, usageSnapshot) = try await (repositories, config, buckets, health, usage)
             guard generation == tanomiRefreshGeneration else { return false }
+            tanomiLoadState = .loaded
             if tanomiRepositories != repos { tanomiRepositories = repos }
             if tanomiConfig != configSnapshot { tanomiConfig = configSnapshot }
             let pending = Set(pendingArchives.keys.filter { $0.hasPrefix("tanomi-") }.map { String($0.dropFirst(7)) })
@@ -200,6 +336,7 @@ final class AppModel: ObservableObject {
             return true
         } catch {
             guard generation == tanomiRefreshGeneration else { return false }
+            tanomiLoadState = .failed(error.localizedDescription)
             if tanomiAvailable { tanomiAvailable = false }
             if !tanomiUsageFailed { tanomiUsageFailed = true }
             let message = error.localizedDescription
@@ -210,10 +347,19 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     private func refreshAgentSnapshot() async -> Bool {
+        if fixture != nil {
+            agentLoadState = fixture?.failedResources.contains(.agents) == true
+                ? .failed("fixture: Agentを取得できません") : .loaded
+            return true
+        }
         agentRefreshGeneration += 1
         let generation = agentRefreshGeneration
         guard let envelope = try? await api.get("api/agent-jobs", as: AgentEnvelope.self),
-              generation == agentRefreshGeneration else { return false }
+              generation == agentRefreshGeneration else {
+            agentLoadState = .failed("Agentの一覧を取得できませんでした")
+            return false
+        }
+        agentLoadState = .loaded
 
         for job in agentNotifications.changedJobs(active: envelope.jobs, archived: envelope.archivedJobs) {
             await agentNotifications.schedule(for: job)
@@ -228,16 +374,23 @@ final class AppModel: ObservableObject {
     }
 
     func agentDetail(_ jobID: String) async -> AgentJob? {
+        if fixture != nil { return agents.first(where: { $0.id == jobID }) ?? archivedAgents.first(where: { $0.id == jobID }) }
         do {
             let encoded = jobID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobID
             return try await api.get("api/agent-jobs/\(encoded)", as: AgentJob.self)
         } catch {
-            errorMessage = error.localizedDescription
             return nil
         }
     }
 
     func sendInstruction(jobID: String, instruction: String) async -> Bool {
+        if fixture != nil {
+            guard let index = agents.firstIndex(where: { $0.id == jobID }) else { return false }
+            let job = agents[index]
+            let events = (job.events ?? []) + [AgentEvent(createdAt: ISO8601DateFormatter().string(from: .now), kind: "user", message: instruction)]
+            agents[index] = AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: job.status, phase: job.phase, summary: job.summary, updatedAt: ISO8601DateFormatter().string(from: .now), recentEvents: events.suffix(3).map { $0 }, events: events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
+            return true
+        }
         do {
             let _: EmptyResponse = try await api.post(
                 "api/agent-jobs/attach",
@@ -253,6 +406,12 @@ final class AppModel: ObservableObject {
     }
 
     func cancelAgent(jobID: String) async {
+        if fixture != nil {
+            guard let index = agents.firstIndex(where: { $0.id == jobID }) else { return }
+            let job = agents[index]
+            agents[index] = AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: "cancelled", phase: "キャンセル済み", summary: job.summary, updatedAt: ISO8601DateFormatter().string(from: .now), recentEvents: job.recentEvents, events: job.events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
+            return
+        }
         await performAgentAction("api/agent-jobs/cancel", jobID: jobID)
     }
 
@@ -260,6 +419,11 @@ final class AppModel: ObservableObject {
         guard let index = agents.firstIndex(where: { $0.id == jobID }) else { return }
         let job = agents[index]
         _ = withAnimation(.easeInOut(duration: 0.24)) { agents.remove(at: index) }
+        if fixture != nil {
+            archivedAgents.insert(job, at: 0)
+            pendingAgentJobs.removeValue(forKey: jobID)
+            return
+        }
         pendingAgentJobs[jobID] = job
         await archiveWithEffect(id: "daymeld-\(jobID)", index: index) {
             try await self.api.post("api/agent-jobs/hide", body: AgentJobAction(jobID: jobID), as: EmptyResponse.self)
@@ -303,10 +467,106 @@ final class AppModel: ObservableObject {
     }
 
     func toggle(_ task: PlannerTask) async {
+        if fixture != nil {
+            guard var snapshot = today else { return }
+            if snapshot.tasks.contains(where: { $0.id == task.id }) {
+                snapshot.tasks = snapshot.tasks.filter { $0.id != task.id || task.isCompleted }
+            } else {
+                snapshot.tasks = snapshot.tasks.map { $0.id == task.id ? PlannerTask(id: $0.id, title: $0.title, dueDate: $0.dueDate, priority: $0.priority, recurrence: $0.recurrence, completedToday: task.isCompleted ? nil : 1) : $0 }
+            }
+            snapshot.routines = snapshot.routines.map { $0.id == task.id ? PlannerTask(id: $0.id, title: $0.title, dueDate: $0.dueDate, priority: $0.priority, recurrence: $0.recurrence, completedToday: $0.isCompleted ? 0 : 1) : $0 }
+            today = snapshot
+            return
+        }
         do {
             let _: EmptyResponse = try await api.post("api/task-status", body: TaskStatus(taskID: task.id, completed: !task.isCompleted), as: EmptyResponse.self)
             await refresh()
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    func createTask(title: String, dueDate: String?, priority: Int, recurrence: String) async -> Bool {
+        if fixture != nil {
+            guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  let snapshot = today else { return false }
+            let task = PlannerTask(id: "fixture-created-task-\(UUID().uuidString)", title: title, dueDate: dueDate, priority: priority, recurrence: recurrence, completedToday: recurrence == "none" ? nil : 0)
+            var updated = snapshot
+            if recurrence == "none" { updated.tasks.append(task) } else { updated.routines.append(task) }
+            today = updated
+            return true
+        }
+        do {
+            let _: PlannerTask = try await api.post("api/tasks", body: NewTask(title: title, dueDate: dueDate, priority: priority, recurrence: recurrence), as: PlannerTask.self)
+            await refresh()
+            return true
+        } catch { errorMessage = error.localizedDescription; return false }
+    }
+
+    func deleteTask(_ task: PlannerTask) async -> Bool {
+        if fixture != nil {
+            guard var snapshot = today else { return false }
+            snapshot.tasks.removeAll { $0.id == task.id }
+            snapshot.routines.removeAll { $0.id == task.id }
+            today = snapshot
+            return true
+        }
+        do {
+            let _: EmptyResponse = try await api.post("api/tasks/delete", body: TaskAction(taskID: task.id), as: EmptyResponse.self)
+            await refresh()
+            return true
+        } catch { errorMessage = error.localizedDescription; return false }
+    }
+
+    @discardableResult
+    func markArticleRead(_ article: Article, surface: String = "article_feed") async -> Bool {
+        guard !readArticleIDs.contains(article.id) else { return true }
+        readArticleIDs.insert(article.id)
+        if fixture != nil { return true }
+        persistArticleIDs(readArticleIDs, forKey: "daily-reader.native.read")
+        do {
+            let _: EmptyResponse = try await api.post("api/read", body: ArticleInteraction(articleID: article.id, surface: surface), as: EmptyResponse.self)
+            return true
+        } catch {
+            readArticleIDs.remove(article.id)
+            persistArticleIDs(readArticleIDs, forKey: "daily-reader.native.read")
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func toggleArticleSaved(_ article: Article) {
+        if savedArticleIDs.contains(article.id) { savedArticleIDs.remove(article.id) }
+        else { savedArticleIDs.insert(article.id) }
+        if fixture == nil { persistArticleIDs(savedArticleIDs, forKey: "daily-reader.native.saved") }
+    }
+
+    @discardableResult
+    func hideArticle(_ article: Article, surface: String = "article_feed") async -> Bool {
+        hiddenArticleIDs.insert(article.id)
+        if fixture != nil { return true }
+        persistArticleIDs(hiddenArticleIDs, forKey: "daily-reader.native.hidden")
+        do {
+            let _: EmptyResponse = try await api.post("api/feedback", body: ArticleInteraction(articleID: article.id, surface: surface), as: EmptyResponse.self)
+            return true
+        } catch {
+            hiddenArticleIDs.remove(article.id)
+            persistArticleIDs(hiddenArticleIDs, forKey: "daily-reader.native.hidden")
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func saveHealthCheckin(_ snapshot: HealthSnapshot) async -> Bool {
+        if fixture != nil {
+            guard var current = today else { return false }
+            current.health = snapshot
+            today = current
+            return true
+        }
+        do {
+            let _: EmptyResponse = try await api.post("api/health/checkin", body: snapshot, as: EmptyResponse.self)
+            await refresh()
+            return true
+        } catch { errorMessage = error.localizedDescription; return false }
     }
 
     @discardableResult
@@ -316,6 +576,10 @@ final class AppModel: ObservableObject {
         pendingEmailActions[email.threadID] = (email, index)
         _ = withAnimation(.easeInOut(duration: 0.24)) {
             emails.remove(at: index)
+        }
+        if fixture != nil {
+            pendingEmailActions.removeValue(forKey: email.threadID)
+            return true
         }
         do {
             let _: EmptyResponse = try await api.post("api/email-status", body: EmailAction(threadID: email.threadID, action: action), as: EmptyResponse.self)
@@ -333,12 +597,17 @@ final class AppModel: ObservableObject {
     }
 
     func fetchEmailContent(threadID: String) async throws -> EmailThreadContent {
+        if let fixture {
+            if let content = fixture.emailContents[threadID] { return content }
+            return EmailThreadContent(threadID: threadID, subject: "fixtureメール", accountEmail: "fixture@example.invalid", messages: [])
+        }
         let encoded = threadID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? threadID
         return try await api.get("api/email-content/\(encoded)", as: EmailThreadContent.self)
     }
 
 #if os(iOS)
     func syncHealth() async {
+        if fixture != nil { return }
         do {
             let token = try SecretStore.readHealthToken() ?? ""
             guard !token.isEmpty else { throw APIClientError.server("設定でHealthKit同期トークンを入力してください") }
