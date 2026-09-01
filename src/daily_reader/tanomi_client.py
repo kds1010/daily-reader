@@ -44,6 +44,12 @@ class TanomiProtocolError(TanomiError):
 class TanomiClient:
     base_url: str = DEFAULT_BASE_URL
     timeout: float = 5.0
+    _opener: urllib.request.OpenerDirector = field(
+        default_factory=lambda: urllib.request.build_opener(_NoRedirect),
+        init=False,
+        repr=False,
+        compare=False,
+    )
     _usage_lock: threading.Lock = field(
         default_factory=threading.Lock, init=False, repr=False, compare=False
     )
@@ -71,7 +77,7 @@ class TanomiClient:
         return f"{url}?{urllib.parse.urlencode(query)}" if query else url
 
     def _open(self, request: urllib.request.Request, timeout: float):
-        return urllib.request.build_opener(_NoRedirect).open(request, timeout=timeout)
+        return self._opener.open(request, timeout=timeout)
 
     def request_json(
         self,

@@ -11,6 +11,7 @@ from daily_reader.tanomi_client import (
     TanomiError,
     TanomiProtocolError,
     TanomiUnavailable,
+    _NoRedirect,
 )
 
 
@@ -31,6 +32,35 @@ def test_client_rejects_unsafe_base_urls() -> None:
         TanomiClient("file:///tmp/tanomi")
     with pytest.raises(ValueError):
         TanomiClient("http://127.0.0.1:8765/?token=secret")
+
+
+def test_client_reuses_one_opener_for_all_requests(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = []
+
+    class FakeOpener:
+        def open(self, request, timeout):
+            calls.append((request, timeout))
+            return Response(b"{}")
+
+    opener = FakeOpener()
+    builds = []
+
+    def build_opener(*handlers):
+        builds.append(handlers)
+        return opener
+
+    monkeypatch.setattr(urllib.request, "build_opener", build_opener)
+    client = TanomiClient()
+
+    client.request_json("GET", "/api/health")
+    client.request_json("GET", "/api/repos")
+
+    assert len(builds) == 1
+    assert builds[0] == (_NoRedirect,)
+    assert [request.full_url for request, _timeout in calls] == [
+        f"{DEFAULT_BASE_URL}/api/health",
+        f"{DEFAULT_BASE_URL}/api/repos",
+    ]
 
 
 def test_request_json_builds_allowlisted_style_request(monkeypatch: pytest.MonkeyPatch) -> None:
