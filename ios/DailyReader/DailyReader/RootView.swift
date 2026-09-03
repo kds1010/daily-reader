@@ -2082,39 +2082,37 @@ struct RuntimeInfo: View {
     let info: DeploymentInfo?
     let refreshedAt: Date?
     var body: some View {
-        if info != nil || refreshedAt != nil {
-            VStack(spacing: 8) {
-                if let info {
-                    HStack {
-                        Label("稼働 \(info.version)", systemImage: "shippingbox")
-                        Spacer()
-                        if let date = info.deployedDate { Text("デプロイ \(date.runtimeDisplay)") }
-                    }
-                    NativeReleaseStatus(info: info)
-                }
-                if let refreshedAt {
-                    TimelineView(.periodic(from: refreshedAt, by: 60)) { context in
-                        let freshness = ScreenRefreshFreshness(updatedAt: refreshedAt, now: context.date)
-                        HStack {
-                            Label("画面更新", systemImage: "arrow.clockwise")
-                            Spacer()
-                            Text(refreshedAt.runtimeDisplay)
-                        }
-                        .foregroundStyle(freshness.color)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityValue("\(refreshedAt.runtimeDisplay)、\(freshness.accessibilityLabel)")
-                    }
+        VStack(spacing: 8) {
+            if let info {
+                HStack {
+                    Label("稼働 \(info.version)", systemImage: "shippingbox")
+                    Spacer()
+                    if let date = info.deployedDate { Text("デプロイ \(date.runtimeDisplay)") }
                 }
             }
-            .appFont(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 4)
+            NativeReleaseStatus(info: info)
+            if let refreshedAt {
+                TimelineView(.periodic(from: refreshedAt, by: 60)) { context in
+                    let freshness = ScreenRefreshFreshness(updatedAt: refreshedAt, now: context.date)
+                    HStack {
+                        Label("画面更新", systemImage: "arrow.clockwise")
+                        Spacer()
+                        Text(refreshedAt.runtimeDisplay)
+                    }
+                    .foregroundStyle(freshness.color)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityValue("\(refreshedAt.runtimeDisplay)、\(freshness.accessibilityLabel)")
+                }
+            }
         }
+        .appFont(.caption)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 4)
     }
 }
 
 private struct NativeReleaseStatus: View {
-    let info: DeploymentInfo
+    let info: DeploymentInfo?
 
     private var updateAvailableLabel: String {
 #if os(iOS)
@@ -2128,8 +2126,28 @@ private struct NativeReleaseStatus: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
     }
 
+    private var installedVersionText: String {
+        let version = installedVersion ?? "—"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+        return build.isEmpty || build == version ? version : "\(version) (\(build))"
+    }
+
+    private var installedIcon: String {
+#if os(iOS)
+        "iphone"
+#else
+        "desktopcomputer"
+#endif
+    }
+
     var body: some View {
-        if let installedVersion, let releaseVersion = info.nativeReleaseVersion {
+        HStack {
+            Label("インストール済み", systemImage: installedIcon)
+            Spacer()
+            Text(installedVersionText)
+        }
+        .accessibilityElement(children: .combine)
+        if let installedVersion, let releaseVersion = info?.nativeReleaseVersion {
             let isLatest = installedVersion == releaseVersion
             HStack {
                 Label(
@@ -2140,6 +2158,13 @@ private struct NativeReleaseStatus: View {
                 Text(isLatest ? installedVersion : "\(installedVersion) → \(releaseVersion)")
             }
             .foregroundStyle(isLatest ? .green : .yellow)
+            .accessibilityElement(children: .combine)
+        } else {
+            HStack {
+                Label("配布版は未確認", systemImage: "questionmark.circle")
+                Spacer()
+                Text("サーバー未接続")
+            }
             .accessibilityElement(children: .combine)
         }
     }
