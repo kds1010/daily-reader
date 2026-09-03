@@ -217,7 +217,8 @@ lsof -nP -iTCP:8787 -sTCP:LISTEN
 ## デプロイ完了条件
 
 - 実行時の挙動に影響する変更は、検証済みコードを `main` へ統合して `origin/main` へ push した後、影響を受ける LaunchAgent を再起動し、実環境を確認して初めて完了とする。
-- Web サーバー、UI、ニュース、メール、プランナー、設定、依存関係の変更では `org.nix-community.home.daily-reader` を再起動する。Agent キュー、Agent ワーカー、リポジトリ操作の変更では `org.nix-community.home.daily-reader-agent-worker` も再起動する。
+- Web サーバー、Web UI、ニュース、メール、プランナー、設定、サーバー依存関係の変更では `org.nix-community.home.daily-reader` を再起動する。Agent キュー、Agent ワーカー、リポジトリ操作の変更では `org.nix-community.home.daily-reader-agent-worker` も再起動する。iPhone/macOSクライアントと配布成果物だけの変更では、サーバーが正常稼働中なら再起動せずに成果物生成と配信検証を行う。
+- デプロイ開始時は再起動の要否にかかわらず、LaunchAgentの状態、プロセスの実行コマンド、8787/8788/8789の待受PIDを確認する。`launchctl`の`state = running`だけでは正常と判断せず、実体が`daily-reader-local`であること、`xpcproxy`のまま停滞していないこと、3ポートを同じPIDが想定アドレスで待ち受けていることを確認する。
 - 再起動前に `lsof -nP -iTCP:8787 -sTCP:LISTEN` で PID を記録する。再起動は次の形式で行う。
 
 ```bash
@@ -225,8 +226,10 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader
 launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-worker
 ```
 
-- 再起動後は、PID の更新、LaunchAgent の稼働、`http://127.0.0.1:8787/` の成功応答、`https://sk-mins-mac-mini.tailc193b2.ts.net/` の成功応答、および変更機能の代表的な動作を確認する。iPhoneクライアント変更の代表確認は次項の配信検証を指し、物理端末上の操作確認は含めない。
+- 再起動後は30秒以内に新PIDが`daily-reader-local`として8787/8788/8789を待ち受けることを確認する。`xpcproxy`のまま、プロセスだけ存在して待受なし、またはHTTP応答なしの場合は起動失敗であり、完了とせずログとプロセス状態を調査する。再起動を省略した場合も同じサーバー状態確認を行う。
+- `http://127.0.0.1:8787/` の成功応答、`https://sk-mins-mac-mini.tailc193b2.ts.net/` の成功応答、および変更機能の代表的な動作を確認する。iPhoneクライアント変更の代表確認は次項の配信検証を指し、物理端末上の操作確認は含めない。
 - SideStore配信を変更した場合は、生成IPAのバージョンとコード署名にHealthKitの2 entitlementが含まれること、`0.0.0.0:8788`の待ち受けと、MacのLAN IPおよび`sk-mins-Mac-mini.local`から`source.json`とIPAを取得できることを確認する。さらに`127.0.0.1:8789`だけで外出先用サーバーが待ち受け、`scripts/verify_sidestore_remote.py`でFunnelの現行3成果物がローカルと一致し、tokenなし、誤token、traversal、APIパス、非GETメソッドが404になることを確認する。同スクリプトでServe/Funnel JSONが`443 -> 8787`のtailnet限定と`8443 -> 8789`のFunnelだけであることも検証する。ここまで成功すれば配信デプロイは完了とし、検証出力へ秘密URLを含めない。
+- SideStoreがTLSエラーを表示した場合は、HTTPSのTLSハンドシェイク、HTTPステータス、`127.0.0.1:8789`の順に切り分ける。TLS成立後に443/8443が502なら証明書ではなくFunnel転送先の停止として扱い、8789とサービスPIDを確認する。
 - iPhoneへのインストール、SideStoreによる再署名、Tailscaleを切った外部回線からの8443取得と443拒否、HealthKit・通知権限、実データ同期、画面・操作確認は配信後にユーザーが実施する独立工程とする。iPhone未接続やユーザー操作待ちをAgentタスクの失敗にせず、完了報告へ配信済みバージョンと実機導入の実施状況を分けて記載する。
 - macOSクライアントを変更した場合は、main統合後に`scripts/build_macos_release.py`で最新アプリとZIPを再生成し、Bundle ID、版、arm64、アドホック署名、Sandbox・外向きネットワーク entitlement、HealthKit entitlement非混入を確認する。アプリを起動し、同じMac mini APIから代表データを取得できれば、このMac向け配布は完了とする。`/Applications`へのコピーは必須ではない。
 - デプロイまたは実環境確認に失敗した状態を完了として扱わない。実行できない場合は未デプロイと阻害要因を明示する。
