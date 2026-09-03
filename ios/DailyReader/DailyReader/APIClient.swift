@@ -42,6 +42,30 @@ actor APIClient {
         let _: EmptyResponse = try await execute(request, as: EmptyResponse.self)
     }
 
+    func uploadRecording(_ fileURL: URL) async throws -> ConversationRecording {
+        let allowed = fileURL.startAccessingSecurityScopedResource()
+        defer { if allowed { fileURL.stopAccessingSecurityScopedResource() } }
+        let values = try fileURL.resourceValues(forKeys: [.fileSizeKey])
+        guard let size = values.fileSize else { throw APIClientError.invalidResponse }
+        let url = makeAPIURL(
+            baseURL: baseURL,
+            path: "api/conversations/upload",
+            queryItems: [URLQueryItem(name: "filename", value: fileURL.lastPathComponent)]
+        )
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("audio/mpeg", forHTTPHeaderField: "Content-Type")
+        request.setValue(String(size), forHTTPHeaderField: "Content-Length")
+        request.timeoutInterval = 3600
+        let (data, response) = try await URLSession.shared.upload(for: request, fromFile: fileURL)
+        guard let http = response as? HTTPURLResponse else { throw APIClientError.invalidResponse }
+        guard 200..<300 ~= http.statusCode else {
+            let message = (try? decoder.decode(APIErrorPayload.self, from: data).error) ?? "HTTP \(http.statusCode)"
+            throw APIClientError.server(message)
+        }
+        return try decoder.decode(ConversationRecording.self, from: data)
+    }
+
     private func execute<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw APIClientError.invalidResponse }

@@ -25,6 +25,8 @@ final class AppModel: ObservableObject {
     @Published var codexUsage: CodexUsageEnvelope?
     @Published var codexUsageFailed = false
     @Published var deploymentInfo: DeploymentInfo?
+    @Published var conversations: [ConversationRecording] = []
+    @Published var conversationLoadState: ResourceLoadState = .idle
     @Published var isRefreshing = false
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
@@ -188,6 +190,7 @@ final class AppModel: ObservableObject {
             newsLoadState = .loaded
             updated = true
         } catch { newsLoadState = .failed(error.localizedDescription) }
+        await refreshConversations()
         deploymentLoadState = .loading
         do {
             deploymentInfo = try await api.get("api/deployment", as: DeploymentInfo.self)
@@ -196,6 +199,47 @@ final class AppModel: ObservableObject {
         if updated {
             lastUpdated = .now
         }
+    }
+
+    func refreshConversations() async {
+        guard !isFixture else { return }
+        conversationLoadState = .loading
+        do {
+            conversations = try await api.get("api/conversations", as: ConversationEnvelope.self).recordings
+            conversationLoadState = .loaded
+        } catch {
+            conversationLoadState = .failed(error.localizedDescription)
+        }
+    }
+
+    func uploadRecording(_ url: URL) async {
+        do {
+            _ = try await api.uploadRecording(url)
+            await refreshConversations()
+        } catch { errorMessage = "録音を送信できませんでした：\(error.localizedDescription)" }
+    }
+
+    func loadConversation(_ id: String) async -> ConversationRecording? {
+        do { return try await api.get("api/conversations/\(id)", as: ConversationRecording.self) }
+        catch { errorMessage = "会話を取得できませんでした：\(error.localizedDescription)"; return nil }
+    }
+
+    func analyzeConversation(_ id: String) async {
+        do {
+            let _: EmptyResponse = try await api.post("api/conversations/\(id)/analyze", body: EmptyRequest(), as: EmptyResponse.self)
+            await refreshConversations()
+        } catch { errorMessage = "解析を開始できませんでした：\(error.localizedDescription)" }
+    }
+
+    func approveConversationTask(_ id: String, target: String, instruction: String, repository: String?) async {
+        do {
+            let _: EmptyResponse = try await api.post(
+                "api/conversation-tasks/\(id)/approve",
+                body: ConversationTaskApproval(target: target, instruction: instruction, repository: repository),
+                as: EmptyResponse.self
+            )
+            await refresh()
+        } catch { errorMessage = "タスクを承認できませんでした：\(error.localizedDescription)" }
     }
 
     func createAgent(prompt: String, repository: String, model: String, reasoningEffort: String) async -> Bool {

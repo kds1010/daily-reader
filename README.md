@@ -4,6 +4,20 @@
 
 Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneとMacで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部サーバーやデータベースは必要ありません。SideStoreの更新成果物だけは、秘密URLで保護したTailscale Funnelの専用ポートから配信できます。起動時はAgentタブを最初に表示します。
 
+## 会話録音の解析
+
+iPhone版の「会話」タブからSoundcore Workが書き出したMP3を選ぶと、原音を
+`data/conversations/audio/`へ再圧縮せず保存します。同一内容はSHA-256で重複排除し、
+保存後の空き容量が5 GiB未満になるアップロードは拒否します。原音は自動削除しません。
+
+Mac側ではfaster-whisperで日本語を文字起こしし、pyannoteの
+`speaker-diarization-community-1`で話者区間を分離します。Hugging Faceでモデルの利用条件に
+同意したうえで、アクセストークンを改行付きの
+`secrets/huggingface-token.txt`へ保存してください。音声と解析処理はMac内で完結します。
+解析結果、話者、話題、発話、確認待ちタスクは`data/conversations.sqlite3`へ保存されます。
+候補タスクは追加指示を編集してから「Agentへ依頼」または「通常タスクに追加」を選ぶまで
+実行されません。
+
 ## 主な機能
 
 - AgentタブからCodexへタスクを投入し、専用worktreeで実装・検証・main反映まで継続

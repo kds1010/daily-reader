@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #endif
@@ -117,7 +118,8 @@ struct RootView: View {
             NavigationStack { TodayView() }.tabItem { Label("今日", systemImage: "checkmark.circle") }.tag(1)
             NavigationStack { EmailView() }.tabItem { Label("メール", systemImage: "envelope") }.badge(model.emails.count).tag(2)
             NavigationStack { NewsView() }.tabItem { Label("ニュース", systemImage: "newspaper") }.tag(3)
-            NavigationStack { SettingsView() }.tabItem { Label("設定", systemImage: "gearshape") }.tag(4)
+            NavigationStack { ConversationsView() }.tabItem { Label("会話", systemImage: "waveform") }.tag(4)
+            NavigationStack { SettingsView() }.tabItem { Label("設定", systemImage: "gearshape") }.tag(5)
         }
         .tint(.mint)
         .alert("接続できませんでした", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {
@@ -146,6 +148,113 @@ struct RootView: View {
             macAgentKeyboard.isEnabled = tab == 0
         }
         #endif
+    }
+}
+
+struct ConversationsView: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var importing = false
+
+    var body: some View {
+        List {
+            Section {
+                Button { importing = true } label: {
+                    Label("SoundcoreのMP3を取り込む", systemImage: "square.and.arrow.down")
+                }
+                Text("原音はMac miniにそのまま保存され、自動削除されません。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            Section("録音") {
+                ResourceStatusView(state: model.conversationLoadState, label: "録音") {
+                    Task { await model.refreshConversations() }
+                }
+                ForEach(model.conversations) { recording in
+                    NavigationLink {
+                        ConversationDetailView(recordingID: recording.id)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(recording.filename).appFont(.headline)
+                            HStack {
+                                Text(recording.status == "completed" ? "解析済み" : recording.status == "failed" ? "要確認" : "解析中")
+                                Text(ByteCountFormatter.string(fromByteCount: Int64(recording.byteSize), countStyle: .file))
+                            }.appFont(.caption).foregroundStyle(.secondary)
+                            if let error = recording.error { Text(error).appFont(.caption).foregroundStyle(.orange) }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("会話")
+        .refreshable { await model.refreshConversations() }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.mp3], allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                Task { await model.uploadRecording(url) }
+            } else if case .failure(let error) = result {
+                model.errorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+struct ConversationDetailView: View {
+    @EnvironmentObject private var model: AppModel
+    let recordingID: String
+    @State private var recording: ConversationRecording?
+    @State private var instructions: [String: String] = [:]
+
+    var body: some View {
+        List {
+            if let recording {
+                Section("概要") {
+                    Text(recording.filename)
+                    ForEach(recording.topics ?? []) { topic in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(topic.name).appFont(.headline)
+                            Text(topic.summary).appFont(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
+                    if recording.status == "failed" {
+                        Text(recording.error ?? "解析に失敗しました").foregroundStyle(.orange)
+                        Button("解析を再実行") { Task { await model.analyzeConversation(recordingID); await reload() } }
+                    }
+                }
+                Section("会話") {
+                    ForEach(recording.utterances ?? []) { utterance in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack { Text(utterance.speaker ?? "話者").bold(); Spacer(); Text(utterance.topic) }
+                                .appFont(.caption).foregroundStyle(.secondary)
+                            Text(utterance.text).textSelection(.enabled)
+                        }
+                    }
+                }
+                Section("確認待ちのタスク") {
+                    ForEach((recording.taskProposals ?? []).filter { $0.status == "awaiting_review" }) { proposal in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(proposal.title).appFont(.headline)
+                            TextField("追加の指示", text: Binding(
+                                get: { instructions[proposal.id, default: proposal.instruction] },
+                                set: { instructions[proposal.id] = $0 }
+                            ), axis: .vertical)
+                            HStack {
+                                Button("通常タスクに追加") { approve(proposal, target: "planner") }.buttonStyle(.bordered)
+                                Button("Agentへ依頼") { approve(proposal, target: "agent") }.buttonStyle(.borderedProminent)
+                            }
+                        }
+                    }
+                }
+            } else { ProgressView("会話を読み込んでいます…") }
+        }
+        .navigationTitle("解析結果")
+        .task { await reload() }
+    }
+
+    private func reload() async { recording = await model.loadConversation(recordingID) }
+    private func approve(_ proposal: ConversationTaskProposal, target: String) {
+        let repository = target == "agent" ? model.repositories.first?.name : nil
+        Task {
+            await model.approveConversationTask(proposal.id, target: target, instruction: instructions[proposal.id, default: ""], repository: repository)
+            await reload()
+        }
     }
 }
 

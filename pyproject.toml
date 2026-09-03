@@ -8,6 +8,8 @@ dependencies = [
   "feedparser>=6.0.11,<7",
   "google-api-python-client>=2.179,<3",
   "google-auth-oauthlib>=1.2,<2",
+  "faster-whisper>=1.2,<2",
+  "pyannote.audio>=4.0,<5",
 ]
 
 [project.scripts]

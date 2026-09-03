@@ -37,6 +37,15 @@ from daily_reader.agent_jobs import (
     request_cancel,
     resume_job,
 )
+from daily_reader.conversations import (
+    get_recording,
+    list_recordings,
+    mark_proposal_approved,
+    proposal,
+    start_analysis,
+    store_upload,
+    update_speaker,
+)
 from daily_reader.core import collect, load_config, load_keywords, write_output
 from daily_reader.daily_planner import (
     create_task,
@@ -585,6 +594,9 @@ def make_handler(
     tanomi_client: TanomiClient | None = None,
     sidestore_directory: Path = Path("data/sidestore"),
     macos_release_app: Path = Path("data/macos/Daymeld.app"),
+    conversations_db: Path = Path("data/conversations.sqlite3"),
+    conversation_audio_dir: Path = Path("data/conversations/audio"),
+    huggingface_token: Path = Path("secrets/huggingface-token.txt"),
 ):
     repositories = agent_repositories or {}
     tanomi = tanomi_client
@@ -636,6 +648,16 @@ def make_handler(
 
         def do_GET(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path == "/api/conversations":
+                self._send_json(200, {"recordings": list_recordings(conversations_db)})
+                return
+            if path.startswith("/api/conversations/"):
+                recording_id = path.rsplit("/", 1)[-1]
+                try:
+                    self._send_json(200, get_recording(conversations_db, recording_id))
+                except KeyError:
+                    self._send_json(404, {"error": "recording not found"})
+                return
             if path == "/sidestore" or path.startswith("/sidestore/"):
                 self._send_json(404, {"error": "not found"})
                 return
@@ -819,6 +841,82 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path == "/api/conversations/upload":
+                query = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(self.path).query))
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    item = store_upload(
+                        conversations_db,
+                        conversation_audio_dir,
+                        self.rfile,
+                        length,
+                        query.get("filename", ""),
+                    )
+                    start_analysis(conversations_db, str(item["id"]), huggingface_token)
+                    self._send_json(201, item)
+                except (OSError, TypeError, ValueError) as error:
+                    self._send_json(400, {"error": str(error)})
+                return
+            if path.startswith("/api/conversations/") and path.endswith("/analyze"):
+                recording_id = path.split("/")[-2]
+                try:
+                    get_recording(conversations_db, recording_id)
+                    start_analysis(conversations_db, recording_id, huggingface_token)
+                    self._send_json(202, {"queued": True})
+                except KeyError:
+                    self._send_json(404, {"error": "recording not found"})
+                return
+            if path.startswith("/api/conversation-speakers/"):
+                try:
+                    request = self._read_json()
+                    update_speaker(
+                        conversations_db,
+                        path.rsplit("/", 1)[-1],
+                        request["display_name"],
+                    )
+                    self._send_json(202, {"updated": True})
+                except (KeyError, TypeError, ValueError):
+                    self._send_json(400, {"error": "invalid speaker"})
+                return
+            if path.startswith("/api/conversation-tasks/") and path.endswith("/approve"):
+                proposal_id = path.split("/")[-2]
+                try:
+                    request = self._read_json()
+                    item = proposal(conversations_db, proposal_id)
+                    target = request.get("target")
+                    instruction = request.get("instruction", "")
+                    if not isinstance(instruction, str) or len(instruction) > 10_000:
+                        raise ValueError("invalid instruction")
+                    prompt = "\n\n".join(
+                        value
+                        for value in (str(item["title"]), instruction.strip())
+                        if value
+                    )
+                    if target == "planner":
+                        created = create_task(
+                            planner_db,
+                            {"title": prompt[:200], "priority": 2, "recurrence": "none"},
+                            datetime.now(UTC),
+                        )
+                    elif target == "agent":
+                        created = create_job(
+                            agent_db,
+                            repositories,
+                            {"repository": request.get("repository"), "prompt": prompt},
+                            agent_model_options(),
+                        )
+                    else:
+                        raise ValueError("invalid approval target")
+                    mark_proposal_approved(
+                        conversations_db,
+                        proposal_id,
+                        str(target),
+                        str(created["id"]),
+                    )
+                    self._send_json(201, created)
+                except (KeyError, TypeError, ValueError) as error:
+                    self._send_json(400, {"error": str(error)})
+                return
             if path.startswith("/api/tanomi/"):
                 if tanomi is None:
                     self._send_json(503, {"error": "tanomi は設定されていません"})
@@ -1556,6 +1654,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--planner-db", type=Path, default=Path("data/planner.sqlite3"))
     parser.add_argument("--agent-db", type=Path, default=Path("data/agent.sqlite3"))
     parser.add_argument(
+        "--conversations-db", type=Path, default=Path("data/conversations.sqlite3")
+    )
+    parser.add_argument(
+        "--conversation-audio-dir", type=Path, default=Path("data/conversations/audio")
+    )
+    parser.add_argument(
+        "--huggingface-token", type=Path, default=Path("secrets/huggingface-token.txt")
+    )
+    parser.add_argument(
         "--agent-repositories",
         type=Path,
         default=Path("config/agent-repositories.toml"),
@@ -1629,6 +1736,9 @@ def main() -> None:
         TanomiClient(args.tanomi_base_url),
         sidestore_directory=args.sidestore_dir,
         macos_release_app=args.macos_release_app,
+        conversations_db=args.conversations_db,
+        conversation_audio_dir=args.conversation_audio_dir,
+        huggingface_token=args.huggingface_token,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     sidestore_server = start_sidestore_server(

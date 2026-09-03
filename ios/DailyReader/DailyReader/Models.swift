@@ -390,6 +390,53 @@ struct PlannerTask: Decodable, Identifiable {
     }
 }
 
+struct ConversationEnvelope: Decodable { let recordings: [ConversationRecording] }
+
+struct ConversationRecording: Decodable, Identifiable {
+    let id: String
+    let filename: String
+    let byteSize: Int
+    let status: String
+    let error: String?
+    let createdAt: String
+    let analyzedAt: String?
+    let speakers: [ConversationSpeaker]?
+    let utterances: [ConversationUtterance]?
+    let topics: [ConversationTopic]?
+    let taskProposals: [ConversationTaskProposal]?
+    enum CodingKeys: String, CodingKey {
+        case id, filename, status, error, speakers, utterances, topics
+        case byteSize = "byte_size"; case createdAt = "created_at"; case analyzedAt = "analyzed_at"
+        case taskProposals = "task_proposals"
+    }
+}
+
+struct ConversationSpeaker: Decodable, Identifiable {
+    let id: String; let label: String; let displayName: String?
+    enum CodingKeys: String, CodingKey { case id, label; case displayName = "display_name" }
+}
+
+struct ConversationUtterance: Decodable, Identifiable {
+    let id: String; let speaker: String?; let startSeconds: Double; let endSeconds: Double
+    let text: String; let confidence: Double?; let context: String; let topic: String
+    enum CodingKeys: String, CodingKey {
+        case id, speaker, text, confidence, context, topic
+        case startSeconds = "start_seconds"; case endSeconds = "end_seconds"
+    }
+}
+
+struct ConversationTopic: Decodable, Identifiable {
+    let id: String; let name: String; let context: String; let summary: String
+}
+
+struct ConversationTaskProposal: Decodable, Identifiable {
+    let id: String; let title: String; let instruction: String; let status: String
+}
+
+struct ConversationTaskApproval: Encodable {
+    let target: String; let instruction: String; let repository: String?
+}
+
 struct HealthSnapshot: Codable {
     var date: String?
     var sleepMinutes: Int?
