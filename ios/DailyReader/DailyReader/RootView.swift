@@ -1151,6 +1151,9 @@ struct TodayView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 StatusHero(title: "今日", subtitle: todaySubtitle, icon: "sun.max.fill", color: .orange)
+#if os(iOS)
+                DeviceLocationCard()
+#endif
                 if model.today == nil && model.todayLoadState != .loaded {
                     ResourceStatusView(state: model.todayLoadState, label: "今日") {
                         Task { await model.refresh() }
@@ -1197,6 +1200,94 @@ struct TodayView: View {
         }
     }
 }
+
+#if os(iOS)
+struct DeviceLocationCard: View {
+    @StateObject private var location = DeviceLocationService()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("現在地", systemImage: "location.fill")
+                    .appFont(.headline)
+                    .foregroundStyle(.cyan)
+                Spacer()
+                if case .located(let reading) = location.state {
+                    Text(reading.isApproximate ? "概算位置" : "正確な位置")
+                        .badgeStyle(reading.isApproximate ? .orange : .green)
+                }
+            }
+
+            locationContent
+
+            Button {
+                location.requestLocation()
+            } label: {
+                HStack {
+                    if isRequesting { ProgressView() }
+                    Label(buttonTitle, systemImage: "location.circle")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.cyan)
+            .disabled(isRequesting)
+
+            Text("位置情報はこの画面の表示にだけ使用し、送信・保存しません。")
+                .appFont(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .glassCard()
+    }
+
+    @ViewBuilder
+    private var locationContent: some View {
+        switch location.state {
+        case .idle:
+            Text("ボタンを押すまで位置情報にはアクセスしません。")
+                .foregroundStyle(.secondary)
+        case .requestingAuthorization:
+            Label("位置情報の利用許可を確認しています…", systemImage: "hand.raised.fill")
+                .foregroundStyle(.secondary)
+        case .locating:
+            Label("現在地を一回だけ取得しています…", systemImage: "location.magnifyingglass")
+                .foregroundStyle(.secondary)
+        case .located(let reading):
+            VStack(alignment: .leading, spacing: 8) {
+                LabeledContent("緯度", value: reading.latitude.formatted(.number.precision(.fractionLength(6))))
+                LabeledContent("経度", value: reading.longitude.formatted(.number.precision(.fractionLength(6))))
+                LabeledContent("水平精度", value: "約\(reading.horizontalAccuracy.formatted(.number.precision(.fractionLength(0)))) m")
+                LabeledContent("取得時刻", value: reading.timestamp.formatted(date: .omitted, time: .standard))
+            }
+            .appFont(.subheadline)
+        case .denied:
+            Label("位置情報が許可されていません。iPhoneの設定でDaymeldの位置情報を許可してください。", systemImage: "location.slash.fill")
+                .foregroundStyle(.orange)
+        case .restricted:
+            Label("この端末では位置情報の利用が制限されています。", systemImage: "lock.fill")
+                .foregroundStyle(.orange)
+        case .servicesDisabled:
+            Label("iPhoneの位置情報サービスがオフです。", systemImage: "location.slash.fill")
+                .foregroundStyle(.orange)
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+        }
+    }
+
+    private var isRequesting: Bool {
+        switch location.state {
+        case .requestingAuthorization, .locating: true
+        default: false
+        }
+    }
+
+    private var buttonTitle: String {
+        if case .located = location.state { return "現在地を再取得" }
+        return "現在地を取得"
+    }
+}
+#endif
 
 struct TaskComposer: View {
     @EnvironmentObject private var model: AppModel
