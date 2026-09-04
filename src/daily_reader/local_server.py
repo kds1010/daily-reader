@@ -161,6 +161,7 @@ def read_codex_rate_limits(timeout: float = 10) -> dict[str, object]:
                 "capabilities": {"experimentalApi": True},
             },
         },
+        {"method": "initialized", "params": {}},
         {"id": 2, "method": "account/rateLimits/read", "params": None},
     )
     try:

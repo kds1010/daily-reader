@@ -460,7 +460,8 @@ def test_codex_rate_limits_use_app_server_protocol(monkeypatch: pytest.MonkeyPat
 
     requests = [json.loads(line) for line in process.stdin.getvalue().splitlines()]
     assert requests[0]["method"] == "initialize"
-    assert requests[1] == {"id": 2, "method": "account/rateLimits/read", "params": None}
+    assert requests[1] == {"method": "initialized", "params": {}}
+    assert requests[2] == {"id": 2, "method": "account/rateLimits/read", "params": None}
     assert result["rateLimitsByLimitId"]["codex"]["primary"]["usedPercent"] == 18
     assert "codex_bengalfox" not in result["rateLimitsByLimitId"]
 
