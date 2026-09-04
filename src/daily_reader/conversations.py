@@ -28,7 +28,9 @@ def initialize_database(path: Path) -> None:
                 id TEXT PRIMARY KEY, filename TEXT NOT NULL, audio_path TEXT NOT NULL,
                 sha256 TEXT NOT NULL UNIQUE, byte_size INTEGER NOT NULL,
                 status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL,
-                analyzed_at TEXT
+                analyzed_at TEXT, recorded_at TEXT,
+                location_latitude REAL, location_longitude REAL,
+                location_accuracy REAL, location_timestamp TEXT, location_time_delta REAL
             );
             CREATE TABLE IF NOT EXISTS speakers (
                 id TEXT PRIMARY KEY, recording_id TEXT NOT NULL REFERENCES recordings(id),
@@ -52,8 +54,25 @@ def initialize_database(path: Path) -> None:
                 status TEXT NOT NULL DEFAULT 'awaiting_review', approved_target TEXT,
                 approved_item_id TEXT, created_at TEXT NOT NULL, approved_at TEXT
             );
+            CREATE TABLE IF NOT EXISTS location_events (
+                id TEXT PRIMARY KEY, timestamp TEXT NOT NULL,
+                latitude REAL NOT NULL, longitude REAL NOT NULL,
+                horizontal_accuracy REAL NOT NULL, is_approximate INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(timestamp, latitude, longitude)
+            );
             """
         )
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(recordings)")}
+        for name, definition in {
+            "recorded_at": "TEXT",
+            "location_latitude": "REAL",
+            "location_longitude": "REAL",
+            "location_accuracy": "REAL",
+            "location_timestamp": "TEXT",
+            "location_time_delta": "REAL",
+        }.items():
+            if name not in columns:
+                connection.execute(f"ALTER TABLE recordings ADD COLUMN {name} {definition}")
 
 
 def _connect(path: Path) -> sqlite3.Connection:
@@ -65,7 +84,12 @@ def _connect(path: Path) -> sqlite3.Connection:
 
 
 def store_upload(
-    database: Path, audio_directory: Path, source: BinaryIO, length: int, filename: str
+    database: Path,
+    audio_directory: Path,
+    source: BinaryIO,
+    length: int,
+    filename: str,
+    recorded_at: str | None = None,
 ) -> dict[str, object]:
     if not 0 < length <= MAX_UPLOAD_BYTES:
         raise ValueError("invalid audio size")
@@ -104,9 +128,17 @@ def store_upload(
             now = datetime.now(UTC).isoformat()
             connection.execute(
                 """INSERT INTO recordings
-                (id, filename, audio_path, sha256, byte_size, status, created_at)
-                VALUES (?, ?, ?, ?, ?, 'queued', ?)""",
-                (recording_id, Path(filename).name[:240], str(destination), checksum, length, now),
+                (id, filename, audio_path, sha256, byte_size, status, created_at, recorded_at)
+                VALUES (?, ?, ?, ?, ?, 'queued', ?, ?)""",
+                (
+                    recording_id,
+                    Path(filename).name[:240],
+                    str(destination),
+                    checksum,
+                    length,
+                    now,
+                    recorded_at,
+                ),
             )
         return get_recording(database, recording_id)
     except Exception:
@@ -121,7 +153,9 @@ def list_recordings(database: Path) -> list[dict[str, object]]:
         return [
             dict(row)
             for row in connection.execute(
-                "SELECT id, filename, byte_size, status, error, created_at, analyzed_at "
+                "SELECT id, filename, byte_size, status, error, created_at, analyzed_at, "
+                "recorded_at, location_latitude, location_longitude, location_accuracy, "
+                "location_timestamp, location_time_delta "
                 "FROM recordings ORDER BY created_at DESC"
             )
         ]
@@ -168,6 +202,68 @@ def get_recording(database: Path, recording_id: str) -> dict[str, object]:
             )
         ]
         return result
+
+
+def store_location_events(database: Path, events: list[dict[str, object]]) -> int:
+    if len(events) > 500:
+        raise ValueError("位置イベントが多すぎます")
+    with _connect(database) as connection:
+        for event in events:
+            timestamp = str(event["timestamp"])
+            latitude, longitude = float(event["latitude"]), float(event["longitude"])
+            accuracy = float(event["horizontal_accuracy"])
+            if (
+                not -90 <= latitude <= 90
+                or not -180 <= longitude <= 180
+                or not 0 <= accuracy <= 100000
+            ):
+                raise ValueError("invalid location event")
+            connection.execute(
+                """INSERT OR IGNORE INTO location_events
+                (id,timestamp,latitude,longitude,horizontal_accuracy,is_approximate)
+                VALUES(?,?,?,?,?,?)""",
+                (
+                    uuid.uuid4().hex,
+                    timestamp,
+                    latitude,
+                    longitude,
+                    accuracy,
+                    int(bool(event.get("is_approximate", False))),
+                ),
+            )
+    return len(events)
+
+
+def match_recording_location(
+    database: Path, recording_id: str, max_delta_seconds: float = 7200
+) -> dict[str, object] | None:
+    with _connect(database) as connection:
+        row = connection.execute(
+            "SELECT recorded_at, created_at FROM recordings WHERE id=?", (recording_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(recording_id)
+        target = row[0] or row[1]
+        candidate = connection.execute(
+            """SELECT *, ABS(strftime('%s', timestamp)-strftime('%s', ?)) AS delta
+            FROM location_events ORDER BY delta LIMIT 1""",
+            (target,),
+        ).fetchone()
+        if candidate is None or candidate["delta"] > max_delta_seconds:
+            return None
+        connection.execute(
+            """UPDATE recordings SET location_latitude=?, location_longitude=?,
+            location_accuracy=?, location_timestamp=?, location_time_delta=? WHERE id=?""",
+            (
+                candidate["latitude"],
+                candidate["longitude"],
+                candidate["horizontal_accuracy"],
+                candidate["timestamp"],
+                candidate["delta"],
+                recording_id,
+            ),
+        )
+        return dict(candidate)
 
 
 def update_speaker(database: Path, speaker_id: str, display_name: str) -> None:

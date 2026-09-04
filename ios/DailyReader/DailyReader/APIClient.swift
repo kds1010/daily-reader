@@ -42,7 +42,7 @@ actor APIClient {
         let _: EmptyResponse = try await execute(request, as: EmptyResponse.self)
     }
 
-    func uploadRecording(_ fileURL: URL) async throws -> ConversationRecording {
+    func uploadRecording(_ fileURL: URL, recordedAt: Date?) async throws -> ConversationRecording {
         let allowed = fileURL.startAccessingSecurityScopedResource()
         defer { if allowed { fileURL.stopAccessingSecurityScopedResource() } }
         let values = try fileURL.resourceValues(forKeys: [.fileSizeKey])
@@ -50,7 +50,7 @@ actor APIClient {
         let url = makeAPIURL(
             baseURL: baseURL,
             path: "api/conversations/upload",
-            queryItems: [URLQueryItem(name: "filename", value: fileURL.lastPathComponent)]
+            queryItems: [URLQueryItem(name: "filename", value: fileURL.lastPathComponent), URLQueryItem(name: "recorded_at", value: recordedAt?.ISO8601Format())]
         )
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -64,6 +64,10 @@ actor APIClient {
             throw APIClientError.server(message)
         }
         return try decoder.decode(ConversationRecording.self, from: data)
+    }
+
+    func syncLocations(_ events: [LocationEvent]) async throws {
+        let _: LocationSyncResponse = try await post("api/locations/sync", body: LocationSyncRequest(events: events), as: LocationSyncResponse.self)
     }
 
     private func execute<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
@@ -85,6 +89,9 @@ func makeAPIURL(baseURL: URL, path: String, queryItems: [URLQueryItem] = []) -> 
 
 struct EmptyResponse: Decodable {}
 struct EmptyRequest: Encodable {}
+struct LocationEvent: Codable { let timestamp: String; let latitude: Double; let longitude: Double; let horizontal_accuracy: Double; let is_approximate: Bool }
+struct LocationSyncRequest: Encodable { let events: [LocationEvent] }
+struct LocationSyncResponse: Decodable { let stored: Int }
 enum APIClientError: LocalizedError {
     case invalidResponse
     case server(String)

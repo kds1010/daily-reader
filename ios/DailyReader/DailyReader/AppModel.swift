@@ -214,7 +214,8 @@ final class AppModel: ObservableObject {
 
     func uploadRecording(_ url: URL) async {
         do {
-            _ = try await api.uploadRecording(url)
+            let date = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+            _ = try await api.uploadRecording(url, recordedAt: date)
             await refreshConversations()
         } catch { errorMessage = "録音を送信できませんでした：\(error.localizedDescription)" }
     }

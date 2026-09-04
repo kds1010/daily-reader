@@ -11,6 +11,8 @@ from daily_reader.conversations import (
     mark_proposal_approved,
     store_upload,
     update_speaker,
+    store_location_events,
+    match_recording_location,
 )
 
 
@@ -30,6 +32,22 @@ def test_upload_keeps_original_and_deduplicates(tmp_path: Path) -> None:
 def test_upload_rejects_non_mp3(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="only MP3"):
         store_upload(tmp_path / "db", tmp_path / "audio", io.BytesIO(b"x"), 1, "x.wav")
+
+
+def test_location_events_match_recording_by_time(tmp_path: Path) -> None:
+    database = tmp_path / "db"
+    item = store_upload(database, tmp_path / "audio", io.BytesIO(b"ID3x"), 4, "x.mp3", "2026-09-04T10:00:00+00:00")
+    store_location_events(database, [{"timestamp": "2026-09-04T09:59:30+00:00", "latitude": 35.0, "longitude": 139.0, "horizontal_accuracy": 20}])
+    match = match_recording_location(database, str(item["id"]))
+    assert match and match["latitude"] == 35.0
+    assert get_recording(database, str(item["id"]))["location_time_delta"] == 30.0
+
+
+def test_location_match_ignores_distant_event(tmp_path: Path) -> None:
+    database = tmp_path / "db"
+    item = store_upload(database, tmp_path / "audio", io.BytesIO(b"ID3x"), 4, "x.mp3", "2026-09-04T10:00:00+00:00")
+    store_location_events(database, [{"timestamp": "2026-09-04T20:00:00+00:00", "latitude": 35.0, "longitude": 139.0, "horizontal_accuracy": 20}])
+    assert match_recording_location(database, str(item["id"])) is None
 
 
 def test_recording_returns_speakers_utterances_topics_and_tasks(tmp_path: Path) -> None:

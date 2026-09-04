@@ -43,8 +43,10 @@ from daily_reader.conversations import (
     get_recording,
     list_recordings,
     mark_proposal_approved,
+    match_recording_location,
     proposal,
     start_analysis,
+    store_location_events,
     store_upload,
     update_speaker,
 )
@@ -151,8 +153,7 @@ def _without_codex_spark_limits(result: dict[str, object]) -> dict[str, object]:
         limit_id: limit
         for limit_id, limit in limits.items()
         if not (
-            isinstance(limit, dict)
-            and "codex-spark" in str(limit.get("limitName", "")).lower()
+            isinstance(limit, dict) and "codex-spark" in str(limit.get("limitName", "")).lower()
         )
     }
     return result
@@ -380,6 +381,8 @@ def agent_model_options(*, now: float | None = None) -> list[dict[str, object]]:
             models = _model_cache[1] if _model_cache is not None else FALLBACK_MODEL_OPTIONS
         _model_cache = (timestamp, models)
         return models
+
+
 def build_deployment_info(repository: Path, deployed_at: datetime) -> dict[str, str]:
     try:
         package_version = version("daily-reader")
@@ -418,8 +421,7 @@ def sidestore_release_version(directory: Path) -> str | None:
     ipa_path = directory / "DailyReader.ipa"
     icon_path = directory / "icon.png"
     if not all(
-        path.is_file() and not path.is_symlink()
-        for path in (source_path, ipa_path, icon_path)
+        path.is_file() and not path.is_symlink() for path in (source_path, ipa_path, icon_path)
     ):
         return None
     try:
@@ -444,8 +446,7 @@ def sidestore_release_version(directory: Path) -> str | None:
         or isinstance(size_value, bool)
         or size_value != ipa_size
         or not isinstance(download_url, str)
-        or urllib.parse.urlsplit(download_url).path.rsplit("/", 1)[-1]
-        != "DailyReader.ipa"
+        or urllib.parse.urlsplit(download_url).path.rsplit("/", 1)[-1] != "DailyReader.ipa"
     ):
         return None
     return version_value
@@ -476,9 +477,7 @@ def macos_release_version(app: Path) -> str | None:
     return _validated_release_version(info.get("CFBundleShortVersionString"))
 
 
-def build_native_release_info(
-    sidestore_directory: Path, macos_app: Path
-) -> dict[str, str]:
+def build_native_release_info(sidestore_directory: Path, macos_app: Path) -> dict[str, str]:
     releases = {}
     if ios_version := sidestore_release_version(sidestore_directory):
         releases["ios_release_version"] = ios_version
@@ -530,9 +529,7 @@ def summarize_read_events(log_path: Path) -> dict[str, object]:
     }
 
 
-def append_feedback_event(
-    log_path: Path, article: dict[str, object], surface: str
-) -> None:
+def append_feedback_event(log_path: Path, article: dict[str, object], surface: str) -> None:
     event = {
         "feedback_at": datetime.now(UTC).isoformat(),
         "feedback": "not_interested",
@@ -558,9 +555,7 @@ def load_feedback_events(log_path: Path) -> list[dict[str, object]]:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if event.get("feedback") == "not_interested" and isinstance(
-            event.get("article_id"), str
-        ):
+        if event.get("feedback") == "not_interested" and isinstance(event.get("article_id"), str):
             events.append(event)
     return events
 
@@ -666,9 +661,7 @@ def make_handler(
             return payload
 
         def _health_sync_authorized(self) -> bool:
-            return health_sync_authorized(
-                health_sync_token, self.headers.get("Authorization", "")
-            )
+            return health_sync_authorized(health_sync_token, self.headers.get("Authorization", ""))
 
         def _tanomi_error(self, error: Exception) -> None:
             if isinstance(error, TanomiError) and error.status is not None:
@@ -840,9 +833,11 @@ def make_handler(
                 events = load_feedback_events(feedback_log_path)
                 self._send_json(
                     200,
-                    {"hidden_article_ids": list(dict.fromkeys(
-                        event["article_id"] for event in events
-                    ))},
+                    {
+                        "hidden_article_ids": list(
+                            dict.fromkeys(event["article_id"] for event in events)
+                        )
+                    },
                 )
                 return
             if self.path == "/api/emails/unread":
@@ -890,10 +885,22 @@ def make_handler(
                         self.rfile,
                         length,
                         query.get("filename", ""),
+                        query.get("recorded_at"),
                     )
                     start_analysis(conversations_db, str(item["id"]), huggingface_token)
                     self._send_json(201, item)
                 except (OSError, TypeError, ValueError) as error:
+                    self._send_json(400, {"error": str(error)})
+                return
+            if path == "/api/locations/sync":
+                try:
+                    payload = self._read_json(max_length=512_000)
+                    events = payload.get("events")
+                    if not isinstance(events, list):
+                        raise ValueError("events must be an array")
+                    count = store_location_events(conversations_db, events)
+                    self._send_json(200, {"stored": count})
+                except (ValueError, TypeError, KeyError) as error:
                     self._send_json(400, {"error": str(error)})
                 return
             if path.startswith("/api/conversations/") and path.endswith("/analyze"):
@@ -902,6 +909,14 @@ def make_handler(
                     get_recording(conversations_db, recording_id)
                     start_analysis(conversations_db, recording_id, huggingface_token)
                     self._send_json(202, {"queued": True})
+                except KeyError:
+                    self._send_json(404, {"error": "recording not found"})
+                return
+            if path.startswith("/api/conversations/") and path.endswith("/match-location"):
+                recording_id = path.split("/")[-2]
+                try:
+                    result = match_recording_location(conversations_db, recording_id)
+                    self._send_json(200, {"location": result})
                 except KeyError:
                     self._send_json(404, {"error": "recording not found"})
                 return
@@ -927,9 +942,7 @@ def make_handler(
                     if not isinstance(instruction, str) or len(instruction) > 10_000:
                         raise ValueError("invalid instruction")
                     prompt = "\n\n".join(
-                        value
-                        for value in (str(item["title"]), instruction.strip())
-                        if value
+                        value for value in (str(item["title"]), instruction.strip()) if value
                     )
                     if target == "planner":
                         created = create_task(
@@ -1094,9 +1107,7 @@ def make_handler(
                     self._send_json(202, {"deleted": True})
                     return
                 if self.path == "/api/health/checkin":
-                    self._send_json(
-                        202, upsert_health_checkin(planner_db, request, now, "manual")
-                    )
+                    self._send_json(202, upsert_health_checkin(planner_db, request, now, "manual"))
                     return
                 if self.path == "/api/health/sync":
                     if not self._health_sync_authorized():
@@ -1238,8 +1249,7 @@ def load_sidestore_remote_token(path: Path) -> str:
     except (binascii.Error, ValueError):
         decoded = b""
     is_canonical = (
-        len(decoded) == 32
-        and base64.urlsafe_b64encode(decoded).decode().rstrip("=") == token
+        len(decoded) == 32 and base64.urlsafe_b64encode(decoded).decode().rstrip("=") == token
     )
     if (
         len(token) != SIDESTORE_REMOTE_TOKEN_LENGTH
@@ -1252,10 +1262,7 @@ def load_sidestore_remote_token(path: Path) -> str:
 
 def sidestore_remote_ipas(directory: Path, token: str) -> tuple[str, ...]:
     source = json.loads((directory / "remote-source.json").read_text(encoding="utf-8"))
-    if (
-        not isinstance(source, dict)
-        or source.get("subtitle") != SIDESTORE_REMOTE_SOURCE_SUBTITLE
-    ):
+    if not isinstance(source, dict) or source.get("subtitle") != SIDESTORE_REMOTE_SOURCE_SUBTITLE:
         raise ValueError("SideStore remote source must hide its credential URL")
     app = source["apps"][0]
     versions = app["versions"]
@@ -1286,9 +1293,7 @@ def sidestore_remote_ipas(directory: Path, token: str) -> tuple[str, ...]:
         try:
             parsed_date = calendar_date.fromisoformat(date_value)
         except ValueError as error:
-            raise ValueError(
-                "SideStore remote source contains invalid version metadata"
-            ) from error
+            raise ValueError("SideStore remote source contains invalid version metadata") from error
         if parsed_date.isoformat() != date_value:
             raise ValueError("SideStore remote source contains invalid version metadata")
         download_path = urllib.parse.urlsplit(download_url).path
@@ -1307,10 +1312,7 @@ def sidestore_remote_ipas(directory: Path, token: str) -> tuple[str, ...]:
     if not all(isinstance(url, str) for url in urls.values()):
         raise ValueError("SideStore remote source contains non-string artifact URLs")
     expected_prefix = f"/{token}/"
-    parsed_urls = {
-        name: urllib.parse.urlsplit(url)
-        for name, url in urls.items()
-    }
+    parsed_urls = {name: urllib.parse.urlsplit(url) for name, url in urls.items()}
     try:
         for parsed in parsed_urls.values():
             _ = parsed.port
@@ -1520,9 +1522,7 @@ def start_sidestore_remote_server(
     port: int,
     token_path: Path,
 ) -> ThreadingHTTPServer | None:
-    missing = [
-        name for name in SIDESTORE_REMOTE_REQUIRED_FILES if not (directory / name).is_file()
-    ]
+    missing = [name for name in SIDESTORE_REMOTE_REQUIRED_FILES if not (directory / name).is_file()]
     if missing:
         LOGGER.info("SideStore remote server disabled; missing files: %s", ", ".join(missing))
         return None
@@ -1685,23 +1685,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--keywords", type=Path, default=Path("config/keywords.toml"))
     parser.add_argument("--update-hours", default="8,10,12,17,20,22")
     parser.add_argument("--read-log", type=Path, default=Path("data/read-events.jsonl"))
-    parser.add_argument(
-        "--feedback-log", type=Path, default=Path("data/feedback-events.jsonl")
-    )
+    parser.add_argument("--feedback-log", type=Path, default=Path("data/feedback-events.jsonl"))
     parser.add_argument(
         "--selection-history",
         type=Path,
         default=Path("data/selection-history.jsonl"),
     )
-    parser.add_argument(
-        "--update-stats", type=Path, default=Path("data/update-stats.jsonl")
-    )
+    parser.add_argument("--update-stats", type=Path, default=Path("data/update-stats.jsonl"))
     parser.add_argument("--assistant-db", type=Path, default=Path("data/assistant.sqlite3"))
     parser.add_argument("--planner-db", type=Path, default=Path("data/planner.sqlite3"))
     parser.add_argument("--agent-db", type=Path, default=Path("data/agent.sqlite3"))
-    parser.add_argument(
-        "--conversations-db", type=Path, default=Path("data/conversations.sqlite3")
-    )
+    parser.add_argument("--conversations-db", type=Path, default=Path("data/conversations.sqlite3"))
     parser.add_argument(
         "--conversation-audio-dir", type=Path, default=Path("data/conversations/audio")
     )
@@ -1721,9 +1715,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--gmail-client-secret", type=Path, default=Path("secrets/gmail-client.json")
     )
-    parser.add_argument(
-        "--gmail-token", type=Path, default=Path("secrets/gmail-token.json")
-    )
+    parser.add_argument("--gmail-token", type=Path, default=Path("secrets/gmail-token.json"))
     parser.add_argument("--gmail-sync-minutes", type=int, default=15)
     return parser
 
