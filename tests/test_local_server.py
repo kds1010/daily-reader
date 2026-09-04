@@ -1,5 +1,6 @@
 import json
 import plistlib
+import sqlite3
 import subprocess
 from datetime import datetime
 from io import BytesIO
@@ -213,6 +214,35 @@ def test_agent_jobs_endpoint_presents_labels_for_active_and_archived_jobs(
                 ],
             },
         )
+    ]
+
+
+def test_agent_hide_maps_database_lock_to_retryable_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        "daily_reader.local_server.hide_job",
+        lambda *_args: (_ for _ in ()).throw(sqlite3.OperationalError("database is locked")),
+    )
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler._read_json = lambda: {"job_id": "job-1"}
+    handler.path = "/api/agent-jobs/hide"
+
+    handler.do_POST()
+
+    assert responses == [
+        (503, {"error": "データベースが処理中です。しばらくして再試行してください"})
     ]
 
 

@@ -177,6 +177,28 @@ def test_hide_job_rejects_unknown_job(tmp_path: Path) -> None:
     assert not hide_job(tmp_path / "agent.sqlite3", "missing")
 
 
+def test_hide_job_uses_worker_sized_database_lock_timeout(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(
+        database,
+        repositories(tmp_path),
+        {"repository": "repo", "prompt": "Hide this task"},
+    )
+    timeouts: list[float] = []
+    real_connect = sqlite3.connect
+
+    def recording_connect(*args, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        return real_connect(*args, **kwargs)
+
+    monkeypatch.setattr(sqlite3, "connect", recording_connect)
+
+    assert hide_job(database, job["id"])
+    assert timeouts == [30, 30]
+
+
 def test_archived_job_is_deleted_after_seven_days(tmp_path: Path) -> None:
     database = tmp_path / "agent.sqlite3"
     job = create_job(

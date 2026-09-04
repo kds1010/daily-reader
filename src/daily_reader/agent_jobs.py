@@ -79,9 +79,9 @@ def load_repositories(path: Path) -> dict[str, dict[str, str]]:
     return repositories
 
 
-def initialize_database(path: Path) -> None:
+def initialize_database(path: Path, *, timeout: float = 5.0) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with connect_database(path) as connection:
+    with connect_database(path, timeout=timeout) as connection:
         connection.executescript(
             """
             PRAGMA journal_mode = WAL;
@@ -379,8 +379,11 @@ def hide_job(path: Path, job_id: str) -> bool:
     """Archive a job until its next update or the retention period expires."""
     if not isinstance(job_id, str) or not job_id:
         return False
-    initialize_database(path)
-    with connect_database(path) as connection:
+    # The worker can legitimately hold a write transaction while updating the same
+    # job. Match its 30-second lock wait instead of dropping the HTTP connection
+    # after the default five seconds.
+    initialize_database(path, timeout=30)
+    with connect_database(path, timeout=30) as connection:
         cursor = connection.execute(
             "UPDATE agent_jobs SET hidden_at = ? WHERE id = ?",
             (_now(), job_id),

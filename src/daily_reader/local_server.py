@@ -9,6 +9,7 @@ import json
 import logging
 import plistlib
 import select
+import sqlite3
 import stat
 import subprocess
 import threading
@@ -1117,6 +1118,13 @@ def make_handler(
                 json.JSONDecodeError,
             ):
                 self._send_json(400, {"error": "invalid event"})
+                return
+            except sqlite3.OperationalError as error:
+                LOGGER.warning("database request failed: %s", error)
+                self._send_json(
+                    503,
+                    {"error": "データベースが処理中です。しばらくして再試行してください"},
+                )
                 return
             self._send_json(202, {"recorded": True})
 
