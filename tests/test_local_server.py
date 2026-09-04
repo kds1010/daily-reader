@@ -1,3 +1,4 @@
+import io
 import json
 import plistlib
 import sqlite3
@@ -286,6 +287,10 @@ class FakeSoanClient:
             return [{"title": "Plan", "root": "/soan/plan"}]
         return {"ok": True}
 
+    def request_image(self, root: str, source: str) -> tuple[bytes, str]:
+        self.calls.append(("IMAGE", root, source))
+        return b"png", "image/png"
+
 
 def test_soan_routes_use_the_loopback_bff(tmp_path: Path) -> None:
     client = FakeSoanClient()
@@ -304,6 +309,13 @@ def test_soan_routes_use_the_loopback_bff(tmp_path: Path) -> None:
     handler._send_json = lambda status, payload: responses.append((status, payload))
     handler.path = "/api/soan/catalog"
     handler.do_GET()
+    image_response = []
+    handler.send_response = lambda status: image_response.append(status)
+    handler.send_header = lambda *_args: None
+    handler.end_headers = lambda: None
+    handler.wfile = io.BytesIO()
+    handler.path = "/api/soan/image?root=%2Fsoan%2Fplan&source=.soan%2Fimages%2Fa.png"
+    handler.do_GET()
     handler.path = "/api/soan/save"
     handler._read_json = lambda *_args: {"Root": "/soan/plan", "TabID": "main"}
     handler.do_POST()
@@ -311,8 +323,11 @@ def test_soan_routes_use_the_loopback_bff(tmp_path: Path) -> None:
     assert responses == [(200, [{"title": "Plan", "root": "/soan/plan"}]), (200, {"ok": True})]
     assert client.calls == [
         ("GET", "/v1/catalog", None),
+        ("IMAGE", "/soan/plan", ".soan/images/a.png"),
         ("POST", "/v1/document/save", {"Root": "/soan/plan", "TabID": "main"}),
     ]
+    assert image_response == [200]
+    assert handler.wfile.getvalue() == b"png"
 
 
 def tanomi_handler(tmp_path: Path, client: FakeTanomiClient):

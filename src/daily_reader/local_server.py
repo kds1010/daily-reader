@@ -682,13 +682,33 @@ def make_handler(
             return parts, query
 
         def do_GET(self) -> None:  # noqa: N802
-            path = urllib.parse.urlsplit(self.path).path
+            parsed_url = urllib.parse.urlsplit(self.path)
+            path = parsed_url.path
             if path == "/api/soan/catalog":
                 if soan is None:
                     self._send_json(503, {"error": "Soanは設定されていません"})
                     return
                 try:
                     self._send_json(200, soan.request_json("GET", "/v1/catalog"))
+                except SoanError as error:
+                    self._send_json(error.status or 503, {"error": str(error)})
+                return
+            if path == "/api/soan/image":
+                if soan is None:
+                    self._send_json(503, {"error": "Soanは設定されていません"})
+                    return
+                query = dict(urllib.parse.parse_qsl(parsed_url.query, keep_blank_values=True))
+                try:
+                    body, content_type = soan.request_image(
+                        query.get("root", ""), query.get("source", "")
+                    )
+                    self.send_response(200)
+                    self.send_header("Content-Type", content_type)
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "private, max-age=300")
+                    self.send_header("X-Content-Type-Options", "nosniff")
+                    self.end_headers()
+                    self.wfile.write(body)
                 except SoanError as error:
                     self._send_json(error.status or 503, {"error": str(error)})
                 return

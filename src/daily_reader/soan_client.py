@@ -84,3 +84,20 @@ class SoanClient:
             return json.loads(raw)
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             raise SoanError("Soanの応答が不正です") from error
+
+    def request_image(self, root: str, source: str) -> tuple[bytes, str]:
+        query = urllib.parse.urlencode({"root": root, "source": source})
+        request = urllib.request.Request(f"{self.base_url}/v1/document/image?{query}")
+        request.add_header("Authorization", f"Bearer {self._token()}")
+        request.add_header("Accept", "image/png,image/jpeg,image/gif")
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:  # noqa: S310
+                content_type = response.headers.get_content_type()
+                raw = response.read(MAX_RESPONSE + 1)
+        except urllib.error.HTTPError as error:
+            raise SoanError("画像を取得できません", error.code) from error
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            raise SoanError("Soanバックエンドに接続できません") from error
+        if len(raw) > MAX_RESPONSE or content_type not in {"image/png", "image/jpeg", "image/gif"}:
+            raise SoanError("Soan画像の応答が不正です")
+        return raw, content_type
