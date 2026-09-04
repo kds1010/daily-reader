@@ -9,6 +9,7 @@ import json
 import logging
 import plistlib
 import select
+import shutil
 import sqlite3
 import stat
 import subprocess
@@ -83,6 +84,20 @@ LOGGER = logging.getLogger(__name__)
 MODEL_CACHE_TTL = 300.0
 MODEL_CACHE_LOCK = threading.Lock()
 _model_cache: tuple[float, list[dict[str, object]]] | None = None
+
+
+def _codex_executable() -> str:
+    """Resolve Codex for launchd processes whose inherited PATH is incomplete."""
+    executable = shutil.which("codex")
+    if executable:
+        return executable
+    for candidate in (
+        Path("/Applications/ChatGPT.app/Contents/Resources/codex"),
+        Path.home() / ".nix-profile/bin/codex",
+    ):
+        if candidate.is_file() and candidate.stat().st_mode & 0o111:
+            return str(candidate)
+    return "codex"
 READ_LOG_LOCK = threading.Lock()
 FEEDBACK_LOG_LOCK = threading.Lock()
 UPDATE_STATS_LOG_LOCK = threading.Lock()
@@ -146,7 +161,7 @@ def _without_codex_spark_limits(result: dict[str, object]) -> dict[str, object]:
 def read_codex_rate_limits(timeout: float = 10) -> dict[str, object]:
     """Read the signed-in Codex account's current limits from the app-server API."""
     process = subprocess.Popen(
-        ["codex", "app-server", "--stdio"],
+        [_codex_executable(), "app-server", "--stdio"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
@@ -267,7 +282,7 @@ def _normalize_codex_models(result: dict[str, object]) -> list[dict[str, object]
 def read_codex_models(timeout: float = 10) -> list[dict[str, object]]:
     """Read visible model and reasoning-effort choices from the Codex app-server."""
     process = subprocess.Popen(
-        ["codex", "app-server", "--stdio"],
+        [_codex_executable(), "app-server", "--stdio"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
