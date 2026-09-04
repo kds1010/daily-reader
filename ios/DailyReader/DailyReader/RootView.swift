@@ -119,7 +119,8 @@ struct RootView: View {
             NavigationStack { EmailView() }.tabItem { Label("メール", systemImage: "envelope") }.badge(model.emails.count).tag(2)
             NavigationStack { NewsView() }.tabItem { Label("ニュース", systemImage: "newspaper") }.tag(3)
             NavigationStack { ConversationsView() }.tabItem { Label("会話", systemImage: "waveform") }.tag(4)
-            NavigationStack { SettingsView() }.tabItem { Label("設定", systemImage: "gearshape") }.tag(5)
+            NavigationStack { SoanView() }.tabItem { Label("資料", systemImage: "doc.text") }.tag(5)
+            NavigationStack { SettingsView() }.tabItem { Label("設定", systemImage: "gearshape") }.tag(6)
         }
         .tint(.mint)
         .alert("接続できませんでした", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {

@@ -70,6 +70,7 @@ from daily_reader.email_assistant import (
     update_status,
 )
 from daily_reader.highlights import generate_highlights
+from daily_reader.soan_client import SoanClient, SoanError
 from daily_reader.tanomi_client import (
     DEFAULT_BASE_URL,
     MODEL,
@@ -626,6 +627,7 @@ def make_handler(
     agent_repositories: dict[str, dict[str, str]] | None = None,
     deployment_info: dict[str, str] | None = None,
     tanomi_client: TanomiClient | None = None,
+    soan_client: SoanClient | None = None,
     sidestore_directory: Path = Path("data/sidestore"),
     macos_release_app: Path = Path("data/macos/Daymeld.app"),
     conversations_db: Path = Path("data/conversations.sqlite3"),
@@ -634,6 +636,7 @@ def make_handler(
 ):
     repositories = agent_repositories or {}
     tanomi = tanomi_client
+    soan = soan_client
 
     class DailyReaderHandler(SimpleHTTPRequestHandler):
         def end_headers(self) -> None:
@@ -680,6 +683,15 @@ def make_handler(
 
         def do_GET(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path == "/api/soan/catalog":
+                if soan is None:
+                    self._send_json(503, {"error": "Soanは設定されていません"})
+                    return
+                try:
+                    self._send_json(200, soan.request_json("GET", "/v1/catalog"))
+                except SoanError as error:
+                    self._send_json(error.status or 503, {"error": str(error)})
+                return
             if path == "/api/conversations":
                 self._send_json(200, {"recordings": list_recordings(conversations_db)})
                 return
@@ -875,6 +887,23 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            soan_paths = {
+                "/api/soan/open": "/v1/document/open",
+                "/api/soan/save": "/v1/document/save",
+                "/api/soan/edit": "/v1/document/edit",
+            }
+            if path in soan_paths:
+                if soan is None:
+                    self._send_json(503, {"error": "Soanは設定されていません"})
+                    return
+                try:
+                    request = self._read_json(8 * 1024 * 1024)
+                    self._send_json(200, soan.request_json("POST", soan_paths[path], request))
+                except (ValueError, json.JSONDecodeError):
+                    self._send_json(400, {"error": "invalid Soan request"})
+                except SoanError as error:
+                    self._send_json(error.status or 503, {"error": str(error)})
+                return
             if path == "/api/conversations/upload":
                 query = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(self.path).query))
                 try:
@@ -1660,6 +1689,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
     parser.add_argument("--tanomi-base-url", default=DEFAULT_BASE_URL)
+    parser.add_argument("--soan-base-url", default="http://127.0.0.1:7337")
+    parser.add_argument(
+        "--soan-token",
+        type=Path,
+        default=Path.home() / ".soan" / "mobile-token",
+    )
     parser.add_argument("--site", type=Path, default=Path("site"))
     parser.add_argument("--sidestore-lan-host", default="0.0.0.0")
     parser.add_argument("--sidestore-lan-port", type=int, default=8788)
@@ -1772,6 +1807,7 @@ def main() -> None:
         agent_repositories,
         deployment_info,
         TanomiClient(args.tanomi_base_url),
+        SoanClient(args.soan_token, args.soan_base_url),
         sidestore_directory=args.sidestore_dir,
         macos_release_app=args.macos_release_app,
         conversations_db=args.conversations_db,

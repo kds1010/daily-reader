@@ -21,13 +21,13 @@ actor APIClient {
         return try await execute(request, as: type)
     }
 
-    func post<T: Encodable, R: Decodable>(_ path: String, body: T, as type: R.Type) async throws -> R {
+    func post<T: Encodable, R: Decodable>(_ path: String, body: T, as type: R.Type, timeout: TimeInterval = 20) async throws -> R {
         let url = makeAPIURL(baseURL: baseURL, path: path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(body)
-        request.timeoutInterval = 20
+        request.timeoutInterval = timeout
         return try await execute(request, as: type)
     }
 

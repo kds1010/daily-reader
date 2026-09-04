@@ -276,6 +276,45 @@ class FakeTanomiClient:
         return iter(())
 
 
+class FakeSoanClient:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def request_json(self, method: str, path: str, body: object | None = None) -> object:
+        self.calls.append((method, path, body))
+        if path == "/v1/catalog":
+            return [{"title": "Plan", "root": "/soan/plan"}]
+        return {"ok": True}
+
+
+def test_soan_routes_use_the_loopback_bff(tmp_path: Path) -> None:
+    client = FakeSoanClient()
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+        soan_client=client,
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.path = "/api/soan/catalog"
+    handler.do_GET()
+    handler.path = "/api/soan/save"
+    handler._read_json = lambda *_args: {"Root": "/soan/plan", "TabID": "main"}
+    handler.do_POST()
+
+    assert responses == [(200, [{"title": "Plan", "root": "/soan/plan"}]), (200, {"ok": True})]
+    assert client.calls == [
+        ("GET", "/v1/catalog", None),
+        ("POST", "/v1/document/save", {"Root": "/soan/plan", "TabID": "main"}),
+    ]
+
+
 def tanomi_handler(tmp_path: Path, client: FakeTanomiClient):
     handler_factory = make_handler(
         tmp_path / "site",
