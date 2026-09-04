@@ -294,9 +294,31 @@ def read_codex_models(timeout: float = 10) -> list[dict[str, object]]:
             )
             + "\n"
         )
-        process.stdin.write(json.dumps(request) + "\n")
         process.stdin.flush()
         deadline = monotonic() + timeout
+        initialized = False
+        while (remaining := deadline - monotonic()) > 0:
+            readable, _, _ = select.select([process.stdout], [], [], remaining)
+            if not readable:
+                break
+            line = process.stdout.readline()
+            if not line:
+                break
+            try:
+                message = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise RuntimeError("Codex returned invalid JSON") from error
+            if message.get("id") != 1:
+                continue
+            if "error" in message:
+                raise RuntimeError("Codex rejected initialization")
+            process.stdin.write(json.dumps({"method": "initialized", "params": {}}) + "\n")
+            process.stdin.write(json.dumps(request) + "\n")
+            process.stdin.flush()
+            initialized = True
+            break
+        if not initialized:
+            raise TimeoutError("Codex initialization timed out")
         while (remaining := deadline - monotonic()) > 0:
             readable, _, _ = select.select([process.stdout], [], [], remaining)
             if not readable:

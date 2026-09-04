@@ -33,6 +33,7 @@ from daily_reader.local_server import (
     make_sidestore_remote_handler,
     present_agent_job,
     present_agent_jobs,
+    read_codex_models,
     read_codex_rate_limits,
     sidestore_release_version,
     start_sidestore_remote_server,
@@ -464,6 +465,43 @@ def test_codex_rate_limits_use_app_server_protocol(monkeypatch: pytest.MonkeyPat
     assert requests[2] == {"id": 2, "method": "account/rateLimits/read", "params": None}
     assert result["rateLimitsByLimitId"]["codex"]["primary"]["usedPercent"] == 18
     assert "codex_bengalfox" not in result["rateLimitsByLimitId"]
+
+
+class FakeCodexModelsProcess(FakeCodexProcess):
+    def __init__(self) -> None:
+        import io
+
+        self.stdin = io.StringIO()
+        self.stdout = io.StringIO(
+            '{"id":1,"result":{}}\n'
+            '{"id":2,"result":{"data":[{"id":"gpt-5.6-sol",'
+            '"displayName":"GPT-5.6-Sol",'
+            '"supportedReasoningEfforts":[{"reasoningEffort":"low"}]}'
+            ']}}\n'
+        )
+
+
+def test_codex_models_completes_handshake_before_listing(monkeypatch: pytest.MonkeyPatch) -> None:
+    process = FakeCodexModelsProcess()
+    monkeypatch.setattr(
+        "daily_reader.local_server.subprocess.Popen",
+        lambda *args, **kwargs: process,
+    )
+    monkeypatch.setattr(
+        "daily_reader.local_server.select.select", lambda streams, *_: (streams, [], [])
+    )
+
+    assert read_codex_models() == [
+        {
+            "slug": "gpt-5.6-sol",
+            "display_name": "GPT-5.6-Sol",
+            "default_reasoning_effort": "low",
+            "supported_reasoning_efforts": ["low"],
+        }
+    ]
+    requests = [json.loads(line) for line in process.stdin.getvalue().splitlines()]
+    assert requests[1] == {"method": "initialized", "params": {}}
+    assert requests[2] == {"id": 2, "method": "model/list", "params": {}}
 
 
 def test_deployment_info_includes_package_version_and_revision(
