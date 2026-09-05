@@ -15,7 +15,7 @@ import stat
 import subprocess
 import tempfile
 import urllib.parse
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -58,7 +58,33 @@ def run(*command: str, cwd: Path = REPOSITORY_ROOT) -> str:
     return result.stdout.strip()
 
 
-def build_source(version: str, ipa_size: int, base_url: str) -> dict[str, object]:
+def release_timestamp() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def valid_release_date(value: str) -> bool:
+    if "T" not in value:
+        try:
+            return date.fromisoformat(value).isoformat() == value
+        except ValueError:
+            return False
+    try:
+        normalized = value.removesuffix("Z") + ("+00:00" if value.endswith("Z") else "")
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return False
+    canonical = parsed.isoformat(timespec="seconds")
+    if value.endswith("Z"):
+        canonical = canonical.replace("+00:00", "Z")
+    return canonical == value
+
+
+def build_source(
+    version: str,
+    ipa_size: int,
+    base_url: str,
+    released_at: str | None = None,
+) -> dict[str, object]:
     base_url = base_url.rstrip("/")
     return {
         "$schema": "https://github.com/SideStore/sidestore-source-types/raw/main/schema.json",
@@ -80,7 +106,7 @@ def build_source(version: str, ipa_size: int, base_url: str) -> dict[str, object
                 "versions": [
                     {
                         "version": version,
-                        "date": date.today().isoformat(),
+                        "date": released_at or release_timestamp(),
                         "localizedDescription": "Daymeldの最新ネイティブ版です。",
                         "downloadURL": f"{base_url}/DailyReader.ipa",
                         "size": ipa_size,
@@ -161,9 +187,10 @@ def build_remote_source(
     origin: str,
     token: str,
     previous_versions: list[dict[str, object]] | None = None,
+    released_at: str | None = None,
 ) -> dict[str, object]:
     base_url = f"{validate_remote_origin(origin)}/{validate_remote_token(token)}"
-    source = build_source(version, ipa_size, base_url)
+    source = build_source(version, ipa_size, base_url, released_at)
     source["name"] = "Daymeld Remote"
     source["subtitle"] = REMOTE_SOURCE_SUBTITLE
     source["identifier"] = "net.skmin.DailyReader.remote-source"
@@ -216,11 +243,7 @@ def load_previous_remote_versions(
             or previous_size < 0
         ):
             continue
-        try:
-            parsed_date = date.fromisoformat(previous_date)
-        except ValueError:
-            continue
-        if parsed_date.isoformat() != previous_date:
+        if not valid_release_date(previous_date):
             continue
         parts = previous_version.split(".")
         ipa_name = f"DailyReader-{previous_version}.ipa"
@@ -402,7 +425,8 @@ def main() -> None:
     temporary_ipa.replace(ipa)
 
     atomic_copy(ICON, args.output_dir / "icon.png")
-    source = build_source(version, ipa.stat().st_size, args.base_url)
+    released_at = release_timestamp()
+    source = build_source(version, ipa.stat().st_size, args.base_url, released_at)
     write_source(args.output_dir / "source.json", source)
     if args.disable_remote_source:
         (args.output_dir / "remote-source.json").unlink(missing_ok=True)
@@ -422,6 +446,7 @@ def main() -> None:
             args.remote_origin,
             token,
             previous_versions,
+            released_at,
         )
         write_private_source(args.output_dir / "remote-source.json", remote_source)
         prune_unlisted_versioned_ipas(

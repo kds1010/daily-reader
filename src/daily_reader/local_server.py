@@ -1339,11 +1339,7 @@ def sidestore_remote_ipas(directory: Path, token: str) -> tuple[str, ...]:
             or not isinstance(download_url, str)
         ):
             raise ValueError("SideStore remote source contains invalid version metadata")
-        try:
-            parsed_date = calendar_date.fromisoformat(date_value)
-        except ValueError as error:
-            raise ValueError("SideStore remote source contains invalid version metadata") from error
-        if parsed_date.isoformat() != date_value:
+        if not _valid_sidestore_release_date(date_value):
             raise ValueError("SideStore remote source contains invalid version metadata")
         download_path = urllib.parse.urlsplit(download_url).path
         ipa_name = download_path.rsplit("/", 1)[-1]
@@ -1394,6 +1390,24 @@ def sidestore_remote_ipas(directory: Path, token: str) -> tuple[str, ...]:
     ):
         raise ValueError("SideStore remote source contains unsafe artifact URLs")
     return tuple(ipa_names)
+
+
+def _valid_sidestore_release_date(value: str) -> bool:
+    if "T" not in value:
+        try:
+            return calendar_date.fromisoformat(value).isoformat() == value
+        except ValueError:
+            return False
+    try:
+        parsed = datetime.fromisoformat(
+            value.removesuffix("Z") + ("+00:00" if value.endswith("Z") else "")
+        )
+    except ValueError:
+        return False
+    canonical = parsed.isoformat(timespec="seconds")
+    if value.endswith("Z"):
+        canonical = canonical.replace("+00:00", "Z")
+    return canonical == value
 
 
 def current_sidestore_remote_ipa(directory: Path, token: str) -> str:

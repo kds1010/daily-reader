@@ -1,4 +1,5 @@
 import plistlib
+import re
 import subprocess
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -27,6 +28,19 @@ def test_build_source_uses_versioned_ipa_metadata() -> None:
     assert version["version"] == "0.1.42"
     assert version["downloadURL"] == "https://example.test/sidestore/DailyReader.ipa"
     assert version["size"] == 12345
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", version["date"])
+
+
+def test_build_source_can_share_one_release_timestamp() -> None:
+    released_at = "2026-09-05T01:23:45Z"
+
+    local = MODULE.build_source("0.1.42", 12345, "https://example.test", released_at)
+    remote = MODULE.build_remote_source(
+        "0.1.42", 12345, "https://reader.example.test:8443", TOKEN, released_at=released_at
+    )
+
+    assert local["apps"][0]["versions"][0]["date"] == released_at
+    assert remote["apps"][0]["versions"][0]["date"] == released_at
 
 
 def test_default_source_is_private_lan_url() -> None:

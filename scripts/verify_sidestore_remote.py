@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +27,23 @@ TOKEN_CHARACTERS = frozenset(
 )
 
 OpenURL = Callable[..., object]
+
+
+def valid_release_date(value: str) -> bool:
+    if "T" not in value:
+        try:
+            return date.fromisoformat(value).isoformat() == value
+        except ValueError:
+            return False
+    try:
+        normalized = value.removesuffix("Z") + ("+00:00" if value.endswith("Z") else "")
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return False
+    canonical = parsed.isoformat(timespec="seconds")
+    if value.endswith("Z"):
+        canonical = canonical.replace("+00:00", "Z")
+    return canonical == value
 
 
 def fetch(open_url: OpenURL, url: str, method: str = "GET") -> tuple[int, bytes]:
@@ -97,11 +114,7 @@ def validated_artifact_paths(
             or not isinstance(download_url, str)
         ):
             raise RuntimeError("Remote SideStore source has invalid version metadata")
-        try:
-            parsed_date = date.fromisoformat(date_value)
-        except ValueError as error:
-            raise RuntimeError("Remote SideStore source has invalid version metadata") from error
-        if parsed_date.isoformat() != date_value:
+        if not valid_release_date(date_value):
             raise RuntimeError("Remote SideStore source has invalid version metadata")
         label = f"IPA-{index}"
         urls[label] = download_url
