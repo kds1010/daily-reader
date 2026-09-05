@@ -115,11 +115,11 @@ struct RootView: View {
     var body: some View {
         TabView(selection: $model.selectedTab) {
             NavigationStack { AgentView() }.tabItem { Label("Agent", systemImage: "sparkles") }.tag(0)
+            NavigationStack { SoanView() }.tabItem { Label("資料", systemImage: "doc.text") }.tag(5)
             NavigationStack { TodayView() }.tabItem { Label("今日", systemImage: "checkmark.circle") }.tag(1)
             NavigationStack { EmailView() }.tabItem { Label("メール", systemImage: "envelope") }.badge(model.emails.count).tag(2)
             NavigationStack { NewsView() }.tabItem { Label("ニュース", systemImage: "newspaper") }.tag(3)
             NavigationStack { ConversationsView() }.tabItem { Label("会話", systemImage: "waveform") }.tag(4)
-            NavigationStack { SoanView() }.tabItem { Label("資料", systemImage: "doc.text") }.tag(5)
             NavigationStack { SettingsView() }.tabItem { Label("設定", systemImage: "gearshape") }.tag(6)
         }
         .tint(.mint)
