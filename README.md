@@ -6,11 +6,13 @@ Codexへの自律タスク投入、今日やること、重要メール、関心
 
 ## 会話データの解析
 
-iPhone・macOS版の「会話」タブでは、Soundcore Workが書き出したMP3に加え、文字起こし済みの
-UTF-8 TXTを取り込めます。MP3原音は`data/conversations/audio/`へ再圧縮せず保存し、TXT原文は
+iPhone版ではSoundcore Workの共有・エクスポート先にDaymeldを選べます。iPhone・macOS版の
+「会話」タブでは、Soundcore Workが書き出したMP3に加え、文字起こし済みのUTF-8 TXTを
+取り込めます。MP3原音は`data/conversations/audio/`へ再圧縮せず保存し、TXT原文は
 `data/conversations.sqlite3`へ保存します。同一種別・同一内容はSHA-256で重複排除します。
 TXTは10 MiBまでです。MP3保存後の空き容量が5 GiB未満になるアップロードは拒否し、取り込んだ
-原音・原文は自動削除しません。
+原音・原文は自動削除しません。共有先として受け取ったiPhone内の一時コピーは、Mac miniへの
+送信成功後に削除します。
 
 Mac側ではfaster-whisperで日本語を文字起こしし、pyannoteの
 `speaker-diarization-community-1`で話者区間を分離します。Hugging Faceでモデルの利用条件に

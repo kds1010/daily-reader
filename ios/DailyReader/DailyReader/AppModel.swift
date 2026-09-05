@@ -2,6 +2,9 @@ import Foundation
 import Combine
 import SwiftUI
 import UserNotifications
+#if os(iOS)
+import UniformTypeIdentifiers
+#endif
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -212,13 +215,49 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func importConversationFile(_ url: URL) async {
+    @discardableResult
+    func importConversationFile(_ url: URL) async -> Bool {
         do {
             let date = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
             _ = try await api.uploadConversationFile(url, recordedAt: date)
             await refreshConversations()
-        } catch { errorMessage = "会話データを送信できませんでした：\(error.localizedDescription)" }
+            return true
+        } catch {
+            errorMessage = "会話データを送信できませんでした：\(error.localizedDescription)"
+            return false
+        }
     }
+
+#if os(iOS)
+    func importSharedRecording(_ url: URL) async {
+        guard
+            url.isFileURL,
+            UTType(filenameExtension: url.pathExtension.lowercased())?.conforms(to: .mp3) == true
+        else {
+            errorMessage = "共有されたファイルはMP3ではありません。"
+            return
+        }
+
+        selectedTab = 4
+        let removesInboxCopy = Self.isInboxCopy(url)
+        if await importConversationFile(url), removesInboxCopy {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    private static func isInboxCopy(_ url: URL) -> Bool {
+        guard let documents = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first else { return false }
+        let inbox = documents
+            .appending(path: "Inbox", directoryHint: .isDirectory)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        let candidate = url.standardizedFileURL.resolvingSymlinksInPath()
+        return candidate.path.hasPrefix(inbox.path + "/")
+    }
+#endif
 
     func loadConversation(_ id: String) async -> ConversationRecording? {
         do { return try await api.get("api/conversations/\(id)", as: ConversationRecording.self) }

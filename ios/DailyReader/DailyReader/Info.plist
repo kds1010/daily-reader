@@ -9,6 +9,17 @@
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key><string>MP3 Audio</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array><string>public.mp3</string></array>
+        </dict>
+    </array>
+    <key>LSSupportsOpeningDocumentsInPlace</key><false/>
     <key>LSRequiresIPhoneOS</key><true/>
     <key>NSHealthShareUsageDescription</key><string>睡眠、歩数、心拍などをDaymeldの体調画面へ同期します。</string>
     <key>NSHealthUpdateUsageDescription</key><string>DaymeldはHealthKitへの書き込みを行いません。</string>

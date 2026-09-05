@@ -137,6 +137,9 @@ struct DailyReaderApp: App {
                 .preferredColorScheme(.dark)
                 .background(KeyboardDismissalBridge())
                 .task { await model.start() }
+                .onOpenURL { url in
+                    Task { await model.importSharedRecording(url) }
+                }
         }
     }
 }
