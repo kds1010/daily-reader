@@ -30,6 +30,7 @@ struct SoanView: View {
     @State private var showingTextEditor = false
     @State private var loading = false
     @State private var error: String?
+    @FocusState private var commentFocused: Bool
 
     var body: some View {
         List {
@@ -70,6 +71,7 @@ struct SoanView: View {
         if block.editable {
             Button {
                 comment = ""
+                error = nil
                 selectedBlock = block
             } label: {
                 HStack(alignment: .top, spacing: 10) {
@@ -120,15 +122,44 @@ struct SoanView: View {
     private var commentSheet: some View {
         NavigationStack { Form {
             if let block = selectedBlock { Section("選択したブロック") { Text(block.text).textSelection(.enabled) } }
-            Section("LLMへのコメント") { TextField("例：根拠を補い、結論を明確に", text: $comment, axis: .vertical).lineLimit(3...8) }
-            Section { Button("修正案を作る") { Task { await editSelectedBlock() } }.disabled(comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || loading) }
-        }.navigationTitle("ブロックを相談").toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { selectedBlock = nil } } } }
+            Section("LLMへのコメント") {
+                TextField("例：根拠を補い、結論を明確に", text: $comment, axis: .vertical)
+                    .lineLimit(3...8)
+                    .focused($commentFocused)
+            }
+            if let error {
+                Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
+            }
+            Section {
+                Button {
+                    commentFocused = false
+                    Task { await editSelectedBlock() }
+                } label: {
+                    HStack {
+                        Spacer()
+                        if loading { ProgressView().controlSize(.small) }
+                        Text(loading ? "修正案を作成中" : "修正案を作る")
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || loading)
+            }
+        }
+        .navigationTitle("ブロックを相談")
+        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { selectedBlock = nil } } }
+        }
     }
 
     private var textEditorSheet: some View {
-        NavigationStack { TextEditor(text: $draft).padding().navigationTitle("文字を直接編集").toolbar {
+        NavigationStack { VStack {
+            TextEditor(text: $draft).padding()
+            if let error { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange).padding() }
+        }.navigationTitle("文字を直接編集").toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("閉じる") { showingTextEditor = false } }
-            ToolbarItem(placement: .confirmationAction) { Button("Mac miniへ保存") { Task { await saveCurrent(); showingTextEditor = false } }.disabled(draft == selectedTab?.content || loading) }
+            ToolbarItem(placement: .confirmationAction) { Button("Mac miniへ保存") { Task { if await saveCurrent() { showingTextEditor = false } } }.disabled(draft == selectedTab?.content || loading) }
         } }
     }
 
@@ -166,9 +197,20 @@ struct SoanView: View {
         let instruction = comment.trimmingCharacters(in: .whitespacesAndNewlines)
         await perform { let value: SoanProposal = try await APIClient.shared.post("/api/soan/edit", body: SoanRequest(root: document.root, tabID: tab.id, blockID: block.id, instruction: instruction), as: SoanProposal.self, timeout: 130); draft = value.content; selectedBlock = nil; showingTextEditor = true }
     }
-    private func saveCurrent() async {
-        guard let document, let tab = selectedTab else { return }
-        await perform { let _: EmptyResponse = try await APIClient.shared.post("/api/soan/save", body: SoanRequest(root: document.root, tabID: tab.id, content: draft, base: tab.content), as: EmptyResponse.self); let refreshed: SoanDocument = try await APIClient.shared.post("/api/soan/open", body: SoanRequest(root: document.root), as: SoanDocument.self); self.document = refreshed; select(refreshed.tabs.first { $0.id == tab.id }) }
+    private func saveCurrent() async -> Bool {
+        guard let document, let tab = selectedTab else { return false }
+        return await perform { let _: EmptyResponse = try await APIClient.shared.post("/api/soan/save", body: SoanRequest(root: document.root, tabID: tab.id, content: draft, base: tab.content), as: EmptyResponse.self); let refreshed: SoanDocument = try await APIClient.shared.post("/api/soan/open", body: SoanRequest(root: document.root), as: SoanDocument.self); self.document = refreshed; select(refreshed.tabs.first { $0.id == tab.id }) }
     }
-    private func perform(_ action: () async throws -> Void) async { loading = true; error = nil; defer { loading = false }; do { try await action() } catch { self.error = error.localizedDescription } }
+    @discardableResult private func perform(_ action: () async throws -> Void) async -> Bool {
+        loading = true
+        error = nil
+        defer { loading = false }
+        do {
+            try await action()
+            return true
+        } catch {
+            self.error = error.localizedDescription
+            return false
+        }
+    }
 }

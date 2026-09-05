@@ -44,6 +44,8 @@ private struct KeyboardDismissalBridge: UIViewRepresentable {
         private func install(in window: UIWindow) {
             let recognizer = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
             recognizer.cancelsTouchesInView = false
+            recognizer.delaysTouchesBegan = false
+            recognizer.delaysTouchesEnded = false
             recognizer.delegate = self
             window.addGestureRecognizer(recognizer)
             self.window = window
@@ -57,7 +59,10 @@ private struct KeyboardDismissalBridge: UIViewRepresentable {
         }
 
         @objc private func dismissKeyboard() {
-            window?.endEditing(true)
+            let window = window
+            DispatchQueue.main.async {
+                window?.endEditing(true)
+            }
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {

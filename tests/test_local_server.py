@@ -319,12 +319,34 @@ def test_soan_routes_use_the_loopback_bff(tmp_path: Path) -> None:
     handler.path = "/api/soan/save"
     handler._read_json = lambda *_args: {"Root": "/soan/plan", "TabID": "main"}
     handler.do_POST()
+    handler.path = "/api/soan/edit"
+    handler._read_json = lambda *_args: {
+        "root": "/soan/plan",
+        "tabID": "main",
+        "blockID": "paragraph-1",
+        "instruction": "結論を明確に",
+    }
+    handler.do_POST()
 
-    assert responses == [(200, [{"title": "Plan", "root": "/soan/plan"}]), (200, {"ok": True})]
+    assert responses == [
+        (200, [{"title": "Plan", "root": "/soan/plan"}]),
+        (200, {"ok": True}),
+        (200, {"ok": True}),
+    ]
     assert client.calls == [
         ("GET", "/v1/catalog", None),
         ("IMAGE", "/soan/plan", ".soan/images/a.png"),
         ("POST", "/v1/document/save", {"Root": "/soan/plan", "TabID": "main"}),
+        (
+            "POST",
+            "/v1/document/edit",
+            {
+                "root": "/soan/plan",
+                "tabID": "main",
+                "blockID": "paragraph-1",
+                "instruction": "結論を明確に",
+            },
+        ),
     ]
     assert image_response == [200]
     assert handler.wfile.getvalue() == b"png"
