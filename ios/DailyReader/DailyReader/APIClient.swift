@@ -42,11 +42,17 @@ actor APIClient {
         let _: EmptyResponse = try await execute(request, as: EmptyResponse.self)
     }
 
-    func uploadRecording(_ fileURL: URL, recordedAt: Date?) async throws -> ConversationRecording {
+    func uploadConversationFile(
+        _ fileURL: URL, recordedAt: Date?
+    ) async throws -> ConversationRecording {
         let allowed = fileURL.startAccessingSecurityScopedResource()
         defer { if allowed { fileURL.stopAccessingSecurityScopedResource() } }
         let values = try fileURL.resourceValues(forKeys: [.fileSizeKey])
         guard let size = values.fileSize else { throw APIClientError.invalidResponse }
+        let fileExtension = fileURL.pathExtension.lowercased()
+        guard fileExtension == "mp3" || fileExtension == "txt" else {
+            throw APIClientError.server("MP3またはUTF-8のTXTを選択してください")
+        }
         let url = makeAPIURL(
             baseURL: baseURL,
             path: "api/conversations/upload",
@@ -54,7 +60,10 @@ actor APIClient {
         )
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("audio/mpeg", forHTTPHeaderField: "Content-Type")
+        request.setValue(
+            fileExtension == "txt" ? "text/plain; charset=utf-8" : "audio/mpeg",
+            forHTTPHeaderField: "Content-Type"
+        )
         request.setValue(String(size), forHTTPHeaderField: "Content-Length")
         request.timeoutInterval = 3600
         let (data, response) = try await URLSession.shared.upload(for: request, fromFile: fileURL)

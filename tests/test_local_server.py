@@ -248,6 +248,48 @@ def test_agent_hide_maps_database_lock_to_retryable_json(
     ]
 
 
+def test_conversation_upload_accepts_transcript_without_audio_analysis(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    analysis_calls: list[str] = []
+    monkeypatch.setattr(
+        "daily_reader.local_server.start_analysis",
+        lambda _database, recording_id, _token: analysis_calls.append(recording_id),
+    )
+    database = tmp_path / "conversations.sqlite3"
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+        conversations_db=database,
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    content = "資料を確認してください\n次の話題です".encode()
+    handler.headers = {"Content-Length": str(len(content))}
+    handler.rfile = io.BytesIO(content)
+    handler.path = "/api/conversations/upload?filename=meeting.txt"
+
+    handler.do_POST()
+
+    assert responses[0][0] == 201
+    assert responses[0][1]["source_type"] == "transcript"
+    assert responses[0][1]["status"] == "completed"
+    assert analysis_calls == []
+
+    recording_id = responses[0][1]["id"]
+    handler.path = f"/api/conversations/{recording_id}/analyze"
+    handler.do_POST()
+
+    assert responses[1] == (400, {"error": "文字起こしテキストは音声解析できません"})
+    assert analysis_calls == []
+
+
 class FakeTanomiClient:
     def __init__(self, error: Exception | None = None) -> None:
         self.calls: list[tuple[str, str, object | None, dict[str, str] | None]] = []

@@ -15,6 +15,7 @@ from typing import BinaryIO
 
 MINIMUM_FREE_BYTES = 5 * 1024**3
 MAX_UPLOAD_BYTES = 2 * 1024**3
+MAX_TRANSCRIPT_BYTES = 10 * 1024**2
 ANALYSIS_LOCK = threading.Lock()
 
 
@@ -30,7 +31,8 @@ def initialize_database(path: Path) -> None:
                 status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL,
                 analyzed_at TEXT, recorded_at TEXT,
                 location_latitude REAL, location_longitude REAL,
-                location_accuracy REAL, location_timestamp TEXT, location_time_delta REAL
+                location_accuracy REAL, location_timestamp TEXT, location_time_delta REAL,
+                source_type TEXT NOT NULL DEFAULT 'audio', transcript_text TEXT
             );
             CREATE TABLE IF NOT EXISTS speakers (
                 id TEXT PRIMARY KEY, recording_id TEXT NOT NULL REFERENCES recordings(id),
@@ -70,6 +72,8 @@ def initialize_database(path: Path) -> None:
             "location_accuracy": "REAL",
             "location_timestamp": "TEXT",
             "location_time_delta": "REAL",
+            "source_type": "TEXT NOT NULL DEFAULT 'audio'",
+            "transcript_text": "TEXT",
         }.items():
             if name not in columns:
                 connection.execute(f"ALTER TABLE recordings ADD COLUMN {name} {definition}")
@@ -148,6 +152,62 @@ def store_upload(
         raise
 
 
+def store_transcript(
+    database: Path,
+    source: BinaryIO,
+    length: int,
+    filename: str,
+    recorded_at: str | None = None,
+) -> dict[str, object]:
+    if not 0 < length <= MAX_TRANSCRIPT_BYTES:
+        raise ValueError("invalid transcript size")
+    if Path(filename).suffix.lower() != ".txt":
+        raise ValueError("only TXT transcripts are supported")
+    content = source.read(length)
+    if len(content) != length:
+        raise ValueError("incomplete transcript upload")
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        raise ValueError("transcript must be UTF-8 text") from error
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        raise ValueError("transcript is empty")
+
+    checksum = hashlib.sha256(b"transcript\0" + content).hexdigest()
+    now = datetime.now(UTC).isoformat()
+    recording_id = uuid.uuid4().hex
+    with _connect(database) as connection:
+        existing = connection.execute(
+            "SELECT id FROM recordings WHERE sha256 = ?", (checksum,)
+        ).fetchone()
+        if existing:
+            recording_id = str(existing["id"])
+        else:
+            connection.execute(
+                """INSERT INTO recordings
+                (id, filename, audio_path, sha256, byte_size, status, created_at, analyzed_at,
+                 recorded_at, source_type, transcript_text)
+                VALUES (?, ?, '', ?, ?, 'completed', ?, ?, ?, 'transcript', ?)""",
+                (
+                    recording_id,
+                    Path(filename).name[:240],
+                    checksum,
+                    length,
+                    now,
+                    now,
+                    recorded_at,
+                    text,
+                ),
+            )
+            transcript = [
+                (float(index), float(index + 1), line, None, "話者1")
+                for index, line in enumerate(lines)
+            ]
+            _replace_analysis_results(connection, recording_id, transcript, now)
+    return get_recording(database, recording_id)
+
+
 def list_recordings(database: Path) -> list[dict[str, object]]:
     with _connect(database) as connection:
         return [
@@ -155,7 +215,7 @@ def list_recordings(database: Path) -> list[dict[str, object]]:
             for row in connection.execute(
                 "SELECT id, filename, byte_size, status, error, created_at, analyzed_at, "
                 "recorded_at, location_latitude, location_longitude, location_accuracy, "
-                "location_timestamp, location_time_delta "
+                "location_timestamp, location_time_delta, source_type "
                 "FROM recordings ORDER BY created_at DESC"
             )
         ]
@@ -170,6 +230,7 @@ def get_recording(database: Path, recording_id: str) -> dict[str, object]:
             raise KeyError(recording_id)
         result = dict(row)
         result.pop("audio_path", None)
+        result.pop("transcript_text", None)
         result["speakers"] = [
             dict(item)
             for item in connection.execute(
@@ -330,6 +391,58 @@ def _task_title(text: str) -> str | None:
     return text.strip()[:200]
 
 
+def _replace_analysis_results(
+    connection: sqlite3.Connection,
+    recording_id: str,
+    transcript: list[tuple[float, float, str, float | None, str]],
+    created_at: str,
+) -> None:
+    connection.execute("DELETE FROM task_proposals WHERE recording_id=?", (recording_id,))
+    connection.execute("DELETE FROM conversation_topics WHERE recording_id=?", (recording_id,))
+    connection.execute("DELETE FROM utterances WHERE recording_id=?", (recording_id,))
+    connection.execute("DELETE FROM speakers WHERE recording_id=?", (recording_id,))
+    labels = list(dict.fromkeys(label for _, _, _, _, label in transcript))
+    speaker_ids: dict[str, str] = {}
+    for label in labels:
+        speaker_ids[label] = uuid.uuid4().hex
+        connection.execute(
+            "INSERT INTO speakers(id, recording_id, label) VALUES(?,?,?)",
+            (speaker_ids[label], recording_id, label),
+        )
+    topics: dict[str, list[str]] = {}
+    for start, end, text, confidence, label in transcript:
+        context, topic = _classify(text)
+        utterance_id = uuid.uuid4().hex
+        connection.execute(
+            """INSERT INTO utterances
+            (id,recording_id,speaker_id,start_seconds,end_seconds,text,confidence,context,topic)
+            VALUES(?,?,?,?,?,?,?,?,?)""",
+            (
+                utterance_id,
+                recording_id,
+                speaker_ids[label],
+                start,
+                end,
+                text,
+                confidence,
+                context,
+                topic,
+            ),
+        )
+        topics.setdefault(topic, []).append(text)
+        if title := _task_title(text):
+            connection.execute(
+                """INSERT INTO task_proposals
+                (id,recording_id,utterance_id,title,created_at) VALUES(?,?,?,?,?)""",
+                (uuid.uuid4().hex, recording_id, utterance_id, title, created_at),
+            )
+    for topic, texts in topics.items():
+        connection.execute(
+            "INSERT INTO conversation_topics VALUES(?,?,?,?,?)",
+            (uuid.uuid4().hex, recording_id, topic, "会話", " ".join(texts)[:1000]),
+        )
+
+
 def analyze_recording(database: Path, recording_id: str, token_file: Path) -> None:
     with ANALYSIS_LOCK:
         _analyze_recording(database, recording_id, token_file)
@@ -339,14 +452,16 @@ def _analyze_recording(database: Path, recording_id: str, token_file: Path) -> N
     try:
         with _connect(database) as connection:
             row = connection.execute(
-                "SELECT audio_path FROM recordings WHERE id=?", (recording_id,)
+                "SELECT audio_path, source_type FROM recordings WHERE id=?", (recording_id,)
             ).fetchone()
             if row is None:
+                return
+            if row["source_type"] != "audio":
                 return
             connection.execute(
                 "UPDATE recordings SET status='analyzing', error=NULL WHERE id=?", (recording_id,)
             )
-            audio_path = Path(row[0])
+            audio_path = Path(row["audio_path"])
         token = token_file.read_text(encoding="utf-8").strip()
         if not token:
             raise RuntimeError("Hugging Faceトークンが設定されていません")
@@ -395,59 +510,17 @@ def _analyze_recording(database: Path, recording_id: str, token_file: Path) -> N
                 os.environ.get("DAYMELD_WHISPER_MODEL", "small"), device="cpu", compute_type="int8"
             )
             segments, _ = model.transcribe(str(wav), language="ja", vad_filter=True)
-            transcript = [
+            raw_transcript = [
                 (float(s.start), float(s.end), s.text.strip(), float(s.avg_logprob))
                 for s in segments
             ]
-        labels = sorted({_speaker_for(start, end, turns) for start, end, _, _ in transcript})
+        transcript = [
+            (start, end, text, confidence, _speaker_for(start, end, turns))
+            for start, end, text, confidence in raw_transcript
+        ]
         now = datetime.now(UTC).isoformat()
         with _connect(database) as connection:
-            connection.execute("DELETE FROM task_proposals WHERE recording_id=?", (recording_id,))
-            connection.execute(
-                "DELETE FROM conversation_topics WHERE recording_id=?", (recording_id,)
-            )
-            connection.execute("DELETE FROM utterances WHERE recording_id=?", (recording_id,))
-            connection.execute("DELETE FROM speakers WHERE recording_id=?", (recording_id,))
-            speaker_ids = {}
-            for label in labels:
-                speaker_ids[label] = uuid.uuid4().hex
-                connection.execute(
-                    "INSERT INTO speakers(id, recording_id, label) VALUES(?,?,?)",
-                    (speaker_ids[label], recording_id, label),
-                )
-            topics: dict[str, list[str]] = {}
-            for start, end, text, confidence in transcript:
-                label = _speaker_for(start, end, turns)
-                context, topic = _classify(text)
-                utterance_id = uuid.uuid4().hex
-                connection.execute(
-                    """INSERT INTO utterances
-                    (id,recording_id,speaker_id,start_seconds,end_seconds,text,confidence,context,topic)
-                    VALUES(?,?,?,?,?,?,?,?,?)""",
-                    (
-                        utterance_id,
-                        recording_id,
-                        speaker_ids[label],
-                        start,
-                        end,
-                        text,
-                        confidence,
-                        context,
-                        topic,
-                    ),
-                )
-                topics.setdefault(topic, []).append(text)
-                if title := _task_title(text):
-                    connection.execute(
-                        """INSERT INTO task_proposals
-                        (id,recording_id,utterance_id,title,created_at) VALUES(?,?,?,?,?)""",
-                        (uuid.uuid4().hex, recording_id, utterance_id, title, now),
-                    )
-            for topic, texts in topics.items():
-                connection.execute(
-                    "INSERT INTO conversation_topics VALUES(?,?,?,?,?)",
-                    (uuid.uuid4().hex, recording_id, topic, "会話", " ".join(texts)[:1000]),
-                )
+            _replace_analysis_results(connection, recording_id, transcript, now)
             connection.execute(
                 "UPDATE recordings SET status='completed', analyzed_at=? WHERE id=?",
                 (now, recording_id),

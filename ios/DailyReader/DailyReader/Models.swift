@@ -400,6 +400,7 @@ struct ConversationRecording: Decodable, Identifiable {
     let error: String?
     let createdAt: String
     let analyzedAt: String?
+    let sourceType: String?
     let speakers: [ConversationSpeaker]?
     let utterances: [ConversationUtterance]?
     let topics: [ConversationTopic]?
@@ -410,9 +411,11 @@ struct ConversationRecording: Decodable, Identifiable {
     let locationAccuracy: Double?
     let locationTimestamp: String?
     let locationTimeDelta: Double?
+    var isTranscript: Bool { sourceType == "transcript" }
     enum CodingKeys: String, CodingKey {
         case id, filename, status, error, speakers, utterances, topics
         case byteSize = "byte_size"; case createdAt = "created_at"; case analyzedAt = "analyzed_at"
+        case sourceType = "source_type"
         case taskProposals = "task_proposals"
         case recordedAt = "recorded_at", locationLatitude = "location_latitude", locationLongitude = "location_longitude", locationAccuracy = "location_accuracy", locationTimestamp = "location_timestamp", locationTimeDelta = "location_time_delta"
     }

@@ -11,7 +11,7 @@
 - Mac miniの `127.0.0.1:8787` だけでホストし、Tailscale Serve経由でtailnet内に限定公開する。
 - 公開URL: `https://sk-mins-mac-mini.tailc193b2.ts.net/`
 - 外部サーバー、DB、有料ホスティングは使わない。SideStore更新成果物だけは、Mac mini上の専用loopbackサーバーをTailscale Funnelの`8443`番へ中継する。
-- Soundcore Workから取り込む会話録音はMac miniの`data/conversations/audio/`へ原音のMP3を保持する。文字起こし・話者分離・分類結果と確認待ちタスクは`data/conversations.sqlite3`へ保存し、ユーザーがAgentまたは通常タスクへの投入を承認するまで実行しない。原音は自動削除せず、5 GiBの空き容量を必ず残す。
+- Soundcore Workから取り込む会話録音はMac miniの`data/conversations/audio/`へ原音のMP3を保持する。文字起こし済みのUTF-8 TXTも10 MiBまで取り込み、原文と分類結果を`data/conversations.sqlite3`へ保存する。TXTは非空行を順番に発話として扱い、音声解析・話者推測をせず「話者1」とする。文字起こし・話者分離・分類結果と確認待ちタスクはユーザーがAgentまたは通常タスクへの投入を承認するまで実行しない。原音・TXT原文は自動削除せず、MP3保存時は5 GiBの空き容量を必ず残す。
 - 起動時とローカル時刻の8時、10時、12時、17時、20時、22時に更新する。
 - Codex CLIを1更新につき最大1回呼び、低コストモデルで全ハイライトをまとめて生成する。
 

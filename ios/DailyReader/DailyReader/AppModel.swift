@@ -212,12 +212,12 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func uploadRecording(_ url: URL) async {
+    func importConversationFile(_ url: URL) async {
         do {
             let date = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
-            _ = try await api.uploadRecording(url, recordedAt: date)
+            _ = try await api.uploadConversationFile(url, recordedAt: date)
             await refreshConversations()
-        } catch { errorMessage = "録音を送信できませんでした：\(error.localizedDescription)" }
+        } catch { errorMessage = "会話データを送信できませんでした：\(error.localizedDescription)" }
     }
 
     func loadConversation(_ id: String) async -> ConversationRecording? {

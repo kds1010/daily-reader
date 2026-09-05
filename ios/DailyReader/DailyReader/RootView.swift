@@ -160,13 +160,13 @@ struct ConversationsView: View {
         List {
             Section {
                 Button { importing = true } label: {
-                    Label("SoundcoreのMP3を取り込む", systemImage: "square.and.arrow.down")
+                    Label("MP3または文字起こしTXTを取り込む", systemImage: "square.and.arrow.down")
                 }
-                Text("原音はMac miniにそのまま保存され、自動削除されません。")
+                Text("MP3の原音とTXTの原文はMac miniに保存され、自動削除されません。")
                     .appFont(.caption).foregroundStyle(.secondary)
             }
-            Section("録音") {
-                ResourceStatusView(state: model.conversationLoadState, label: "録音") {
+            Section("取り込み履歴") {
+                ResourceStatusView(state: model.conversationLoadState, label: "会話") {
                     Task { await model.refreshConversations() }
                 }
                 ForEach(model.conversations) { recording in
@@ -176,6 +176,7 @@ struct ConversationsView: View {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(recording.filename).appFont(.headline)
                             HStack {
+                                Text(recording.isTranscript ? "テキスト" : "音声")
                                 Text(recording.status == "completed" ? "解析済み" : recording.status == "failed" ? "要確認" : "解析中")
                                 Text(ByteCountFormatter.string(fromByteCount: Int64(recording.byteSize), countStyle: .file))
                             }.appFont(.caption).foregroundStyle(.secondary)
@@ -187,9 +188,9 @@ struct ConversationsView: View {
         }
         .navigationTitle("会話")
         .refreshable { await model.refreshConversations() }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.mp3], allowsMultipleSelection: false) { result in
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.mp3, .plainText], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
-                Task { await model.uploadRecording(url) }
+                Task { await model.importConversationFile(url) }
             } else if case .failure(let error) = result {
                 model.errorMessage = error.localizedDescription
             }
@@ -216,7 +217,9 @@ struct ConversationDetailView: View {
                     }
                     if recording.status == "failed" {
                         Text(recording.error ?? "解析に失敗しました").foregroundStyle(.orange)
-                        Button("解析を再実行") { Task { await model.analyzeConversation(recordingID); await reload() } }
+                        if !recording.isTranscript {
+                            Button("解析を再実行") { Task { await model.analyzeConversation(recordingID); await reload() } }
+                        }
                     }
                 }
                 Section("会話") {

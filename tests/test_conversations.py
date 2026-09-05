@@ -8,12 +8,20 @@ import pytest
 
 from daily_reader.conversations import (
     get_recording,
+    initialize_database,
+    list_recordings,
     mark_proposal_approved,
+    match_recording_location,
+    store_location_events,
+    store_transcript,
     store_upload,
     update_speaker,
-    store_location_events,
-    match_recording_location,
 )
+
+
+@pytest.fixture(autouse=True)
+def allow_test_audio_storage(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("daily_reader.conversations.MINIMUM_FREE_BYTES", 0)
 
 
 def test_upload_keeps_original_and_deduplicates(tmp_path: Path) -> None:
@@ -34,10 +42,115 @@ def test_upload_rejects_non_mp3(tmp_path: Path) -> None:
         store_upload(tmp_path / "db", tmp_path / "audio", io.BytesIO(b"x"), 1, "x.wav")
 
 
+def test_transcript_upload_is_completed_and_classified(tmp_path: Path) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "\ufeff資料を確認してください\n\n明日の会議を予定します\n".encode()
+
+    item = store_transcript(
+        database,
+        io.BytesIO(content),
+        len(content),
+        "meeting.txt",
+        "2026-09-04T10:00:00+00:00",
+    )
+
+    assert item["source_type"] == "transcript"
+    assert item["status"] == "completed"
+    assert item["recorded_at"] == "2026-09-04T10:00:00+00:00"
+    assert "transcript_text" not in item
+    assert [utterance["text"] for utterance in item["utterances"]] == [
+        "資料を確認してください",
+        "明日の会議を予定します",
+    ]
+    assert all(utterance["speaker"] == "話者1" for utterance in item["utterances"])
+    assert all(utterance["confidence"] is None for utterance in item["utterances"])
+    assert {topic["name"] for topic in item["topics"]} == {
+        "仕事・プロジェクト",
+        "予定・調整",
+    }
+    assert [proposal["title"] for proposal in item["task_proposals"]] == [
+        "資料を確認してください"
+    ]
+    with sqlite3.connect(database) as connection:
+        stored = connection.execute(
+            "SELECT audio_path, transcript_text FROM recordings WHERE id=?", (item["id"],)
+        ).fetchone()
+    assert stored == ("", content.decode("utf-8-sig"))
+
+
+def test_transcript_upload_deduplicates_exact_content(tmp_path: Path) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "対応してください".encode()
+
+    first = store_transcript(database, io.BytesIO(content), len(content), "first.txt")
+    second = store_transcript(database, io.BytesIO(content), len(content), "copy.txt")
+
+    assert first["id"] == second["id"]
+    assert len(list_recordings(database)) == 1
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        (b"\xff", "UTF-8"),
+        (b"  \n\t", "empty"),
+    ],
+)
+def test_transcript_upload_rejects_invalid_text(
+    tmp_path: Path, content: bytes, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        store_transcript(tmp_path / "db", io.BytesIO(content), len(content), "meeting.txt")
+
+
+def test_transcript_upload_rejects_invalid_extension_and_size(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="only TXT"):
+        store_transcript(tmp_path / "db", io.BytesIO(b"text"), 4, "meeting.md")
+    with pytest.raises(ValueError, match="invalid transcript size"):
+        store_transcript(tmp_path / "db", io.BytesIO(b"text"), 10 * 1024**2 + 1, "x.txt")
+
+
+def test_database_migration_marks_existing_recordings_as_audio(tmp_path: Path) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """CREATE TABLE recordings (
+            id TEXT PRIMARY KEY, filename TEXT NOT NULL, audio_path TEXT NOT NULL,
+            sha256 TEXT NOT NULL UNIQUE, byte_size INTEGER NOT NULL,
+            status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL, analyzed_at TEXT
+            )"""
+        )
+        connection.execute(
+            """INSERT INTO recordings VALUES
+            ('old','old.mp3','/tmp/old','hash',3,'completed',NULL,'now','now')"""
+        )
+
+    initialize_database(database)
+
+    assert list_recordings(database)[0]["source_type"] == "audio"
+
+
 def test_location_events_match_recording_by_time(tmp_path: Path) -> None:
     database = tmp_path / "db"
-    item = store_upload(database, tmp_path / "audio", io.BytesIO(b"ID3x"), 4, "x.mp3", "2026-09-04T10:00:00+00:00")
-    store_location_events(database, [{"timestamp": "2026-09-04T09:59:30+00:00", "latitude": 35.0, "longitude": 139.0, "horizontal_accuracy": 20}])
+    item = store_upload(
+        database,
+        tmp_path / "audio",
+        io.BytesIO(b"ID3x"),
+        4,
+        "x.mp3",
+        "2026-09-04T10:00:00+00:00",
+    )
+    store_location_events(
+        database,
+        [
+            {
+                "timestamp": "2026-09-04T09:59:30+00:00",
+                "latitude": 35.0,
+                "longitude": 139.0,
+                "horizontal_accuracy": 20,
+            }
+        ],
+    )
     match = match_recording_location(database, str(item["id"]))
     assert match and match["latitude"] == 35.0
     assert get_recording(database, str(item["id"]))["location_time_delta"] == 30.0
@@ -45,8 +158,25 @@ def test_location_events_match_recording_by_time(tmp_path: Path) -> None:
 
 def test_location_match_ignores_distant_event(tmp_path: Path) -> None:
     database = tmp_path / "db"
-    item = store_upload(database, tmp_path / "audio", io.BytesIO(b"ID3x"), 4, "x.mp3", "2026-09-04T10:00:00+00:00")
-    store_location_events(database, [{"timestamp": "2026-09-04T20:00:00+00:00", "latitude": 35.0, "longitude": 139.0, "horizontal_accuracy": 20}])
+    item = store_upload(
+        database,
+        tmp_path / "audio",
+        io.BytesIO(b"ID3x"),
+        4,
+        "x.mp3",
+        "2026-09-04T10:00:00+00:00",
+    )
+    store_location_events(
+        database,
+        [
+            {
+                "timestamp": "2026-09-04T20:00:00+00:00",
+                "latitude": 35.0,
+                "longitude": 139.0,
+                "horizontal_accuracy": 20,
+            }
+        ],
+    )
     assert match_recording_location(database, str(item["id"])) is None
 
 

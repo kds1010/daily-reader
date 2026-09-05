@@ -47,6 +47,7 @@ from daily_reader.conversations import (
     proposal,
     start_analysis,
     store_location_events,
+    store_transcript,
     store_upload,
     update_speaker,
 )
@@ -928,15 +929,25 @@ def make_handler(
                 query = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(self.path).query))
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
-                    item = store_upload(
-                        conversations_db,
-                        conversation_audio_dir,
-                        self.rfile,
-                        length,
-                        query.get("filename", ""),
-                        query.get("recorded_at"),
-                    )
-                    start_analysis(conversations_db, str(item["id"]), huggingface_token)
+                    filename = query.get("filename", "")
+                    if Path(filename).suffix.lower() == ".txt":
+                        item = store_transcript(
+                            conversations_db,
+                            self.rfile,
+                            length,
+                            filename,
+                            query.get("recorded_at"),
+                        )
+                    else:
+                        item = store_upload(
+                            conversations_db,
+                            conversation_audio_dir,
+                            self.rfile,
+                            length,
+                            filename,
+                            query.get("recorded_at"),
+                        )
+                        start_analysis(conversations_db, str(item["id"]), huggingface_token)
                     self._send_json(201, item)
                 except (OSError, TypeError, ValueError) as error:
                     self._send_json(400, {"error": str(error)})
@@ -955,11 +966,15 @@ def make_handler(
             if path.startswith("/api/conversations/") and path.endswith("/analyze"):
                 recording_id = path.split("/")[-2]
                 try:
-                    get_recording(conversations_db, recording_id)
+                    item = get_recording(conversations_db, recording_id)
+                    if item["source_type"] != "audio":
+                        raise ValueError("文字起こしテキストは音声解析できません")
                     start_analysis(conversations_db, recording_id, huggingface_token)
                     self._send_json(202, {"queued": True})
                 except KeyError:
                     self._send_json(404, {"error": "recording not found"})
+                except ValueError as error:
+                    self._send_json(400, {"error": str(error)})
                 return
             if path.startswith("/api/conversations/") and path.endswith("/match-location"):
                 recording_id = path.split("/")[-2]

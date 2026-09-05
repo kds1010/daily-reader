@@ -4,17 +4,21 @@
 
 Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneとMacで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部サーバーやデータベースは必要ありません。SideStoreの更新成果物だけは、秘密URLで保護したTailscale Funnelの専用ポートから配信できます。起動時はAgentタブを最初に表示します。
 
-## 会話録音の解析
+## 会話データの解析
 
-iPhone版の「会話」タブからSoundcore Workが書き出したMP3を選ぶと、原音を
-`data/conversations/audio/`へ再圧縮せず保存します。同一内容はSHA-256で重複排除し、
-保存後の空き容量が5 GiB未満になるアップロードは拒否します。原音は自動削除しません。
+iPhone・macOS版の「会話」タブでは、Soundcore Workが書き出したMP3に加え、文字起こし済みの
+UTF-8 TXTを取り込めます。MP3原音は`data/conversations/audio/`へ再圧縮せず保存し、TXT原文は
+`data/conversations.sqlite3`へ保存します。同一種別・同一内容はSHA-256で重複排除します。
+TXTは10 MiBまでです。MP3保存後の空き容量が5 GiB未満になるアップロードは拒否し、取り込んだ
+原音・原文は自動削除しません。
 
 Mac側ではfaster-whisperで日本語を文字起こしし、pyannoteの
 `speaker-diarization-community-1`で話者区間を分離します。Hugging Faceでモデルの利用条件に
 同意したうえで、アクセストークンを改行付きの
 `secrets/huggingface-token.txt`へ保存してください。音声と解析処理はMac内で完結します。
-解析結果、話者、話題、発話、確認待ちタスクは`data/conversations.sqlite3`へ保存されます。
+TXTは音声解析を行わないため、Hugging Faceトークンは不要です。非空行を順番に発話として扱い、
+話者を推測せず「話者1」として分類します。解析結果、話者、話題、発話、確認待ちタスクは
+`data/conversations.sqlite3`へ保存されます。
 候補タスクは追加指示を編集してから「Agentへ依頼」または「通常タスクに追加」を選ぶまで
 実行されません。
 
