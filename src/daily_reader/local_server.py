@@ -39,7 +39,7 @@ from daily_reader.agent_jobs import (
     request_cancel,
     resume_job,
 )
-from daily_reader.conversation_insights import api_key_available
+from daily_reader.conversation_insights import DEFAULT_INSIGHT_MODEL, codex_available
 from daily_reader.conversations import (
     ACTIONABLE_INSIGHT_KINDS,
     get_recording,
@@ -642,9 +642,9 @@ def make_handler(
     conversations_db: Path = Path("data/conversations.sqlite3"),
     conversation_audio_dir: Path = Path("data/conversations/audio"),
     huggingface_token: Path = Path("secrets/huggingface-token.txt"),
-    conversation_openai_api_key: Path = Path("secrets/openai-api-key.txt"),
     conversation_insight_schema: Path = Path("config/conversation-insight-schema.json"),
-    conversation_insight_model: str = "gpt-5-mini",
+    conversation_codex_command: str = "codex",
+    conversation_insight_model: str = DEFAULT_INSIGHT_MODEL,
 ):
     repositories = agent_repositories or {}
     tanomi = tanomi_client
@@ -744,7 +744,7 @@ def make_handler(
                     200,
                     {
                         "recordings": list_recordings(conversations_db),
-                        "llm_available": api_key_available(conversation_openai_api_key),
+                        "llm_available": codex_available(conversation_codex_command),
                     },
                 )
                 return
@@ -1001,8 +1001,8 @@ def make_handler(
                     queued = queue_insight_extraction(
                         conversations_db,
                         recording_id,
-                        conversation_openai_api_key,
                         conversation_insight_schema,
+                        conversation_codex_command,
                         conversation_insight_model,
                     )
                     self._send_json(202, {"queued": queued})
@@ -1900,16 +1900,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--huggingface-token", type=Path, default=Path("secrets/huggingface-token.txt")
     )
     parser.add_argument(
-        "--conversation-openai-api-key",
-        type=Path,
-        default=Path("secrets/openai-api-key.txt"),
-    )
-    parser.add_argument(
         "--conversation-insight-schema",
         type=Path,
         default=Path("config/conversation-insight-schema.json"),
     )
-    parser.add_argument("--conversation-insight-model", default="gpt-5-mini")
+    parser.add_argument("--conversation-insight-model", default=DEFAULT_INSIGHT_MODEL)
     parser.add_argument(
         "--agent-repositories",
         type=Path,
@@ -1986,8 +1981,8 @@ def main() -> None:
         conversations_db=args.conversations_db,
         conversation_audio_dir=args.conversation_audio_dir,
         huggingface_token=args.huggingface_token,
-        conversation_openai_api_key=args.conversation_openai_api_key,
         conversation_insight_schema=args.conversation_insight_schema,
+        conversation_codex_command=_codex_executable(),
         conversation_insight_model=args.conversation_insight_model,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)

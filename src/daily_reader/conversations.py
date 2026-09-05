@@ -19,7 +19,6 @@ from daily_reader.conversation_insights import (
     PROMPT_VERSION,
     ConversationInsightError,
     chunk_utterances,
-    load_api_key,
     request_insights,
 )
 
@@ -806,8 +805,8 @@ def _insight_input(
 def queue_insight_extraction(
     database: Path,
     recording_id: str,
-    api_key_file: Path,
     schema_path: Path,
+    codex_command: str,
     model: str = DEFAULT_INSIGHT_MODEL,
 ) -> bool:
     with _connect(database) as connection:
@@ -817,7 +816,7 @@ def queue_insight_extraction(
         if recording is None:
             raise KeyError(recording_id)
         if recording["status"] != "completed":
-            raise ValueError("文字起こしの完了後にLLMで整理できます")
+            raise ValueError("文字起こしの完了後にCodexで整理できます")
         if recording["insight_status"] in {"queued", "extracting"}:
             return False
         if not connection.execute(
@@ -831,7 +830,7 @@ def queue_insight_extraction(
         )
     threading.Thread(
         target=extract_recording_insights,
-        args=(database, recording_id, api_key_file, schema_path, model),
+        args=(database, recording_id, schema_path, codex_command, model),
         daemon=True,
     ).start()
     return True
@@ -844,20 +843,20 @@ def _validate_extracted_item(
     kind = raw.get("kind")
     certainty = raw.get("certainty")
     if kind not in INSIGHT_KINDS or certainty not in INSIGHT_CERTAINTIES:
-        raise ConversationInsightError("LLMの候補種別または確実性が不正です")
+        raise ConversationInsightError("Codexの候補種別または確実性が不正です")
     title = raw.get("title")
     detail = raw.get("detail")
     if not isinstance(title, str) or not title.strip() or len(title.strip()) > 200:
-        raise ConversationInsightError("LLMの候補タイトルが不正です")
+        raise ConversationInsightError("Codexの候補タイトルが不正です")
     if not isinstance(detail, str) or len(detail.strip()) > 4_000:
-        raise ConversationInsightError("LLMの候補詳細が不正です")
+        raise ConversationInsightError("Codexの候補詳細が不正です")
     assignee = _optional_text(raw.get("assignee"), 100, "assignee")
     due_date = _optional_text(raw.get("due_date"), 10, "due date")
     if due_date is not None:
         try:
             due_date = date.fromisoformat(due_date).isoformat()
         except ValueError as error:
-            raise ConversationInsightError("LLMの期限が正しい日付ではありません") from error
+            raise ConversationInsightError("Codexの期限が正しい日付ではありません") from error
     due_date_original = _optional_text(raw.get("due_date_original"), 100, "due date source")
     evidence_ids = raw.get("evidence_utterance_ids")
     if (
@@ -866,7 +865,7 @@ def _validate_extracted_item(
         or not all(isinstance(value, str) and value in utterances for value in evidence_ids)
         or len(set(evidence_ids)) != len(evidence_ids)
     ):
-        raise ConversationInsightError("LLMの根拠発話が不正です")
+        raise ConversationInsightError("Codexの根拠発話が不正です")
     evidence = [utterances[str(value)] for value in evidence_ids]
     normalized_title = re.sub(r"\s+", "", title).casefold()
     fingerprint = hashlib.sha256(
@@ -924,7 +923,7 @@ def _store_extracted_items(
                     (id, recording_id, analysis_run_id, kind, title, detail, assignee,
                      due_date, due_date_original, certainty, status, source, extractor_version,
                      fingerprint, created_at, updated_at)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,'awaiting_review','openai',?,?,?,?)""",
+                    VALUES(?,?,?,?,?,?,?,?,?,?,'awaiting_review','codex',?,?,?,?)""",
                     (
                         item_id,
                         recording_id,
@@ -995,8 +994,8 @@ def _store_extracted_items(
 def extract_recording_insights(
     database: Path,
     recording_id: str,
-    api_key_file: Path,
     schema_path: Path,
+    codex_command: str = "codex",
     model: str = DEFAULT_INSIGHT_MODEL,
 ) -> None:
     with INSIGHT_ANALYSIS_LOCK:
@@ -1039,7 +1038,7 @@ def extract_recording_insights(
                             recording_id,
                             input_hash,
                             PROMPT_VERSION,
-                            "openai",
+                            "codex",
                             model,
                             now,
                         ),
@@ -1050,18 +1049,17 @@ def extract_recording_insights(
                         error=NULL, completed_at=NULL, created_at=? WHERE id=?""",
                         (now, run_id),
                     )
-            api_key = load_api_key(api_key_file)
             try:
-                schema = json.loads(schema_path.read_text(encoding="utf-8"))
+                json.loads(schema_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as error:
                 raise ConversationInsightError("会話整理の出力スキーマを読み取れません") from error
             raw_items: list[dict[str, object]] = []
             for chunk in chunk_utterances(utterances):
                 raw_items.extend(
                     request_insights(
-                        api_key=api_key,
+                        codex_command=codex_command,
                         model=model,
-                        schema=schema,
+                        schema_path=schema_path,
                         recorded_at=recorded_at,
                         timezone="Asia/Tokyo",
                         utterances=chunk,
@@ -1076,7 +1074,7 @@ def extract_recording_insights(
                 datetime.now(UTC).isoformat(),
             )
         except Exception as error:
-            message = str(error)[:500] or "LLMによる整理に失敗しました"
+            message = str(error)[:500] or "Codexによる整理に失敗しました"
             with _connect(database) as connection:
                 if run_id is not None:
                     connection.execute(

@@ -291,15 +291,17 @@ def test_conversation_upload_accepts_transcript_without_audio_analysis(
     assert analysis_calls == []
 
 
-def test_conversation_endpoints_expose_llm_availability_and_queue_extraction(
+def test_conversation_endpoints_expose_codex_availability_and_queue_extraction(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     database = tmp_path / "conversations.sqlite3"
     content = "資料を確認してください".encode()
     recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
-    api_key = tmp_path / "openai-api-key.txt"
-    api_key.write_text("configured")
     queued: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "daily_reader.local_server.codex_available",
+        lambda command: command == "/usr/local/bin/codex",
+    )
     monkeypatch.setattr(
         "daily_reader.local_server.queue_insight_extraction",
         lambda *args: queued.append(args) or True,
@@ -313,9 +315,9 @@ def test_conversation_endpoints_expose_llm_availability_and_queue_extraction(
         tmp_path / "gmail-client.json",
         tmp_path / "gmail-token.json",
         conversations_db=database,
-        conversation_openai_api_key=api_key,
         conversation_insight_schema=tmp_path / "schema.json",
-        conversation_insight_model="gpt-5-mini",
+        conversation_codex_command="/usr/local/bin/codex",
+        conversation_insight_model="gpt-5.6-luna",
     )
     handler = handler_factory.func.__new__(handler_factory.func)
     responses = []
@@ -331,9 +333,9 @@ def test_conversation_endpoints_expose_llm_availability_and_queue_extraction(
     assert responses[1] == (202, {"queued": True})
     assert queued[0][1:] == (
         recording["id"],
-        api_key,
         tmp_path / "schema.json",
-        "gpt-5-mini",
+        "/usr/local/bin/codex",
+        "gpt-5.6-luna",
     )
 
 

@@ -299,14 +299,13 @@ def test_llm_reanalysis_preserves_reviewed_items_and_supersedes_pending(
             }
         ]
 
-    monkeypatch.setattr("daily_reader.conversations.load_api_key", lambda _path: "key")
     monkeypatch.setattr(
         "daily_reader.conversations.request_insights", fake_request_insights
     )
     schema = tmp_path / "schema.json"
     schema.write_text('{"type":"object"}')
 
-    extract_recording_insights(database, str(recording["id"]), tmp_path / "key", schema)
+    extract_recording_insights(database, str(recording["id"]), schema)
     first_items = list_insight_items(database)
     decision = next(item for item in first_items if item["kind"] == "decision")
     review_insight_item(database, str(decision["id"]), {"action": "keep"})
@@ -316,7 +315,7 @@ def test_llm_reanalysis_preserves_reviewed_items_and_supersedes_pending(
             "UPDATE utterances SET text=? WHERE recording_id=?",
             ("資料の確認に毎回時間がかかります", recording["id"]),
         )
-    extract_recording_insights(database, str(recording["id"]), tmp_path / "key", schema)
+    extract_recording_insights(database, str(recording["id"]), schema)
 
     kept = list_insight_items(database, "kept")
     pending = list_insight_items(database)
@@ -380,14 +379,16 @@ def test_replacing_transcript_invalidates_only_unreviewed_insights(tmp_path: Pat
     assert get_recording(database, str(recording["id"]))["insight_status"] == "not_requested"
 
 
+@pytest.mark.parametrize("evidence_mode", ["unknown", "duplicate"])
 def test_invalid_llm_evidence_keeps_current_inbox_items(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, evidence_mode: str
 ) -> None:
     database = tmp_path / "conversations.sqlite3"
     content = "資料を確認してください".encode()
     recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
     existing_id = str(recording["insight_items"][0]["id"])
-    monkeypatch.setattr("daily_reader.conversations.load_api_key", lambda _path: "key")
+    utterance_id = str(get_recording(database, str(recording["id"]))["utterances"][0]["id"])
+    evidence_ids = ["unknown"] if evidence_mode == "unknown" else [utterance_id, utterance_id]
     monkeypatch.setattr(
         "daily_reader.conversations.request_insights",
         lambda **_kwargs: [
@@ -399,16 +400,16 @@ def test_invalid_llm_evidence_keeps_current_inbox_items(
                 "due_date": None,
                 "due_date_original": None,
                 "certainty": "explicit",
-                "evidence_utterance_ids": ["unknown"],
+                "evidence_utterance_ids": evidence_ids,
             }
         ],
     )
     schema = tmp_path / "schema.json"
     schema.write_text('{"type":"object"}')
 
-    extract_recording_insights(database, str(recording["id"]), tmp_path / "key", schema)
+    extract_recording_insights(database, str(recording["id"]), schema)
 
     assert [item["id"] for item in list_insight_items(database)] == [existing_id]
     failed = get_recording(database, str(recording["id"]))
     assert failed["insight_status"] == "failed"
-    assert failed["insight_error"] == "LLMの根拠発話が不正です"
+    assert failed["insight_error"] == "Codexの根拠発話が不正です"

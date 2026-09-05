@@ -287,7 +287,7 @@ final class AppModel: ObservableObject {
 
     func extractConversationInsights(_ id: String) async -> Bool {
         guard conversationLLMAvailable else {
-            errorMessage = "Mac miniにOpenAI APIキーが設定されていません。"
+            errorMessage = "Mac miniでCodexへChatGPTログインしていません。"
             return false
         }
         do {
@@ -299,7 +299,7 @@ final class AppModel: ObservableObject {
             await refreshConversations()
             return true
         } catch {
-            errorMessage = "会話をLLMで整理できませんでした：\(error.localizedDescription)"
+            errorMessage = "会話をCodexで整理できませんでした：\(error.localizedDescription)"
             return false
         }
     }

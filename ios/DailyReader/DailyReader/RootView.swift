@@ -167,7 +167,7 @@ struct ConversationsView: View {
             }
             Section("音声インボックス") {
                 if model.conversationItems.isEmpty {
-                    Text("確認待ちの候補はありません。録音の詳細からLLM整理を開始できます。")
+                    Text("確認待ちの候補はありません。録音の詳細からCodex整理を開始できます。")
                         .appFont(.subheadline).foregroundStyle(.secondary)
                 } else {
                     ForEach(model.conversationItems) { item in
@@ -291,14 +291,14 @@ struct ConversationDetailView: View {
         .navigationTitle("解析結果")
         .task { await reload() }
         .confirmationDialog(
-            "文字起こしをOpenAIへ送信しますか？",
+            "文字起こしをCodexで整理しますか？",
             isPresented: $showExtractionConfirmation,
             titleVisibility: .visible
         ) {
-            Button("送信して整理") { Task { await extractInsights() } }
+            Button("Codexで整理") { Task { await extractInsights() } }
             Button("キャンセル", role: .cancel) {}
         } message: {
-            Text("この録音の文字起こしだけを送信します。原音、GPS、ファイル名、ほかの録音は送信しません。候補が自動でタスク化・実行されることもありません。")
+            Text("この録音の日時、話者、発話時刻、文字起こしだけをCodexへ渡します。原音、GPS、ファイル名、ほかの録音は渡しません。候補が自動でタスク化・実行されることもありません。")
         }
     }
 
@@ -310,21 +310,21 @@ struct ConversationDetailView: View {
         case "queued", "extracting":
             HStack {
                 ProgressView()
-                Text("LLMが候補を整理しています…")
+                Text("Codexが候補を整理しています…")
             }
         case "completed":
-            Label("LLMによる整理が完了しました", systemImage: "checkmark.circle.fill")
+            Label("Codexによる整理が完了しました", systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
         case "failed":
-            Text(recording.insightError ?? "LLMによる整理に失敗しました。")
+            Text(recording.insightError ?? "Codexによる整理に失敗しました。")
                 .foregroundStyle(.orange)
-            Button("LLM整理を再試行") { showExtractionConfirmation = true }
+            Button("Codex整理を再試行") { showExtractionConfirmation = true }
                 .disabled(!model.conversationLLMAvailable || extractionInFlight)
         default:
-            Button("LLMでタスク・決定・アイデアを整理") { showExtractionConfirmation = true }
+            Button("Codexでタスク・決定・アイデアを整理") { showExtractionConfirmation = true }
                 .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight)
             if !model.conversationLLMAvailable {
-                Text("Mac miniにOpenAI APIキーを設定すると利用できます。")
+                Text("Mac miniでCodexへChatGPTログインすると利用できます。")
                     .appFont(.caption).foregroundStyle(.secondary)
             }
         }
@@ -381,7 +381,7 @@ struct ConversationInsightCard: View {
                     .appFont(.caption2, weight: .semibold)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(item.source == "openai" ? "LLM" : "ルール")
+                Text(item.source == "codex" ? "Codex" : item.source == "openai" ? "LLM" : "ルール")
                     .appFont(.caption2).foregroundStyle(.tertiary)
             }
             TextField("タイトル", text: $title, axis: .vertical)
