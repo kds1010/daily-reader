@@ -27,7 +27,6 @@ struct SoanView: View {
     @State private var draft = ""
     @State private var selectedBlock: SoanBlock?
     @State private var comment = ""
-    @State private var showingComment = false
     @State private var showingTextEditor = false
     @State private var loading = false
     @State private var error: String?
@@ -61,7 +60,7 @@ struct SoanView: View {
                 Button("文書一覧へ", systemImage: "folder") { document = nil; selectedTab = nil }
             } label: { Image(systemName: "ellipsis.circle") } } }
         }
-        .sheet(isPresented: $showingComment) { commentSheet }
+        .sheet(item: $selectedBlock) { _ in commentSheet }
         .sheet(isPresented: $showingTextEditor) { textEditorSheet }
         .refreshable { await reload() }
         .task { if workspaces.isEmpty { await reload() } }
@@ -70,11 +69,17 @@ struct SoanView: View {
     @ViewBuilder private func blockView(_ block: SoanBlock, tab: SoanTab, root: String) -> some View {
         if block.editable {
             Button {
-                selectedBlock = block
                 comment = ""
-                showingComment = true
+                selectedBlock = block
             } label: {
-                blockContent(block, tab: tab, root: root)
+                HStack(alignment: .top, spacing: 10) {
+                    blockContent(block, tab: tab, root: root)
+                    Image(systemName: "bubble.left")
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityHint("このブロックについてLLMにコメントします")
@@ -117,7 +122,7 @@ struct SoanView: View {
             if let block = selectedBlock { Section("選択したブロック") { Text(block.text).textSelection(.enabled) } }
             Section("LLMへのコメント") { TextField("例：根拠を補い、結論を明確に", text: $comment, axis: .vertical).lineLimit(3...8) }
             Section { Button("修正案を作る") { Task { await editSelectedBlock() } }.disabled(comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || loading) }
-        }.navigationTitle("ブロックを相談").toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { showingComment = false } } } }
+        }.navigationTitle("ブロックを相談").toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { selectedBlock = nil } } } }
     }
 
     private var textEditorSheet: some View {
@@ -159,7 +164,7 @@ struct SoanView: View {
     private func editSelectedBlock() async {
         guard let document, let tab = selectedTab, let block = selectedBlock else { return }
         let instruction = comment.trimmingCharacters(in: .whitespacesAndNewlines)
-        await perform { let value: SoanProposal = try await APIClient.shared.post("/api/soan/edit", body: SoanRequest(root: document.root, tabID: tab.id, blockID: block.id, instruction: instruction), as: SoanProposal.self, timeout: 130); draft = value.content; showingComment = false; showingTextEditor = true }
+        await perform { let value: SoanProposal = try await APIClient.shared.post("/api/soan/edit", body: SoanRequest(root: document.root, tabID: tab.id, blockID: block.id, instruction: instruction), as: SoanProposal.self, timeout: 130); draft = value.content; selectedBlock = nil; showingTextEditor = true }
     }
     private func saveCurrent() async {
         guard let document, let tab = selectedTab else { return }
