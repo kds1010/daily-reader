@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "title",
+          "detail",
+          "assignee",
+          "due_date",
+          "due_date_original",
+          "certainty",
+          "evidence_utterance_ids"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["task", "follow_up", "decision", "idea", "friction"]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "assignee": {
+            "anyOf": [
+              {"type": "string", "minLength": 1, "maxLength": 100},
+              {"type": "null"}
+            ]
+          },
+          "due_date": {
+            "anyOf": [
+              {"type": "string", "minLength": 10, "maxLength": 10},
+              {"type": "null"}
+            ]
+          },
+          "due_date_original": {
+            "anyOf": [
+              {"type": "string", "minLength": 1, "maxLength": 100},
+              {"type": "null"}
+            ]
+          },
+          "certainty": {
+            "type": "string",
+            "enum": ["explicit", "inferred", "ambiguous"]
+          },
+          "evidence_utterance_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    }
+  }
+}

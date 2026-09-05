@@ -39,12 +39,19 @@ from daily_reader.agent_jobs import (
     request_cancel,
     resume_job,
 )
+from daily_reader.conversation_insights import api_key_available
 from daily_reader.conversations import (
+    ACTIONABLE_INSIGHT_KINDS,
     get_recording,
+    list_insight_items,
     list_recordings,
+    mark_insight_item_approved,
     mark_proposal_approved,
     match_recording_location,
+    prepare_insight_item,
     proposal,
+    queue_insight_extraction,
+    review_insight_item,
     start_analysis,
     store_location_events,
     store_transcript,
@@ -83,6 +90,7 @@ from daily_reader.tanomi_client import (
 )
 
 TANOMI_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+CONVERSATION_DISPATCH_LOCK = threading.Lock()
 
 LOGGER = logging.getLogger(__name__)
 MODEL_CACHE_TTL = 300.0
@@ -634,6 +642,9 @@ def make_handler(
     conversations_db: Path = Path("data/conversations.sqlite3"),
     conversation_audio_dir: Path = Path("data/conversations/audio"),
     huggingface_token: Path = Path("secrets/huggingface-token.txt"),
+    conversation_openai_api_key: Path = Path("secrets/openai-api-key.txt"),
+    conversation_insight_schema: Path = Path("config/conversation-insight-schema.json"),
+    conversation_insight_model: str = "gpt-5-mini",
 ):
     repositories = agent_repositories or {}
     tanomi = tanomi_client
@@ -713,8 +724,29 @@ def make_handler(
                 except SoanError as error:
                     self._send_json(error.status or 503, {"error": str(error)})
                 return
+            if path == "/api/conversation-items":
+                query = dict(urllib.parse.parse_qsl(parsed_url.query))
+                try:
+                    self._send_json(
+                        200,
+                        {
+                            "items": list_insight_items(
+                                conversations_db,
+                                query.get("status", "awaiting_review"),
+                            )
+                        },
+                    )
+                except ValueError as error:
+                    self._send_json(400, {"error": str(error)})
+                return
             if path == "/api/conversations":
-                self._send_json(200, {"recordings": list_recordings(conversations_db)})
+                self._send_json(
+                    200,
+                    {
+                        "recordings": list_recordings(conversations_db),
+                        "llm_available": api_key_available(conversation_openai_api_key),
+                    },
+                )
                 return
             if path.startswith("/api/conversations/"):
                 recording_id = path.rsplit("/", 1)[-1]
@@ -963,6 +995,22 @@ def make_handler(
                 except (ValueError, TypeError, KeyError) as error:
                     self._send_json(400, {"error": str(error)})
                 return
+            if path.startswith("/api/conversations/") and path.endswith("/insights"):
+                recording_id = path.split("/")[-2]
+                try:
+                    queued = queue_insight_extraction(
+                        conversations_db,
+                        recording_id,
+                        conversation_openai_api_key,
+                        conversation_insight_schema,
+                        conversation_insight_model,
+                    )
+                    self._send_json(202, {"queued": queued})
+                except KeyError:
+                    self._send_json(404, {"error": "recording not found"})
+                except ValueError as error:
+                    self._send_json(400, {"error": str(error)})
+                return
             if path.startswith("/api/conversations/") and path.endswith("/analyze"):
                 recording_id = path.split("/")[-2]
                 try:
@@ -995,6 +1043,71 @@ def make_handler(
                     self._send_json(202, {"updated": True})
                 except (KeyError, TypeError, ValueError):
                     self._send_json(400, {"error": "invalid speaker"})
+                return
+            if path.startswith("/api/conversation-items/") and path.endswith("/review"):
+                item_id = path.split("/")[-2]
+                try:
+                    request = self._read_json()
+                    self._send_json(
+                        200,
+                        review_insight_item(conversations_db, item_id, request),
+                    )
+                except KeyError:
+                    self._send_json(404, {"error": "conversation item not found"})
+                except (TypeError, ValueError) as error:
+                    self._send_json(400, {"error": str(error)})
+                return
+            if path.startswith("/api/conversation-items/") and path.endswith("/dispatch"):
+                item_id = path.split("/")[-2]
+                try:
+                    request = self._read_json()
+                    with CONVERSATION_DISPATCH_LOCK:
+                        item = prepare_insight_item(conversations_db, item_id, request)
+                        if item["kind"] not in ACTIONABLE_INSIGHT_KINDS:
+                            raise ValueError("この候補は記録として保管または却下してください")
+                        target = request.get("target")
+                        context = [str(item["title"])]
+                        if item["detail"]:
+                            context.append(str(item["detail"]))
+                        if item["assignee"]:
+                            context.append(f"担当者: {item['assignee']}")
+                        if item["due_date"]:
+                            context.append(f"期限: {item['due_date']}")
+                        prompt = "\n\n".join(context)
+                        if target == "planner":
+                            created = create_task(
+                                planner_db,
+                                {
+                                    "title": str(item["title"]),
+                                    "due_date": item["due_date"],
+                                    "priority": 2,
+                                    "recurrence": "none",
+                                },
+                                datetime.now(UTC),
+                            )
+                        elif target == "agent":
+                            created = create_job(
+                                agent_db,
+                                repositories,
+                                {
+                                    "repository": request.get("repository"),
+                                    "prompt": prompt,
+                                },
+                                agent_model_options(),
+                            )
+                        else:
+                            raise ValueError("invalid approval target")
+                        mark_insight_item_approved(
+                            conversations_db,
+                            item_id,
+                            str(target),
+                            str(created["id"]),
+                        )
+                    self._send_json(201, created)
+                except KeyError:
+                    self._send_json(404, {"error": "conversation item not found"})
+                except (TypeError, ValueError) as error:
+                    self._send_json(400, {"error": str(error)})
                 return
             if path.startswith("/api/conversation-tasks/") and path.endswith("/approve"):
                 proposal_id = path.split("/")[-2]
@@ -1787,6 +1900,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--huggingface-token", type=Path, default=Path("secrets/huggingface-token.txt")
     )
     parser.add_argument(
+        "--conversation-openai-api-key",
+        type=Path,
+        default=Path("secrets/openai-api-key.txt"),
+    )
+    parser.add_argument(
+        "--conversation-insight-schema",
+        type=Path,
+        default=Path("config/conversation-insight-schema.json"),
+    )
+    parser.add_argument("--conversation-insight-model", default="gpt-5-mini")
+    parser.add_argument(
         "--agent-repositories",
         type=Path,
         default=Path("config/agent-repositories.toml"),
@@ -1862,6 +1986,9 @@ def main() -> None:
         conversations_db=args.conversations_db,
         conversation_audio_dir=args.conversation_audio_dir,
         huggingface_token=args.huggingface_token,
+        conversation_openai_api_key=args.conversation_openai_api_key,
+        conversation_insight_schema=args.conversation_insight_schema,
+        conversation_insight_model=args.conversation_insight_model,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     sidestore_server = start_sidestore_server(

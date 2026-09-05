@@ -29,6 +29,9 @@ final class AppModel: ObservableObject {
     @Published var codexUsageFailed = false
     @Published var deploymentInfo: DeploymentInfo?
     @Published var conversations: [ConversationRecording] = []
+    @Published var conversationItems: [ConversationInsightItem] = []
+    @Published var keptConversationItems: [ConversationInsightItem] = []
+    @Published var conversationLLMAvailable = false
     @Published var conversationLoadState: ResourceLoadState = .idle
     @Published var isRefreshing = false
     @Published var errorMessage: String?
@@ -208,7 +211,18 @@ final class AppModel: ObservableObject {
         guard !isFixture else { return }
         conversationLoadState = .loading
         do {
-            conversations = try await api.get("api/conversations", as: ConversationEnvelope.self).recordings
+            let envelope = try await api.get("api/conversations", as: ConversationEnvelope.self)
+            conversations = envelope.recordings
+            conversationLLMAvailable = envelope.llmAvailable ?? false
+            conversationItems = try await api.get(
+                "api/conversation-items",
+                as: ConversationItemsEnvelope.self
+            ).items
+            keptConversationItems = try await api.get(
+                "api/conversation-items",
+                queryItems: [URLQueryItem(name: "status", value: "kept")],
+                as: ConversationItemsEnvelope.self
+            ).items
             conversationLoadState = .loaded
         } catch {
             conversationLoadState = .failed(error.localizedDescription)
@@ -269,6 +283,83 @@ final class AppModel: ObservableObject {
             let _: EmptyResponse = try await api.post("api/conversations/\(id)/analyze", body: EmptyRequest(), as: EmptyResponse.self)
             await refreshConversations()
         } catch { errorMessage = "解析を開始できませんでした：\(error.localizedDescription)" }
+    }
+
+    func extractConversationInsights(_ id: String) async -> Bool {
+        guard conversationLLMAvailable else {
+            errorMessage = "Mac miniにOpenAI APIキーが設定されていません。"
+            return false
+        }
+        do {
+            let _: ConversationExtractionResponse = try await api.post(
+                "api/conversations/\(id)/insights",
+                body: EmptyRequest(),
+                as: ConversationExtractionResponse.self
+            )
+            await refreshConversations()
+            return true
+        } catch {
+            errorMessage = "会話をLLMで整理できませんでした：\(error.localizedDescription)"
+            return false
+        }
+    }
+
+    func reviewConversationItem(
+        _ item: ConversationInsightItem,
+        action: String,
+        title: String,
+        detail: String,
+        assignee: String,
+        dueDate: String
+    ) async -> Bool {
+        do {
+            let _: ConversationInsightItem = try await api.post(
+                "api/conversation-items/\(item.id)/review",
+                body: ConversationItemReviewRequest(
+                    action: action,
+                    title: title,
+                    detail: detail,
+                    assignee: assignee,
+                    dueDate: dueDate
+                ),
+                as: ConversationInsightItem.self
+            )
+            await refreshConversations()
+            return true
+        } catch {
+            errorMessage = "会話の候補を更新できませんでした：\(error.localizedDescription)"
+            return false
+        }
+    }
+
+    func dispatchConversationItem(
+        _ item: ConversationInsightItem,
+        target: String,
+        title: String,
+        detail: String,
+        assignee: String,
+        dueDate: String,
+        repository: String?
+    ) async -> Bool {
+        do {
+            let _: EmptyResponse = try await api.post(
+                "api/conversation-items/\(item.id)/dispatch",
+                body: ConversationItemDispatchRequest(
+                    target: target,
+                    title: title,
+                    detail: detail,
+                    assignee: assignee,
+                    dueDate: dueDate,
+                    repository: repository
+                ),
+                as: EmptyResponse.self
+            )
+            await refresh()
+            return true
+        } catch {
+            errorMessage = "会話の候補を送信できませんでした：\(error.localizedDescription)"
+            return false
+        }
     }
 
     func approveConversationTask(_ id: String, target: String, instruction: String, repository: String?) async {

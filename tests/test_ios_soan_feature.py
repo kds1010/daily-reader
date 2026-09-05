@@ -45,5 +45,7 @@ def test_soan_images_use_validated_urlsession_loading() -> None:
     assert "private struct SoanRemoteImage: View" in source
     assert "URLSession.shared.data(for: request)" in source
     assert 'http.mimeType?.hasPrefix("image/") == true' in source
-    assert "UIImage(data: data)" in source
+    assert "private typealias SoanPlatformImage = UIImage" in source
+    assert "private typealias SoanPlatformImage = NSImage" in source
+    assert "let image = SoanPlatformImage(data: data)" in source
     assert "AsyncImage(url:" not in source

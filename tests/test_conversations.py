@@ -7,11 +7,16 @@ from pathlib import Path
 import pytest
 
 from daily_reader.conversations import (
+    _replace_analysis_results,
+    extract_recording_insights,
     get_recording,
     initialize_database,
+    list_insight_items,
     list_recordings,
     mark_proposal_approved,
     match_recording_location,
+    prepare_insight_item,
+    review_insight_item,
     store_location_events,
     store_transcript,
     store_upload,
@@ -217,3 +222,193 @@ def test_recording_returns_speakers_utterances_topics_and_tasks(tmp_path: Path) 
     )
     with pytest.raises(ValueError, match="not awaiting review"):
         mark_proposal_approved(database, "p1", "agent", "job-1")
+
+
+def test_legacy_task_proposals_migrate_to_reviewable_items(tmp_path: Path) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "資料を確認してください".encode()
+
+    recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
+
+    items = recording["insight_items"]
+    assert len(items) == 1
+    assert items[0]["kind"] == "task"
+    assert items[0]["source"] == "rule"
+    assert items[0]["evidence"][0]["quote"] == "資料を確認してください"
+    assert list_insight_items(database)[0]["recording_filename"] == "meeting.txt"
+
+
+def test_llm_reanalysis_preserves_reviewed_items_and_supersedes_pending(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "金曜日までに資料を確認してください".encode()
+    recording = store_transcript(
+        database,
+        io.BytesIO(content),
+        len(content),
+        "meeting.txt",
+        "2026-09-06T09:00:00+09:00",
+    )
+    calls = 0
+
+    def fake_request_insights(**kwargs: object) -> list[dict[str, object]]:
+        nonlocal calls
+        calls += 1
+        assert set(kwargs["utterances"][0]) == {
+            "id",
+            "start_seconds",
+            "end_seconds",
+            "text",
+            "speaker",
+        }
+        utterance_id = str(kwargs["utterances"][0]["id"])
+        if calls == 1:
+            return [
+                {
+                    "kind": "decision",
+                    "title": "資料を確認する方針",
+                    "detail": "会議で決めた",
+                    "assignee": None,
+                    "due_date": None,
+                    "due_date_original": None,
+                    "certainty": "explicit",
+                    "evidence_utterance_ids": [utterance_id],
+                },
+                {
+                    "kind": "task",
+                    "title": "資料を確認する",
+                    "detail": "金曜日までに確認する",
+                    "assignee": "話者1",
+                    "due_date": "2026-09-11",
+                    "due_date_original": "金曜日まで",
+                    "certainty": "explicit",
+                    "evidence_utterance_ids": [utterance_id],
+                },
+            ]
+        return [
+            {
+                "kind": "friction",
+                "title": "資料確認に時間がかかる",
+                "detail": "確認工程を改善する余地がある",
+                "assignee": None,
+                "due_date": None,
+                "due_date_original": None,
+                "certainty": "inferred",
+                "evidence_utterance_ids": [utterance_id],
+            }
+        ]
+
+    monkeypatch.setattr("daily_reader.conversations.load_api_key", lambda _path: "key")
+    monkeypatch.setattr(
+        "daily_reader.conversations.request_insights", fake_request_insights
+    )
+    schema = tmp_path / "schema.json"
+    schema.write_text('{"type":"object"}')
+
+    extract_recording_insights(database, str(recording["id"]), tmp_path / "key", schema)
+    first_items = list_insight_items(database)
+    decision = next(item for item in first_items if item["kind"] == "decision")
+    review_insight_item(database, str(decision["id"]), {"action": "keep"})
+
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE utterances SET text=? WHERE recording_id=?",
+            ("資料の確認に毎回時間がかかります", recording["id"]),
+        )
+    extract_recording_insights(database, str(recording["id"]), tmp_path / "key", schema)
+
+    kept = list_insight_items(database, "kept")
+    pending = list_insight_items(database)
+    superseded = list_insight_items(database, "superseded")
+    assert [item["title"] for item in kept] == ["資料を確認する方針"]
+    assert [item["kind"] for item in pending] == ["friction"]
+    assert {item["title"] for item in superseded} >= {
+        "資料を確認する",
+        "金曜日までに資料を確認してください",
+    }
+    assert get_recording(database, str(recording["id"]))["insight_status"] == "completed"
+
+
+def test_review_edits_fields_and_validates_due_date(tmp_path: Path) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "資料を確認してください".encode()
+    recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
+    item_id = str(recording["insight_items"][0]["id"])
+
+    updated = prepare_insight_item(
+        database,
+        item_id,
+        {
+            "title": "設計資料を確認する",
+            "detail": "第2章を重点的に確認する",
+            "assignee": "自分",
+            "due_date": "2026-09-10",
+        },
+    )
+
+    assert updated["title"] == "設計資料を確認する"
+    assert updated["due_date"] == "2026-09-10"
+    with pytest.raises(ValueError, match="due date"):
+        prepare_insight_item(database, item_id, {"due_date": "明日"})
+
+
+def test_replacing_transcript_invalidates_only_unreviewed_insights(tmp_path: Path) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "資料を確認してください".encode()
+    recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
+    item_id = str(recording["insight_items"][0]["id"])
+    review_insight_item(database, item_id, {"action": "keep"})
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """INSERT INTO conversation_items
+            (id, recording_id, kind, title, detail, certainty, status, source,
+             extractor_version, fingerprint, created_at, updated_at)
+            VALUES('pending',?,'idea','自動化する','','explicit','awaiting_review',
+                   'openai','conversation-insights-v1','pending','now','now')""",
+            (recording["id"],),
+        )
+        _replace_analysis_results(
+            connection,
+            str(recording["id"]),
+            [(0, 1, "別の文字起こし", None, "話者1")],
+            "later",
+        )
+
+    assert list_insight_items(database, "kept")[0]["id"] == item_id
+    assert {item["id"] for item in list_insight_items(database, "superseded")} >= {"pending"}
+    assert get_recording(database, str(recording["id"]))["insight_status"] == "not_requested"
+
+
+def test_invalid_llm_evidence_keeps_current_inbox_items(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "資料を確認してください".encode()
+    recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
+    existing_id = str(recording["insight_items"][0]["id"])
+    monkeypatch.setattr("daily_reader.conversations.load_api_key", lambda _path: "key")
+    monkeypatch.setattr(
+        "daily_reader.conversations.request_insights",
+        lambda **_kwargs: [
+            {
+                "kind": "task",
+                "title": "根拠のない候補",
+                "detail": "",
+                "assignee": None,
+                "due_date": None,
+                "due_date_original": None,
+                "certainty": "explicit",
+                "evidence_utterance_ids": ["unknown"],
+            }
+        ],
+    )
+    schema = tmp_path / "schema.json"
+    schema.write_text('{"type":"object"}')
+
+    extract_recording_insights(database, str(recording["id"]), tmp_path / "key", schema)
+
+    assert [item["id"] for item in list_insight_items(database)] == [existing_id]
+    failed = get_recording(database, str(recording["id"]))
+    assert failed["insight_status"] == "failed"
+    assert failed["insight_error"] == "LLMの根拠発話が不正です"

@@ -165,6 +165,37 @@ struct ConversationsView: View {
                 Text("MP3の原音とTXTの原文はMac miniに保存され、自動削除されません。")
                     .appFont(.caption).foregroundStyle(.secondary)
             }
+            Section("音声インボックス") {
+                if model.conversationItems.isEmpty {
+                    Text("確認待ちの候補はありません。録音の詳細からLLM整理を開始できます。")
+                        .appFont(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    ForEach(model.conversationItems) { item in
+                        ConversationInsightCard(item: item, showsRecordingLink: true) {
+                            await model.refreshConversations()
+                        }
+                    }
+                }
+            }
+            if !model.keptConversationItems.isEmpty {
+                Section("保存した気づき") {
+                    ForEach(model.keptConversationItems) { item in
+                        VStack(alignment: .leading, spacing: 7) {
+                            Label(item.title, systemImage: insightKindIcon(item.kind))
+                                .appFont(.headline)
+                            if !item.detail.isEmpty {
+                                Text(item.detail).appFont(.subheadline).foregroundStyle(.secondary)
+                            }
+                            NavigationLink {
+                                ConversationDetailView(recordingID: item.recordingID)
+                            } label: {
+                                Label(item.recordingFilename ?? "録音を表示", systemImage: "waveform")
+                                    .appFont(.caption)
+                            }
+                        }
+                    }
+                }
+            }
             Section("取り込み履歴") {
                 ResourceStatusView(state: model.conversationLoadState, label: "会話") {
                     Task { await model.refreshConversations() }
@@ -178,9 +209,13 @@ struct ConversationsView: View {
                             HStack {
                                 Text(recording.isTranscript ? "テキスト" : "音声")
                                 Text(recording.status == "completed" ? "解析済み" : recording.status == "failed" ? "要確認" : "解析中")
+                                if let count = recording.insightItemCount, count > 0 {
+                                    Text("候補 \(count)件")
+                                }
                                 Text(ByteCountFormatter.string(fromByteCount: Int64(recording.byteSize), countStyle: .file))
                             }.appFont(.caption).foregroundStyle(.secondary)
                             if let error = recording.error { Text(error).appFont(.caption).foregroundStyle(.orange) }
+                            if let error = recording.insightError { Text(error).appFont(.caption).foregroundStyle(.orange) }
                         }
                     }
                 }
@@ -198,11 +233,22 @@ struct ConversationsView: View {
     }
 }
 
+private func insightKindIcon(_ kind: String) -> String {
+    switch kind {
+    case "task": "checkmark.circle"
+    case "follow_up": "arrow.turn.up.right"
+    case "decision": "checkmark.seal"
+    case "idea": "lightbulb"
+    default: "exclamationmark.bubble"
+    }
+}
+
 struct ConversationDetailView: View {
     @EnvironmentObject private var model: AppModel
     let recordingID: String
     @State private var recording: ConversationRecording?
-    @State private var instructions: [String: String] = [:]
+    @State private var showExtractionConfirmation = false
+    @State private var extractionInFlight = false
 
     var body: some View {
         List {
@@ -221,6 +267,15 @@ struct ConversationDetailView: View {
                             Button("解析を再実行") { Task { await model.analyzeConversation(recordingID); await reload() } }
                         }
                     }
+                    insightExtractionControls(recording)
+                }
+                let awaitingItems = (recording.insightItems ?? []).filter { $0.status == "awaiting_review" }
+                if !awaitingItems.isEmpty {
+                    Section("確認待ちの候補") {
+                        ForEach(awaitingItems) { item in
+                            ConversationInsightCard(item: item) { await reload() }
+                        }
+                    }
                 }
                 Section("会話") {
                     ForEach(recording.utterances ?? []) { utterance in
@@ -231,33 +286,233 @@ struct ConversationDetailView: View {
                         }
                     }
                 }
-                Section("確認待ちのタスク") {
-                    ForEach((recording.taskProposals ?? []).filter { $0.status == "awaiting_review" }) { proposal in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(proposal.title).appFont(.headline)
-                            TextField("追加の指示", text: Binding(
-                                get: { instructions[proposal.id, default: proposal.instruction] },
-                                set: { instructions[proposal.id] = $0 }
-                            ), axis: .vertical)
-                            HStack {
-                                Button("通常タスクに追加") { approve(proposal, target: "planner") }.buttonStyle(.bordered)
-                                Button("Agentへ依頼") { approve(proposal, target: "agent") }.buttonStyle(.borderedProminent)
-                            }
-                        }
-                    }
-                }
             } else { ProgressView("会話を読み込んでいます…") }
         }
         .navigationTitle("解析結果")
         .task { await reload() }
+        .confirmationDialog(
+            "文字起こしをOpenAIへ送信しますか？",
+            isPresented: $showExtractionConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("送信して整理") { Task { await extractInsights() } }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この録音の文字起こしだけを送信します。原音、GPS、ファイル名、ほかの録音は送信しません。候補が自動でタスク化・実行されることもありません。")
+        }
     }
 
     private func reload() async { recording = await model.loadConversation(recordingID) }
-    private func approve(_ proposal: ConversationTaskProposal, target: String) {
-        let repository = target == "agent" ? model.repositories.first?.name : nil
-        Task {
-            await model.approveConversationTask(proposal.id, target: target, instruction: instructions[proposal.id, default: ""], repository: repository)
+
+    @ViewBuilder
+    private func insightExtractionControls(_ recording: ConversationRecording) -> some View {
+        switch recording.insightStatus {
+        case "queued", "extracting":
+            HStack {
+                ProgressView()
+                Text("LLMが候補を整理しています…")
+            }
+        case "completed":
+            Label("LLMによる整理が完了しました", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case "failed":
+            Text(recording.insightError ?? "LLMによる整理に失敗しました。")
+                .foregroundStyle(.orange)
+            Button("LLM整理を再試行") { showExtractionConfirmation = true }
+                .disabled(!model.conversationLLMAvailable || extractionInFlight)
+        default:
+            Button("LLMでタスク・決定・アイデアを整理") { showExtractionConfirmation = true }
+                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight)
+            if !model.conversationLLMAvailable {
+                Text("Mac miniにOpenAI APIキーを設定すると利用できます。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func extractInsights() async {
+        guard !extractionInFlight else { return }
+        extractionInFlight = true
+        defer { extractionInFlight = false }
+        guard await model.extractConversationInsights(recordingID) else { return }
+        await reload()
+        for _ in 0..<60 {
+            guard recording?.insightStatus == "queued" || recording?.insightStatus == "extracting" else { break }
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { break }
             await reload()
+        }
+    }
+}
+
+struct ConversationInsightCard: View {
+    @EnvironmentObject private var model: AppModel
+    let item: ConversationInsightItem
+    let showsRecordingLink: Bool
+    let onChanged: () async -> Void
+    @State private var title: String
+    @State private var detail: String
+    @State private var assignee: String
+    @State private var dueDate: String
+    @State private var repository = ""
+    @State private var actionInFlight = false
+
+    init(
+        item: ConversationInsightItem,
+        showsRecordingLink: Bool = false,
+        onChanged: @escaping () async -> Void
+    ) {
+        self.item = item
+        self.showsRecordingLink = showsRecordingLink
+        self.onChanged = onChanged
+        _title = State(initialValue: item.title)
+        _detail = State(initialValue: item.detail)
+        _assignee = State(initialValue: item.assignee ?? "")
+        _dueDate = State(initialValue: item.dueDate ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Label(kindLabel, systemImage: kindIcon)
+                    .appFont(.caption, weight: .bold)
+                    .foregroundStyle(kindColor)
+                Text(certaintyLabel)
+                    .appFont(.caption2, weight: .semibold)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(item.source == "openai" ? "LLM" : "ルール")
+                    .appFont(.caption2).foregroundStyle(.tertiary)
+            }
+            TextField("タイトル", text: $title, axis: .vertical)
+                .appFont(.headline)
+            TextField("詳細", text: $detail, axis: .vertical)
+                .lineLimit(2...6)
+            HStack {
+                TextField("担当者（任意）", text: $assignee)
+                TextField("期限 YYYY-MM-DD", text: $dueDate)
+            }
+            .textFieldStyle(.roundedBorder)
+
+            if !item.evidence.isEmpty {
+                DisclosureGroup("根拠 \(item.evidence.count)件") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array(item.evidence.enumerated()), id: \.offset) { _, evidence in
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(evidenceLabel(evidence))
+                                    .appFont(.caption2, weight: .bold).foregroundStyle(.secondary)
+                                Text(evidence.quote)
+                                    .appFont(.caption).textSelection(.enabled)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if item.isActionable {
+                HStack {
+                    Button("通常タスクに追加") { performDispatch(target: "planner") }
+                        .buttonStyle(.bordered)
+                    Picker("Agentのリポジトリ", selection: $repository) {
+                        ForEach(model.repositories) { Text($0.label).tag($0.name) }
+                    }
+                    .labelsHidden().pickerStyle(.menu)
+                    Button("Agentへ依頼") { performDispatch(target: "agent") }
+                        .buttonStyle(.borderedProminent).tint(.mint)
+                        .disabled(repository.isEmpty)
+                }
+            }
+            HStack {
+                Button("気づきとして保存") { performReview(action: "keep") }
+                Spacer()
+                Button("破棄", role: .destructive) { performReview(action: "dismiss") }
+            }
+            .buttonStyle(.borderless)
+
+            if showsRecordingLink {
+                NavigationLink {
+                    ConversationDetailView(recordingID: item.recordingID)
+                } label: {
+                    Label(item.recordingFilename ?? "録音を表示", systemImage: "waveform")
+                        .appFont(.caption)
+                }
+            }
+        }
+        .disabled(actionInFlight)
+        .onAppear { synchronizeRepositorySelection() }
+        .onChange(of: model.repositories, initial: true) { _, _ in synchronizeRepositorySelection() }
+    }
+
+    private var kindLabel: String {
+        switch item.kind {
+        case "task": "タスク"
+        case "follow_up": "フォローアップ"
+        case "decision": "決定事項"
+        case "idea": "アイデア"
+        case "friction": "困りごと"
+        default: item.kind
+        }
+    }
+
+    private var kindIcon: String {
+        insightKindIcon(item.kind)
+    }
+
+    private var kindColor: Color {
+        switch item.kind {
+        case "task", "follow_up": .mint
+        case "decision": .blue
+        case "idea": .yellow
+        default: .orange
+        }
+    }
+
+    private var certaintyLabel: String {
+        switch item.certainty {
+        case "explicit": "明言"
+        case "inferred": "推定"
+        default: "曖昧"
+        }
+    }
+
+    private func evidenceLabel(_ evidence: ConversationInsightEvidence) -> String {
+        let speaker = evidence.speaker ?? "話者"
+        guard let seconds = evidence.startSeconds else { return speaker }
+        let minute = Int(seconds) / 60
+        let second = Int(seconds) % 60
+        return String(format: "%@ %d:%02d", speaker, minute, second)
+    }
+
+    private func synchronizeRepositorySelection() {
+        if !model.repositories.contains(where: { $0.name == repository }) {
+            repository = model.repositories.first?.name ?? ""
+        }
+    }
+
+    private func performReview(action: String) {
+        guard !actionInFlight else { return }
+        actionInFlight = true
+        Task {
+            _ = await model.reviewConversationItem(
+                item, action: action, title: title, detail: detail,
+                assignee: assignee, dueDate: dueDate
+            )
+            await onChanged()
+            actionInFlight = false
+        }
+    }
+
+    private func performDispatch(target: String) {
+        guard !actionInFlight else { return }
+        actionInFlight = true
+        Task {
+            _ = await model.dispatchConversationItem(
+                item, target: target, title: title, detail: detail,
+                assignee: assignee, dueDate: dueDate,
+                repository: target == "agent" ? repository : nil
+            )
+            await onChanged()
+            actionInFlight = false
         }
     }
 }

@@ -390,7 +390,16 @@ struct PlannerTask: Decodable, Identifiable {
     }
 }
 
-struct ConversationEnvelope: Decodable { let recordings: [ConversationRecording] }
+struct ConversationEnvelope: Decodable {
+    let recordings: [ConversationRecording]
+    let llmAvailable: Bool?
+    enum CodingKeys: String, CodingKey {
+        case recordings
+        case llmAvailable = "llm_available"
+    }
+}
+
+struct ConversationItemsEnvelope: Decodable { let items: [ConversationInsightItem] }
 
 struct ConversationRecording: Decodable, Identifiable {
     let id: String
@@ -405,6 +414,11 @@ struct ConversationRecording: Decodable, Identifiable {
     let utterances: [ConversationUtterance]?
     let topics: [ConversationTopic]?
     let taskProposals: [ConversationTaskProposal]?
+    let insightItems: [ConversationInsightItem]?
+    let insightStatus: String?
+    let insightError: String?
+    let insightAnalyzedAt: String?
+    let insightItemCount: Int?
     let recordedAt: String?
     let locationLatitude: Double?
     let locationLongitude: Double?
@@ -417,6 +431,11 @@ struct ConversationRecording: Decodable, Identifiable {
         case byteSize = "byte_size"; case createdAt = "created_at"; case analyzedAt = "analyzed_at"
         case sourceType = "source_type"
         case taskProposals = "task_proposals"
+        case insightItems = "insight_items"
+        case insightStatus = "insight_status"
+        case insightError = "insight_error"
+        case insightAnalyzedAt = "insight_analyzed_at"
+        case insightItemCount = "insight_item_count"
         case recordedAt = "recorded_at", locationLatitude = "location_latitude", locationLongitude = "location_longitude", locationAccuracy = "location_accuracy", locationTimestamp = "location_timestamp", locationTimeDelta = "location_time_delta"
     }
 }
@@ -446,6 +465,81 @@ struct ConversationTaskProposal: Decodable, Identifiable {
 struct ConversationTaskApproval: Encodable {
     let target: String; let instruction: String; let repository: String?
 }
+
+struct ConversationInsightItem: Decodable, Identifiable {
+    let id: String
+    let recordingID: String
+    let kind: String
+    let title: String
+    let detail: String
+    let assignee: String?
+    let dueDate: String?
+    let dueDateOriginal: String?
+    let certainty: String
+    let status: String
+    let source: String
+    let recordingFilename: String?
+    let recordedAt: String?
+    let recordingSourceType: String?
+    let evidence: [ConversationInsightEvidence]
+
+    var isActionable: Bool { kind == "task" || kind == "follow_up" }
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, title, detail, assignee, certainty, status, source, evidence
+        case recordingID = "recording_id"
+        case dueDate = "due_date"
+        case dueDateOriginal = "due_date_original"
+        case recordingFilename = "recording_filename"
+        case recordedAt = "recorded_at"
+        case recordingSourceType = "recording_source_type"
+    }
+}
+
+struct ConversationInsightEvidence: Decodable {
+    let position: Int
+    let utteranceID: String?
+    let quote: String
+    let speaker: String?
+    let startSeconds: Double?
+    let endSeconds: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case position, quote, speaker
+        case utteranceID = "utterance_id"
+        case startSeconds = "start_seconds"
+        case endSeconds = "end_seconds"
+    }
+}
+
+struct ConversationItemReviewRequest: Encodable {
+    let action: String
+    let title: String
+    let detail: String
+    let assignee: String
+    let dueDate: String
+
+    enum CodingKeys: String, CodingKey {
+        case action, title, detail, assignee
+        case dueDate = "due_date"
+    }
+}
+
+struct ConversationItemDispatchRequest: Encodable {
+    let target: String
+    let title: String
+    let detail: String
+    let assignee: String
+    let dueDate: String
+    let repository: String?
+
+    enum CodingKeys: String, CodingKey {
+        case target, title, detail, assignee, repository
+        case dueDate = "due_date"
+    }
+}
+
+struct ConversationExtractionResponse: Decodable { let queued: Bool }
 
 struct HealthSnapshot: Codable {
     var date: String?

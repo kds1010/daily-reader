@@ -1,5 +1,11 @@
 import SwiftUI
+#if os(iOS)
 import UIKit
+private typealias SoanPlatformImage = UIImage
+#elseif os(macOS)
+import AppKit
+private typealias SoanPlatformImage = NSImage
+#endif
 
 struct SoanWorkspace: Codable, Identifiable, Hashable { var id: String { root }; let documentID: String; let title: String; let root: String; let access: String? }
 struct SoanLineStyle: Codable, Hashable {
@@ -26,13 +32,13 @@ private struct SoanRemoteImage: View {
     let caption: String
     let width: Int?
     let height: Int?
-    @State private var rendered: UIImage?
+    @State private var rendered: SoanPlatformImage?
     @State private var failed = false
 
     var body: some View {
         Group {
             if let rendered {
-                Image(uiImage: rendered)
+                renderedImage(rendered)
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -52,6 +58,14 @@ private struct SoanRemoteImage: View {
         return CGFloat(width) / CGFloat(height)
     }
 
+    private func renderedImage(_ image: SoanPlatformImage) -> Image {
+#if os(iOS)
+        Image(uiImage: image)
+#else
+        Image(nsImage: image)
+#endif
+    }
+
     private func load() async {
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadRevalidatingCacheData
@@ -61,7 +75,7 @@ private struct SoanRemoteImage: View {
             guard let http = response as? HTTPURLResponse,
                   200..<300 ~= http.statusCode,
                   http.mimeType?.hasPrefix("image/") == true,
-                  let image = UIImage(data: data)
+                  let image = SoanPlatformImage(data: data)
             else {
                 failed = true
                 return

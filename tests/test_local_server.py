@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from daily_reader.conversations import get_recording, store_transcript
 from daily_reader.email_assistant import (
     GmailAuthorizationRequired,
     GmailThreadRecord,
@@ -288,6 +289,130 @@ def test_conversation_upload_accepts_transcript_without_audio_analysis(
 
     assert responses[1] == (400, {"error": "文字起こしテキストは音声解析できません"})
     assert analysis_calls == []
+
+
+def test_conversation_endpoints_expose_llm_availability_and_queue_extraction(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "資料を確認してください".encode()
+    recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
+    api_key = tmp_path / "openai-api-key.txt"
+    api_key.write_text("configured")
+    queued: list[tuple[object, ...]] = []
+    monkeypatch.setattr(
+        "daily_reader.local_server.queue_insight_extraction",
+        lambda *args: queued.append(args) or True,
+    )
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+        conversations_db=database,
+        conversation_openai_api_key=api_key,
+        conversation_insight_schema=tmp_path / "schema.json",
+        conversation_insight_model="gpt-5-mini",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+
+    handler.path = "/api/conversations"
+    handler.do_GET()
+    handler.path = f"/api/conversations/{recording['id']}/insights"
+    handler.do_POST()
+
+    assert responses[0][0] == 200
+    assert responses[0][1]["llm_available"] is True
+    assert responses[1] == (202, {"queued": True})
+    assert queued[0][1:] == (
+        recording["id"],
+        api_key,
+        tmp_path / "schema.json",
+        "gpt-5-mini",
+    )
+
+
+def test_conversation_item_review_and_planner_dispatch_preserve_edits(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    planner = tmp_path / "planner.sqlite3"
+    content = "資料を確認してください".encode()
+    recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
+    item_id = str(recording["insight_items"][0]["id"])
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+        planner_db=planner,
+        conversations_db=database,
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler._read_json = lambda: {
+        "target": "planner",
+        "title": "設計資料を確認する",
+        "detail": "第2章を確認する",
+        "assignee": "自分",
+        "due_date": "2026-09-10",
+    }
+    handler.path = f"/api/conversation-items/{item_id}/dispatch"
+
+    handler.do_POST()
+    handler.do_POST()
+
+    with sqlite3.connect(planner) as connection:
+        tasks = connection.execute("SELECT title, due_date FROM tasks").fetchall()
+    assert responses[0][0] == 201
+    assert responses[1] == (400, {"error": "conversation item is not awaiting review"})
+    assert tasks == [("設計資料を確認する", "2026-09-10")]
+    item = get_recording(database, str(recording["id"]))["insight_items"][0]
+    assert item["status"] == "approved"
+    assert item["approved_target"] == "planner"
+
+
+def test_non_actionable_conversation_item_can_be_kept_but_not_dispatched(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "conversations.sqlite3"
+    content = "この方針に決めました。資料を確認してください".encode()
+    recording = store_transcript(database, io.BytesIO(content), len(content), "meeting.txt")
+    item_id = str(recording["insight_items"][0]["id"])
+    with sqlite3.connect(database) as connection:
+        connection.execute("UPDATE conversation_items SET kind='decision' WHERE id=?", (item_id,))
+    handler_factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json",
+        tmp_path / "gmail-token.json",
+        conversations_db=database,
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler._read_json = lambda: {"target": "planner"}
+    handler.path = f"/api/conversation-items/{item_id}/dispatch"
+    handler.do_POST()
+    handler._read_json = lambda: {"action": "keep"}
+    handler.path = f"/api/conversation-items/{item_id}/review"
+    handler.do_POST()
+
+    assert responses[0] == (400, {"error": "この候補は記録として保管または却下してください"})
+    assert responses[1][0] == 200
+    assert responses[1][1]["status"] == "kept"
 
 
 class FakeTanomiClient:
