@@ -15,7 +15,7 @@ import stat
 import subprocess
 import tempfile
 import urllib.parse
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -59,7 +59,12 @@ def run(*command: str, cwd: Path = REPOSITORY_ROOT) -> str:
 
 
 def release_timestamp() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)  # noqa: UP017 - macOS system Python is 3.9.
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def valid_release_date(value: str) -> bool:
