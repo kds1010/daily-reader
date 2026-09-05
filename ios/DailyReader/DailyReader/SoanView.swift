@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SoanWorkspace: Codable, Identifiable, Hashable { var id: String { root }; let documentID: String; let title: String; let root: String; let access: String? }
 struct SoanLineStyle: Codable, Hashable {
@@ -19,6 +20,61 @@ struct SoanTab: Codable, Identifiable, Hashable { let id: String; let title: Str
 struct SoanDocument: Codable { let documentID: String; let title: String; let revisionID: String; let root: String; let tabs: [SoanTab] }
 private struct SoanRequest: Encodable { let root: String; var tabID: String? = nil; var blockID: String? = nil; var content: String? = nil; var instruction: String? = nil; var base: String? = nil }
 private struct SoanProposal: Decodable { let content: String; let llm: String }
+
+private struct SoanRemoteImage: View {
+    let url: URL
+    let caption: String
+    let width: Int?
+    let height: Int?
+    @State private var rendered: UIImage?
+    @State private var failed = false
+
+    var body: some View {
+        Group {
+            if let rendered {
+                Image(uiImage: rendered)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else if failed {
+                Label(caption, systemImage: "photo.badge.exclamationmark")
+                    .foregroundStyle(.secondary)
+            } else {
+                ProgressView().frame(maxWidth: .infinity)
+            }
+        }
+        .aspectRatio(imageAspectRatio, contentMode: .fit)
+        .task(id: url) { await load() }
+    }
+
+    private var imageAspectRatio: CGFloat? {
+        guard let width, let height, width > 0, height > 0 else { return nil }
+        return CGFloat(width) / CGFloat(height)
+    }
+
+    private func load() async {
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadRevalidatingCacheData
+        request.timeoutInterval = 30
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  200..<300 ~= http.statusCode,
+                  http.mimeType?.hasPrefix("image/") == true,
+                  let image = UIImage(data: data)
+            else {
+                failed = true
+                return
+            }
+            rendered = image
+            failed = false
+        } catch is CancellationError {
+            return
+        } catch {
+            failed = true
+        }
+    }
+}
 
 struct SoanView: View {
     @State private var workspaces: [SoanWorkspace] = []
@@ -110,11 +166,7 @@ struct SoanView: View {
 
     @ViewBuilder private func imageView(_ image: SoanImage, root: String) -> some View {
         if image.missing != true, let source = image.source, let url = imageURL(root: root, source: source, version: image.version) {
-            AsyncImage(url: url) { phase in
-                if let rendered = phase.image { rendered.resizable().scaledToFit().clipShape(RoundedRectangle(cornerRadius: 10)) }
-                else if phase.error != nil { Label(image.caption, systemImage: "photo.badge.exclamationmark").foregroundStyle(.secondary) }
-                else { ProgressView().frame(maxWidth: .infinity) }
-            }
+            SoanRemoteImage(url: url, caption: image.caption, width: image.width, height: image.height)
             if !image.caption.isEmpty { Text(image.caption).font(.caption).foregroundStyle(.secondary) }
         } else { Label(image.caption.isEmpty ? "画像を取得できません" : image.caption, systemImage: "photo.badge.exclamationmark").foregroundStyle(.secondary) }
     }

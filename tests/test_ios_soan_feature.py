@@ -29,3 +29,13 @@ def test_soan_sheet_keeps_errors_and_failed_saves_visible() -> None:
     assert 'Label(error, systemImage: "exclamationmark.triangle")' in source
     assert "if await saveCurrent() { showingTextEditor = false }" in source
     assert "private func saveCurrent() async -> Bool" in source
+
+
+def test_soan_images_use_validated_urlsession_loading() -> None:
+    source = (IOS / "SoanView.swift").read_text()
+
+    assert "private struct SoanRemoteImage: View" in source
+    assert "URLSession.shared.data(for: request)" in source
+    assert 'http.mimeType?.hasPrefix("image/") == true' in source
+    assert "UIImage(data: data)" in source
+    assert "AsyncImage(url:" not in source
