@@ -67,12 +67,31 @@ struct SoanView: View {
         .task { if workspaces.isEmpty { await reload() } }
     }
 
-    private func blockView(_ block: SoanBlock, tab: SoanTab, root: String) -> some View {
+    @ViewBuilder private func blockView(_ block: SoanBlock, tab: SoanTab, root: String) -> some View {
+        if block.editable {
+            Button {
+                selectedBlock = block
+                comment = ""
+                showingComment = true
+            } label: {
+                blockContent(block, tab: tab, root: root)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("このブロックについてLLMにコメントします")
+            .listRowBackground(selectedBlock?.id == block.id ? Color.accentColor.opacity(0.10) : Color.clear)
+        } else {
+            blockContent(block, tab: tab, root: root)
+        }
+    }
+
+    @ViewBuilder private func blockContent(_ block: SoanBlock, tab: SoanTab, root: String) -> some View {
         let media = (tab.images ?? []).filter { $0.line == block.sourceLine }
-        return VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(media.filter { $0.placement == "replace" }.enumerated()), id: \.offset) { _, image in imageView(image, root: root) }
             if block.kind == "paragraph" {
                 Text(styled(block)).frame(maxWidth: .infinity, alignment: alignment(block.style)).padding(.leading, CGFloat(block.style.pad ?? 0) * 8)
+            } else if block.kind == "untracked", let label = block.label, !label.isEmpty {
+                Text(label).foregroundStyle(.secondary)
             } else if media.isEmpty && !["table-end", "segment-end", "toc-end"].contains(block.kind) {
                 Label(structuralLabel(block), systemImage: structuralIcon(block.kind)).foregroundStyle(.secondary)
             }
@@ -80,8 +99,6 @@ struct SoanView: View {
         }
         .padding(.vertical, block.style.blank == true ? 8 : 2)
         .contentShape(Rectangle())
-        .onTapGesture { if block.editable { selectedBlock = block; comment = ""; showingComment = true } }
-        .listRowBackground(selectedBlock?.id == block.id ? Color.accentColor.opacity(0.10) : Color.clear)
     }
 
     @ViewBuilder private func imageView(_ image: SoanImage, root: String) -> some View {
