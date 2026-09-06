@@ -455,3 +455,49 @@ def test_unknown_and_legacy_dates_are_not_sent_as_recording_dates(tmp_path):
         assert _insight_input(connection, recording["id"])[0] is None
         connection.execute("UPDATE recordings SET recorded_at_verified=1")
         assert _insight_input(connection, recording["id"])[0] == "2026-09-07T00:00:00Z"
+
+
+@pytest.mark.parametrize("source_type", ["audio", "transcript"])
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("2026-09-05_2026-09-05 15:26:25", "2026-09-05T15:26:25+09:00"),
+        ("2026-09-07_2026-09-05 15:26:25", "2026-09-05T15:26:25+09:00"),
+        ("2026-09-05 15:26:25", "2026-09-05T15:26:25+09:00"),
+        ("2026-09-05_2026-09-05 15:26:25_文字起こし", "2026-09-05T15:26:25+09:00"),
+        ("2024-02-29 00:00:00", "2024-02-29T00:00:00+09:00"),
+        ("2026-02-29 15:26:25", None),
+        ("2026-09-05 25:26:25", None),
+        ("2026-09-05 15:26", None),
+        ("2026-09-05_親子交流と外食の議事録", None),
+        ("2026-09-05", None),
+        ("会議2026-09-05 15:26:25", None),
+        ("2026-09-05 15:26:25 UTC", None),
+    ],
+)
+def test_import_filename_date_reaches_insight_input(tmp_path, source_type, title, expected):
+    from daily_reader.conversations import _connect, _insight_input
+
+    db = tmp_path / "recordings.db"
+    content = "明日までに確認します".encode()
+    if source_type == "audio":
+        recording = store_upload(
+            db, tmp_path / "audio", io.BytesIO(content), len(content), f"{title}.mp3"
+        )
+    else:
+        recording = store_transcript(db, io.BytesIO(content), len(content), f"{title}.txt")
+    assert recording["recorded_at"] == expected
+    assert recording["recorded_at_verified"] == int(expected is not None)
+    with _connect(db) as connection:
+        assert _insight_input(connection, recording["id"])[0] == expected
+
+
+def test_explicit_transcript_date_overrides_filename(tmp_path):
+    recording = store_transcript(
+        tmp_path / "recordings.db",
+        io.BytesIO(b"text"),
+        4,
+        "2026-09-05 15:26:25.txt",
+        "2026-09-05T15:26:25-07:00",
+    )
+    assert recording["recorded_at"] == "2026-09-05T15:26:25-07:00"

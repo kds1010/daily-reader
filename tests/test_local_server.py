@@ -7,6 +7,7 @@ from datetime import datetime
 from io import BytesIO
 from ipaddress import IPv4Network
 from pathlib import Path
+from urllib.parse import urlencode
 
 import pytest
 
@@ -1588,7 +1589,18 @@ def test_update_articles_creates_untracked_snapshot_directory(
     assert output.parent.is_dir()
 
 
-def test_duplicate_audio_upload_preserves_completed_analysis(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("filename", "confirmed", "expected_date"),
+    [
+        ("sample.mp3", "false", None),
+        ("2026-09-05_親子交流と外食の議事録.mp3", "false", None),
+        ("2026-09-05_2026-09-05 15:26:25.mp3", "false", "2026-09-05T15:26:25+09:00"),
+        ("2026-09-05_2026-09-05 15:26:25.mp3", "true", "2026-09-07T00:00:00+00:00"),
+    ],
+)
+def test_duplicate_audio_upload_preserves_completed_analysis(
+    tmp_path, monkeypatch, filename, confirmed, expected_date
+):
     calls = []
     monkeypatch.setattr(
         "daily_reader.local_server.start_analysis", lambda *args: calls.append(args)
@@ -1609,7 +1621,13 @@ def test_duplicate_audio_upload_preserves_completed_analysis(tmp_path, monkeypat
     handler = factory.func.__new__(factory.func)
     responses = []
     handler._send_json = lambda status, payload: responses.append((status, payload))
-    handler.path = "/api/conversations/upload?filename=sample.mp3&recorded_at=2026-09-07T00:00:00Z"
+    handler.path = "/api/conversations/upload?" + urlencode(
+        {
+            "filename": filename,
+            "recorded_at": "2026-09-07T00:00:00Z",
+            "recorded_at_confirmed": confirmed,
+        }
+    )
     content = b"ID3-test"
     handler.headers = {"Content-Length": str(len(content))}
     handler.rfile = io.BytesIO(content)
@@ -1624,4 +1642,4 @@ def test_duplicate_audio_upload_preserves_completed_analysis(tmp_path, monkeypat
     result = get_recording(db, recording_id)
     assert result["status"] == "completed"
     assert result["insight_status"] == "completed"
-    assert result["recorded_at"] is None
+    assert result["recorded_at"] == expected_date

@@ -13,6 +13,7 @@ import uuid
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import BinaryIO
+from zoneinfo import ZoneInfo
 
 from daily_reader.conversation_insights import (
     DEFAULT_INSIGHT_MODEL,
@@ -189,6 +190,23 @@ def _validated_recording_date(value: str | None) -> str | None:
     return parsed.isoformat()
 
 
+def _recording_date_from_filename(filename: str) -> str | None:
+    """Read Soundcore's unchanged date/time title; local filenames use Japan time."""
+    match = re.fullmatch(
+        r"(?:[0-9]{4}-[0-9]{2}-[0-9]{2}_)?"
+        r"(?P<recorded_at>[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2})"
+        r"(?:_文字起こし)?",
+        Path(filename).stem,
+    )
+    if match is None:
+        return None
+    try:
+        recorded_at = datetime.strptime(match["recorded_at"], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+    return recorded_at.replace(tzinfo=ZoneInfo("Asia/Tokyo")).isoformat()
+
+
 def recover_interrupted_conversations(database: Path) -> None:
     """Called once at server startup, before accepting requests; never sends transcripts."""
     message = "サーバー再起動により処理が中断されました。再試行してください。"
@@ -221,7 +239,7 @@ def store_upload(
         raise ValueError("invalid audio size")
     if Path(filename).suffix.lower() != ".mp3":
         raise ValueError("only MP3 audio is supported")
-    recorded_at = _validated_recording_date(recorded_at)
+    recorded_at = _validated_recording_date(recorded_at) or _recording_date_from_filename(filename)
     free = shutil.disk_usage(
         audio_directory.parent if audio_directory.parent.exists() else Path(".")
     ).free
@@ -286,7 +304,7 @@ def store_transcript(
     filename: str,
     recorded_at: str | None = None,
 ) -> dict[str, object]:
-    recorded_at = _validated_recording_date(recorded_at)
+    recorded_at = _validated_recording_date(recorded_at) or _recording_date_from_filename(filename)
     if not 0 < length <= MAX_TRANSCRIPT_BYTES:
         raise ValueError("invalid transcript size")
     if Path(filename).suffix.lower() != ".txt":
