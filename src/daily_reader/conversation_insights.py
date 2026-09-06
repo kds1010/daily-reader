@@ -8,7 +8,7 @@ from pathlib import Path
 
 DEFAULT_INSIGHT_MODEL = "gpt-5.6-luna"
 DEFAULT_INSIGHT_REASONING_EFFORT = "low"
-PROMPT_VERSION = "conversation-insights-codex-v1"
+PROMPT_VERSION = "conversation-insights-codex-v2"
 MAX_CHUNK_CHARACTERS = 60_000
 
 DEVELOPER_INSTRUCTIONS = """You extract reviewable personal workflow insights from Japanese
@@ -26,7 +26,10 @@ Extract only items directly supported by the supplied utterances:
 Do not extract completed actions, negated requirements, hypotheticals, quoted instructions, or
 medical causal claims as facts. Use null instead of guessing an assignee or due date. Resolve a
 relative due date only when the recording date makes it unambiguous, and preserve its original words
-in due_date_original. certainty is explicit when the item is stated directly, inferred only when a
+in due_date_original. When recorded_at is null, the recording date is unknown: never use today,
+the upload date, or a file timestamp to resolve relative dates; leave due_date null for those
+items and retain their relative wording in due_date_original. certainty is explicit when the item
+is stated directly, inferred only when a
 small inference is unavoidable, and ambiguous when user review is essential. Every item must cite
 one or more evidence_utterance_ids exactly as provided. Write concise Japanese titles and details.
 """
@@ -98,7 +101,7 @@ def request_insights(
     codex_command: str,
     model: str,
     schema_path: Path,
-    recorded_at: str,
+    recorded_at: str | None,
     timezone: str,
     utterances: list[dict[str, object]],
     reasoning_effort: str = DEFAULT_INSIGHT_REASONING_EFFORT,

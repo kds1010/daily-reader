@@ -44,6 +44,7 @@ def initialize_database(path: Path) -> None:
                 sha256 TEXT NOT NULL UNIQUE, byte_size INTEGER NOT NULL,
                 status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL,
                 analyzed_at TEXT, recorded_at TEXT,
+                recorded_at_verified INTEGER NOT NULL DEFAULT 0,
                 location_latitude REAL, location_longitude REAL,
                 location_accuracy REAL, location_timestamp TEXT, location_time_delta REAL,
                 source_type TEXT NOT NULL DEFAULT 'audio', transcript_text TEXT,
@@ -132,6 +133,7 @@ def initialize_database(path: Path) -> None:
         columns = {row[1] for row in connection.execute("PRAGMA table_info(recordings)")}
         for name, definition in {
             "recorded_at": "TEXT",
+            "recorded_at_verified": "INTEGER NOT NULL DEFAULT 0",
             "location_latitude": "REAL",
             "location_longitude": "REAL",
             "location_accuracy": "REAL",
@@ -175,6 +177,38 @@ def _connect(path: Path) -> sqlite3.Connection:
     return connection
 
 
+def _validated_recording_date(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError("invalid recording date") from error
+    if parsed.tzinfo is None:
+        raise ValueError("recording date must include timezone")
+    return parsed.isoformat()
+
+
+def recover_interrupted_conversations(database: Path) -> None:
+    """Called once at server startup, before accepting requests; never sends transcripts."""
+    message = "サーバー再起動により処理が中断されました。再試行してください。"
+    with _connect(database) as connection:
+        connection.execute(
+            "UPDATE recordings SET status='failed', error=? WHERE status IN ('queued','analyzing')",
+            (message,),
+        )
+        connection.execute(
+            "UPDATE recordings SET insight_status='failed', insight_error=? "
+            "WHERE insight_status IN ('queued','extracting')",
+            (message,),
+        )
+        connection.execute(
+            "UPDATE conversation_analysis_runs SET status='failed', error=? "
+            "WHERE status IN ('queued','extracting')",
+            (message,),
+        )
+
+
 def store_upload(
     database: Path,
     audio_directory: Path,
@@ -187,6 +221,7 @@ def store_upload(
         raise ValueError("invalid audio size")
     if Path(filename).suffix.lower() != ".mp3":
         raise ValueError("only MP3 audio is supported")
+    recorded_at = _validated_recording_date(recorded_at)
     free = shutil.disk_usage(
         audio_directory.parent if audio_directory.parent.exists() else Path(".")
     ).free
@@ -215,7 +250,7 @@ def store_upload(
             ).fetchone()
             if existing:
                 shutil.rmtree(destination.parent)
-                return dict(existing)
+                return {**dict(existing), "upload_created": False}
             temporary.replace(destination)
             now = datetime.now(UTC).isoformat()
             connection.execute(
@@ -232,7 +267,11 @@ def store_upload(
                     recorded_at,
                 ),
             )
-        return get_recording(database, recording_id)
+            connection.execute(
+                "UPDATE recordings SET recorded_at_verified=? WHERE id=?",
+                (int(recorded_at is not None), recording_id),
+            )
+        return {**get_recording(database, recording_id), "upload_created": True}
     except Exception:
         temporary.unlink(missing_ok=True)
         if destination.parent.exists() and not any(destination.parent.iterdir()):
@@ -247,6 +286,7 @@ def store_transcript(
     filename: str,
     recorded_at: str | None = None,
 ) -> dict[str, object]:
+    recorded_at = _validated_recording_date(recorded_at)
     if not 0 < length <= MAX_TRANSCRIPT_BYTES:
         raise ValueError("invalid transcript size")
     if Path(filename).suffix.lower() != ".txt":
@@ -287,6 +327,10 @@ def store_transcript(
                     recorded_at,
                     text,
                 ),
+            )
+            connection.execute(
+                "UPDATE recordings SET recorded_at_verified=? WHERE id=?",
+                (int(recorded_at is not None), recording_id),
             )
             transcript = [
                 (float(index), float(index + 1), line, None, "話者1")
@@ -783,9 +827,9 @@ def start_analysis(database: Path, recording_id: str, token_file: Path) -> None:
 
 def _insight_input(
     connection: sqlite3.Connection, recording_id: str
-) -> tuple[str, list[dict[str, object]]]:
+) -> tuple[str | None, list[dict[str, object]]]:
     recording = connection.execute(
-        "SELECT recorded_at, created_at FROM recordings WHERE id=?", (recording_id,)
+        "SELECT recorded_at, recorded_at_verified FROM recordings WHERE id=?", (recording_id,)
     ).fetchone()
     if recording is None:
         raise KeyError(recording_id)
@@ -799,7 +843,7 @@ def _insight_input(
             (recording_id,),
         )
     ]
-    return str(recording["recorded_at"] or recording["created_at"]), utterances
+    return (recording["recorded_at"] if recording["recorded_at_verified"] else None), utterances
 
 
 def queue_insight_extraction(
@@ -961,9 +1005,7 @@ def _store_extracted_items(
                 )
             else:
                 continue
-            connection.execute(
-                "DELETE FROM conversation_item_evidence WHERE item_id=?", (item_id,)
-            )
+            connection.execute("DELETE FROM conversation_item_evidence WHERE item_id=?", (item_id,))
             for position, row in enumerate(evidence):
                 connection.execute(
                     """INSERT INTO conversation_item_evidence
@@ -1009,9 +1051,7 @@ def extract_recording_insights(
                 )
                 recorded_at, utterances = _insight_input(connection, recording_id)
             input_hash = hashlib.sha256(
-                json.dumps(
-                    [recorded_at, utterances], ensure_ascii=False, sort_keys=True
-                ).encode()
+                json.dumps([recorded_at, utterances], ensure_ascii=False, sort_keys=True).encode()
             ).hexdigest()
             with _connect(database) as connection:
                 existing = connection.execute(

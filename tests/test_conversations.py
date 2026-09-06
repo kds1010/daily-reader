@@ -413,3 +413,45 @@ def test_invalid_llm_evidence_keeps_current_inbox_items(
     failed = get_recording(database, str(recording["id"]))
     assert failed["insight_status"] == "failed"
     assert failed["insight_error"] == "Codexの根拠発話が不正です"
+
+
+def test_restart_recovery_allows_retry_without_auto_sending(tmp_path, monkeypatch):
+    from daily_reader.conversations import (
+        queue_insight_extraction,
+        recover_interrupted_conversations,
+    )
+
+    db = tmp_path / "recordings.db"
+    content = "明日までに確認します".encode()
+    recording = store_transcript(db, io.BytesIO(content), len(content), "sample.txt")
+    from unittest.mock import Mock
+
+    worker = Mock()
+    monkeypatch.setattr("daily_reader.conversations.threading.Thread", worker)
+    for state in ("queued", "extracting"):
+        with sqlite3.connect(db) as connection:
+            connection.execute("UPDATE recordings SET insight_status=?", (state,))
+        worker.reset_mock()
+        recover_interrupted_conversations(db)
+        assert get_recording(db, recording["id"])["insight_status"] == "failed"
+        worker.assert_not_called()
+        assert queue_insight_extraction(db, recording["id"], Path("schema"), "codex")
+        worker.return_value.start.assert_called_once()
+    with sqlite3.connect(db) as connection:
+        connection.execute("UPDATE recordings SET status='analyzing'")
+    recover_interrupted_conversations(db)
+    assert get_recording(db, recording["id"])["status"] == "failed"
+
+
+def test_unknown_and_legacy_dates_are_not_sent_as_recording_dates(tmp_path):
+    from daily_reader.conversations import _connect, _insight_input
+
+    db = tmp_path / "recordings.db"
+    content = "明日までに確認します".encode()
+    recording = store_transcript(db, io.BytesIO(content), len(content), "sample.txt")
+    with _connect(db) as connection:
+        assert _insight_input(connection, recording["id"])[0] is None
+        connection.execute("UPDATE recordings SET recorded_at='2026-09-07T00:00:00Z'")
+        assert _insight_input(connection, recording["id"])[0] is None
+        connection.execute("UPDATE recordings SET recorded_at_verified=1")
+        assert _insight_input(connection, recording["id"])[0] == "2026-09-07T00:00:00Z"

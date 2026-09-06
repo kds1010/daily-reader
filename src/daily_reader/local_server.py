@@ -51,6 +51,7 @@ from daily_reader.conversations import (
     prepare_insight_item,
     proposal,
     queue_insight_extraction,
+    recover_interrupted_conversations,
     review_insight_item,
     start_analysis,
     store_location_events,
@@ -968,7 +969,11 @@ def make_handler(
                             self.rfile,
                             length,
                             filename,
-                            query.get("recorded_at"),
+                            (
+                                query.get("recorded_at")
+                                if query.get("recorded_at_confirmed") == "true"
+                                else None
+                            ),
                         )
                     else:
                         item = store_upload(
@@ -977,9 +982,14 @@ def make_handler(
                             self.rfile,
                             length,
                             filename,
-                            query.get("recorded_at"),
+                            (
+                                query.get("recorded_at")
+                                if query.get("recorded_at_confirmed") == "true"
+                                else None
+                            ),
                         )
-                        start_analysis(conversations_db, str(item["id"]), huggingface_token)
+                        if item.pop("upload_created", False):
+                            start_analysis(conversations_db, str(item["id"]), huggingface_token)
                     self._send_json(201, item)
                 except (OSError, TypeError, ValueError) as error:
                     self._send_json(400, {"error": str(error)})
@@ -1934,6 +1944,8 @@ def main() -> None:
         raise SystemExit("--gmail-sync-minutes must be at least 1")
     agent_repositories = load_repositories(args.agent_repositories)
     deployment_info = build_deployment_info(Path.cwd(), datetime.now(UTC))
+
+    recover_interrupted_conversations(args.conversations_db)
 
     scheduler = threading.Thread(
         target=run_scheduler,

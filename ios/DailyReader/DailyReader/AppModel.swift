@@ -232,8 +232,7 @@ final class AppModel: ObservableObject {
     @discardableResult
     func importConversationFile(_ url: URL) async -> Bool {
         do {
-            let date = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
-            _ = try await api.uploadConversationFile(url, recordedAt: date)
+            _ = try await api.uploadConversationFile(url, recordedAt: nil)
             await refreshConversations()
             return true
         } catch {

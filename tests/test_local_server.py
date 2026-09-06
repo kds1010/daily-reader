@@ -1586,3 +1586,42 @@ def test_update_articles_creates_untracked_snapshot_directory(
     update_articles(Path("feeds.toml"), Path("keywords.toml"), output)
 
     assert output.parent.is_dir()
+
+
+def test_duplicate_audio_upload_preserves_completed_analysis(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "daily_reader.local_server.start_analysis", lambda *args: calls.append(args)
+    )
+    monkeypatch.setattr("daily_reader.conversations.MINIMUM_FREE_BYTES", 0)
+    db = tmp_path / "conversations.sqlite3"
+    factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles",
+        tmp_path / "reads",
+        tmp_path / "feedback",
+        tmp_path / "mail.db",
+        tmp_path / "client",
+        tmp_path / "token",
+        conversations_db=db,
+        conversation_audio_dir=tmp_path / "audio",
+    )
+    handler = factory.func.__new__(factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.path = "/api/conversations/upload?filename=sample.mp3&recorded_at=2026-09-07T00:00:00Z"
+    content = b"ID3-test"
+    handler.headers = {"Content-Length": str(len(content))}
+    handler.rfile = io.BytesIO(content)
+    handler.do_POST()
+    recording_id = responses[0][1]["id"]
+    with sqlite3.connect(db) as connection:
+        connection.execute("UPDATE recordings SET status='completed', insight_status='completed'")
+    handler.rfile = io.BytesIO(content)
+    handler.do_POST()
+    assert [status for status, _ in responses] == [201, 201]
+    assert len(calls) == 1
+    result = get_recording(db, recording_id)
+    assert result["status"] == "completed"
+    assert result["insight_status"] == "completed"
+    assert result["recorded_at"] is None

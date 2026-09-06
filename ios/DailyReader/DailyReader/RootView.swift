@@ -289,7 +289,18 @@ struct ConversationDetailView: View {
             } else { ProgressView("会話を読み込んでいます…") }
         }
         .navigationTitle("解析結果")
-        .task { await reload() }
+        .task(id: "\(recording?.status ?? ""):\(recording?.insightStatus ?? "")") {
+            while !Task.isCancelled {
+                await reload()
+                guard let recording,
+                      recording.status == "queued" || recording.status == "analyzing"
+                        || recording.insightStatus == "queued" || recording.insightStatus == "extracting"
+                else { return }
+                do { try await Task.sleep(for: .seconds(2)) }
+                catch { return }
+            }
+        }
+        .refreshable { await reload() }
         .confirmationDialog(
             "文字起こしをCodexで整理しますか？",
             isPresented: $showExtractionConfirmation,
@@ -336,12 +347,6 @@ struct ConversationDetailView: View {
         defer { extractionInFlight = false }
         guard await model.extractConversationInsights(recordingID) else { return }
         await reload()
-        for _ in 0..<60 {
-            guard recording?.insightStatus == "queued" || recording?.insightStatus == "extracting" else { break }
-            try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled else { break }
-            await reload()
-        }
     }
 }
 
