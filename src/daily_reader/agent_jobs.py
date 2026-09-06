@@ -13,7 +13,7 @@ FINAL_STATES = {"completed", "blocked", "failed", "cancelled"}
 LIVE_STATES = {"queued", "running", "blocked"}
 JOB_MODES = {"execute", "requirements"}
 ARCHIVE_RETENTION = timedelta(days=7)
-DEFAULT_MODEL = "gpt-5.6-luna"
+DEFAULT_MODEL = "gpt-6-astra"
 DEFAULT_REASONING_EFFORT = "low"
 
 # The app-server catalog is supplied by the local server.  This fallback keeps
@@ -21,9 +21,9 @@ DEFAULT_REASONING_EFFORT = "low"
 FALLBACK_MODEL_OPTIONS = [
     {
         "slug": DEFAULT_MODEL,
-        "display_name": "GPT-5.6-Luna",
+        "display_name": "GPT-6-Astra",
         "default_reasoning_effort": DEFAULT_REASONING_EFFORT,
-        "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max"],
+        "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
     }
 ]
 

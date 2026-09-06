@@ -1483,7 +1483,7 @@ struct AgentComposer: View {
                     }
                 }
             } label: {
-                Text("詳細（\(currentModel?.displayName ?? "GPT-5.6-Luna")・\(reasoningEffort)）").appFont(.caption)
+                Text("詳細（\(currentModel?.displayName ?? "GPT-6-Astra")・\(reasoningEffort)）").appFont(.caption)
             }
             .disabled(model.agentModels.isEmpty || sending)
         }

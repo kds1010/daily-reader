@@ -650,7 +650,7 @@ function updateAgentModelSummary() {
   elements.agentModelSummary.textContent = `詳細（${modelLabel}・${effort}）`;
 }
 
-function updateAgentReasoningEfforts() {
+function updateAgentReasoningEfforts(defaultEffort = "") {
   const model = selectedAgentModelOption();
   const efforts = model ? JSON.parse(model.dataset.efforts || "[]") : [];
   const current = elements.agentReasoningEffort.value;
@@ -667,6 +667,8 @@ function updateAgentReasoningEfforts() {
   }
   if (efforts.includes(current)) {
     elements.agentReasoningEffort.value = current;
+  } else if (efforts.includes(defaultEffort)) {
+    elements.agentReasoningEffort.value = defaultEffort;
   } else if (model && efforts.includes(model.dataset.defaultEffort)) {
     elements.agentReasoningEffort.value = model.dataset.defaultEffort;
   } else if (efforts.length) {
@@ -676,7 +678,7 @@ function updateAgentReasoningEfforts() {
   updateAgentModelSummary();
 }
 
-function updateAgentModels(models, defaultModel) {
+function updateAgentModels(models, defaultModel, defaultEffort) {
   const current = elements.agentModel.value;
   const normalized = Array.isArray(models) ? models : [];
   const existing = [...elements.agentModel.options].map((option) => ({
@@ -715,7 +717,7 @@ function updateAgentModels(models, defaultModel) {
     elements.agentModel.selectedIndex = 0;
   }
   elements.agentModel.disabled = elements.agentModel.options.length === 0;
-  updateAgentReasoningEfforts();
+  updateAgentReasoningEfforts(defaultEffort);
 }
 
 async function loadAgentJobs() {
@@ -728,7 +730,7 @@ async function loadAgentJobs() {
     const interactionActive = isAgentInteractionActive();
     if (!interactionActive) {
       updateAgentRepositories(payload.repositories);
-      updateAgentModels(payload.models, payload.default_model);
+      updateAgentModels(payload.models, payload.default_model, payload.default_reasoning_effort);
       const visibleJobs = payload.jobs.filter((job) => !pendingAgentArchives.has(job.id));
       elements.agentJobs.replaceChildren(...visibleJobs.map((job) => renderAgentJob(job)));
       const archivedJobs = payload.archived_jobs || [];
@@ -1880,7 +1882,7 @@ elements.agentForm.addEventListener("submit", async (event) => {
     submits.forEach((button) => { button.disabled = false; });
   }
 });
-elements.agentModel.addEventListener("change", updateAgentReasoningEfforts);
+elements.agentModel.addEventListener("change", () => updateAgentReasoningEfforts());
 elements.agentReasoningEffort.addEventListener("change", updateAgentModelSummary);
 
 elements.tanomiForm.addEventListener("submit", async (event) => {

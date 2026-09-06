@@ -92,6 +92,8 @@ def test_agent_job_lifecycle(tmp_path: Path) -> None:
         {"repository": "repo", "prompt": "Implement the requested change"},
     )
 
+    assert job["model"] == "gpt-6-astra"
+    assert job["reasoning_effort"] == "low"
     assert job["status"] == "queued"
     listed = list_jobs(database)[0]
     assert listed["id"] == job["id"]

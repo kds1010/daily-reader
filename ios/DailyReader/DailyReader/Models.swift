@@ -155,10 +155,10 @@ struct AgentModelOption: Decodable, Identifiable, Hashable {
     }
 
     static let fallback = AgentModelOption(
-        slug: "gpt-5.6-luna",
-        displayName: "GPT-5.6-Luna",
+        slug: "gpt-6-astra",
+        displayName: "GPT-6-Astra",
         defaultReasoningEffort: "low",
-        supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max"]
+        supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"]
     )
 }
 

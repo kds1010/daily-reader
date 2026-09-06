@@ -199,7 +199,7 @@ def test_agent_jobs_endpoint_presents_labels_for_active_and_archived_jobs(
                     {"name": "old-repository", "label": "Old"},
                 ],
                 "models": model_options,
-                "default_model": "gpt-5.6-luna",
+                "default_model": "gpt-6-astra",
                 "default_reasoning_effort": "low",
                 "jobs": [
                     {
