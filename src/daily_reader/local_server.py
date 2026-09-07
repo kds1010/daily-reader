@@ -683,10 +683,18 @@ def make_handler(
             return payload
 
         def _log_device_sync_failure(self, kind: str, error: Exception) -> None:
-            # Validation errors contain field names/reasons, never sensor payloads.
+            # Conversion/JSON exceptions can embed input. Only log known static
+            # validation reasons; never interpolate an arbitrary sensor value.
+            reason = str(error)
+            if reason not in {
+                "端末情報の日時が不正です", "invalid recording date",
+                "recording date must include timezone", "invalid location timestamp",
+                "invalid content length", "invalid JSON payload",
+            }:
+                reason = type(error).__name__
             LOGGER.warning(
                 "Device sync rejected: kind=%s reason=%s length_present=%s chunked=%s",
-                kind, error, self.headers.get("Content-Length") is not None,
+                kind, reason, self.headers.get("Content-Length") is not None,
                 self.headers.get("Transfer-Encoding", "").lower() == "chunked",
             )
 

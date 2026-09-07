@@ -1704,3 +1704,18 @@ def test_location_sync_automatically_updates_recording_detail(tmp_path):
     handler.do_POST()
     assert responses[2][0] == 200
     assert responses[2][1]["location"]["id"] == context["location_event_id"]
+
+
+def test_device_sync_diagnostic_does_not_log_invalid_sensor_value(tmp_path, caplog):
+    handler_factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "assistant.sqlite3",
+        tmp_path / "client.json", tmp_path / "token.json",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    handler.headers = {"Content-Length": "20"}
+    handler._log_device_sync_failure("locations", ValueError("private sensor value"))
+    assert "private sensor value" not in caplog.text
+    assert "reason=ValueError" in caplog.text
+    handler._log_device_sync_failure("context", ValueError("端末情報の日時が不正です"))
+    assert "端末情報の日時が不正です" in caplog.text

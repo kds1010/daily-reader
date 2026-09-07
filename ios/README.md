@@ -136,7 +136,9 @@ LANソースを使う場合、初回接続時にiOSがSideStoreのローカル�
 更新はLocalDevVPNを接続し、SideStoreの`Sources → Daymeld Remote → UPDATE`から行います。
 `Refresh`は既存IPAの7日署名を更新する操作です。完了後はDaymeldのAgent画面にある
 「インストール済み」の版を配信版と比較してください。7 DAYSだけでは新版の導入成功と判定しません。
-SideStoreが処理中表示のまま止まった場合は、VPN接続後にSideStoreだけを終了・再起動します。
+Daymeldに更新ありと出ているのにSource側がOPENのままなら、LocalDevVPN接続後に
+SideStoreだけをアプリ切替画面で終了・再起動し、ソースを読み直します。
+処理中表示のまま止まった場合も同じ手順で再試行します。
 アプリ削除・Deactivate・データベース初期化は不要です。
 
 2026-09-07の実機では、複数版ソースの詳細に0.1.194が表示されていても、SourceのUPDATEが
