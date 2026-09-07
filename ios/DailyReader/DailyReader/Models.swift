@@ -443,6 +443,7 @@ struct ConversationRecording: Decodable, Identifiable {
 }
 
 struct ConversationLocationContext: Decodable, Identifiable {
+    var deviceContext: PhoneContextEvidence? = nil
     let subjectID: String
     let utteranceID: String?
     let locationEventID: String?
@@ -456,6 +457,7 @@ struct ConversationLocationContext: Decodable, Identifiable {
     var id: String { subjectID }
     enum CodingKeys: String, CodingKey {
         case state, location
+        case deviceContext = "device_context"
         case subjectID = "subject_id", utteranceID = "utterance_id"
         case locationEventID = "location_event_id", targetTimestamp = "target_timestamp"
         case timeBasis = "time_basis", dateSource = "date_source"
@@ -464,6 +466,8 @@ struct ConversationLocationContext: Decodable, Identifiable {
 }
 
 struct ConversationContextLocation: Decodable {
+    var speedMPS: Double? = nil
+    var speedAccuracyMPS: Double? = nil
     let timestamp: String
     let latitude: Double
     let longitude: Double
@@ -471,6 +475,7 @@ struct ConversationContextLocation: Decodable {
     let isApproximate: Bool
     enum CodingKeys: String, CodingKey {
         case timestamp, latitude, longitude
+        case speedMPS = "speed_mps", speedAccuracyMPS = "speed_accuracy_mps"
         case horizontalAccuracy = "horizontal_accuracy", isApproximate = "is_approximate"
     }
 }
@@ -707,4 +712,53 @@ extension String {
         let relative = days == 0 ? "今日" : days > 0 ? "\(days)日前" : "未来"
         return "受信 \(receivedText)（\(relative)）"
     }
+}
+
+struct PhoneCalendarEvent: Codable, Identifiable {
+    let id: String; let title: String; let location: String
+    let start_at: String; let end_at: String; let busy: Bool; let all_day: Bool
+    let daymeld_entry_id: String
+}
+struct PhoneMotionInterval: Codable, Identifiable {
+    let start_at: String; let end_at: String; let activity: String; let confidence: String
+    var id: String { start_at + activity }
+}
+struct PhoneContextEvidence: Decodable {
+    let calendar: [PhoneCalendarEvent]; let motion: [PhoneMotionInterval]; let basis: String
+}
+struct PhoneCollectionState: Codable {
+    var state: String; var start_at: String?; var end_at: String?; var updated_at: String?
+}
+struct PhoneDevice: Decodable, Identifiable {
+    let id: String; let captured_at: String; let timezone: String
+    let calendar: PhoneCollectionState; let motion: PhoneCollectionState; let calendar_fresh: Bool
+}
+struct PhoneTaskWindow: Decodable, Identifiable {
+    let task_id: String; let title: String; let start_at: String; let end_at: String
+    var id: String { task_id }
+}
+struct PhoneCalendarConflict: Decodable, Identifiable {
+    let entry_id: String; let title: String; let calendar_title: String
+    var id: String { entry_id + calendar_title }
+}
+struct PhoneContextOverview: Decodable {
+    let devices: [PhoneDevice]; let calendar_ready: Bool; let timezone: String
+    let agenda: [PhoneCalendarEvent]; let suggestions: [PhoneTaskWindow]
+    let conflicts: [PhoneCalendarConflict]
+}
+
+// Combine overlapping devices/stages and clip samples to the requested observation window.
+func mergedSleepMinutes(_ intervals: [DateInterval], window: DateInterval) -> Double? {
+    let clipped = intervals.compactMap { value -> DateInterval? in
+        let start = max(value.start, window.start), end = min(value.end, window.end)
+        return end > start ? DateInterval(start: start, end: end) : nil
+    }.sorted { $0.start < $1.start }
+    guard var current = clipped.first else { return nil }
+    var total: TimeInterval = 0
+    for next in clipped.dropFirst() {
+        if next.start <= current.end {
+            current = DateInterval(start: current.start, end: max(current.end, next.end))
+        } else { total += current.duration; current = next }
+    }
+    return (total + current.duration) / 60
 }

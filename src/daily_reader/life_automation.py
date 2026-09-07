@@ -11,7 +11,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from daily_reader import conversations
+from daily_reader import conversations, device_context
 from daily_reader.life_assistant import (
     connect,
     create_entry,
@@ -316,6 +316,13 @@ def _candidate(database: Path, item: dict) -> tuple[dict, dict, str, bool]:
         errors.append("推定・曖昧な候補です。内容を確認してください")
     if not automatic and not errors:
         errors.append("この内容で追加してよいか確認してください")
+    if (
+        kind == "event"
+        and values["start_at"]
+        and values["end_at"]
+        and device_context.event_conflicts(database, values)
+    ):
+        errors.append("iPhoneのカレンダーに同時刻の予定があります。重複・時間を確認してください")
     if kind == "event" and values["start_at"] and values["start_at"] < now_string():
         errors.append("過去の予定です。日付を確認してください")
     try:

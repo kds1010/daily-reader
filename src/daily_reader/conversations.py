@@ -103,6 +103,17 @@ def initialize_database(path: Path) -> None:
                 completed_at TEXT,
                 UNIQUE(recording_id, input_hash, extractor_version, model)
             );
+            CREATE TABLE IF NOT EXISTS device_context_devices (
+                id TEXT PRIMARY KEY, captured_at TEXT NOT NULL, data TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS device_calendar_events (
+                device_id TEXT NOT NULL, id TEXT NOT NULL, start_at TEXT NOT NULL,
+                end_at TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(device_id,id)
+            );
+            CREATE TABLE IF NOT EXISTS device_motion_intervals (
+                device_id TEXT NOT NULL, id TEXT NOT NULL, start_at TEXT NOT NULL,
+                end_at TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(device_id,id)
+            );
             CREATE TABLE IF NOT EXISTS conversation_items (
                 id TEXT PRIMARY KEY,
                 recording_id TEXT NOT NULL REFERENCES recordings(id),
@@ -177,6 +188,14 @@ def initialize_database(path: Path) -> None:
         }.items():
             if name not in columns:
                 connection.execute(f"ALTER TABLE recordings ADD COLUMN {name} {definition}")
+        gps_columns = {row[1] for row in connection.execute("PRAGMA table_info(location_events)")}
+        for name, definition in {
+            "speed_mps": "REAL",
+            "speed_accuracy_mps": "REAL",
+            "is_simulated": "INTEGER NOT NULL DEFAULT 0",
+        }.items():
+            if name not in gps_columns:
+                connection.execute(f"ALTER TABLE location_events ADD COLUMN {name} {definition}")
         item_columns = {
             row[1] for row in connection.execute("PRAGMA table_info(conversation_items)")
         }
@@ -659,10 +678,19 @@ def store_location_events(database: Path, events: list[dict[str, object]]) -> in
                 or not 0 <= accuracy <= 100000
             ):
                 raise ValueError("invalid location event")
+            speed = event.get("speed_mps")
+            speed_accuracy = event.get("speed_accuracy_mps")
+            for value in (speed, speed_accuracy):
+                if value is not None and (type(value) not in (int, float) or not 0 <= value <= 400):
+                    raise ValueError("invalid location speed")
+            simulated = event.get("is_simulated", False)
+            if type(simulated) is not bool:
+                raise ValueError("invalid location source")
             connection.execute(
                 """INSERT OR IGNORE INTO location_events
-                (id,timestamp,latitude,longitude,horizontal_accuracy,is_approximate)
-                VALUES(?,?,?,?,?,?)""",
+                (id,timestamp,latitude,longitude,horizontal_accuracy,is_approximate,
+                 speed_mps,speed_accuracy_mps,is_simulated)
+                VALUES(?,?,?,?,?,?,?,?,?)""",
                 (
                     uuid.uuid4().hex,
                     timestamp,
@@ -670,6 +698,9 @@ def store_location_events(database: Path, events: list[dict[str, object]]) -> in
                     longitude,
                     accuracy,
                     int(bool(event.get("is_approximate", False))),
+                    speed,
+                    speed_accuracy,
+                    int(simulated),
                 ),
             )
         rebuild_for_gps(connection, timestamps)
@@ -697,7 +728,14 @@ def list_location_events(
             "ORDER BY julianday(timestamp) DESC, id DESC LIMIT ? OFFSET ?",
             (start, end, limit, offset),
         ).fetchall()
-        items = [{**dict(row), "is_approximate": bool(row["is_approximate"])} for row in rows]
+        items = [
+            {
+                **dict(row),
+                "is_approximate": bool(row["is_approximate"]),
+                "is_simulated": bool(row["is_simulated"]),
+            }
+            for row in rows
+        ]
     return {"items": items, "total": total, "has_more": offset + len(items) < total}
 
 

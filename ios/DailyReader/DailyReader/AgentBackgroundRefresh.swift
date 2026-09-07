@@ -33,6 +33,7 @@ enum AgentBackgroundRefresh {
                 for job in AgentNotificationCoordinator.shared.changedJobs(active: envelope.jobs, archived: []) {
                     await AgentNotificationCoordinator.shared.schedule(for: job)
                 }
+                await PhoneContextSync.shared.synchronize()
                 let life: LifeSnapshot = try await APIClient.shared.get("api/life")
                 _ = await LifeNotifications.shared.reconcile(life)
                 _ = await LifeCalendar.shared.synchronize(life.entries)

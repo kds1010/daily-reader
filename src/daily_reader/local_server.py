@@ -26,7 +26,7 @@ from ipaddress import IPv4Network, ip_address, ip_network
 from pathlib import Path
 from time import monotonic, sleep
 
-from daily_reader import life_assistant, life_automation
+from daily_reader import device_context, life_assistant, life_automation
 from daily_reader.agent_jobs import (
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
@@ -713,6 +713,9 @@ def make_handler(
                 snapshot = life_assistant.snapshot(conversations_db, articles)
                 snapshot["automation"] = life_automation.settings(conversations_db)
                 snapshot["drafts"] = life_automation.drafts(conversations_db)
+                snapshot["device_context"] = device_context.overview(
+                    conversations_db, snapshot["entries"]
+                )
                 self._send_json(200, snapshot)
                 return
             if path.startswith("/api/life/entries/"):
@@ -1010,6 +1013,15 @@ def make_handler(
                     self._send_json(200, result)
                 except KeyError:
                     self._send_json(404, {"error": "元の項目が見つかりません"})
+                except (ValueError, TypeError) as error:
+                    self._send_json(400, {"error": str(error)})
+                return
+            if path == "/api/device-context/sync":
+                try:
+                    result = device_context.ingest(
+                        conversations_db, self._read_json(max_length=2_000_000)
+                    )
+                    self._send_json(200, result)
                 except (ValueError, TypeError) as error:
                     self._send_json(400, {"error": str(error)})
                 return

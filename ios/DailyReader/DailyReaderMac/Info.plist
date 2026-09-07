@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>NSCalendarsFullAccessUsageDescription</key>
-    <string>確認した予定をカレンダーへ追加し、同じ予定の変更や中止を反映します。</string>
+    <string>予定の追加・変更と重複確認にカレンダーを使います。iPhoneでは件名・日時・場所を自分のMacへ同期し、空き時間や会話の状況を確認します。</string>
     <key>CFBundleDisplayName</key>
     <string>Daymeld</string>
     <key>CFBundleExecutable</key>

@@ -52,7 +52,6 @@ final class AppModel: ObservableObject {
     private let api = APIClient.shared
     private var fixture: DaymeldFixture?
 #if os(iOS)
-    private let health = HealthService()
     lazy var deviceLocation = DeviceLocationService(isEnabled: !isFixture)
 #endif
     #if os(iOS)
@@ -787,10 +786,7 @@ final class AppModel: ObservableObject {
     func syncHealth() async {
         if fixture != nil { return }
         do {
-            let token = try SecretStore.readHealthToken() ?? ""
-            guard !token.isEmpty else { throw APIClientError.server("設定でHealthKit同期トークンを入力してください") }
-            let snapshot = try await health.readToday()
-            try await api.syncHealth(snapshot, token: token)
+            PhoneContextSync.shared.healthMessage = try await HealthAutoSync.shared.synchronize(force: true, requestAuthorization: true)
             await refresh()
         } catch { errorMessage = error.localizedDescription }
     }

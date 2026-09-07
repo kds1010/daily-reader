@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from daily_reader import device_context
 from daily_reader import life_automation as auto
+from daily_reader.conversations import list_location_events, store_location_events
 from daily_reader.life_assistant import create_entry, snapshot
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,9 +51,31 @@ def test_native_models_decode_actual_life_api_and_encode_confirmed_request(tmp_p
     )
     wire.write_text(
         json.dumps(
-            {**snapshot(db), "automation": auto.settings(db), "drafts": auto.drafts(db)},
+            {
+                **snapshot(db),
+                "automation": auto.settings(db),
+                "device_context": device_context.overview(db, snapshot(db)["entries"]),
+                "drafts": auto.drafts(db),
+            },
             ensure_ascii=False,
         )
+    )
+    gps = tmp_path / "gps.json"
+    store_location_events(
+        db,
+        [
+            {
+                "timestamp": "2026-10-01T00:00:00Z",
+                "latitude": 35,
+                "longitude": 139,
+                "horizontal_accuracy": 10,
+                "speed_mps": 1.5,
+                "speed_accuracy_mps": 0.2,
+            }
+        ],
+    )
+    gps.write_text(
+        json.dumps(list_location_events(db, "2026-10-01T00:00:00Z", "2026-10-02T00:00:00Z"))
     )
     source = (IOS / "DailyReader/LifeAssistant.swift").read_text().split("@MainActor", 1)[0]
     types = tmp_path / "LifeModels.swift"
@@ -60,6 +84,10 @@ def test_native_models_decode_actual_life_api_and_encode_confirmed_request(tmp_p
     main.write_text("""import Foundation
 let data = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))
 let snapshot = try JSONDecoder().decode(LifeSnapshot.self, from: data)
+let gpsData = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]))
+let locations = try JSONDecoder().decode(LocationHistoryResponse.self, from: gpsData)
+precondition(locations.items.first?.speed_mps == 1.5)
+precondition(locations.items.first?.is_simulated == false)
 precondition(snapshot.entries.count == 2)
 precondition(snapshot.automation?.enabled == true)
 let draft = snapshot.drafts!.first!
@@ -79,7 +107,16 @@ precondition(value["expires_at"] is NSNull)
 precondition(value["status"] as? String == "completed")
 precondition(value["due_at"] as? String == "2026-10-01T01:00:00+00:00")
 precondition(LifeRequest(kind: "profile").person_id.isEmpty)
-print("decoded and round-tripped")
+precondition(snapshot.device_context?.calendar_ready == false)
+let epoch = Date(timeIntervalSince1970: 0)
+let window = DateInterval(start: epoch, end: epoch.addingTimeInterval(7200))
+let samples = [
+    DateInterval(start: epoch.addingTimeInterval(-3600), end: epoch.addingTimeInterval(3600)),
+               DateInterval(start: epoch, end: epoch.addingTimeInterval(5400)),
+    DateInterval(start: epoch.addingTimeInterval(5400), end: epoch.addingTimeInterval(10800))]
+precondition(mergedSleepMinutes(samples, window: window) == 120)
+precondition(mergedSleepMinutes([], window: window) == nil)
+print("decoded and round-tripped; overlapping sleep windows verified")
 """)
     binary = tmp_path / "test"
     env = {
@@ -92,6 +129,7 @@ print("decoded and round-tripped")
             "xcrun",
             "swiftc",
             str(IOS / "DailyReader/Models.swift"),
+            str(IOS / "DailyReader/APIClient.swift"),
             str(types),
             str(main),
             "-o",
@@ -102,7 +140,9 @@ print("decoded and round-tripped")
         env=env,
     )
     assert compiled.returncode == 0, compiled.stderr
-    ran = subprocess.run([str(binary), str(wire)], capture_output=True, text=True, env=env)
+    ran = subprocess.run(
+        [str(binary), str(wire), str(gps)], capture_output=True, text=True, env=env
+    )
     assert ran.returncode == 0, ran.stderr
     assert "decoded and round-tripped" in ran.stdout
     assert profile["person_id"] == "self"

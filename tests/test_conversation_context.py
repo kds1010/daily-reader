@@ -64,7 +64,7 @@ def test_gps_first_uses_filename_date_across_utc_day(tmp_path):
     assert link["date_source"] == "soundcore_filename_jst"
     assert link["location_event_id"]
     assert link["time_delta_seconds"] == 0
-    assert link["method_version"] == "nearest-gps-v1"
+    assert link["method_version"] == "nearest-gps-v2"
     assert recording(tmp_path) == recording_id
     assert contexts(tmp_path, recording_id)[0]["location_event_id"] == link["location_event_id"]
 

@@ -546,7 +546,11 @@ def test_location_match_requires_verified_recording_date_and_skips_legacy_invali
     assert match_recording_location(db, recording["id"]) is None
     with sqlite3.connect(db) as connection:
         connection.execute("UPDATE recordings SET recorded_at_verified=1")
-        connection.execute("INSERT INTO location_events VALUES ('bad','invalid',0,0,1,0)")
+        connection.execute(
+            "INSERT INTO location_events "
+            "(id,timestamp,latitude,longitude,horizontal_accuracy,is_approximate) "
+            "VALUES ('bad','invalid',0,0,1,0)"
+        )
     assert match_recording_location(db, recording["id"])["latitude"] == 35
 
 

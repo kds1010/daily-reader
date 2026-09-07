@@ -287,6 +287,7 @@ struct ConversationDetailView: View {
                 Section("録音日時と場所") {
                     if let start = contexts.first(where: { $0.utteranceID == nil }) {
                         ConversationLocationSummary(link: start)
+                        if let context = start.deviceContext { PhoneEvidenceView(evidence: context) }
                     } else {
                         Text("位置情報の紐付けをまだ確認できません。")
                     }
@@ -324,6 +325,7 @@ struct ConversationDetailView: View {
                             Text(utterance.text).textSelection(.enabled)
                             if let link = byUtterance[utterance.id] {
                                 ConversationLocationSummary(link: link)
+                                if let context = link.deviceContext { PhoneEvidenceView(evidence: context) }
                                 if link.location != nil {
                                     NavigationLink("この発言の推定場所") {
                                         ConversationLocationMap(links: [link])
@@ -435,9 +437,12 @@ private struct ConversationLocationSummary: View {
                     .foregroundStyle(.cyan)
                 if let location = link.location {
                     Text("GPSとの時刻差 \(Int(link.timeDeltaSeconds ?? 0))秒・水平精度 約\(Int(location.horizontalAccuracy)) m")
+                    if let speed = location.speedMPS, let accuracy = location.speedAccuracyMPS {
+                        Text("取得時の速度 約\(Int(speed * 3.6)) km/h（精度 ±\(Int(accuracy * 3.6)) km/h）").font(.caption)
+                    }
                 }
             case "unknown_time": Text("録音日時が不明なため、場所は紐付けていません。")
-            case "low_accuracy": Text("近い時刻のGPSはありますが、位置精度が不足しています。")
+            case "low_accuracy": Text("近い時刻のGPSはありますが、位置精度・移動による時刻差・取得元の条件を満たしません。")
             default: Text("近い時刻のGPSがありません。履歴が同期されると再照合します。")
             }
         }

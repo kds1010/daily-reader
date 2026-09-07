@@ -104,6 +104,9 @@ struct LocationEvent: Codable, Identifiable, Equatable {
     let longitude: Double
     let horizontal_accuracy: Double
     let is_approximate: Bool
+    var speed_mps: Double? = nil
+    var speed_accuracy_mps: Double? = nil
+    var is_simulated: Bool? = nil
     var id: String { "\(timestamp)|\(latitude)|\(longitude)" }
     var date: Date? {
         (try? Date(timestamp, strategy: .iso8601.year().month().day().time(includingFractionalSeconds: true).timeZone(separator: .colon)))

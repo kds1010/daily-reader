@@ -7,7 +7,7 @@ import math
 import sqlite3
 from datetime import UTC, datetime, timedelta
 
-MATCH_VERSION = "nearest-gps-v1"
+MATCH_VERSION = "nearest-gps-v2"
 MAX_TIME_DELTA_SECONDS = 300
 MAX_ACCURACY_METERS = 200
 
@@ -19,10 +19,13 @@ def _query(connection: sqlite3.Connection, sql: str, parameters: tuple = ()) -> 
 
 
 def read_contexts(connection: sqlite3.Connection, recording_id: str) -> list[dict[str, object]]:
+    from daily_reader.device_context import context_at
+
     rows = _query(
         connection,
         """SELECT links.*, gps.timestamp, gps.latitude, gps.longitude,
-        gps.horizontal_accuracy, gps.is_approximate
+        gps.horizontal_accuracy, gps.is_approximate,
+        gps.speed_mps, gps.speed_accuracy_mps, gps.is_simulated
         FROM conversation_location_links AS links
         LEFT JOIN location_events AS gps ON gps.id=links.location_event_id
         WHERE links.recording_id=? ORDER BY links.target_timestamp, links.subject_id""",
@@ -31,7 +34,17 @@ def read_contexts(connection: sqlite3.Connection, recording_id: str) -> list[dic
     results = []
     for row in rows:
         item = dict(row)
-        keys = ("timestamp", "latitude", "longitude", "horizontal_accuracy", "is_approximate")
+        item["device_context"] = context_at(connection, item["target_timestamp"])
+        keys = (
+            "timestamp",
+            "latitude",
+            "longitude",
+            "horizontal_accuracy",
+            "is_approximate",
+            "speed_mps",
+            "speed_accuracy_mps",
+            "is_simulated",
+        )
         location = {key: item.pop(key) for key in keys}
         location["is_approximate"] = bool(location["is_approximate"])
         item["location"] = location if item["location_event_id"] else None
@@ -91,8 +104,11 @@ def rebuild_context(connection: sqlite3.Connection, recording_id: str) -> None:
                 FROM location_events
                 WHERE julianday(timestamp) BETWEEN julianday(?) AND julianday(?)
                 AND horizontal_accuracy BETWEEN 0 AND ? AND is_approximate=0
+                AND is_simulated=0 AND (speed_mps IS NULL OR speed_accuracy_mps IS NULL
+                    OR horizontal_accuracy+(speed_mps+speed_accuracy_mps)
+                    * ABS((julianday(timestamp)-julianday(?))*86400)<=300)
                 ORDER BY delta, horizontal_accuracy, id LIMIT 1""",
-                (target.isoformat(), *bounds, MAX_ACCURACY_METERS),
+                (target.isoformat(), *bounds, MAX_ACCURACY_METERS, target.isoformat()),
             ).fetchone()
             if candidate:
                 state, delta = "matched_estimate", round(candidate["delta"], 3)

@@ -36,6 +36,7 @@ struct LifeEntry: Decodable, Identifiable {
 struct LifeNews: Decodable, Identifiable { let id: String; let title: String; let url: String; let reason: String }
 struct LifeNotice: Decodable { let id: String; let entry_id: String; let title: String; let at: String }
 struct LifeSnapshot: Decodable {
+    let device_context: PhoneContextOverview?
     let automation: LifeAutomationSettings?; let drafts: [LifeDraft]?
     let entries: [LifeEntry]; let people: [LifePerson]; let news: [LifeNews]
     let news_remaining: Int; let notifications: [LifeNotice]
@@ -122,6 +123,9 @@ final class LifeStore: ObservableObject {
     func refresh() async {
         guard !refreshing else { return }; refreshing = true; defer { refreshing = false }
         do {
+            #if os(iOS)
+            await PhoneContextSync.shared.synchronize()
+            #endif
             let value: LifeSnapshot = try await APIClient.shared.get("api/life")
             snapshot = value; error = nil
             noticeStatus = await LifeNotifications.shared.reconcile(value)
@@ -167,6 +171,16 @@ struct LifeBrief: View {
             Text("調べもの・予定・タスク・関心を、会話から次の行動へ。")
                 .font(.caption).foregroundStyle(.secondary)
             if let snapshot = store.snapshot {
+                if let context = snapshot.device_context {
+                    ForEach(context.suggestions) { slot in
+                        NavigationLink { LifeEntryDetail(store: store, entryID: slot.task_id) } label: {
+                            VStack(alignment: .leading) {
+                                Text("空き時間の作業候補: \(slot.title)")
+                                Text("\(lifeDate(slot.start_at)?.formatted(date: .omitted, time: .shortened) ?? "")から20分の着手候補。").font(.caption)
+                            }
+                        }
+                    }
+                }
                 if let policy = snapshot.automation {
                     Text("自動整理 \(policy.enabled ? "オン" : "停止中") · 確認待ち \(policy.pending)件").font(.caption)
                 }
@@ -227,6 +241,7 @@ struct LifeAssistantView: View {
                     catch { store.error = error.localizedDescription }
                 } }
             }
+            Section("iPhoneから取得した情報") { PhoneContextPanel(overview: store.snapshot?.device_context, onSync: { await store.refresh() }) }
             Section("一文で追加") {
                 TextField("例：明日の午前中に資料を確認する。週末の近所の催しを調べて", text: $captureText, axis: .vertical).lineLimit(2...6)
                     .disabled(capturing)
@@ -669,6 +684,17 @@ final class LifeCalendar {
         // Find the same marker after reinstall or iCloud sync to avoid duplicate exports.
         let matches = store.events(matching: store.predicateForEvents(withStart: start.addingTimeInterval(-86400 * 30), end: end.addingTimeInterval(86400 * 30), calendars: nil)).filter { $0.url == marker }
         guard matches.count <= 1 else { throw APIClientError.server("同じ予定が複数あります。カレンダーで重複を確認してください") }
+        if automatic {
+            let collisions = store.events(matching: store.predicateForEvents(withStart: start, end: end, calendars: nil)).filter {
+                $0.url != marker && $0.status != .canceled && $0.startDate < end && $0.endDate > start
+            }
+            if collisions.contains(where: { ($0.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines) == entry.title && $0.startDate == start && $0.endDate == end }) {
+                throw APIClientError.server("同じ予定がカレンダーに存在します。重複して追加せず、元の予定を確認してください")
+            }
+            if collisions.contains(where: { $0.availability != .free && (!$0.isAllDay || [.busy, .tentative, .unavailable].contains($0.availability)) }) {
+                throw APIClientError.server("カレンダーの別の予定と重なります。予定詳細から確認して反映してください")
+            }
+        }
         let saved = state(entry.id)
         let owned = existing ?? matches.first
         if automatic {

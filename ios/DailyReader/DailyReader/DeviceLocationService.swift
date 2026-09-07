@@ -134,7 +134,10 @@ final class DeviceLocationService: NSObject, ObservableObject, @preconcurrency C
             LocationEvent(timestamp: $0.timestamp.ISO8601Format(.iso8601(timeZone: .gmt, includingFractionalSeconds: true)),
                           latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude,
                           horizontal_accuracy: $0.horizontalAccuracy,
-                          is_approximate: manager.accuracyAuthorization == .reducedAccuracy)
+                          is_approximate: manager.accuracyAuthorization == .reducedAccuracy,
+                          speed_mps: $0.speed >= 0 && $0.speed <= 400 && $0.speedAccuracy >= 0 && $0.speedAccuracy <= 400 ? $0.speed : nil,
+                          speed_accuracy_mps: $0.speed >= 0 && $0.speed <= 400 && $0.speedAccuracy >= 0 && $0.speedAccuracy <= 400 ? $0.speedAccuracy : nil,
+                          is_simulated: $0.sourceInformation?.isSimulatedBySoftware ?? false)
         }
         var ids = Set(pending.map(\.id))
         let updated = pending + events.filter { ids.insert($0.id).inserted }
