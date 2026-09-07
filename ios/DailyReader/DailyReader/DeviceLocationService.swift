@@ -47,7 +47,13 @@ final class DeviceLocationService: NSObject, ObservableObject, @preconcurrency C
         guard isEnabled else { return }
         do {
             if FileManager.default.fileExists(atPath: queueURL.path) {
-                pending = try JSONDecoder().decode([LocationEvent].self, from: Data(contentsOf: queueURL))
+                let saved = try JSONDecoder().decode([LocationEvent].self, from: Data(contentsOf: queueURL))
+                pending = saved.map { event in
+                    var repaired = event
+                    repaired.timestamp = repairLegacyQueuedUTCTimestamp(event.timestamp)
+                    return repaired
+                }
+                if pending != saved { try persist(pending) }
             }
         } catch {
             storageAvailable = false
@@ -131,7 +137,7 @@ final class DeviceLocationService: NSObject, ObservableObject, @preconcurrency C
             return
         }
         let events = valid.map {
-            LocationEvent(timestamp: $0.timestamp.ISO8601Format(.iso8601(timeZone: .gmt, includingFractionalSeconds: true)),
+            LocationEvent(timestamp: preciseUTCTimestamp($0.timestamp),
                           latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude,
                           horizontal_accuracy: $0.horizontalAccuracy,
                           is_approximate: manager.accuracyAuthorization == .reducedAccuracy,

@@ -90,6 +90,21 @@ actor APIClient {
     }
 }
 
+// Explicitly include the UTC designator: ISO8601FormatStyle's initializer
+// alone emits a timezone-less string even when its timeZone is GMT.
+func preciseUTCTimestamp(_ date: Date) -> String {
+    date.ISO8601Format(.iso8601(timeZone: .gmt, includingFractionalSeconds: true).timeZone(separator: .colon))
+}
+
+// Only migrate our private queues, which older clients explicitly formatted
+// in GMT. Never infer a timezone for arbitrary user-provided timestamps.
+func repairLegacyQueuedUTCTimestamp(_ value: String) -> String {
+    guard value.range(of: #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}$"#, options: .regularExpression) != nil,
+          (try? Date(value + "Z", strategy: .iso8601.year().month().day().time(includingFractionalSeconds: true).timeZone(separator: .colon))) != nil
+    else { return value }
+    return value + "Z"
+}
+
 func makeAPIURL(baseURL: URL, path: String, queryItems: [URLQueryItem] = []) -> URL {
     let url = baseURL.appending(path: path)
     guard !queryItems.isEmpty else { return url }
@@ -99,7 +114,7 @@ func makeAPIURL(baseURL: URL, path: String, queryItems: [URLQueryItem] = []) -> 
 struct EmptyResponse: Decodable {}
 struct EmptyRequest: Encodable {}
 struct LocationEvent: Codable, Identifiable, Equatable {
-    let timestamp: String
+    var timestamp: String
     let latitude: Double
     let longitude: Double
     let horizontal_accuracy: Double

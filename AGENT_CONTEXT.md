@@ -305,3 +305,5 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 - GPSは速度・速度精度・シミュレーションフラグを取得し、`nearest-gps-v2`で移動による時刻差の影響を照合条件へ加える。場所の品質を保証するものではなく、速度不明の旧データは従来条件を使う。
 - HealthKitは認証操作後の更新機会に最短30分間隔で既存5種を自動同期する。未取得を0にせず、当日正午までの24時間内の睡眠区間だけを重複除去して集計する。覚醒・inBedは除外する。日付は端末のローカル日付を使う。
 - カレンダー・移動・健康データはCodexへ送信しない。端末で取得を個別停止できる。OSによるバックグラウンド制限と取得期間上限は維持する。仕様・保存境界・公式根拠・検証は[自動取得コンテキスト](docs/iphone-context.md)を参照する。
+
+- 2026-09-07の実機設定で、GPSと端末コンテキストの小数秒付き日時がUTC設定でも末尾Zを含まず、APIがHTTP 400で拒否する問題を確認した。`preciseUTCTimestamp`でタイムゾーンを明示し、旧版がGMTで作った端末内キューだけ`repairLegacyQueuedUTCTimestamp`で復元して再送する。ユーザー入力やAPIのタイムゾーン必須条件は緩めない。同期拒否時はGPS・予定の本文をログへ出さず理由と転送形式だけ記録する。`tests/test_ios_sync_timestamps.py`はSwiftの実出力をPython保存処理へ渡し、再送の重複排除も検証する。

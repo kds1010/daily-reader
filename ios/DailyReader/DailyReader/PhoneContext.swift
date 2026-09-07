@@ -14,7 +14,7 @@ private struct PhoneMotionPayload: Codable {
     var items: [PhoneMotionInterval] = []
 }
 private struct PhonePayload: Codable {
-    let device_id: String; let captured_at: String; let timezone: String
+    let device_id: String; var captured_at: String; let timezone: String
     var calendar: PhoneCalendarPayload; var motion: PhoneMotionPayload
 }
 
@@ -51,6 +51,7 @@ final class PhoneContextSync: ObservableObject {
         do {
             if FileManager.default.fileExists(atPath: queueURL.path) {
                 var saved = try JSONDecoder().decode(PhonePayload.self, from: Data(contentsOf: queueURL))
+                saved.captured_at = repairLegacyQueuedUTCTimestamp(saved.captured_at)
                 // Revoked permissions or a disabled switch also apply to queued uploads.
                 if !calendarEnabled || EKEventStore.authorizationStatus(for: .event) != .fullAccess {
                     saved.calendar = PhoneCalendarPayload(state: calendarEnabled ? "denied" : "disabled")
@@ -67,7 +68,7 @@ final class PhoneContextSync: ObservableObject {
             let calendar = collectCalendar(now: now)
             let activities = await collectMotion(now: now, requestPermission: requestMotion)
             try Task.checkCancellation()
-            let payload = PhonePayload(device_id: deviceID, captured_at: now.ISO8601Format(.iso8601(timeZone: .gmt, includingFractionalSeconds: true)), timezone: TimeZone.current.identifier, calendar: calendar, motion: activities)
+            let payload = PhonePayload(device_id: deviceID, captured_at: preciseUTCTimestamp(now), timezone: TimeZone.current.identifier, calendar: calendar, motion: activities)
             try FileManager.default.createDirectory(at: queueURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try JSONEncoder().encode(payload).write(to: queueURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             let _: EmptyResponse = try await APIClient.shared.post("api/device-context/sync", body: payload, as: EmptyResponse.self)
