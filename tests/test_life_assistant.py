@@ -373,12 +373,17 @@ def test_research_feedback_is_explicit_and_does_not_change_completion_time(datab
         )
 
 
-def test_worker_executes_only_explicit_request_and_uses_readonly_web_mode(database, monkeypatch):
+@pytest.mark.parametrize("automatic", [False, True])
+def test_worker_executes_only_requested_data_and_uses_readonly_web_mode(
+    database, monkeypatch, automatic
+):
     import subprocess
 
     worker = ResearchWorker(database, "codex", "gpt-5.6-luna")
     life.create_entry(database, {"kind": "profile", "title": "非公開の好み", "person_id": "self"})
-    entry = life.create_entry(database, {"kind": "research", "title": "公式情報を調べる"})
+    entry = life.create_entry(
+        database, {"kind": "research", "title": "公式情報を調べる"}, automatic=automatic
+    )
     captured = {}
 
     def popen(command, **kwargs):
@@ -398,14 +403,18 @@ def test_worker_executes_only_explicit_request_and_uses_readonly_web_mode(databa
     monkeypatch.setattr(subprocess, "Popen", popen)
     worker.execute(worker.claim())
     assert life.get_entry(database, entry["id"])["status"] == "completed"
-    assert set(captured["input"]) == {
-        "title",
-        "detail",
-        "constraints",
-        "due_at",
-        "source_url",
-        "today",
-    }
+    assert set(captured["input"]) == (
+        {"title", "today"}
+        if automatic
+        else {
+            "title",
+            "detail",
+            "constraints",
+            "due_at",
+            "source_url",
+            "today",
+        }
+    )
     assert "非公開" not in json.dumps(captured["input"], ensure_ascii=False)
     assert 'web_search="live"' in captured["command"]
     assert "features.shell_tool=false" in captured["command"]

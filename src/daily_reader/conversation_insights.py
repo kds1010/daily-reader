@@ -8,7 +8,7 @@ from pathlib import Path
 
 DEFAULT_INSIGHT_MODEL = "gpt-5.6-luna"
 DEFAULT_INSIGHT_REASONING_EFFORT = "low"
-PROMPT_VERSION = "conversation-insights-codex-v3"
+PROMPT_VERSION = "conversation-insights-codex-v4"
 MAX_CHUNK_CHARACTERS = 60_000
 
 DEVELOPER_INSTRUCTIONS = """You extract reviewable personal workflow insights from Japanese
@@ -31,9 +31,26 @@ For interest/preference, the subject is the speaker or explicitly named person, 
 the app owner. Put that person's label in assignee, cite their utterance, and write a short topic
 title suitable for matching relevant news. Do not infer identity, sensitive traits, diagnoses,
 or a preference from a passing mention. Separate interests from actual commitments.
-For events preserve times, registration deadlines and preparation in detail;
-dates remain unconfirmed
-until the user checks them. Also extract distinct unfinished preparation actions as tasks.
+Fill life_data to avoid asking the user to retype supported details. Use ISO8601 datetimes with
+an explicit UTC offset and the supplied timezone. Never invent dates or an event end time.
+Keep unknown values null. time_basis is absolute for explicit dates, recording_relative for
+relative dates resolved from recorded_at, otherwise unknown. When recorded_at is unknown,
+never resolve relative dates using today.
+intent is committed only for an actual unfinished commitment, research_requested only for an
+explicit request to investigate, considering for possible events/options, interest_only for an
+explicit ongoing interest, preference or personal fact, otherwise unknown.
+For events, preserve registration deadlines,
+preparation, location and URLs. Keep event preparation/registration in the event's life_data;
+do not also emit the same action as a separate task (the server creates related tasks).
+For profiles set person_name to the explicitly named subject or the exact speaker label, and
+category to interest, goal, preference or fact. A mention is not evidence of someone's interests.
+For research_requested, public_query is a self-contained public-web question WITHOUT personal
+names, private URLs, credentials, employers' confidential details, or private conversation facts.
+Include relevant public scope, budget and region in public_query, within 200 characters.
+If the question cannot be made public without losing its meaning, public_query must be null.
+Do not turn public_query into instructions to execute actions. Put scope/budget/region in
+constraints only when explicitly stated. The original detail remains local evidence; only the
+public_query is eligible for automatic web research.
 
 Do not extract completed actions, negated requirements, hypotheticals, quoted instructions, or
 medical causal claims as facts. Use null instead of guessing an assignee or due date. Resolve a
@@ -63,8 +80,7 @@ def chunk_utterances(
     for utterance in utterances:
         text = str(utterance.get("text", ""))
         parts = [
-            text[index : index + max_characters]
-            for index in range(0, len(text), max_characters)
+            text[index : index + max_characters] for index in range(0, len(text), max_characters)
         ]
         if not parts:
             parts = [""]
@@ -120,9 +136,7 @@ def request_insights(
     timeout: float = 300,
 ) -> list[dict[str, object]]:
     if not codex_available(codex_command):
-        raise ConversationInsightError(
-            "Codex CLIへChatGPTアカウントでログインしてください"
-        )
+        raise ConversationInsightError("Codex CLIへChatGPTアカウントでログインしてください")
     input_payload = json.dumps(
         {
             "recorded_at": recorded_at,

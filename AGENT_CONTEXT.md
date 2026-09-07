@@ -11,7 +11,7 @@
 - Mac miniの `127.0.0.1:8787` だけでホストし、Tailscale Serve経由でtailnet内に限定公開する。
 - 公開URL: `https://sk-mins-mac-mini.tailc193b2.ts.net/`
 - 外部サーバー、DB、有料ホスティングは使わない。SideStore更新成果物だけは、Mac mini上の専用loopbackサーバーをTailscale Funnelの`8443`番へ中継する。
-- Soundcore Workから取り込む会話録音はMac miniの`data/conversations/audio/`へ原音のMP3を保持する。文字起こし済みのUTF-8 TXTも10 MiBまで取り込み、原文と分類結果を`data/conversations.sqlite3`へ保存する。TXTは非空行を順番に発話として扱い、音声解析・話者推測をせず「話者1」とする。文字起こしと話者分離はMac内で完結する。ユーザーが録音ごとに確認して開始した場合だけ、録音日時・話者・発話時刻・文字起こしをChatGPTログイン済みのCodex CLIへ渡し、タスク、フォローアップ、決定事項、アイデア、困りごと、調べもの、予定、関心、好みの候補を構造化抽出する。Codexは`--ephemeral`、`--sandbox read-only`、ユーザー設定・ルール無効、JSON Schema出力で一時ディレクトリから呼び出す。APIキー環境変数を子プロセスから除外し、MP3原音、GPS、ファイル名、ほかの録音は渡さない。候補は根拠発言とともに音声インボックスへ保存し、ユーザーが編集・確認してAgentまたは通常タスクへの投入を選ぶまで実行しない。原音・TXT原文は自動削除せず、MP3保存時は5 GiBの空き容量を必ず残す。
+- Soundcore Workから取り込む会話録音はMac miniの`data/conversations/audio/`へ原音のMP3を保持する。文字起こし済みのUTF-8 TXTも10 MiBまで取り込み、原文と分類結果を`data/conversations.sqlite3`へ保存する。TXTは非空行を順番に発話として扱い、音声解析・話者推測をせず「話者1」とする。文字起こしと話者分離はMac内で完結する。2026-09-07のユーザーの自動化指示に基づき、導入後の新規録音は自動整理が有効なら、録音日時・話者・発話時刻・文字起こしをChatGPTログイン済みのCodex CLIへ渡し、タスク、フォローアップ、決定事項、アイデア、困りごと、調べもの、予定、関心、好みの候補を構造化抽出する。Codexは`--ephemeral`、`--sandbox read-only`、ユーザー設定・ルール無効、JSON Schema出力で一時ディレクトリから呼び出す。APIキー環境変数を子プロセスから除外し、MP3原音、GPS、ファイル名、ほかの録音は渡さない。候補は根拠発言とともに音声インボックスへ保存し、明確な用事・調査・日時が揃った参加予定を暮らしの項目へ自動追加する。曖昧な内容は確認候補にする。コードAgentへの依頼は引き続き明示操作が必要。原音・TXT原文は自動削除せず、MP3保存時は5 GiBの空き容量を必ず残す。
 - 起動時とローカル時刻の8時、10時、12時、17時、20時、22時に更新する。
 - Codex CLIを1更新につき最大1回呼び、低コストモデルで全ハイライトをまとめて生成する。
 
@@ -46,7 +46,7 @@
 - tonoiとconfigは`config/agent-repositories.toml`の`deploy = false`により、検証済み変更を`main`へ統合してpushした時点で完了とし、実環境デプロイは行わない。
 - `config/agent-repositories.toml`: Agentが操作できるGitリポジトリの許可リスト。Daily Reader、soan、宿直（tonoi）、configを登録し、ホーム相対パスにも対応する。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
-- `ios/DailyReader/`: SwiftUIで全面実装したiPhone・macOSネイティブクライアント。`DailyReader` iPhoneターゲットと`DaymeldMac` macOSターゲットがAgent、今日、メール、ニュース、会話、音声インボックス、設定の画面とAPIモデルを共有する。会話のCodex整理は送信範囲を表示して録音ごとに確認し、候補の編集、根拠確認、保存、破棄、Planner・Agentへの明示的な振り分けに対応する。iPhoneのBundle IDとHealthKit entitlementは更新互換性のためmacOSターゲットから分離する。
+- `ios/DailyReader/`: SwiftUIで全面実装したiPhone・macOSネイティブクライアント。`DailyReader` iPhoneターゲットと`DaymeldMac` macOSターゲットがAgent、今日、メール、ニュース、会話、音声インボックス、設定の画面とAPIモデルを共有する。会話のCodex整理は送信範囲と停止設定を表示し、新規録音は自動開始、旧録音は手動開始とする。候補の編集、根拠確認、保存、破棄、Planner・Agentへの明示的な振り分けに対応する。iPhoneのBundle IDとHealthKit entitlementは更新互換性のためmacOSターゲットから分離する。
 - iPhoneネイティブクライアントはHealthKit日次集計、Agentの完了・判断待ち・失敗遷移に対するローカル通知、App Intents、Keychainでの同期トークン保存に対応する。`public.mp3`のViewerとして登録し、Soundcore Workなどの共有・エクスポート先から受け取ったMP3を「会話」へ送信する。送信成功後はアプリの`Documents/Inbox`内にある受信コピーだけを削除し、共有元の原本は変更しない。初回一覧取得は通知せず、停止中の遷移は次回の成功した一覧更新時に一度だけ通知する。APNsではないため、強制終了中の即時通知は保証しない。無料Personal TeamのApp ID消費を抑えるため、iPhone版は単一アプリターゲットを維持し、ウィジェットや通知Extensionは実機署名検証後に追加する。
 - iPhone版の「今日」から現在地の一回保存、または移動の記録開始・停止を選べる。記録開始時にWhen In Use権限を要求し、Core Locationの標準位置更新（目標精度100 m、移動距離100 m）とバックグラウンド位置更新・表示インジケーターを有効にする。固定間隔での取得は保証しない。Always権限は要求せず、強制終了・再起動後の記録はユーザーが再開する。取得した座標・精度・取得時刻・概算位置フラグは端末のApplication Support内の保護された未同期キューへ先に保存し、最大500件ずつMac miniの`POST /api/locations/sync`へ同期する。失敗時は保持し、位置更新時・前景更新時・手動操作で再試行する。履歴は`data/conversations.sqlite3`の`location_events`へ保存する。iPhone・macOSの「今日」→「GPSの取得履歴・マップ」で端末のローカル日付を選択し、`GET /api/locations?start=...&end=...`から500件ずつ取得して、時刻順一覧、MapKitの地点、取得時刻と水平精度を表示する。未同期データはiPhoneのGPSカードに件数と直近20件を表示し、地図へは同期後に反映する。地図表示にはAppleの地図サービスを使用する。GPS履歴はCodexへ送らない。録音との位置照合は確認済み録音日時がある場合のみ行い、取り込み時刻で代用しない。
 - macOS版はMac mini API上のAgent、Planner、Gmail、ニュース、tanomi、Codex利用状況と、iPhoneから同期済みの健康集計を共有する。MacにはHealthKitデータストアがないため、HealthKit同期とトークン入力はiPhone版だけに表示する。`Command`+`R`で全データを再読み込みする。画面内容は`Command`+`=`（`Command`+`+`も可）／`Command`+`-`で80%から140%まで10%刻みで拡大・縮小し、`Command`+`0`で100%へ戻せる。倍率は次回起動時も維持する。拡大時は画面レイヤーを後段変形せず、各テキストスタイルを倍率に応じたポイントサイズでレイアウト・描画して文字の鮮明さを保つ。macOS版はApp Sandboxと外向きネットワークだけを許可し、HealthKit entitlementを含めない。
@@ -269,7 +269,7 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 
 ## 会話解析の復旧と録音日時
 
-- サーバー起動時に中断された音声解析・Codex整理を失敗状態へ戻し、画面から再試行可能にする。文字起こしの外部送信は自動再開せず、録音ごとの確認を維持する。
+- サーバー起動時に中断された音声解析・Codex整理を失敗状態へ戻し、画面から再試行可能にする。自動整理の導入後に取り込んだ録音は、設定が有効なら文字起こし完了後にCodex整理を自動実行する。失敗は間隔を空けて最大3回試し、旧録音は本人の開始操作を維持する。
 - 同一MP3の再取り込みでは既存の解析結果と確認待ち候補を保持し、新規保存時だけ音声解析を開始する。
 - 会話詳細は表示中の音声解析・Codex整理が終わるまで状態を更新する。画面を開き直した場合も処理中なら更新を再開する。
 - 新規MP3・TXT取り込み時は、Soundcoreの未変更タイトルを含むファイル名から秒までの録音日時を取得する。例: `2026-09-05_2026-09-05 15:26:25.mp3` → `2026-09-05T15:26:25+09:00`。先頭の書き出し日ではなく後半の日時を採用する。日付接頭辞なし、TXTの`_文字起こし`接尾辞にも対応する。Soundcore側の文字起こしは不要。ファイル名にタイムゾーンがないため日本時間として扱う。
@@ -288,10 +288,12 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 
 ## 暮らしのアシスタント
 
-- iPhone・macOSの「今日」から`LifeAssistantView`を開き、会話候補から確認したタスク・調査・予定・プロフィールを作る。`data/conversations.sqlite3`の`life_entries`と`life_people`に保持する。元候補・調査結果・予定の関連を根拠に固定し、冪等キーと改訂番号で再送と古い端末の上書きを防ぐ。
-- `life_research.ResearchWorker`はWebサーバー内で1件ずつ調査し、待機含め10件、1回600秒。ChatGPTログイン済みCodexのlive Web検索・読み取り専用・シェル無効を使う。送信は確認した依頼本文・条件・期限・URLだけ。コードAgentや人物一覧、GPS、他の会話を自動で含めない。停止・再試行・再起動時の失敗復旧に対応し、定期自動調査はまだない。変更時はWebサーバーのLaunchAgentを再起動する。
+- iPhone・macOSの「今日」から`LifeAssistantView`を開き、新規録音・一文メモからタスク・調査・予定を自動作成し、曖昧な候補だけ入力済みの確認画面へ残す。`data/conversations.sqlite3`の`life_entries`と`life_people`に保持する。元候補・調査結果・予定の関連を根拠に固定し、冪等キーと改訂番号で再送と古い端末の上書きを防ぐ。
+- `life_research.ResearchWorker`はWebサーバー内で1件ずつ調査し、待機含め10件、1回600秒。ChatGPTログイン済みCodexのlive Web検索・読み取り専用・シェル無効を使う。手動調査は確認した依頼本文・条件・期限・URLを送り、自動調査は抽出時に個人情報・非公開情報を除いた公開質問文だけを送る。自動開始は日本時間で1日3件まで。コードAgentや人物一覧、GPS、他の会話を自動で含めない。停止・再試行・再起動時の失敗復旧に対応し、定期自動調査はまだない。変更時はWebサーバーのLaunchAgentを再起動する。
 - 予定の開始・終了・タイムゾーン、申込期限、準備・出発・通知を保存する。予定変更は個別上書きのない関連タスク日時へ伝播し、中止時は未完了の関連タスクも中止する。申込済み時は関連する申込タスクを完了し、同一段階・同時刻の重複通知と完了後の段階通知を抑制する。変更前の予定・タスクは`life_revisions`へ保持し、詳細で直近20版を表示する。
-- Calendarは明示ボタンで追加・変更・中止を反映し、自動双方向同期はしない。macOSは`com.apple.security.personal-information.calendars`を持つ。iPhone・Macともfull access説明を付け、端末で本人が許可する。
+- Calendarは初回権限許可後、端末更新時に追加・変更・中止を自動反映する。設定で停止できる。外部編集・削除・既存予定との連携開始は確認対象とし、逆同期はしない。macOSは`com.apple.security.personal-information.calendars`を持つ。iPhone・Macともfull access説明を付け、端末で本人が許可する。
 - 生活通知は端末で将来の直近40件を予約し、更新で中止・変更分を取り除く。調査結果通知は前景更新・iPhone BGAppRefresh時に状態変化を通知する。APNsでなく終了中の即時通知は保証しない。通知を押すと「今日」へ移動する。
-- プロフィールは人物選択必須。自分の関心・目標の有効な短いタイトルを既存ハイライトに文字列照合し、最大3記事を推薦する。第三者の情報・期限切れ・事実は推薦対象外。修正・保管・削除に対応し、敏感な特性や同名人物を自動推定・統合しない。
-- 調査の有用性と任意の本人見積もり節約分数を保存する。生活改善率・閲覧削減時間は自動測定していない。検証は`tests/test_life_assistant.py`、実API JSONとSwiftモデル往復・権限宣言は`tests/test_life_native.py`、両プラットフォームのXcodeビルドを使う。
+- プロフィールは録音内の対象者を一度選択し、同じ録音・対象者の明示的な情報へ引き継ぐ。人物の訂正は個別確認されていない引き継ぎ先にも反映する。別の録音へ同名だけで引き継がない。自分の関心・目標の有効な短いタイトルを既存ハイライトに文字列照合し、最大3記事を推薦する。第三者の情報・期限切れ・事実は推薦対象外。修正・保管・削除に対応し、敏感な特性や同名人物を自動推定・統合しない。
+- 調査の有用性と任意の本人見積もり節約分数を保存する。生活改善率・閲覧削減時間は自動測定していない。検証は`tests/test_life_assistant.py`、`tests/test_life_automation.py`、実API JSONとSwiftモデル往復・権限宣言は`tests/test_life_native.py`、両プラットフォームのXcodeビルドを使う。
+
+- `life_automation.AutomationWorker`はWebサーバー内で5秒ごとに新規録音、確認候補、予定の準備・申込タスク、調査結果の次の行動候補を処理する。導入日時・停止設定・試行回数・候補採否・録音内対象者の対応はSQLiteへ永続化する。文字数6万超の録音は手動開始へ戻す。停止は新規の自動処理を止め、開始済み調査は個別停止する。新しいメモには入力時刻を使い、過去の録音の取り込み日時と混同しない。

@@ -3,6 +3,8 @@ import Combine
 import EventKit
 import UserNotifications
 
+struct LifeAutomationSettings: Decodable { let enabled: Bool; let research_enabled: Bool; let processed: Int; let pending: Int }
+struct LifeDraft: Decodable, Identifiable { let id: String; let data: LifeEntry; let evidence: LifeEvidence; let reason: String; let source_index: Int? }
 struct LifeFeedback: Codable { let useful: Bool; let saved_minutes: Int? }
 struct LifeRevision: Decodable { let revision: Int; let data: String; let status: String; let changed_at: String }
 struct LifePerson: Decodable, Identifiable { let id: String; let name: String }
@@ -14,10 +16,12 @@ struct LifeResult: Decodable {
     let sources: [LifeLink]; let actions: [LifeAction]; let options: [LifeOption]
 }
 struct LifeEvidence: Decodable {
+    let subject: String?
     let type: String; let recording_id: String?; let entry_id: String?; let item_id: String?
     let quotes: [ConversationInsightEvidence]?; let sources: [LifeLink]?
 }
 struct LifeEntry: Decodable, Identifiable {
+    let automatic: Bool?
     let feedback: LifeFeedback?; let history: [LifeRevision]?
     let id: String; let kind: String; let status: String; let revision: Int
     let title: String; let detail: String; let source_url: String?
@@ -32,6 +36,7 @@ struct LifeEntry: Decodable, Identifiable {
 struct LifeNews: Decodable, Identifiable { let id: String; let title: String; let url: String; let reason: String }
 struct LifeNotice: Decodable { let id: String; let entry_id: String; let title: String; let at: String }
 struct LifeSnapshot: Decodable {
+    let automation: LifeAutomationSettings?; let drafts: [LifeDraft]?
     let entries: [LifeEntry]; let people: [LifePerson]; let news: [LifeNews]
     let news_remaining: Int; let notifications: [LifeNotice]
 }
@@ -112,6 +117,7 @@ final class LifeStore: ObservableObject {
     @Published var snapshot: LifeSnapshot?
     @Published var error: String?
     @Published var noticeStatus = ""
+    @Published var calendarStatus = ""
     private var refreshing = false
     func refresh() async {
         guard !refreshing else { return }; refreshing = true; defer { refreshing = false }
@@ -119,10 +125,29 @@ final class LifeStore: ObservableObject {
             let value: LifeSnapshot = try await APIClient.shared.get("api/life")
             snapshot = value; error = nil
             noticeStatus = await LifeNotifications.shared.reconcile(value)
+            calendarStatus = await LifeCalendar.shared.synchronize(value.entries)
         } catch { self.error = error.localizedDescription }
     }
-    func save(_ request: LifeRequest, id: String? = nil) async throws {
-        let _: LifeEntry = try await APIClient.shared.post(id.map { "api/life/entries/\($0)" } ?? "api/life/entries", body: request, as: LifeEntry.self)
+    func setAutomation(_ key: String, _ enabled: Bool) async {
+        do {
+            let _: EmptyResponse = try await APIClient.shared.post("api/life/automation", body: [key: enabled], as: EmptyResponse.self)
+            await refresh()
+        } catch { self.error = error.localizedDescription }
+    }
+    func adopt(_ draft: LifeDraft) async {
+        do {
+            let _: LifeEntry = try await APIClient.shared.post("api/life/drafts/\(draft.id)/adopt", body: EmptyRequest(), as: LifeEntry.self)
+            await refresh()
+        } catch { self.error = error.localizedDescription }
+    }
+    func dismiss(_ draft: LifeDraft) async {
+        do {
+            let _: EmptyResponse = try await APIClient.shared.post("api/life/drafts/\(draft.id)/dismiss", body: EmptyRequest(), as: EmptyResponse.self)
+            await refresh()
+        } catch { self.error = error.localizedDescription }
+    }
+    func save(_ request: LifeRequest, id: String? = nil, draftID: String? = nil) async throws {
+        let _: LifeEntry = try await APIClient.shared.post(draftID.map { "api/life/drafts/\($0)/adopt" } ?? id.map { "api/life/entries/\($0)" } ?? "api/life/entries", body: request, as: LifeEntry.self)
         await refresh()
     }
     func state(_ entry: LifeEntry, _ status: String) async {
@@ -142,6 +167,9 @@ struct LifeBrief: View {
             Text("調べもの・予定・タスク・関心を、会話から次の行動へ。")
                 .font(.caption).foregroundStyle(.secondary)
             if let snapshot = store.snapshot {
+                if let policy = snapshot.automation {
+                    Text("自動整理 \(policy.enabled ? "オン" : "停止中") · 確認待ち \(policy.pending)件").font(.caption)
+                }
                 let pending = snapshot.entries.filter { $0.active && $0.kind != "profile" }
                 Text("対応中 \(pending.count)件 · 調査完了 \(snapshot.entries.filter { $0.kind == "research" && $0.status == "completed" }.count)件")
                     .font(.caption)
@@ -171,6 +199,11 @@ struct LifeBrief: View {
 struct LifeAssistantView: View {
     @ObservedObject var store: LifeStore
     @EnvironmentObject private var model: AppModel
+    @AppStorage("life.calendar.automatic") private var calendarAutomatic = true
+    @State private var captureText = ""
+    @State private var captureID = UUID().uuidString
+    @State private var capturing = false
+    @State private var captureMessage = ""
     @State private var filter = "all"
     @State private var history = false
     @State private var person = "all"
@@ -181,7 +214,12 @@ struct LifeAssistantView: View {
     var body: some View {
         List {
             Section {
-                Text("必要なことを確認し、決めたことだけ実行に移します。調査はMac側で続きます。")
+                Text("録音・メモから用事を自動整理します。確認が必要な項目だけここに残ります。")
+                if let policy = store.snapshot?.automation {
+                    Toggle("新しい録音・メモを自動整理", isOn: Binding(get: { policy.enabled }, set: { value in Task { await store.setAutomation("enabled", value) } }))
+                    Toggle("明示した調べものを自動実行", isOn: Binding(get: { policy.research_enabled }, set: { value in Task { await store.setAutomation("research_enabled", value) } }))
+                    Text("新規録音の文字起こし・日時・話者をCodexへ送り、明確な用事は自動追加します。自動Web調査は公開用の質問だけを1日3件まで。停止中の取り込みは再開後に処理します。開始済みの調査は個別に停止できます。原音・GPSは送りません。").font(.caption)
+                }
                 if let error = store.error { Text(error).foregroundStyle(.red) }
                 Text(store.noticeStatus).font(.caption).foregroundStyle(.secondary)
                 Button("通知を有効にする") { Task {
@@ -189,7 +227,59 @@ struct LifeAssistantView: View {
                     catch { store.error = error.localizedDescription }
                 } }
             }
-            Section("新しく追加") {
+            Section("一文で追加") {
+                TextField("例：明日の午前中に資料を確認する。週末の近所の催しを調べて", text: $captureText, axis: .vertical).lineLimit(2...6)
+                    .disabled(capturing)
+                    .onChange(of: captureText) { _, _ in if !capturing { captureID = UUID().uuidString } }
+                Button(capturing ? "送信中…" : "メモを自動整理") {
+                    capturing = true
+                    Task {
+                        do {
+                            let _: EmptyResponse = try await APIClient.shared.post("api/life/capture", body: ["text": captureText, "request_id": captureID], as: EmptyResponse.self)
+                            captureText = ""; captureID = UUID().uuidString
+                            captureMessage = "保存しました。Mac側で整理を進めています。"
+                            await store.refresh()
+                        } catch { captureMessage = error.localizedDescription }
+                        capturing = false
+                    }
+                }.disabled(capturing || captureText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.snapshot?.automation?.enabled != true)
+                Text(captureMessage).font(.caption)
+            }
+            if let drafts = store.snapshot?.drafts, !drafts.isEmpty {
+                Section("ここだけ確認（\(drafts.count)件）") {
+                    ForEach(drafts) { draft in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("\(lifeLabel(draft.data.kind)): \(draft.data.title)").font(.headline)
+                            Text(draft.reason).font(.caption).foregroundStyle(.secondary)
+                            if let quote = draft.evidence.quotes?.first {
+                                Text("「\(quote.quote)」").font(.caption).lineLimit(3)
+                            }
+                            if let subject = draft.evidence.subject, !subject.isEmpty { Text("対象者の候補: \(subject)").font(.caption) }
+                            NavigationLink("入力済みの内容を確認・補足") {
+                                LifeEntryEditor(store: store, request: draftRequest(draft), draftID: draft.id, reviewReason: draft.reason)
+                            }
+                            HStack {
+                                Button("この内容で追加") { Task { await store.adopt(draft) } }
+                                    .disabled(!canAdopt(draft))
+                                Spacer()
+                                Button("不要", role: .destructive) { Task { await store.dismiss(draft) } }
+                            }
+                        }
+                    }
+                }
+            }
+            Section("カレンダー連携") {
+                Toggle("予定の追加・変更・中止を自動反映", isOn: $calendarAutomatic)
+                    .onChange(of: calendarAutomatic) { _, _ in Task { await store.refresh() } }
+                Text(store.calendarStatus).font(.caption)
+                Button("カレンダーへのアクセスを許可") { Task {
+                    do { try await LifeCalendar.shared.requestAccess(); await store.refresh() }
+                    catch { store.error = error.localizedDescription }
+                } }
+                Text("初回の許可後は、この端末の更新時に反映します。カレンダー側で変更した予定は上書きせず確認を求めます。").font(.caption)
+            }
+            Section("項目を指定して追加") {
+                Text("時刻のないタスクは期限日の23:59、通知は9:00に設定します。時刻指定のタスクは期限時刻に通知します。予定の通知は30分前、準備は前日が初期値です。詳細で変更できます。").font(.caption).foregroundStyle(.secondary)
                 ForEach(["research", "event", "task", "profile"], id: \.self) { kind in
                     NavigationLink(lifeLabel(kind)) { LifeEntryEditor(store: store, request: LifeRequest(kind: kind)) }
                 }
@@ -210,7 +300,7 @@ struct LifeAssistantView: View {
                     NavigationLink { LifeEntryDetail(store: store, entryID: entry.id) } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.title).font(.headline)
-                            Text("\(lifeLabel(entry.kind)) · \(lifeLabel(entry.status))\(entry.expired ? " · 期限切れ" : "")").font(.caption).foregroundStyle(.secondary)
+                            Text("\(lifeLabel(entry.kind)) · \(lifeLabel(entry.status))\(entry.automatic == true ? " · 自動作成" : "")\(entry.expired ? " · 期限切れ" : "")").font(.caption).foregroundStyle(.secondary)
                             if let personID = entry.person_id { Text(store.snapshot?.people.first { $0.id == personID }?.name ?? "人物未確認").font(.caption) }
                             if let date = lifeDate(entry.start_at ?? entry.due_at) { Text(date.formatted()).font(.caption) }
                         }
@@ -254,6 +344,19 @@ struct LifeAssistantView: View {
                 }
             }
     }
+    private func canAdopt(_ draft: LifeDraft) -> Bool {
+        if draft.data.kind == "profile" { return !(draft.data.person_id ?? "").isEmpty }
+        if draft.data.kind == "event" { return draft.data.start_at != nil && draft.data.end_at != nil }
+        return true
+    }
+    private func draftRequest(_ draft: LifeDraft) -> LifeRequest {
+        var value = LifeRequest(draft.data); value.revision = nil
+        value.source_type = draft.evidence.type
+        value.source_id = draft.evidence.item_id ?? draft.evidence.entry_id ?? ""
+        value.source_index = draft.source_index
+        return value
+    }
+
 }
 
 struct LifeEntryEditor: View {
@@ -261,10 +364,13 @@ struct LifeEntryEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State var request: LifeRequest
     var entryID: String? = nil
+    var draftID: String? = nil
+    var reviewReason = ""
     @State private var saving = false
     @State private var error: String?
     var body: some View {
         Form {
+            if !reviewReason.isEmpty { Text(reviewReason).font(.caption).foregroundStyle(.orange) }
             Section("内容を確認") {
                 TextField("タイトル", text: $request.title)
                 TextField("詳細・根拠となる情報", text: $request.detail, axis: .vertical).lineLimit(3...10)
@@ -303,8 +409,12 @@ struct LifeEntryEditor: View {
             }
             if request.kind == "event" {
                 Section("日時・準備") {
-                    DatePicker("開始", selection: dateBinding($request.start_at))
-                    DatePicker("終了", selection: dateBinding($request.end_at, offset: 3600))
+                    if request.start_at == nil {
+                        LifeOptionalDate(label: "開始日時を指定", value: $request.start_at)
+                    } else { DatePicker("開始", selection: dateBinding($request.start_at)) }
+                    if request.end_at == nil {
+                        LifeOptionalDate(label: "終了日時を指定", value: $request.end_at, defaultDate: (lifeDate(request.start_at) ?? .now).addingTimeInterval(3600))
+                    } else { DatePicker("終了", selection: dateBinding($request.end_at, offset: 3600)) }
                     TextField("タイムゾーン", text: $request.timezone)
                     TextField("場所", text: $request.location)
                     TextField("準備すること", text: $request.preparation, axis: .vertical)
@@ -312,7 +422,7 @@ struct LifeEntryEditor: View {
                     LifeOptionalDate(label: "準備", value: $request.prepare_at)
                     LifeOptionalDate(label: "出発", value: $request.depart_at)
                     LifeOptionalDate(label: "予定の通知", value: $request.remind_at)
-                    Text("関連する未完了の準備・申込タスクの期限も更新します。タスク側で個別に変更した期限は保ちます。移動時間からの自動計算は行いません。出発時刻を確認して指定してください。保存後にカレンダーへ反映できます。")
+                    Text("関連する未完了の準備・申込タスクの期限も更新します。タスク側で個別に変更した期限は保ちます。移動時間からの自動計算は行いません。出発時刻を確認して指定してください。自動連携が有効なら、保存後にカレンダーへ反映します。")
                         .font(.caption)
                 }
             }
@@ -321,15 +431,11 @@ struct LifeEntryEditor: View {
                 saving = true
                 Task {
                     do {
-                        if request.kind == "event" {
-                            if request.start_at == nil { request.start_at = Date.now.ISO8601Format() }
-                            if request.end_at == nil { request.end_at = Date.now.addingTimeInterval(3600).ISO8601Format() }
-                        }
-                        try await store.save(request, id: entryID); dismiss()
+                        try await store.save(request, id: entryID, draftID: draftID); dismiss()
                     } catch { self.error = error.localizedDescription }
                     saving = false
                 }
-            }.disabled(saving || request.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (request.kind == "profile" && request.person_id.isEmpty))
+            }.disabled(saving || request.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (request.kind == "profile" && request.person_id.isEmpty) || (request.kind == "event" && (request.start_at == nil || request.end_at == nil)))
         }.environment(\.timeZone, request.kind == "event" ? (TimeZone(identifier: request.timezone) ?? .current) : .current)
             .formStyle(.grouped).navigationTitle(lifeLabel(request.kind))
     }
@@ -340,8 +446,9 @@ struct LifeEntryEditor: View {
 struct LifeOptionalDate: View {
     let label: String
     @Binding var value: String?
+    var defaultDate: Date = .now.addingTimeInterval(3600)
     var body: some View {
-        Toggle(label, isOn: Binding(get: { value != nil }, set: { value = $0 ? Date.now.addingTimeInterval(3600).ISO8601Format() : nil }))
+        Toggle(label, isOn: Binding(get: { value != nil }, set: { value = $0 ? defaultDate.ISO8601Format() : nil }))
         if value != nil { DatePicker(label, selection: Binding(get: { lifeDate(value) ?? .now }, set: { value = $0.ISO8601Format() })) }
     }
 }
@@ -414,7 +521,7 @@ struct LifeEntryDetail: View {
                                 busy = false
                             }
                         }.disabled(busy)
-                        Text(calendarMessage.isEmpty ? "カレンダーの変更・中止は、このボタンで反映してください。申し込み自体は出典サイトで行ってください。" : calendarMessage).font(.caption)
+                        Text(calendarMessage.isEmpty ? "自動連携が有効なら更新時に反映します。必要なときはこのボタンで再反映できます。申し込み自体は出典サイトで行ってください。" : calendarMessage).font(.caption)
                         NavigationLink("準備をタスクにする") { LifeEntryEditor(store: store, request: eventRequest(e, role: "prepare")) }
                         NavigationLink("申し込みをタスクにする") { LifeEntryEditor(store: store, request: eventRequest(e, role: "deadline")) }
                         NavigationLink("最新情報を調べる") { LifeEntryEditor(store: store, request: eventRequest(e, role: "research")) }
@@ -512,8 +619,46 @@ struct LifeEntryDetail: View {
 final class LifeCalendar {
     static let shared = LifeCalendar()
     private let store = EKEventStore()
-    func apply(_ entry: LifeEntry) async throws -> String {
+    private var synchronizing = false
+    private var candidateOffset = 0
+    private struct Synced: Codable { let revision: Int; let signature: String }
+    private func state(_ id: String) -> Synced? {
+        UserDefaults.standard.data(forKey: "life.calendar.state.\(id)").flatMap { try? JSONDecoder().decode(Synced.self, from: $0) }
+    }
+    private func remember(_ entry: LifeEntry, event: EKEvent?) throws {
+        let value = Synced(revision: entry.revision, signature: event.map(signature) ?? "cancelled")
+        UserDefaults.standard.set(try JSONEncoder().encode(value), forKey: "life.calendar.state.\(entry.id)")
+    }
+    private func signature(_ event: EKEvent) -> String {
+        [event.title ?? "", String(event.startDate.timeIntervalSince1970), String(event.endDate.timeIntervalSince1970),
+         event.location ?? "", event.notes ?? "", event.url?.absoluteString ?? "",
+         event.timeZone?.identifier ?? "", (event.alarms ?? []).map { String($0.absoluteDate?.timeIntervalSince1970 ?? $0.relativeOffset) }.joined(separator: ",")].joined(separator: "\u{001f}")
+    }
+    func requestAccess() async throws {
         guard try await store.requestFullAccessToEvents() else { throw APIClientError.server("カレンダーへのアクセスを許可してください") }
+    }
+    func synchronize(_ entries: [LifeEntry]) async -> String {
+        guard UserDefaults.standard.object(forKey: "life.calendar.automatic") as? Bool != false else { return "自動反映は停止しています。必要な予定だけ手動で反映できます。" }
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return "初回のカレンダー許可後に、自動反映を始めます。" }
+        guard !synchronizing else { return "カレンダーへ反映中…" }
+        synchronizing = true; defer { synchronizing = false }
+        var updated = 0; var problems: [String] = []
+        let candidates = entries.filter { entry in
+            guard entry.kind == "event", state(entry.id)?.revision != entry.revision else { return false }
+            return ["planned", "registered"].contains(entry.status) || UserDefaults.standard.string(forKey: "life.calendar.\(entry.id)") != nil
+        }
+        let offset = candidates.isEmpty ? 0 : candidateOffset % candidates.count
+        let batch = (Array(candidates.dropFirst(offset)) + Array(candidates.prefix(offset))).prefix(10)
+        candidateOffset = offset + batch.count
+        for entry in batch {
+            do { _ = try await apply(entry, automatic: true); updated += 1 }
+            catch { problems.append("\(entry.title): \(error.localizedDescription)") }
+        }
+        if !problems.isEmpty { return problems.joined(separator: "\n") }
+        return "カレンダー自動反映: 最新です" + (updated > 0 ? "（\(updated)件更新）" : "") + (candidates.count > 10 ? "。残りは次の更新で反映します。" : "")
+    }
+    func apply(_ entry: LifeEntry, automatic: Bool = false) async throws -> String {
+        if !automatic { try await requestAccess() }
         let key = "life.calendar.\(entry.id)"
         let marker = URL(string: "daymeld://event/\(entry.id)")!
         let identifier = UserDefaults.standard.string(forKey: key)
@@ -524,12 +669,26 @@ final class LifeCalendar {
         // Find the same marker after reinstall or iCloud sync to avoid duplicate exports.
         let matches = store.events(matching: store.predicateForEvents(withStart: start.addingTimeInterval(-86400 * 30), end: end.addingTimeInterval(86400 * 30), calendars: nil)).filter { $0.url == marker }
         guard matches.count <= 1 else { throw APIClientError.server("同じ予定が複数あります。カレンダーで重複を確認してください") }
-        if entry.status == "cancelled" {
-            if let owned = existing ?? matches.first { try store.remove(owned, span: .thisEvent, commit: true) }
-            UserDefaults.standard.removeObject(forKey: key)
-            return "関連する予定をカレンダーから削除しました（見つからない場合はカレンダーを確認してください）"
+        let saved = state(entry.id)
+        let owned = existing ?? matches.first
+        if automatic {
+            if let owned, let saved, signature(owned) != saved.signature {
+                throw APIClientError.server("カレンダー側で変更されています。予定詳細から確認して再反映してください")
+            }
+            if owned != nil && saved == nil {
+                throw APIClientError.server("以前に登録した予定です。予定詳細から一度反映して自動連携を開始してください")
+            }
+            if identifier != nil && owned == nil && entry.status != "cancelled" {
+                throw APIClientError.server("カレンダー側で削除されています。再作成する場合は予定詳細から反映してください")
+            }
         }
-        let event = existing ?? matches.first ?? EKEvent(eventStore: store)
+        if entry.status == "cancelled" {
+            if let owned { try store.remove(owned, span: .thisEvent, commit: true) }
+            UserDefaults.standard.removeObject(forKey: key)
+            try remember(entry, event: nil)
+            return "関連する予定をカレンダーから削除しました"
+        }
+        let event = owned ?? EKEvent(eventStore: store)
         if event.calendar == nil { event.calendar = store.defaultCalendarForNewEvents }
         guard event.calendar?.allowsContentModifications == true else { throw APIClientError.server("書き込みできる標準カレンダーを選択してください") }
         event.title = entry.title; event.startDate = start; event.endDate = end
@@ -539,6 +698,7 @@ final class LifeCalendar {
         event.alarms = lifeDate(entry.remind_at).map { [EKAlarm(absoluteDate: $0)] } ?? []
         try store.save(event, span: .thisEvent, commit: true)
         UserDefaults.standard.set(event.eventIdentifier, forKey: key)
+        try remember(entry, event: event)
         return "カレンダーに反映しました"
     }
 }

@@ -357,7 +357,7 @@ struct ConversationDetailView: View {
             Button("Codexで整理") { Task { await extractInsights() } }
             Button("キャンセル", role: .cancel) {}
         } message: {
-            Text("この録音の日時、話者、発話時刻、文字起こしだけをCodexへ渡します。原音、GPS、ファイル名、ほかの録音は渡しません。候補が自動でタスク化・実行されることもありません。")
+            Text("この録音の日時、話者、発話時刻、文字起こしだけをCodexへ渡します。原音、GPS、ファイル名、ほかの録音は渡しません。自動整理が有効な場合、明確な用事はタスク化し、公開用に整理した明示的な調べものを自動実行します。曖昧な日時・人物は確認待ちになります。")
         }
     }
 

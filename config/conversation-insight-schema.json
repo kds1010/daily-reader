@@ -20,7 +20,8 @@
           "due_date",
           "due_date_original",
           "certainty",
-          "evidence_utterance_ids"
+          "evidence_utterance_ids",
+          "life_data"
         ],
         "properties": {
           "kind": {
@@ -97,6 +98,139 @@
             "items": {
               "type": "string",
               "minLength": 1
+            }
+          },
+          "life_data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "due_at",
+              "start_at",
+              "end_at",
+              "deadline_at",
+              "prepare_at",
+              "depart_at",
+              "remind_at",
+              "timezone",
+              "source_url",
+              "location",
+              "preparation",
+              "constraints",
+              "person_name",
+              "category",
+              "intent",
+              "public_query",
+              "time_basis"
+            ],
+            "properties": {
+              "due_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "start_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "end_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "deadline_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "prepare_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "depart_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "remind_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "timezone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "location": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "preparation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "constraints": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "person_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "intent": {
+                "type": "string",
+                "enum": [
+                  "committed",
+                  "research_requested",
+                  "interest_only",
+                  "considering",
+                  "unknown"
+                ]
+              },
+              "public_query": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "time_basis": {
+                "type": "string",
+                "enum": [
+                  "absolute",
+                  "recording_relative",
+                  "unknown"
+                ]
+              }
             }
           }
         }

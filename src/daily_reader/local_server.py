@@ -26,7 +26,7 @@ from ipaddress import IPv4Network, ip_address, ip_network
 from pathlib import Path
 from time import monotonic, sleep
 
-from daily_reader import life_assistant
+from daily_reader import life_assistant, life_automation
 from daily_reader.agent_jobs import (
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
@@ -710,7 +710,10 @@ def make_handler(
                     articles = [a for a in articles if a.get("id") in selected]
                 except (OSError, ValueError):
                     articles = []
-                self._send_json(200, life_assistant.snapshot(conversations_db, articles))
+                snapshot = life_assistant.snapshot(conversations_db, articles)
+                snapshot["automation"] = life_automation.settings(conversations_db)
+                snapshot["drafts"] = life_automation.drafts(conversations_db)
+                self._send_json(200, snapshot)
                 return
             if path.startswith("/api/life/entries/"):
                 try:
@@ -1007,6 +1010,30 @@ def make_handler(
                     self._send_json(200, result)
                 except KeyError:
                     self._send_json(404, {"error": "元の項目が見つかりません"})
+                except (ValueError, TypeError) as error:
+                    self._send_json(400, {"error": str(error)})
+                return
+            if path in {"/api/life/automation", "/api/life/capture"} or path.startswith(
+                "/api/life/drafts/"
+            ):
+                try:
+                    payload = self._read_json(max_length=32000)
+                    if path == "/api/life/automation":
+                        result = life_automation.update_settings(conversations_db, payload)
+                    elif path == "/api/life/capture":
+                        result = life_automation.capture(conversations_db, payload)
+                    elif path.endswith("/dismiss"):
+                        life_automation.dismiss(conversations_db, path.split("/")[-2])
+                        result = {"dismissed": True}
+                    elif path.endswith("/adopt"):
+                        result = life_automation.adopt(
+                            conversations_db, path.split("/")[-2], payload
+                        )
+                    else:
+                        raise KeyError(path)
+                    self._send_json(200, result)
+                except KeyError:
+                    self._send_json(404, {"error": "候補が見つかりません"})
                 except (ValueError, TypeError) as error:
                     self._send_json(400, {"error": str(error)})
                 return
@@ -2020,8 +2047,16 @@ def main() -> None:
         args.conversations_db, _codex_executable(), args.conversation_insight_model
     )
     research_worker.start()
+    automation_worker = life_automation.AutomationWorker(
+        args.conversations_db,
+        args.conversation_insight_schema,
+        _codex_executable(),
+        args.conversation_insight_model,
+    )
+    automation_worker.start()
 
     def stop_research(_signum, _frame):
+        automation_worker.stop()
         research_worker.stop()
         raise SystemExit(0)
 
@@ -2095,6 +2130,7 @@ def main() -> None:
     except KeyboardInterrupt:
         LOGGER.info("Stopping")
     finally:
+        automation_worker.stop()
         research_worker.stop()
         if sidestore_server is not None:
             sidestore_server.shutdown()

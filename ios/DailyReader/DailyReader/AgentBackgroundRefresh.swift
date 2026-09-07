@@ -35,6 +35,7 @@ enum AgentBackgroundRefresh {
                 }
                 let life: LifeSnapshot = try await APIClient.shared.get("api/life")
                 _ = await LifeNotifications.shared.reconcile(life)
+                _ = await LifeCalendar.shared.synchronize(life.entries)
                 success = !Task.isCancelled
             } catch {
                 NSLog("Daymeld background refresh failed: %@", error.localizedDescription)

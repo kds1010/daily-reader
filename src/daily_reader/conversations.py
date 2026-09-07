@@ -177,6 +177,13 @@ def initialize_database(path: Path) -> None:
         }.items():
             if name not in columns:
                 connection.execute(f"ALTER TABLE recordings ADD COLUMN {name} {definition}")
+        item_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(conversation_items)")
+        }
+        if "life_data" not in item_columns:
+            connection.execute(
+                "ALTER TABLE conversation_items ADD COLUMN life_data TEXT NOT NULL DEFAULT '{}'"
+            )
         evidence_columns = {
             row[1] for row in connection.execute("PRAGMA table_info(conversation_item_evidence)")
         }
@@ -347,6 +354,8 @@ def store_transcript(
     length: int,
     filename: str,
     recorded_at: str | None = None,
+    *,
+    memo_request_id: str | None = None,
 ) -> dict[str, object]:
     date_source = "explicit" if recorded_at else "soundcore_filename_jst"
     recorded_at = _validated_recording_date(recorded_at) or _recording_date_from_filename(filename)
@@ -365,14 +374,19 @@ def store_transcript(
     if not lines:
         raise ValueError("transcript is empty")
 
-    checksum = hashlib.sha256(b"transcript\0" + content).hexdigest()
+    checksum = hashlib.sha256(
+        b"memo\0" + memo_request_id.encode() if memo_request_id else b"transcript\0" + content
+    ).hexdigest()
     now = datetime.now(UTC).isoformat()
     recording_id = uuid.uuid4().hex
     with _connect(database) as connection:
+        connection.execute("BEGIN IMMEDIATE")
         existing = connection.execute(
-            "SELECT id FROM recordings WHERE sha256 = ?", (checksum,)
+            "SELECT id,transcript_text FROM recordings WHERE sha256 = ?", (checksum,)
         ).fetchone()
         if existing:
+            if memo_request_id and existing["transcript_text"] != text:
+                raise ValueError("同じ送信IDに異なるメモが指定されました")
             recording_id = str(existing["id"])
         else:
             connection.execute(
@@ -480,7 +494,9 @@ def _items_for_query(
 ) -> list[dict[str, object]]:
     rows = connection.execute(
         f"""SELECT items.*, recordings.filename AS recording_filename,
-        recordings.recorded_at, recordings.source_type AS recording_source_type
+        recordings.recorded_at, recordings.recorded_at_verified,
+        recordings.created_at AS recording_created_at,
+        recordings.source_type AS recording_source_type
         FROM conversation_items AS items
         JOIN recordings ON recordings.id = items.recording_id
         {where}
@@ -491,6 +507,7 @@ def _items_for_query(
     context_cache: dict[str, dict[str | None, dict[str, object]]] = {}
     for row in rows:
         item = dict(row)
+        item["life_data"] = json.loads(item.get("life_data") or "{}")
         item["evidence"] = [
             dict(evidence)
             for evidence in connection.execute(
@@ -990,7 +1007,12 @@ def _validate_extracted_item(
 ) -> tuple[dict[str, object], list[dict[str, object]], str]:
     kind = raw.get("kind")
     certainty = raw.get("certainty")
-    if kind not in INSIGHT_KINDS or certainty not in INSIGHT_CERTAINTIES:
+    if (
+        not isinstance(kind, str)
+        or kind not in INSIGHT_KINDS
+        or not isinstance(certainty, str)
+        or certainty not in INSIGHT_CERTAINTIES
+    ):
         raise ConversationInsightError("Codexの候補種別または確実性が不正です")
     title = raw.get("title")
     detail = raw.get("detail")
@@ -1014,6 +1036,13 @@ def _validate_extracted_item(
         or len(set(evidence_ids)) != len(evidence_ids)
     ):
         raise ConversationInsightError("Codexの根拠発話が不正です")
+    life_data = raw.get("life_data", {})
+    if (
+        not isinstance(life_data, dict)
+        or len(json.dumps(life_data, ensure_ascii=False)) > 12000
+        or any(value is not None and not isinstance(value, str) for value in life_data.values())
+    ):
+        raise ConversationInsightError("Codexの日時・人物情報が不正です")
     evidence = [utterances[str(value)] for value in evidence_ids]
     normalized_title = re.sub(r"\s+", "", title).casefold()
     fingerprint = hashlib.sha256(
@@ -1032,6 +1061,7 @@ def _validate_extracted_item(
             "due_date": due_date,
             "due_date_original": due_date_original,
             "certainty": certainty,
+            "life_data": life_data,
         },
         evidence,
         fingerprint,
@@ -1109,6 +1139,10 @@ def _store_extracted_items(
                 )
             else:
                 continue
+            connection.execute(
+                "UPDATE conversation_items SET life_data=? WHERE id=?",
+                (json.dumps(values["life_data"], ensure_ascii=False), item_id),
+            )
             connection.execute("DELETE FROM conversation_item_evidence WHERE item_id=?", (item_id,))
             for position, row in enumerate(evidence):
                 connection.execute(

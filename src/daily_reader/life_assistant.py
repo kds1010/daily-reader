@@ -34,6 +34,23 @@ def connect(database: Path):
     connection.execute("PRAGMA foreign_keys=ON")
     try:
         connection.executescript("""
+            CREATE TABLE IF NOT EXISTS life_automation_settings (
+                id INTEGER PRIMARY KEY CHECK(id=1), enabled INTEGER NOT NULL,
+                research_enabled INTEGER NOT NULL, since TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS life_automation_recordings (
+                recording_id TEXT PRIMARY KEY, attempts INTEGER NOT NULL,
+                attempted_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS life_drafts (
+                id TEXT PRIMARY KEY, source_key TEXT NOT NULL UNIQUE, data TEXT NOT NULL,
+                evidence TEXT NOT NULL, reason TEXT NOT NULL, status TEXT NOT NULL,
+                entry_id TEXT, automatic INTEGER NOT NULL, created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS life_speaker_people (
+                recording_id TEXT NOT NULL, speaker TEXT NOT NULL, person_id TEXT NOT NULL,
+                PRIMARY KEY(recording_id,speaker)
+            );
             CREATE TABLE IF NOT EXISTS life_people (
                 id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL
             );
@@ -55,6 +72,10 @@ def connect(database: Path):
         """)
         connection.execute(
             "INSERT OR IGNORE INTO life_people VALUES('self','自分',?)", (now_string(),)
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO life_automation_settings VALUES(1,1,1,?)",
+            (datetime.now(UTC).isoformat(),),
         )
         connection.commit()
         with connection:
@@ -191,11 +212,13 @@ def _source(database: Path, payload: dict) -> tuple[str | None, dict]:
         return None, {"type": "manual", "confirmed_at": now_string()}
     if source_type == "conversation":
         item = get_insight_item(database, text_value(payload, "source_id", 100, True))
+        subject = item.get("life_data", {}).get("person_name") or item.get("assignee") or ""
         return f"conversation:{item['id']}", {
             "type": "conversation",
             "item_id": item["id"],
             "recording_id": item["recording_id"],
             "certainty": item["certainty"],
+            "subject": subject if isinstance(subject, str) else "",
             "quotes": item["evidence"],
             "confirmed_at": now_string(),
         }
@@ -216,7 +239,7 @@ def _source(database: Path, payload: dict) -> tuple[str | None, dict]:
         index = payload.get("source_index")
         if (
             source["kind"] != "research"
-            or source["status"] != "completed"
+            or source["status"] not in {"completed", "archived"}
             or type(index) is not int
         ):
             raise ValueError("調査結果が不正です")
@@ -233,11 +256,14 @@ def _source(database: Path, payload: dict) -> tuple[str | None, dict]:
     raise ValueError("出典が不正です")
 
 
-def create_entry(database: Path, payload: dict) -> dict:
+def create_entry(database: Path, payload: dict, *, automatic: bool = False) -> dict:
     kind = payload.get("kind")
     if not isinstance(kind, str) or kind not in KINDS:
         raise ValueError("種別が不正です")
     source_key, evidence = _source(database, payload)
+    if automatic:
+        evidence["generated_at"] = evidence.pop("confirmed_at", now_string())
+        evidence["confirmation"] = "automatic"
     source_key = f"{source_key}:{kind}" if source_key else None
     # Idempotency covers retries of explicit manual requests as well as source conversion.
     request_id = text_value(payload, "request_id", 100)
@@ -251,7 +277,35 @@ def create_entry(database: Path, payload: dict) -> dict:
             ).fetchone()
             if row:
                 return present(row)
+        if payload.get("source_type") == "event":
+            parent = connection.execute(
+                "SELECT * FROM life_entries WHERE id=?", (payload.get("source_id"),)
+            ).fetchone()
+            role = payload.get("source_role")
+            if not parent or parent["status"] not in {"planned", "registered"}:
+                raise ValueError("元の予定が終了・中止されています")
+            if role == "deadline" and parent["status"] == "registered":
+                raise ValueError("この予定は申込済みです")
+            if automatic and kind == "task" and role in {"prepare", "deadline"}:
+                current = present(parent)
+                field = "prepare_at" if role == "prepare" else "deadline_at"
+                payload = {
+                    **payload,
+                    "title": (("準備: " if role == "prepare" else "申し込み: ") + current["title"])[
+                        :200
+                    ],
+                    "detail": current.get("preparation") or current["detail"],
+                    "due_at": current.get(field) or current.get("start_at"),
+                    "remind_at": current.get(field),
+                    "source_url": current.get("source_url", ""),
+                }
         data = validate_data(connection, kind, payload)
+        if automatic:
+            data["automatic"] = True
+        if kind == "profile":
+            data["owner_confirmed"] = not automatic
+            if not automatic:
+                _confirm_owner(connection, evidence, data["person_id"])
         if (
             kind == "research"
             and connection.execute(
@@ -334,6 +388,13 @@ def update_entry(database: Path, entry_id: str, payload: dict) -> dict:
                 data.pop("error", None)
         else:
             data = validate_data(connection, row["kind"], {**old, **payload})
+            if old.get("automatic"):
+                data["automatic"] = True
+            if row["kind"] == "profile":
+                data["owner_confirmed"] = old.get("owner_confirmed", True)
+                if "person_id" in payload:
+                    data["owner_confirmed"] = True
+                    _confirm_owner(connection, old["evidence"], data["person_id"], entry_id)
         now = now_string()
         if row["kind"] in {"event", "task"}:
             connection.execute(
@@ -364,6 +425,34 @@ def update_entry(database: Path, entry_id: str, payload: dict) -> dict:
             (entry_id, f"{old['status']}->{state}", now),
         )
     return get_entry(database, entry_id)
+
+
+def _confirm_owner(connection, evidence: dict, person_id: str, exclude_id: str = "") -> None:
+    """A correction affects only inherited identities for this recording and subject."""
+    recording_id, subject = evidence.get("recording_id"), evidence.get("subject")
+    if not recording_id or not subject:
+        return
+    connection.execute(
+        "INSERT OR REPLACE INTO life_speaker_people VALUES(?,?,?)",
+        (recording_id, subject, person_id),
+    )
+    for row in connection.execute(
+        "SELECT * FROM life_entries WHERE kind='profile' AND id<>?", (exclude_id,)
+    ).fetchall():
+        data, source = json.loads(row["data"]), json.loads(row["evidence"])
+        if (
+            not data.get("automatic")
+            or data.get("owner_confirmed", True)
+            or source.get("recording_id") != recording_id
+            or source.get("subject") != subject
+            or data.get("person_id") == person_id
+        ):
+            continue
+        data["person_id"] = person_id
+        connection.execute(
+            "UPDATE life_entries SET data=?,updated_at=?,revision=revision+1 WHERE id=?",
+            (json.dumps(data, ensure_ascii=False), now_string(), row["id"]),
+        )
 
 
 def _update_event_tasks(connection, old: dict, data: dict, state: str, now: str) -> None:

@@ -193,6 +193,8 @@ class ResearchWorker:
 
     def execute(self, job: dict) -> None:
         data = {key: job[key] for key in ("title", "detail", "constraints", "due_at", "source_url")}
+        if job.get("automatic"):
+            data = {"title": job["title"]}
         error, result = None, None
         try:
             if not codex_available(self.codex_command):
