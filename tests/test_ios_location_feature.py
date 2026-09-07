@@ -32,7 +32,7 @@ def test_location_service_supports_explicit_sessions_and_durable_retry() -> None
     assert "manager.showsBackgroundLocationIndicator = true" in source
     assert "guard isEnabled, storageAvailable, !isRecording" in source
     assert source.index("try persist(updated)") < source.index("Task { await syncPending() }")
-    assert source.index("try await APIClient.shared.syncLocations(batch)") < source.index(
+    assert source.index("try await upload(batch)") < source.index(
         "try persist(remaining)"
     )
     assert "requestAlwaysAuthorization" not in source
@@ -62,3 +62,15 @@ def test_location_service_is_built_only_into_the_iphone_target() -> None:
         "/* End PBXSourcesBuildPhase section */", 1
     )[0]
     assert iphone_sources.count("A1000000000000000000000D") == 1
+
+
+def test_recording_ui_separates_freshness_from_session_and_sync() -> None:
+    source = (IOS / "RootView.swift").read_text()
+    card = source.split("struct DeviceLocationCard: View", 1)[1].split("#endif", 1)[0]
+    for label in (
+        "GPS記録・停止中", "新しい位置待ち", "最終取得時刻",
+        "最終同期成功", "未同期あり", "約100 m",
+    ):
+        assert label in card
+    assert ".disabled(isRequesting || location.isRecording" not in card
+    assert "location.lastReading" in card

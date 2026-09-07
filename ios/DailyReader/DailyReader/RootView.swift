@@ -1722,17 +1722,32 @@ struct DeviceLocationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label(location.isRecording ? "GPS記録中" : "GPS記録", systemImage: "location.fill")
+                Label(location.isRecording ? "GPS記録中・新しい位置待ち" : "GPS記録・停止中", systemImage: "location.fill")
                     .appFont(.headline)
                     .foregroundStyle(.cyan)
                 Spacer()
-                if case .located(let reading) = location.state {
+                if let reading = location.lastReading {
                     Text(reading.isApproximate ? "概算位置" : "正確な位置")
                         .badgeStyle(reading.isApproximate ? .orange : .green)
                 }
             }
 
             locationContent
+            if let reading = location.lastReading {
+                VStack(alignment: .leading, spacing: 8) {
+                    LabeledContent("緯度", value: reading.latitude.formatted(.number.precision(.fractionLength(6))))
+                    LabeledContent("経度", value: reading.longitude.formatted(.number.precision(.fractionLength(6))))
+                    LabeledContent("水平精度", value: "約\(reading.horizontalAccuracy.formatted(.number.precision(.fractionLength(0)))) m")
+                }.appFont(.subheadline)
+            }
+            if let acquired = location.lastAcquiredAt {
+                TimelineView(.periodic(from: .now, by: 60)) { _ in
+                    VStack(alignment: .leading) {
+                        Text("最終取得時刻 \(acquired.formatted(date: .abbreviated, time: .standard))")
+                        Text("取得から \(acquired, style: .relative) 経過")
+                    }.appFont(.caption)
+                }
+            }
 
             Button {
                 location.requestLocation()
@@ -1745,7 +1760,7 @@ struct DeviceLocationCard: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.cyan)
-            .disabled(isRequesting || location.isRecording || model.isFixture)
+            .disabled(isRequesting || model.isFixture)
 
             Button {
                 if location.isRecording { location.stopRecording() }
@@ -1758,11 +1773,11 @@ struct DeviceLocationCard: View {
             .tint(location.isRecording ? .red : .cyan)
             .disabled((isRequesting && !location.isRecording) || model.isFixture)
 
-            Text("開始すると画面を閉じても移動に応じて記録します。時刻・座標・精度を端末に保存し、Mac miniへ同期します。アプリを強制終了した場合は、再度開始してください。")
+            Text("約100 mの移動を基準に記録します。固定間隔ではなく、静止中などは取得時刻が更新されない場合があります。時刻が古いだけでは停止とは判断できません。画面を閉じても記録しますが、アプリ終了・更新・端末再起動後は再度開始してください。取得した位置は端末に保存し、Mac miniへ同期します。")
                 .appFont(.caption2)
                 .foregroundStyle(.secondary)
             if !location.pending.isEmpty {
-                Text("未同期 \(location.pending.count)件").appFont(.caption)
+                Text("未同期あり・\(location.pending.count)件").appFont(.caption)
                 Button("今すぐ同期") { Task { await location.syncPending(force: true) } }
                     .disabled(location.isSyncing)
                 DisclosureGroup("未同期の取得履歴") {
@@ -1773,8 +1788,10 @@ struct DeviceLocationCard: View {
                 }
             }
             if let message = location.syncMessage { Text(message).appFont(.caption).foregroundStyle(.orange) }
+            if location.isSyncing { ProgressView("Mac miniへ同期中…") }
+            if let message = location.diagnosticsMessage { Text(message).appFont(.caption).foregroundStyle(.orange) }
             if let synced = location.lastSyncedAt {
-                Text("最終同期 \(synced.formatted(date: .abbreviated, time: .standard))").appFont(.caption2)
+                Text("最終同期成功 \(synced.formatted(date: .abbreviated, time: .standard))").appFont(.caption2)
             }
         }
         .glassCard()
@@ -1792,14 +1809,9 @@ struct DeviceLocationCard: View {
         case .locating:
             Label("現在地を取得しています…", systemImage: "location.magnifyingglass")
                 .foregroundStyle(.secondary)
-        case .located(let reading):
-            VStack(alignment: .leading, spacing: 8) {
-                LabeledContent("緯度", value: reading.latitude.formatted(.number.precision(.fractionLength(6))))
-                LabeledContent("経度", value: reading.longitude.formatted(.number.precision(.fractionLength(6))))
-                LabeledContent("水平精度", value: "約\(reading.horizontalAccuracy.formatted(.number.precision(.fractionLength(0)))) m")
-                LabeledContent("取得時刻", value: reading.timestamp.formatted(date: .omitted, time: .standard))
-            }
-            .appFont(.subheadline)
+        case .located:
+            Text(location.isRecording ? "記録を継続しています。必要なときは現在地を再取得できます。" : "保存済みの取得結果です。移動の記録は停止しています。")
+                .appFont(.caption).foregroundStyle(.secondary)
         case .denied:
             Label("位置情報が許可されていません。iPhoneの設定でDaymeldの位置情報を許可してください。", systemImage: "location.slash.fill")
                 .foregroundStyle(.orange)
@@ -1816,14 +1828,16 @@ struct DeviceLocationCard: View {
     }
 
     private var isRequesting: Bool {
+        if location.isRefreshingLocation { return true }
         switch location.state {
-        case .requestingAuthorization, .locating: true
-        default: false
+        case .requestingAuthorization: return true
+        case .locating: return !location.isRecording
+        default: return false
         }
     }
 
     private var buttonTitle: String {
-        if case .located = location.state { return "現在地を再取得して保存" }
+        if location.isRecording || location.lastAcquiredAt != nil { return "現在地を再取得して保存" }
         return "現在地を一回取得して保存"
     }
 }

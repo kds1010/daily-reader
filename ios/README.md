@@ -4,6 +4,8 @@ DaymeldのSwiftUIネイティブクライアントです。iPhone版とmacOS版�
 
 iPhone版の「今日」から現在地の一回保存、または移動の記録開始・停止を選べる。記録開始時にWhen In Use権限を要求し、Core Locationの標準位置更新（目標精度100 m、移動距離100 m）とバックグラウンド位置更新・表示インジケーターを有効にする。固定間隔での取得は保証しない。Always権限は要求せず、強制終了・再起動後の記録はユーザーが再開する。取得した座標・精度・取得時刻・概算位置フラグは端末のApplication Support内の保護された未同期キューへ先に保存し、最大500件ずつMac miniの`POST /api/locations/sync`へ同期する。失敗時は保持し、位置更新時・前景更新時・手動操作で再試行する。履歴は`data/conversations.sqlite3`の`location_events`へ保存する。iPhone・macOSの「今日」→「GPSの取得履歴・マップ」で端末のローカル日付を選択し、`GET /api/locations?start=...&end=...`から500件ずつ取得して、時刻順一覧、MapKitの地点、取得時刻と水平精度を表示する。未同期データはiPhoneのGPSカードに件数と直近20件を表示し、地図へは同期後に反映する。地図表示にはAppleの地図サービスを使用する。GPS履歴はCodexへ送らない。録音との位置照合は確認済み録音日時がある場合のみ行い、取り込み時刻で代用しない。
 
+GPSカードは記録の稼働状態、最終取得日時と経過時間、最終同期成功日時、取得失敗、未同期件数を区別します。取得時刻が古いだけでは、静止・記録終了・取得失敗のどれかは断定しません。記録中も「現在地を再取得して保存」を押せます。一回取得専用のCLLocationManagerを使い、継続記録のマネージャーは停止しません。100 mの移動基準とWhen In Use権限は維持します。最終取得・同期成功の時刻だけを保護された`location-diagnostics.json`へ保存し、起動時に復元します。診断ファイルには座標を保存せず、記録自体は再開しません。一回取得と継続記録の分離は[AppleのrequestLocation仕様](https://developer.apple.com/documentation/corelocation/cllocationmanager/requestlocation())と[複数マネージャーの利用仕様](https://developer.apple.com/documentation/corelocation/cllocationmanager)に基づきます。旧未同期キューは引き続き読み込み・再送できます。同期エラーには接続・応答・保存処理などの安全な分類だけを表示します。
+
 Soundcore WorkなどがMP3ファイルを共有・エクスポートするときは、共有先にDaymeldを
 選択できます。Daymeldが開いて「会話」タブへ移動し、既存のファイル選択と同じ経路で
 Mac miniへ原音を送信します。送信成功後はDaymeldの受信Inbox内に作られたコピーだけを
