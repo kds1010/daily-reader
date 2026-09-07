@@ -108,12 +108,14 @@ final class DailyReaderAppDelegate: NSObject, UIApplicationDelegate, UNUserNotif
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        NotificationCenter.default.post(name: .openAgentFromNotification, object: nil)
+        let life = response.notification.request.content.userInfo["life_entry_id"] as? String
+        NotificationCenter.default.post(name: life == nil ? .openAgentFromNotification : .openLifeFromNotification, object: life)
         completionHandler()
     }
 }
 
 extension Notification.Name {
+    static let openLifeFromNotification = Notification.Name("Daymeld.openLifeFromNotification")
     static let openAgentFromNotification = Notification.Name("Daymeld.openAgentFromNotification")
 }
 

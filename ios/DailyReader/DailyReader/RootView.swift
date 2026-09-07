@@ -129,10 +129,13 @@ struct RootView: View {
         } message: { Text(model.errorMessage ?? "") }
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
+            var lifeTicks = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
                 if !Task.isCancelled {
                     await model.refreshAgents()
+                    lifeTicks += 1
+                    if lifeTicks % 6 == 0 && !model.isFixture { await model.life.refresh() }
                     #if os(iOS)
                     if !model.isFixture { await model.deviceLocation.syncPending() }
                     #endif
@@ -143,6 +146,10 @@ struct RootView: View {
             if phase == .active {
                 Task { await model.refreshAgents() }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openLifeFromNotification)) { _ in
+            model.selectedTab = 1
+            Task { await model.life.refresh() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openAgentFromNotification)) { _ in
             model.selectedTab = 0
@@ -373,7 +380,7 @@ struct ConversationDetailView: View {
             Button("Codex整理を再試行") { showExtractionConfirmation = true }
                 .disabled(!model.conversationLLMAvailable || extractionInFlight)
         default:
-            Button("Codexでタスク・決定・アイデアを整理") { showExtractionConfirmation = true }
+            Button("Codexでタスク・予定・関心などを整理") { showExtractionConfirmation = true }
                 .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight)
             if !model.conversationLLMAvailable {
                 Text("Mac miniでCodexへChatGPTログインすると利用できます。")
@@ -529,6 +536,9 @@ struct ConversationInsightCard: View {
                 }
             }
 
+            NavigationLink("調査・予定・関心・タスクにつなげる") {
+                ConversationLifeChoices(store: model.life, item: item, title: title, detail: detail, assignee: assignee)
+            }
             if item.isActionable {
                 HStack {
                     Button("通常タスクに追加") { performDispatch(target: "planner") }
@@ -570,6 +580,10 @@ struct ConversationInsightCard: View {
         case "decision": "決定事項"
         case "idea": "アイデア"
         case "friction": "困りごと"
+        case "research": "調べもの"
+        case "event": "予定候補"
+        case "interest": "関心候補"
+        case "preference": "好み候補"
         default: item.kind
         }
     }
@@ -1639,6 +1653,7 @@ struct TodayView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 StatusHero(title: "今日", subtitle: todaySubtitle, icon: "sun.max.fill", color: .orange)
+                LifeBrief(store: model.life)
 #if os(iOS)
                 DeviceLocationCard(location: model.deviceLocation)
 #endif

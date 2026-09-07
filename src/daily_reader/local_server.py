@@ -10,6 +10,7 @@ import logging
 import plistlib
 import select
 import shutil
+import signal
 import sqlite3
 import stat
 import subprocess
@@ -25,6 +26,7 @@ from ipaddress import IPv4Network, ip_address, ip_network
 from pathlib import Path
 from time import monotonic, sleep
 
+from daily_reader import life_assistant
 from daily_reader.agent_jobs import (
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
@@ -80,6 +82,7 @@ from daily_reader.email_assistant import (
     update_status,
 )
 from daily_reader.highlights import generate_highlights
+from daily_reader.life_research import ResearchWorker
 from daily_reader.soan_client import SoanClient, SoanError
 from daily_reader.tanomi_client import (
     DEFAULT_BASE_URL,
@@ -112,6 +115,8 @@ def _codex_executable() -> str:
         if candidate.is_file() and candidate.stat().st_mode & 0o111:
             return str(candidate)
     return "codex"
+
+
 READ_LOG_LOCK = threading.Lock()
 FEEDBACK_LOG_LOCK = threading.Lock()
 UPDATE_STATS_LOG_LOCK = threading.Lock()
@@ -698,12 +703,38 @@ def make_handler(
         def do_GET(self) -> None:  # noqa: N802
             parsed_url = urllib.parse.urlsplit(self.path)
             path = parsed_url.path
+            if path == "/api/life":
+                try:
+                    articles = json.loads(articles_path.read_text()).get("articles", [])
+                    selected = _load_highlight_ids(articles_path.parent / "highlights.json")
+                    articles = [a for a in articles if a.get("id") in selected]
+                except (OSError, ValueError):
+                    articles = []
+                self._send_json(200, life_assistant.snapshot(conversations_db, articles))
+                return
+            if path.startswith("/api/life/entries/"):
+                try:
+                    self._send_json(
+                        200, life_assistant.get_entry(conversations_db, path.rsplit("/", 1)[-1])
+                    )
+                except KeyError:
+                    self._send_json(404, {"error": "項目が見つかりません"})
+                return
+            if path == "/api/life/search":
+                query = dict(urllib.parse.parse_qsl(parsed_url.query)).get("q", "")
+                self._send_json(
+                    200, {"items": life_assistant.search_conversations(conversations_db, query)}
+                )
+                return
             if path == "/api/locations":
                 query = dict(urllib.parse.parse_qsl(parsed_url.query))
                 try:
                     result = list_location_events(
-                        conversations_db, query.get("start", ""), query.get("end", ""),
-                        int(query.get("offset", "0")), int(query.get("limit", "500")),
+                        conversations_db,
+                        query.get("start", ""),
+                        query.get("end", ""),
+                        int(query.get("offset", "0")),
+                        int(query.get("limit", "500")),
                     )
                     self._send_json(200, result)
                 except (ValueError, TypeError) as error:
@@ -953,6 +984,32 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if (
+                path == "/api/life/entries"
+                or path == "/api/life/people"
+                or path.startswith("/api/life/entries/")
+            ):
+                try:
+                    payload = self._read_json(max_length=32_000)
+                    if path == "/api/life/entries":
+                        result = life_assistant.create_entry(conversations_db, payload)
+                    elif path == "/api/life/people":
+                        result = life_assistant.create_person(conversations_db, payload)
+                    elif path.endswith("/delete"):
+                        life_assistant.delete_profile(
+                            conversations_db, path.split("/")[-2], payload.get("revision")
+                        )
+                        result = {"deleted": True}
+                    else:
+                        result = life_assistant.update_entry(
+                            conversations_db, path.rsplit("/", 1)[-1], payload
+                        )
+                    self._send_json(200, result)
+                except KeyError:
+                    self._send_json(404, {"error": "元の項目が見つかりません"})
+                except (ValueError, TypeError) as error:
+                    self._send_json(400, {"error": str(error)})
+                return
             soan_paths = {
                 "/api/soan/open": "/v1/document/open",
                 "/api/soan/save": "/v1/document/save",
@@ -1959,6 +2016,17 @@ def main() -> None:
 
     recover_interrupted_conversations(args.conversations_db)
 
+    research_worker = ResearchWorker(
+        args.conversations_db, _codex_executable(), args.conversation_insight_model
+    )
+    research_worker.start()
+
+    def stop_research(_signum, _frame):
+        research_worker.stop()
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, stop_research)
+
     scheduler = threading.Thread(
         target=run_scheduler,
         args=(
@@ -2027,6 +2095,7 @@ def main() -> None:
     except KeyboardInterrupt:
         LOGGER.info("Stopping")
     finally:
+        research_worker.stop()
         if sidestore_server is not None:
             sidestore_server.shutdown()
             sidestore_server.server_close()

@@ -8,7 +8,7 @@ from pathlib import Path
 
 DEFAULT_INSIGHT_MODEL = "gpt-5.6-luna"
 DEFAULT_INSIGHT_REASONING_EFFORT = "low"
-PROMPT_VERSION = "conversation-insights-codex-v2"
+PROMPT_VERSION = "conversation-insights-codex-v3"
 MAX_CHUNK_CHARACTERS = 60_000
 
 DEVELOPER_INSTRUCTIONS = """You extract reviewable personal workflow insights from Japanese
@@ -22,6 +22,18 @@ Extract only items directly supported by the supplied utterances:
 - decision: a choice or policy that was actually agreed or decided
 - idea: a concrete possibility worth keeping, not a passing fragment
 - friction: a specific recurring or time-consuming difficulty that could be improved
+- research: a concrete question or comparison someone needs investigated
+- event: an event or appointment someone wants to consider or attend; never a confirmed booking
+- interest: a speaker's explicitly stated continuing interest or current goal
+- preference: a speaker's explicitly stated preference or personal fact worth remembering
+
+For interest/preference, the subject is the speaker or explicitly named person, not automatically
+the app owner. Put that person's label in assignee, cite their utterance, and write a short topic
+title suitable for matching relevant news. Do not infer identity, sensitive traits, diagnoses,
+or a preference from a passing mention. Separate interests from actual commitments.
+For events preserve times, registration deadlines and preparation in detail;
+dates remain unconfirmed
+until the user checks them. Also extract distinct unfinished preparation actions as tasks.
 
 Do not extract completed actions, negated requirements, hypotheticals, quoted instructions, or
 medical causal claims as facts. Use null instead of guessing an assignee or due date. Resolve a

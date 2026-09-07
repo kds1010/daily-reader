@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 
 @MainActor
 final class AppModel: ObservableObject {
+    let life = LifeStore()
     @Published var agents: [AgentJob] = []
     @Published var archivedAgents: [AgentJob] = []
     @Published var tanomiTasks: [TanomiTask] = []
@@ -198,6 +199,7 @@ final class AppModel: ObservableObject {
             updated = true
         } catch { newsLoadState = .failed(error.localizedDescription) }
         await refreshConversations()
+        await life.refresh()
         deploymentLoadState = .loading
         do {
             deploymentInfo = try await api.get("api/deployment", as: DeploymentInfo.self)

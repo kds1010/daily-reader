@@ -11,10 +11,7 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PROJECT = REPOSITORY_ROOT / "ios/DailyReader/DailyReader.xcodeproj"
-ENTITLEMENTS = (
-    REPOSITORY_ROOT
-    / "ios/DailyReader/DailyReaderMac/DailyReaderMac.entitlements"
-)
+ENTITLEMENTS = REPOSITORY_ROOT / "ios/DailyReader/DailyReaderMac/DailyReaderMac.entitlements"
 DEFAULT_OUTPUT = REPOSITORY_ROOT / "data/macos"
 DEFAULT_DERIVED_DATA = Path("/tmp/daily-reader-macos-release")
 APP_NAME = "Daymeld.app"
@@ -51,22 +48,21 @@ def release_version(commit_count: int) -> str:
 
 
 def validate_entitlements(entitlements: dict[str, object]) -> None:
-    missing = sorted(
-        key for key in REQUIRED_ENTITLEMENTS if entitlements.get(key) is not True
-    )
+    missing = sorted(key for key in REQUIRED_ENTITLEMENTS if entitlements.get(key) is not True)
     forbidden = sorted(key for key in FORBIDDEN_ENTITLEMENTS if key in entitlements)
-    unexpected = sorted(set(entitlements) - REQUIRED_ENTITLEMENTS)
+    unexpected = sorted(
+        set(entitlements)
+        - REQUIRED_ENTITLEMENTS
+        - {"com.apple.security.personal-information.calendars"}
+    )
     if missing:
         raise RuntimeError("macOS app is missing entitlements: " + ", ".join(missing))
     if forbidden:
         raise RuntimeError(
-            "macOS app unexpectedly contains iPhone entitlements: "
-            + ", ".join(forbidden)
+            "macOS app unexpectedly contains iPhone entitlements: " + ", ".join(forbidden)
         )
     if unexpected:
-        raise RuntimeError(
-            "macOS app contains unexpected entitlements: " + ", ".join(unexpected)
-        )
+        raise RuntimeError("macOS app contains unexpected entitlements: " + ", ".join(unexpected))
 
 
 def read_signed_entitlements(app: Path) -> dict[str, object]:
@@ -132,9 +128,7 @@ def sign_and_validate_app(app: Path, version: str, build_number: str) -> None:
     if mismatches:
         raise RuntimeError("macOS app metadata mismatch: " + "; ".join(mismatches))
 
-    architectures = set(
-        run("/usr/bin/lipo", "-archs", str(app / "Contents/MacOS/Daymeld")).split()
-    )
+    architectures = set(run("/usr/bin/lipo", "-archs", str(app / "Contents/MacOS/Daymeld")).split())
     if "arm64" not in architectures:
         raise RuntimeError("macOS app does not contain the required arm64 architecture")
     validate_entitlements(read_signed_entitlements(app))

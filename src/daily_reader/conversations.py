@@ -34,7 +34,17 @@ MAX_UPLOAD_BYTES = 2 * 1024**3
 MAX_TRANSCRIPT_BYTES = 10 * 1024**2
 ANALYSIS_LOCK = threading.Lock()
 INSIGHT_ANALYSIS_LOCK = threading.Lock()
-INSIGHT_KINDS = {"task", "follow_up", "decision", "idea", "friction"}
+INSIGHT_KINDS = {
+    "task",
+    "follow_up",
+    "decision",
+    "idea",
+    "friction",
+    "research",
+    "event",
+    "interest",
+    "preference",
+}
 ACTIONABLE_INSIGHT_KINDS = {"task", "follow_up"}
 INSIGHT_CERTAINTIES = {"explicit", "inferred", "ambiguous"}
 INSIGHT_REVIEW_ACTIONS = {"keep": "kept", "dismiss": "dismissed"}

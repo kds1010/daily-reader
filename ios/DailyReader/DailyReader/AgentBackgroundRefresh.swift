@@ -33,6 +33,8 @@ enum AgentBackgroundRefresh {
                 for job in AgentNotificationCoordinator.shared.changedJobs(active: envelope.jobs, archived: []) {
                     await AgentNotificationCoordinator.shared.schedule(for: job)
                 }
+                let life: LifeSnapshot = try await APIClient.shared.get("api/life")
+                _ = await LifeNotifications.shared.reconcile(life)
                 success = !Task.isCancelled
             } catch {
                 NSLog("Daymeld background refresh failed: %@", error.localizedDescription)
