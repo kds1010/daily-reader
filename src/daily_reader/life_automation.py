@@ -162,16 +162,6 @@ def adopt(database: Path, draft_id: str, changes: dict, *, automatic: bool = Fal
                     "AND status IN ('awaiting_review','kept')",
                     (entry["id"], now_string(), item_id),
                 )
-            if (
-                payload["kind"] == "profile"
-                and evidence.get("subject")
-                and evidence.get("recording_id")
-                and not automatic
-            ):
-                connection.execute(
-                    "INSERT OR REPLACE INTO life_speaker_people VALUES(?,?,?)",
-                    (evidence["recording_id"], evidence["subject"], payload["person_id"]),
-                )
         return entry
 
 

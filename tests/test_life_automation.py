@@ -391,3 +391,26 @@ def test_auto_queue_waits_for_running_extraction_and_caps_long_input(db, monkeyp
     assert result["insight_status"] == "failed"
     assert "上限" in result["insight_error"]
     assert calls == []
+
+
+def test_duplicate_conversion_preserves_confirmed_profile_owner(db, worker, monkeypatch):
+    extracted(
+        db,
+        monkeypatch,
+        [
+            {
+                "kind": "interest",
+                "life_data": {"intent": "interest_only", "person_name": "話者1"},
+            }
+        ],
+    )
+    worker.step()
+    draft = auto.drafts(db)[0]
+    saved = life.create_entry(db, {**draft["data"], "person_id": "self"})
+    other = life.create_person(db, {"name": "別の人物"})
+    repeated = auto.adopt(db, draft["id"], {"person_id": other["id"]})
+    assert repeated["id"] == saved["id"]
+    assert repeated["person_id"] == "self"
+    with life.connect(db) as connection:
+        mapped = connection.execute("SELECT person_id FROM life_speaker_people").fetchone()[0]
+    assert mapped == "self"
