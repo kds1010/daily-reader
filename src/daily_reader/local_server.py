@@ -682,6 +682,14 @@ def make_handler(
                 raise ValueError("invalid JSON payload")
             return payload
 
+        def _log_device_sync_failure(self, kind: str, error: Exception) -> None:
+            # Validation errors contain field names/reasons, never sensor payloads.
+            LOGGER.warning(
+                "Device sync rejected: kind=%s reason=%s length_present=%s chunked=%s",
+                kind, error, self.headers.get("Content-Length") is not None,
+                self.headers.get("Transfer-Encoding", "").lower() == "chunked",
+            )
+
         def _health_sync_authorized(self) -> bool:
             return health_sync_authorized(health_sync_token, self.headers.get("Authorization", ""))
 
@@ -1023,6 +1031,7 @@ def make_handler(
                     )
                     self._send_json(200, result)
                 except (ValueError, TypeError) as error:
+                    self._log_device_sync_failure("context", error)
                     self._send_json(400, {"error": str(error)})
                 return
             if path in {"/api/life/automation", "/api/life/capture"} or path.startswith(
@@ -1111,6 +1120,7 @@ def make_handler(
                     count = store_location_events(conversations_db, events)
                     self._send_json(200, {"stored": count})
                 except (ValueError, TypeError, KeyError) as error:
+                    self._log_device_sync_failure("locations", error)
                     self._send_json(400, {"error": str(error)})
                 return
             if path.startswith("/api/conversations/") and path.endswith("/insights"):
