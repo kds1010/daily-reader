@@ -145,10 +145,13 @@ SideStore 0.6.3（4deda922）は詳細表示に`versions[0]`、Sourceからの�
 `latestSupportedVersion`関係を使います。マージ後の関係補正が版順の変更時に限られ、
 表示版と更新先が食い違う経路があります。公開ソースは最新版1件に限定し、旧版の候補を残しません。
 `verify_sidestore_remote.py`も複数版の再公開を失敗として検出します。
+修正後、同じiPhone・LocalDevVPN・Daymeld Remoteから0.1.195へ更新し、
+Daymeld自身の「インストール済み 0.1.195 (195)」を2026-09-07 17:36 JSTに確認しました。
 
 また、このSideStoreでは`My Apps`の検索がCore Dataの保存済み`hasUpdate`列を使う一方、
 SourceのボタンはSwiftの計算プロパティを使います。保存列は既定のNOから更新されておらず、
 `My Apps`の「No Updates Available」は更新なしの根拠になりません。Source側から更新してください。
+匿名のSQLite/Core Data再現でも、Swift側の更新判定trueに対しSQL検索0件となりました。
 この上流UIの不整合と、VPN・IPA配信の成否は区別します。HealthKit対応の自己ビルド版は維持します。
 
 実装の根拠はSideStore 4deda922の`AltStoreCore/Model/InstalledApp.swift`、
