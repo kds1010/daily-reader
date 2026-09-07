@@ -434,3 +434,45 @@ def test_worker_terminates_cancelled_job_without_publishing_result(database, mon
     assert terminated
     assert life.get_entry(database, entry["id"])["status"] == "cancelled"
     assert "result" not in life.get_entry(database, entry["id"])
+
+
+def test_linked_preparation_notifies_once_and_stops_after_completion(database):
+    parent = life.create_entry(database, event())
+    child = life.create_entry(
+        database,
+        task(
+            source_type="event",
+            source_id=parent["id"],
+            source_role="prepare",
+            due_at=parent["prepare_at"],
+            remind_at=parent["prepare_at"],
+        ),
+    )
+    notices = life.snapshot(database)["notifications"]
+    assert len(notices) == 1
+    assert notices[0]["entry_id"] == parent["id"]
+    life.update_entry(database, child["id"], {"revision": 1, "status": "completed"})
+    assert life.snapshot(database)["notifications"] == []
+
+
+def test_registered_event_finishes_linked_registration_task(database):
+    parent = life.create_entry(
+        database,
+        event(
+            prepare_at=None,
+            deadline_at="2026-10-01T10:00:00+09:00",
+        ),
+    )
+    child = life.create_entry(
+        database,
+        task(
+            source_type="event",
+            source_id=parent["id"],
+            source_role="deadline",
+            due_at=parent["deadline_at"],
+            remind_at=parent["deadline_at"],
+        ),
+    )
+    life.update_entry(database, parent["id"], {"revision": 1, "status": "registered"})
+    assert life.get_entry(database, child["id"])["status"] == "completed"
+    assert life.snapshot(database)["notifications"] == []

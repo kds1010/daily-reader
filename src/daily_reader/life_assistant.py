@@ -382,6 +382,9 @@ def _update_event_tasks(connection, old: dict, data: dict, state: str, now: str)
             if child.get(key) == old.get(field):
                 child[key] = data.get(field)
         next_state = "cancelled" if state == "cancelled" else row["status"]
+        if state == "registered" and field == "deadline_at":
+            next_state = "completed"
+            child["completed_at"] = now
         if child == json.loads(row["data"]) and next_state == row["status"]:
             continue
         connection.execute(
@@ -459,6 +462,15 @@ def snapshot(database: Path, articles: list[dict] | None = None) -> dict:
         for _, a, m in ranked[:3]
     ]
     notices = []
+    by_id = {entry["id"]: entry for entry in entries}
+    role_fields = {"prepare": "prepare_at", "deadline": "deadline_at"}
+    completed_steps = {
+        (entry["evidence"].get("entry_id"), role_fields.get(entry["evidence"].get("role")))
+        for entry in entries
+        if entry["kind"] == "task"
+        and entry["status"] == "completed"
+        and entry["evidence"].get("type") == "event"
+    }
     for entry in entries:
         if entry["status"] in {"cancelled", "completed", "archived"}:
             continue
@@ -471,6 +483,24 @@ def snapshot(database: Path, articles: list[dict] | None = None) -> dict:
                 ("remind_at", "予定"),
             ]
         for key, label in fields:
+            if entry["kind"] == "event" and (
+                (entry["id"], key) in completed_steps
+                or key == "deadline_at"
+                and entry["status"] == "registered"
+            ):
+                continue
+            evidence = entry["evidence"]
+            parent = by_id.get(evidence.get("entry_id"), {})
+            parent_field = role_fields.get(evidence.get("role"))
+            if (
+                entry["kind"] == "task"
+                and evidence.get("type") == "event"
+                and parent.get("status") in {"planned", "registered"}
+                and parent_field
+                and entry.get(key) == parent.get(parent_field)
+            ):
+                # The event already schedules this exact preparation/deadline reminder.
+                continue
             if entry.get(key):
                 notices.append(
                     {
