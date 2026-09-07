@@ -283,3 +283,4 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 - iPhone・macOSの会話詳細から録音・発言の推定場所、日時の出典、時刻差、精度、未照合理由、地図を確認できる。録音の停止・編集・時計ずれによる誤差を表示する。
 - Planner・Agentへの承認時と発言の再解析前に、候補の根拠へ位置コンテキストのスナップショットを保存する。後から届くGPSは現在の位置リンクだけを更新し、過去の判断根拠は維持する。GPSはCodexへ送らない。
 - 保存する関連、推定の限界、予定・人物履歴へ発展させる方針は[会話コンテキスト設計](docs/conversation-context.md)を参照する。
+- [生活改善の設計](docs/conversation-value-design.md)に、約束の抜け・管理時間を評価する条件付き試算と6週間の試用方法を記載している。数値は実測ではなく設計仮説であり、計測・予定通知・試用はまだ開始していない。
