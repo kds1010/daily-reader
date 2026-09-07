@@ -152,6 +152,9 @@ SideStore 0.6.3（4deda922）は詳細表示に`versions[0]`、Sourceからの�
 修正後、同じiPhone・LocalDevVPN・Daymeld Remoteから0.1.195へ更新し、
 Daymeld自身の「インストール済み 0.1.195 (195)」を2026-09-07 17:36 JSTに確認しました。
 続く0.1.198への更新も18:19 JSTに確認し、GPSとHealthKitのMacへの実同期に成功しました。
+0.1.202は18:41 JSTに実機導入を確認しました。Tailscaleへ戻した後、GPS同期はHTTP 200、
+予定・移動情報は旧キューの回復と新規取得の両方がHTTP 200、HealthKitはHTTP 202でした。
+18:42 JSTにGPSのバックグラウンド記録を再開しています。
 
 また、このSideStoreでは`My Apps`の検索がCore Dataの保存済み`hasUpdate`列を使う一方、
 SourceのボタンはSwiftの計算プロパティを使います。保存列は既定のNOから更新されておらず、
