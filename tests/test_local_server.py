@@ -1069,8 +1069,9 @@ def test_main_handler_completion_marks_gmail_thread_read(
     assert calls == [("read", "thread-1"), ("done", "thread-1")]
 
 
+@pytest.mark.parametrize("action", ["read", "done"])
 def test_main_handler_does_not_complete_when_gmail_read_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, action: str
 ) -> None:
     status_calls: list[tuple[str, str]] = []
     monkeypatch.setattr(
@@ -1091,7 +1092,7 @@ def test_main_handler_does_not_complete_when_gmail_read_fails(
     handler = handler_factory.func.__new__(handler_factory.func)
     responses = []
     handler._send_json = lambda status, payload: responses.append((status, payload))
-    handler._read_json = lambda: {"thread_id": "thread-1", "action": "done"}
+    handler._read_json = lambda: {"thread_id": "thread-1", "action": action}
     handler.path = "/api/email-status"
 
     handler.do_POST()

@@ -312,3 +312,16 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 - 2026-09-07の実機設定で、GPSと端末コンテキストの小数秒付き日時がUTC設定でも末尾Zを含まず、APIがHTTP 400で拒否する問題を確認した。`preciseUTCTimestamp`でタイムゾーンを明示し、旧版がGMTで作った端末内キューだけ`repairLegacyQueuedUTCTimestamp`で復元して再送する。ユーザー入力やAPIのタイムゾーン必須条件は緩めない。同期拒否時はGPS・予定の本文をログへ出さず理由と転送形式だけ記録する。`tests/test_ios_sync_timestamps.py`はSwiftの実出力をPython保存処理へ渡し、再送の重複排除も検証する。
 
 - 同日の実機同期で、Core Motionの1秒未満の区間を秒単位へ丸めると開始・終了が同値になり、予定を含む同期全体が拒否されることも確認した。移動区間・取得窓は小数秒とUTCを保持し、シリアライズ後も正の長さを持つ区間だけ作る。旧キュー内の同時刻の移動区間は再送から除外し、続くCore Motion再取得で補う。小数秒の日時解析にも対応し、旧キューを解析不能として読み飛ばさない。Swiftの実出力による0.7秒区間と旧キュー回復をPython保存まで検証する。
+
+## Gmail認証が失効した場合
+
+Gmailが`invalid_grant`を返した場合は再認証が必要です。保存済みメールは保持し、
+通信障害とは区別して案内します。Mac miniのサービス用リポジトリで
+`uv run --frozen daily-reader-gmail auth`を実行し、Googleのログイン・同意を完了してください。
+失効したトークンが残っていても認証画面へ進み、認証成功後にだけトークンを置き換えます。
+キャンセル時は既存トークンを保持します。再認証後に同期成功と最終取得日時を確認してください。
+
+[Google公式資料](https://developers.google.com/identity/protocols/oauth2#expiration)によると、
+外部向けOAuthアプリの公開ステータスがTestingの場合、Gmail権限のrefresh tokenは7日で失効します。
+繰り返す場合はGoogle Cloudの公開ステータスを確認してください。本環境の設定は未確認であり、
+失効原因をTestingと断定したり、アプリの公開設定を自動変更したりはしません。

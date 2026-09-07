@@ -15,6 +15,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -407,11 +408,21 @@ def load_credentials(
                 token, [GMAIL_MODIFY_SCOPE if require_modify else read_scope]
             )
     if credentials and credentials.expired and credentials.refresh_token:
-        credentials.refresh(Request())
+        try:
+            credentials.refresh(Request())
+        except RefreshError as error:
+            invalid_grant = any(
+                isinstance(detail, dict) and detail.get("error") == "invalid_grant"
+                for detail in error.args
+            )
+            if error.retryable or not invalid_grant:
+                raise
+            # Keep the saved token until a replacement is successfully authorized.
+            credentials = None
     if not credentials or not credentials.valid:
         if not interactive:
             raise GmailAuthorizationRequired(
-                "Gmail authorization required: run daily-reader-gmail auth"
+                "Gmailの再認証が必要です。Mac miniで daily-reader-gmail auth を実行してください。"
             )
         flow = InstalledAppFlow.from_client_secrets_file(client_secret, [GMAIL_MODIFY_SCOPE])
         credentials = flow.run_local_server(

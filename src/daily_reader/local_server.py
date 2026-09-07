@@ -1988,6 +1988,8 @@ def run_gmail_scheduler(
         try:
             count = sync_gmail(database, client_secret, token_path)
             LOGGER.info("Synchronized %d Gmail threads", count)
+        except GmailAuthorizationRequired:
+            LOGGER.warning("Gmail synchronization requires authorization")
         except Exception:  # noqa: BLE001
             LOGGER.exception("Gmail synchronization failed")
         sleep(interval_minutes * 60)

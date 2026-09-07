@@ -345,3 +345,16 @@ uv run daily-reader-local
 ## iPhoneから追加する自動情報
 
 既存カレンダー・移動区間・GPS速度・健康集計を自動取得し、予定の重なり、カレンダー上の着手枠、会話時の参考情報へつなぎます。取得失敗と情報なしを区別し、各取得を停止できます。詳しくは[自動取得コンテキスト](docs/iphone-context.md)を参照してください。
+
+## Gmail認証が失効した場合
+
+Gmailが`invalid_grant`を返した場合は再認証が必要です。保存済みメールは保持し、
+通信障害とは区別して案内します。Mac miniのサービス用リポジトリで
+`uv run --frozen daily-reader-gmail auth`を実行し、Googleのログイン・同意を完了してください。
+失効したトークンが残っていても認証画面へ進み、認証成功後にだけトークンを置き換えます。
+キャンセル時は既存トークンを保持します。再認証後に同期成功と最終取得日時を確認してください。
+
+[Google公式資料](https://developers.google.com/identity/protocols/oauth2#expiration)によると、
+外部向けOAuthアプリの公開ステータスがTestingの場合、Gmail権限のrefresh tokenは7日で失効します。
+繰り返す場合はGoogle Cloudの公開ステータスを確認してください。本環境の設定は未確認であり、
+失効原因をTestingと断定したり、アプリの公開設定を自動変更したりはしません。

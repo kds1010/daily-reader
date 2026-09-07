@@ -168,7 +168,13 @@ final class AppModel: ObservableObject {
             let mail = try await api.get("api/emails/unread", as: EmailEnvelope.self)
             let pendingIDs = Set(pendingEmailActions.keys)
             emails = mail.items.filter { !pendingIDs.contains($0.threadID) }
-            emailSyncError = mail.syncError
+            if mail.authorizationRequired == true {
+                emailSyncError = "Gmailの再認証が必要です。Mac miniで再接続してください。"
+            } else if mail.syncError != nil {
+                emailSyncError = "Gmailの同期に失敗したため、保存済みのメールを表示しています。"
+            } else {
+                emailSyncError = nil
+            }
             emailCanMarkRead = mail.canMarkRead ?? true
             emailLoadState = .loaded
             updated = true

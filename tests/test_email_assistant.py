@@ -442,3 +442,121 @@ def test_fetch_gmail_thread_content_returns_messages_in_chronological_order(
 
     assert content is not None
     assert [message["body"] for message in content["messages"]] == ["old", "新"]
+
+
+@pytest.mark.parametrize("interactive", [False, True])
+def test_revoked_token_recovers_only_with_interactive_authorization(
+    tmp_path: Path, monkeypatch, interactive: bool,
+) -> None:
+    from google.auth.exceptions import RefreshError
+
+    token_path = tmp_path / "token.json"
+    original = json.dumps({"scopes": [GMAIL_READONLY_SCOPE]})
+    token_path.write_text(original)
+
+    class ExpiredCredentials:
+        expired = True
+        refresh_token = "private"
+
+        def refresh(self, request):
+            raise RefreshError("private response", {"error": "invalid_grant"})
+
+    class FreshCredentials:
+        def to_json(self):
+            return '{"replacement": true}'
+
+    class Flow:
+        def run_local_server(self, **kwargs):
+            assert token_path.read_text() == original
+            assert kwargs["host"] == "127.0.0.1"
+            return FreshCredentials()
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.Credentials.from_authorized_user_info",
+        lambda *args: ExpiredCredentials(),
+    )
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.InstalledAppFlow.from_client_secrets_file",
+        lambda *args: Flow(),
+    )
+    if interactive:
+        load_credentials(tmp_path / "client.json", token_path, True)
+        assert json.loads(token_path.read_text()) == {"replacement": True}
+        assert token_path.stat().st_mode & 0o777 == 0o600
+    else:
+        with pytest.raises(GmailAuthorizationRequired, match="再認証") as caught:
+            sync_gmail(tmp_path / "db.sqlite3", tmp_path / "client.json", token_path)
+        assert "private" not in str(caught.value)
+        assert token_path.read_text() == original
+        status = get_gmail_sync_status(tmp_path / "db.sqlite3")
+        assert status["authorization_required"] == 1
+        assert status["can_mark_read"] == 0
+
+
+@pytest.mark.parametrize("failure", ["cancel", "temporary", "transport", "unknown"])
+def test_failed_authorization_preserves_saved_token(tmp_path: Path, monkeypatch, failure):
+    from google.auth.exceptions import RefreshError, TransportError
+
+    token_path = tmp_path / "token.json"
+    original = json.dumps({"scopes": [GMAIL_READONLY_SCOPE]})
+    token_path.write_text(original)
+    expected = TransportError if failure == "transport" else RefreshError
+
+    class ExpiredCredentials:
+        expired = True
+        refresh_token = "private"
+
+        def refresh(self, request):
+            if failure == "transport":
+                raise TransportError("offline")
+            raise RefreshError(
+                "failed", {"error": "other" if failure == "unknown" else "invalid_grant"},
+                retryable=failure == "temporary",
+            )
+
+    class Flow:
+        def run_local_server(self, **kwargs):
+            assert failure == "cancel"
+            raise ValueError("cancelled")
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.Credentials.from_authorized_user_info",
+        lambda *args: ExpiredCredentials(),
+    )
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.InstalledAppFlow.from_client_secrets_file",
+        lambda *args: Flow(),
+    )
+    with pytest.raises(ValueError if failure == "cancel" else expected):
+        load_credentials(tmp_path / "client.json", token_path, True)
+    assert token_path.read_text() == original
+
+
+def test_successful_sync_clears_authorization_failure(tmp_path: Path, monkeypatch):
+    database = tmp_path / "db.sqlite3"
+    record_gmail_sync_status(database, NOW, "authorization_required", True, False)
+
+    class CredentialsStub:
+        scopes = ["https://www.googleapis.com/auth/gmail.modify"]
+
+    class Service:
+        def users(self):
+            return self
+
+        def getProfile(self, **kwargs):
+            return self
+
+        def execute(self):
+            return {"emailAddress": "me@example.com"}
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.load_credentials", lambda *a, **k: CredentialsStub()
+    )
+    monkeypatch.setattr("daily_reader.email_assistant.build", lambda *a, **k: Service())
+    monkeypatch.setattr("daily_reader.email_assistant._list_thread_ids", lambda *a: [])
+    assert sync_gmail(database, tmp_path / "client.json", tmp_path / "token.json") == 0
+    status = get_gmail_sync_status(database)
+    assert status["last_error"] is None
+    assert status["authorization_required"] == 0
+    assert status["can_mark_read"] == 1
+    assert get_gmail_sync_state(database)["completed_at"] is not None
