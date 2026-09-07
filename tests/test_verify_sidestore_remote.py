@@ -160,3 +160,13 @@ def test_verify_tailscale_config_requires_exact_private_and_public_ports() -> No
     unsafe_config["AllowFunnel"][f"{hostname}:443"] = True
     with pytest.raises(RuntimeError, match="approved layout"):
         MODULE.verify_tailscale_config(unsafe_config, unsafe_config, hostname)
+
+
+@pytest.mark.parametrize("count", [0, 2])
+def test_verify_rejects_a_source_without_one_current_target(tmp_path: Path, count: int) -> None:
+    artifacts = write_release(tmp_path, TOKEN)
+    source = json.loads(artifacts["remote-source.json"])
+    version = source["apps"][0]["versions"][0]
+    source["apps"][0]["versions"] = [version] * count
+    with pytest.raises(RuntimeError, match="exactly one current version"):
+        MODULE.validated_artifact_paths(source, TOKEN)

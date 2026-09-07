@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import copy
 import json
 import os
 import plistlib
@@ -191,7 +192,6 @@ def build_remote_source(
     ipa_size: int,
     origin: str,
     token: str,
-    previous_versions: list[dict[str, object]] | None = None,
     released_at: str | None = None,
 ) -> dict[str, object]:
     base_url = f"{validate_remote_origin(origin)}/{validate_remote_token(token)}"
@@ -201,13 +201,24 @@ def build_remote_source(
     source["identifier"] = "net.skmin.DailyReader.remote-source"
     app = source["apps"][0]
     app["versions"][0]["downloadURL"] = f"{base_url}/DailyReader-{version}.ipa"
-    retained_versions = [
-        previous
-        for previous in (previous_versions or [])
-        if isinstance(previous, dict) and previous.get("version") != version
-    ][: REMOTE_VERSION_RETENTION - 1]
-    app["versions"] = [app["versions"][0], *retained_versions]
+    # SideStore 0.6.3 can preserve an old latestSupportedVersion relationship
+    # while displaying a newer versions[0]. Publish one install target; keep
+    # rollback history in a separate, private file that SideStore never reads.
     return source
+
+
+def build_release_history(
+    source: dict[str, object], previous_versions: list[dict[str, object]]
+) -> dict[str, object]:
+    history = copy.deepcopy(source)
+    app = history["apps"][0]
+    current = app["versions"][0]
+    retained = [
+        previous for previous in previous_versions
+        if previous.get("version") != current["version"]
+    ][: REMOTE_VERSION_RETENTION - 1]
+    app["versions"] = [current, *retained]
+    return history
 
 
 def load_previous_remote_versions(
@@ -217,9 +228,11 @@ def load_previous_remote_versions(
 ) -> list[dict[str, object]]:
     base_url = f"{validate_remote_origin(origin)}/{validate_remote_token(token)}"
     try:
-        source = json.loads(
-            (directory / "remote-source.json").read_text(encoding="utf-8")
-        )
+        history_path = directory / "release-history.json"
+        if not history_path.exists():
+            # Migrate the old multi-version source without losing rollback IPAs.
+            history_path = directory / "remote-source.json"
+        source = json.loads(history_path.read_text(encoding="utf-8"))
         app = source["apps"][0]
         versions = app["versions"]
     except (IndexError, KeyError, OSError, TypeError, UnicodeError, json.JSONDecodeError):
@@ -450,14 +463,12 @@ def main() -> None:
             versioned_ipa.stat().st_size,
             args.remote_origin,
             token,
-            previous_versions,
             released_at,
         )
+        history = build_release_history(remote_source, previous_versions)
+        write_private_source(args.output_dir / "release-history.json", history)
         write_private_source(args.output_dir / "remote-source.json", remote_source)
-        prune_unlisted_versioned_ipas(
-            args.output_dir,
-            remote_source["apps"][0]["versions"],
-        )
+        prune_unlisted_versioned_ipas(args.output_dir, history["apps"][0]["versions"])
     print(f"SideStore release {version}: {ipa}")
     print(f"Source URL: {args.base_url.rstrip('/')}/source.json")
     if not args.disable_remote_source:

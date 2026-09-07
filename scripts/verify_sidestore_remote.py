@@ -93,8 +93,8 @@ def validated_artifact_paths(
         }
     except (IndexError, KeyError, TypeError) as error:
         raise RuntimeError("Remote SideStore source has invalid metadata") from error
-    if not isinstance(versions, list) or not versions:
-        raise RuntimeError("Remote SideStore source has no versions")
+    if not isinstance(versions, list) or len(versions) != 1:
+        raise RuntimeError("Remote SideStore source must publish exactly one current version")
     ipa_names = []
     declared_sizes = {}
     for index, version_item in enumerate(versions):
@@ -295,6 +295,7 @@ def verify_remote_release(
         (f"/{token}/api/deployment", "GET"),
         (f"/{token}/../source.json", "GET"),
         (f"/{token}/remote-source.json", "GET"),
+        (f"/{token}/release-history.json", "GET"),
         (f"/{token}/source.json", "POST"),
         ("/", "GET"),
     )

@@ -194,8 +194,10 @@ def test_previous_remote_versions_are_retained_only_when_safe(tmp_path: Path) ->
     MODULE.write_private_source(tmp_path / "remote-source.json", previous)
 
     retained = MODULE.load_previous_remote_versions(tmp_path, origin, token)
-    updated = MODULE.build_remote_source("0.1.42", 20, origin, token, retained)
+    source = MODULE.build_remote_source("0.1.42", 20, origin, token)
+    updated = MODULE.build_release_history(source, retained)
 
+    assert [v["version"] for v in source["apps"][0]["versions"]] == ["0.1.42"]
     assert retained == [previous_version]
     assert [item["version"] for item in updated["apps"][0]["versions"]] == [
         "0.1.42",
@@ -238,3 +240,23 @@ def test_unlisted_versioned_ipas_are_pruned(tmp_path: Path) -> None:
 
     assert retained.is_file()
     assert not stale.exists()
+
+
+def test_release_history_stays_private_across_repeated_updates(tmp_path: Path) -> None:
+    origin = "https://reader.example.test:8443"
+    for number in range(40, 53):
+        version = f"0.1.{number}"
+        previous = MODULE.load_previous_remote_versions(tmp_path, origin, TOKEN)
+        (tmp_path / f"DailyReader-{version}.ipa").write_bytes(b"ipa")
+        source = MODULE.build_remote_source(version, 3, origin, TOKEN)
+        history = MODULE.build_release_history(source, previous)
+        MODULE.write_private_source(tmp_path / "release-history.json", history)
+        MODULE.write_private_source(tmp_path / "remote-source.json", source)
+        MODULE.prune_unlisted_versioned_ipas(tmp_path, history["apps"][0]["versions"])
+        assert len(source["apps"][0]["versions"]) == 1
+        assert source["apps"][0]["versions"][0]["version"] == version
+    assert [v["version"] for v in history["apps"][0]["versions"]] == [
+        f"0.1.{number}" for number in range(52, 42, -1)
+    ]
+    assert len(list(tmp_path.glob("*.ipa"))) == 10
+    assert (tmp_path / "release-history.json").stat().st_mode & 0o777 == 0o600

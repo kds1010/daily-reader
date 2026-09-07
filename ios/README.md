@@ -105,7 +105,8 @@ http://sk-mins-Mac-mini.local:8788/source.json
 外出先でも更新する場合は、`127.0.0.1:8789`の専用配信サーバーをTailscale Funnelの
 `8443`番へ中継します。初回ビルド時に作成する32-byteランダムトークン付きURLが
 アクセス資格情報です。外部から到達できますが、配信対象はソースJSON、アイコン、
-ソースに列挙した最大10版のIPAだけです。
+ソースに列挙した最新版1件のIPAだけです。旧版はMac内の`release-history.json`と
+最大10版のIPAとして保持し、この履歴ファイルは配信しません。
 秘密URLを会話、Issue、ログへ貼り付けたり、他者と共有したりしないでください。Codexから
 実機へ登録する場合は、URLを表示しない次のスクリプトを使います。
 
@@ -129,6 +130,30 @@ seed IPAのアドホック署名はHealthKit entitlementをSideStoreへ引き渡
 インターネット接続が必要ですが、IPAを再取得しないため通常はMac miniへの接続を必要としません。
 LANソースを使う場合、初回接続時にiOSがSideStoreのローカルネットワークアクセスを求めたら
 許可してください。
+
+### 更新版が上がらない場合の切り分け
+
+更新はLocalDevVPNを接続し、SideStoreの`Sources → Daymeld Remote → UPDATE`から行います。
+`Refresh`は既存IPAの7日署名を更新する操作です。完了後はDaymeldのAgent画面にある
+「インストール済み」の版を配信版と比較してください。7 DAYSだけでは新版の導入成功と判定しません。
+SideStoreが処理中表示のまま止まった場合は、VPN接続後にSideStoreだけを終了・再起動します。
+アプリ削除・Deactivate・データベース初期化は不要です。
+
+2026-09-07の実機では、複数版ソースの詳細に0.1.194が表示されていても、SourceのUPDATEが
+0.1.186をインストールしました。配布IPAの内部版とファイル名は一致していました。
+SideStore 0.6.3（4deda922）は詳細表示に`versions[0]`、Sourceからの更新には別の
+`latestSupportedVersion`関係を使います。マージ後の関係補正が版順の変更時に限られ、
+表示版と更新先が食い違う経路があります。公開ソースは最新版1件に限定し、旧版の候補を残しません。
+`verify_sidestore_remote.py`も複数版の再公開を失敗として検出します。
+
+また、このSideStoreでは`My Apps`の検索がCore Dataの保存済み`hasUpdate`列を使う一方、
+SourceのボタンはSwiftの計算プロパティを使います。保存列は既定のNOから更新されておらず、
+`My Apps`の「No Updates Available」は更新なしの根拠になりません。Source側から更新してください。
+この上流UIの不整合と、VPN・IPA配信の成否は区別します。HealthKit対応の自己ビルド版は維持します。
+
+実装の根拠はSideStore 4deda922の`AltStoreCore/Model/InstalledApp.swift`、
+`Model/MergePolicies/MergePolicy.swift`、`Model/StoreApp.swift`、
+`AltStore/Sources/SourceDetailContentViewController.swift`、`Managing Apps/AppManager.swift`です。
 
 ### HealthKit対応SideStore
 
