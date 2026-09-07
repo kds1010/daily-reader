@@ -687,7 +687,14 @@ def make_handler(
             # validation reasons; never interpolate an arbitrary sensor value.
             reason = str(error)
             if reason not in {
-                "端末情報の日時が不正です", "invalid recording date",
+                "端末情報の日時が不正です", "端末情報の文字列が不正です",
+                "端末情報のフラグが不正です", "端末IDが必要です",
+                "端末の時計または同期日時を確認してください", "タイムゾーンが不正です",
+                "取得状態が不正です", "取得期間が不正です",
+                "未来の移動履歴は保存できません", "取得期間が同期日時から離れすぎています",
+                "取得件数が上限を超えています", "取得内容が不正です",
+                "取得した項目の期間が不正です", "予定IDが重複しています",
+                "移動状態が不正です", "invalid recording date",
                 "recording date must include timezone", "invalid location timestamp",
                 "invalid content length", "invalid JSON payload",
             }:
