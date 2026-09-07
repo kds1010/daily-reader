@@ -1672,3 +1672,35 @@ def test_location_history_endpoint(tmp_path, query, status):
         assert result["total"] == 1
         assert result["items"][0]["latitude"] == 35
         assert result["items"][0]["is_approximate"] is False
+
+
+def test_location_sync_automatically_updates_recording_detail(tmp_path):
+    db = tmp_path / "conversations.sqlite3"
+    content = "資料を確認してください".encode()
+    recording = store_transcript(db, io.BytesIO(content), len(content), "2026-09-05 00:00:00.txt")
+    factory = make_handler(
+        tmp_path / "site", tmp_path / "articles", tmp_path / "reads",
+        tmp_path / "feedback", tmp_path / "mail.db", tmp_path / "client",
+        tmp_path / "token", conversations_db=db,
+    )
+    handler = factory.func.__new__(factory.func)
+    responses = []
+    handler._send_json = lambda code, payload: responses.append((code, payload))
+    handler._read_json = lambda **kwargs: {"events": [{
+        "timestamp": "2026-09-04T15:00:20Z", "latitude": 35,
+        "longitude": 139, "horizontal_accuracy": 40,
+    }]}
+    handler.path = "/api/locations/sync"
+    handler.do_POST()
+    handler.path = f"/api/conversations/{recording['id']}"
+    handler.do_GET()
+    assert responses[0] == (200, {"stored": 1})
+    assert responses[1][0] == 200
+    context = responses[1][1]["location_contexts"][0]
+    assert context["state"] == "matched_estimate"
+    assert context["time_delta_seconds"] == 20
+    assert context["location"]["horizontal_accuracy"] == 40
+    handler.path += "/match-location"
+    handler.do_POST()
+    assert responses[2][0] == 200
+    assert responses[2][1]["location"]["id"] == context["location_event_id"]

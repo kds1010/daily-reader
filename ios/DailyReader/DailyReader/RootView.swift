@@ -257,6 +257,10 @@ struct ConversationDetailView: View {
     var body: some View {
         List {
             if let recording {
+                let contexts = recording.locationContexts ?? []
+                let byUtterance = Dictionary(uniqueKeysWithValues: contexts.compactMap { link in
+                    link.utteranceID.map { ($0, link) }
+                })
                 Section("概要") {
                     Text(recording.filename)
                     ForEach(recording.topics ?? []) { topic in
@@ -273,6 +277,30 @@ struct ConversationDetailView: View {
                     }
                     insightExtractionControls(recording)
                 }
+                Section("録音日時と場所") {
+                    if let start = contexts.first(where: { $0.utteranceID == nil }) {
+                        ConversationLocationSummary(link: start)
+                    } else {
+                        Text("位置情報の紐付けをまだ確認できません。")
+                    }
+                    if contexts.contains(where: { $0.location != nil }) {
+                        NavigationLink("録音に紐付いたGPSを地図で見る") {
+                            ConversationLocationMap(links: contexts)
+                        }
+                    }
+                    Text("前後5分以内・精度200 m以内のGPSを自動照合します。場所は端末の位置からの推定です。")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                    Button("位置情報を再照合") {
+                        Task {
+                            do {
+                                let _: EmptyResponse = try await APIClient.shared.post(
+                                    "api/conversations/\(recordingID)/match-location",
+                                    body: EmptyRequest(), as: EmptyResponse.self)
+                                await reload()
+                            } catch { model.errorMessage = error.localizedDescription }
+                        }
+                    }
+                }
                 let awaitingItems = (recording.insightItems ?? []).filter { $0.status == "awaiting_review" }
                 if !awaitingItems.isEmpty {
                     Section("確認待ちの候補") {
@@ -287,6 +315,15 @@ struct ConversationDetailView: View {
                             HStack { Text(utterance.speaker ?? "話者").bold(); Spacer(); Text(utterance.topic) }
                                 .appFont(.caption).foregroundStyle(.secondary)
                             Text(utterance.text).textSelection(.enabled)
+                            if let link = byUtterance[utterance.id] {
+                                ConversationLocationSummary(link: link)
+                                if link.location != nil {
+                                    NavigationLink("この発言の推定場所") {
+                                        ConversationLocationMap(links: [link])
+                                    }
+                                    .appFont(.caption)
+                                }
+                            }
                         }
                     }
                 }
@@ -351,6 +388,80 @@ struct ConversationDetailView: View {
         defer { extractionInFlight = false }
         guard await model.extractConversationInsights(recordingID) else { return }
         await reload()
+    }
+}
+
+private extension ConversationContextLocation {
+    var event: LocationEvent {
+        LocationEvent(timestamp: timestamp, latitude: latitude, longitude: longitude,
+                      horizontal_accuracy: horizontalAccuracy, is_approximate: isApproximate)
+    }
+}
+
+private struct ConversationLocationSummary: View {
+    let link: ConversationLocationContext
+    private func displayTime(_ value: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fractionalDate = formatter.date(from: value)
+        formatter.formatOptions = [.withInternetDateTime]
+        return (fractionalDate ?? formatter.date(from: value))?
+            .formatted(date: .abbreviated, time: .standard) ?? value
+    }
+    private var dateLabel: String {
+        switch link.dateSource {
+        case "soundcore_filename_jst": "ファイル名・日本時間"
+        case "explicit": "明示指定の日時"
+        case "legacy_verified": "確認済みの既存日時"
+        default: "日時不明"
+        }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let timestamp = link.targetTimestamp {
+                Text("\(link.utteranceID == nil ? "録音開始" : "推定発言時刻"): \(displayTime(timestamp))")
+            }
+            if link.utteranceID == nil { Text("日時の出典: \(dateLabel)") }
+            switch link.state {
+            case "matched_estimate":
+                Label("GPSと紐付け済み（場所は推定）", systemImage: "mappin.and.ellipse")
+                    .foregroundStyle(.cyan)
+                if let location = link.location {
+                    Text("GPSとの時刻差 \(Int(link.timeDeltaSeconds ?? 0))秒・水平精度 約\(Int(location.horizontalAccuracy)) m")
+                }
+            case "unknown_time": Text("録音日時が不明なため、場所は紐付けていません。")
+            case "low_accuracy": Text("近い時刻のGPSはありますが、位置精度が不足しています。")
+            default: Text("近い時刻のGPSがありません。履歴が同期されると再照合します。")
+            }
+        }
+        .appFont(.caption)
+        .foregroundStyle(.secondary)
+    }
+}
+
+private struct ConversationLocationMap: View {
+    let links: [ConversationLocationContext]
+    private var events: [LocationEvent] {
+        var ids = Set<String>()
+        return links.compactMap { link in
+            guard let id = link.locationEventID, ids.insert(id).inserted else { return nil }
+            return link.location?.event
+        }
+    }
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 16) {
+                HistoryNativeMap(events: events).frame(maxWidth: .infinity).frame(height: 320)
+                Text("録音・発言に紐付いたGPS \(events.count)地点")
+                    .appFont(.headline)
+                Text("発言時刻は録音開始＋音声内の経過時間からの推定です。録音の一時停止、音声変換、機器の時計ずれにより、実際の発言場所と異なる場合があります。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+                ForEach(links.filter { $0.location != nil }) { link in
+                    ConversationLocationSummary(link: link).glassCard()
+                }
+            }.padding()
+        }
+        .navigationTitle("会話の推定場所")
     }
 }
 

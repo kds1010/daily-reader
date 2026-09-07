@@ -425,6 +425,7 @@ struct ConversationRecording: Decodable, Identifiable {
     let locationAccuracy: Double?
     let locationTimestamp: String?
     let locationTimeDelta: Double?
+    var locationContexts: [ConversationLocationContext]? = nil
     var isTranscript: Bool { sourceType == "transcript" }
     enum CodingKeys: String, CodingKey {
         case id, filename, status, error, speakers, utterances, topics
@@ -437,6 +438,40 @@ struct ConversationRecording: Decodable, Identifiable {
         case insightAnalyzedAt = "insight_analyzed_at"
         case insightItemCount = "insight_item_count"
         case recordedAt = "recorded_at", locationLatitude = "location_latitude", locationLongitude = "location_longitude", locationAccuracy = "location_accuracy", locationTimestamp = "location_timestamp", locationTimeDelta = "location_time_delta"
+        case locationContexts = "location_contexts"
+    }
+}
+
+struct ConversationLocationContext: Decodable, Identifiable {
+    let subjectID: String
+    let utteranceID: String?
+    let locationEventID: String?
+    let targetTimestamp: String?
+    let timeBasis: String
+    let dateSource: String
+    let state: String
+    let timeDeltaSeconds: Double?
+    let methodVersion: String
+    let location: ConversationContextLocation?
+    var id: String { subjectID }
+    enum CodingKeys: String, CodingKey {
+        case state, location
+        case subjectID = "subject_id", utteranceID = "utterance_id"
+        case locationEventID = "location_event_id", targetTimestamp = "target_timestamp"
+        case timeBasis = "time_basis", dateSource = "date_source"
+        case timeDeltaSeconds = "time_delta_seconds", methodVersion = "method_version"
+    }
+}
+
+struct ConversationContextLocation: Decodable {
+    let timestamp: String
+    let latitude: Double
+    let longitude: Double
+    let horizontalAccuracy: Double
+    let isApproximate: Bool
+    enum CodingKeys: String, CodingKey {
+        case timestamp, latitude, longitude
+        case horizontalAccuracy = "horizontal_accuracy", isApproximate = "is_approximate"
     }
 }
 

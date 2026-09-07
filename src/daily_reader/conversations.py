@@ -15,6 +15,12 @@ from pathlib import Path
 from typing import BinaryIO
 from zoneinfo import ZoneInfo
 
+from daily_reader.conversation_context import (
+    read_contexts,
+    rebuild_context,
+    rebuild_for_gps,
+    snapshot_evidence_contexts,
+)
 from daily_reader.conversation_insights import (
     DEFAULT_INSIGHT_MODEL,
     PROMPT_VERSION,
@@ -129,12 +135,25 @@ def initialize_database(path: Path) -> None:
                 horizontal_accuracy REAL NOT NULL, is_approximate INTEGER NOT NULL DEFAULT 0,
                 UNIQUE(timestamp, latitude, longitude)
             );
+            CREATE INDEX IF NOT EXISTS location_events_time
+                ON location_events(julianday(timestamp));
+            CREATE TABLE IF NOT EXISTS conversation_location_links (
+                recording_id TEXT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+                subject_id TEXT NOT NULL,
+                utterance_id TEXT REFERENCES utterances(id) ON DELETE CASCADE,
+                location_event_id TEXT REFERENCES location_events(id),
+                target_timestamp TEXT, time_basis TEXT NOT NULL, date_source TEXT NOT NULL,
+                state TEXT NOT NULL, time_delta_seconds REAL,
+                method_version TEXT NOT NULL, matched_at TEXT NOT NULL,
+                PRIMARY KEY(recording_id,subject_id)
+            );
             """
         )
         columns = {row[1] for row in connection.execute("PRAGMA table_info(recordings)")}
         for name, definition in {
             "recorded_at": "TEXT",
             "recorded_at_verified": "INTEGER NOT NULL DEFAULT 0",
+            "recorded_at_source": "TEXT NOT NULL DEFAULT 'unknown'",
             "location_latitude": "REAL",
             "location_longitude": "REAL",
             "location_accuracy": "REAL",
@@ -148,6 +167,13 @@ def initialize_database(path: Path) -> None:
         }.items():
             if name not in columns:
                 connection.execute(f"ALTER TABLE recordings ADD COLUMN {name} {definition}")
+        evidence_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(conversation_item_evidence)")
+        }
+        if "context_snapshot" not in evidence_columns:
+            connection.execute(
+                "ALTER TABLE conversation_item_evidence ADD COLUMN context_snapshot TEXT"
+            )
         connection.execute(
             """INSERT OR IGNORE INTO conversation_items
             (id, recording_id, kind, title, detail, assignee, due_date, certainty, status,
@@ -225,6 +251,8 @@ def recover_interrupted_conversations(database: Path) -> None:
             "WHERE status IN ('queued','extracting')",
             (message,),
         )
+        for row in connection.execute("SELECT id FROM recordings").fetchall():
+            rebuild_context(connection, row["id"])
 
 
 def store_upload(
@@ -239,6 +267,7 @@ def store_upload(
         raise ValueError("invalid audio size")
     if Path(filename).suffix.lower() != ".mp3":
         raise ValueError("only MP3 audio is supported")
+    date_source = "explicit" if recorded_at else "soundcore_filename_jst"
     recorded_at = _validated_recording_date(recorded_at) or _recording_date_from_filename(filename)
     free = shutil.disk_usage(
         audio_directory.parent if audio_directory.parent.exists() else Path(".")
@@ -286,9 +315,14 @@ def store_upload(
                 ),
             )
             connection.execute(
-                "UPDATE recordings SET recorded_at_verified=? WHERE id=?",
-                (int(recorded_at is not None), recording_id),
+                "UPDATE recordings SET recorded_at_verified=?, recorded_at_source=? WHERE id=?",
+                (
+                    int(recorded_at is not None),
+                    date_source if recorded_at else "unknown",
+                    recording_id,
+                ),
             )
+            rebuild_context(connection, recording_id)
         return {**get_recording(database, recording_id), "upload_created": True}
     except Exception:
         temporary.unlink(missing_ok=True)
@@ -304,6 +338,7 @@ def store_transcript(
     filename: str,
     recorded_at: str | None = None,
 ) -> dict[str, object]:
+    date_source = "explicit" if recorded_at else "soundcore_filename_jst"
     recorded_at = _validated_recording_date(recorded_at) or _recording_date_from_filename(filename)
     if not 0 < length <= MAX_TRANSCRIPT_BYTES:
         raise ValueError("invalid transcript size")
@@ -347,8 +382,12 @@ def store_transcript(
                 ),
             )
             connection.execute(
-                "UPDATE recordings SET recorded_at_verified=? WHERE id=?",
-                (int(recorded_at is not None), recording_id),
+                "UPDATE recordings SET recorded_at_verified=?, recorded_at_source=? WHERE id=?",
+                (
+                    int(recorded_at is not None),
+                    date_source if recorded_at else "unknown",
+                    recording_id,
+                ),
             )
             transcript = [
                 (float(index), float(index + 1), line, None, "話者1")
@@ -382,6 +421,7 @@ def get_recording(database: Path, recording_id: str) -> dict[str, object]:
         if row is None:
             raise KeyError(recording_id)
         result = dict(row)
+        result["location_contexts"] = read_contexts(connection, recording_id)
         result.pop("audio_path", None)
         result.pop("transcript_text", None)
         result["speakers"] = [
@@ -438,16 +478,32 @@ def _items_for_query(
         parameters,
     ).fetchall()
     results: list[dict[str, object]] = []
+    context_cache: dict[str, dict[str | None, dict[str, object]]] = {}
     for row in rows:
         item = dict(row)
         item["evidence"] = [
             dict(evidence)
             for evidence in connection.execute(
-                """SELECT position, utterance_id, quote, speaker, start_seconds, end_seconds
+                """SELECT position, utterance_id, quote, speaker, start_seconds, end_seconds,
+                context_snapshot
                 FROM conversation_item_evidence WHERE item_id=? ORDER BY position""",
                 (row["id"],),
             )
         ]
+        if row["recording_id"] not in context_cache:
+            context_cache[row["recording_id"]] = {
+                entry["utterance_id"]: entry
+                for entry in read_contexts(connection, row["recording_id"])
+            }
+        contexts = context_cache[row["recording_id"]]
+        for evidence in item["evidence"]:
+            snapshot = evidence.pop("context_snapshot")
+            evidence["location_context"] = (
+                json.loads(snapshot)
+                if snapshot
+                else contexts.get(evidence["utterance_id"], contexts.get(None))
+            )
+            evidence["location_context_is_snapshot"] = snapshot is not None
         results.append(item)
     return results
 
@@ -551,17 +607,23 @@ def mark_insight_item_approved(database: Path, item_id: str, target: str, create
         )
         if cursor.rowcount != 1:
             raise ValueError("conversation item is not awaiting review")
+        row = connection.execute(
+            "SELECT recording_id FROM conversation_items WHERE id=?", (item_id,)
+        ).fetchone()
+        snapshot_evidence_contexts(connection, row["recording_id"], item_id)
 
 
 def store_location_events(database: Path, events: list[dict[str, object]]) -> int:
     if len(events) > 500:
         raise ValueError("位置イベントが多すぎます")
     with _connect(database) as connection:
+        timestamps = []
         for event in events:
             timestamp = _validated_recording_date(str(event["timestamp"]))
             if timestamp is None:
                 raise ValueError("invalid location timestamp")
             timestamp = datetime.fromisoformat(timestamp).astimezone(UTC).isoformat()
+            timestamps.append(timestamp)
             latitude, longitude = float(event["latitude"]), float(event["longitude"])
             accuracy = float(event["horizontal_accuracy"])
             if (
@@ -583,6 +645,7 @@ def store_location_events(database: Path, events: list[dict[str, object]]) -> in
                     int(bool(event.get("is_approximate", False))),
                 ),
             )
+        rebuild_for_gps(connection, timestamps)
     return len(events)
 
 
@@ -611,39 +674,19 @@ def list_location_events(
     return {"items": items, "total": total, "has_more": offset + len(items) < total}
 
 
-def match_recording_location(
-    database: Path, recording_id: str, max_delta_seconds: float = 7200
-) -> dict[str, object] | None:
+def match_recording_location(database: Path, recording_id: str) -> dict[str, object] | None:
     with _connect(database) as connection:
-        row = connection.execute(
-            "SELECT recorded_at, recorded_at_verified FROM recordings WHERE id=?", (recording_id,)
-        ).fetchone()
-        if row is None:
-            raise KeyError(recording_id)
-        if not row[0] or not row[1]:
-            return None
-        target = row[0]
-        candidate = connection.execute(
-            """SELECT *, ABS(strftime('%s', timestamp)-strftime('%s', ?)) AS delta
-            FROM location_events WHERE julianday(timestamp) IS NOT NULL
-            ORDER BY delta, horizontal_accuracy, id LIMIT 1""",
-            (target,),
-        ).fetchone()
-        if candidate is None or candidate["delta"] > max_delta_seconds:
-            return None
-        connection.execute(
-            """UPDATE recordings SET location_latitude=?, location_longitude=?,
-            location_accuracy=?, location_timestamp=?, location_time_delta=? WHERE id=?""",
-            (
-                candidate["latitude"],
-                candidate["longitude"],
-                candidate["horizontal_accuracy"],
-                candidate["timestamp"],
-                candidate["delta"],
-                recording_id,
-            ),
+        rebuild_context(connection, recording_id)
+        link = next(
+            item for item in read_contexts(connection, recording_id) if item["utterance_id"] is None
         )
-        return dict(candidate)
+        if link["location"] is None:
+            return None
+        return {
+            **link["location"],
+            "id": link["location_event_id"],
+            "delta": link["time_delta_seconds"],
+        }
 
 
 def update_speaker(database: Path, speaker_id: str, display_name: str) -> None:
@@ -722,6 +765,7 @@ def _replace_analysis_results(
     transcript: list[tuple[float, float, str, float | None, str]],
     created_at: str,
 ) -> None:
+    snapshot_evidence_contexts(connection, recording_id)
     connection.execute(
         """UPDATE conversation_items SET status='superseded', updated_at=?
         WHERE recording_id=? AND status='awaiting_review'""",
@@ -776,6 +820,7 @@ def _replace_analysis_results(
             "INSERT INTO conversation_topics VALUES(?,?,?,?,?)",
             (uuid.uuid4().hex, recording_id, topic, "会話", " ".join(texts)[:1000]),
         )
+    rebuild_context(connection, recording_id)
 
 
 def analyze_recording(database: Path, recording_id: str, token_file: Path) -> None:
