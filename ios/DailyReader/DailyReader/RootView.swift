@@ -1685,7 +1685,7 @@ struct TodayView: View {
                     }
 #endif
                     if (model.today?.tasks.isEmpty ?? true) && (model.today?.routines.isEmpty ?? true) {
-                        EmptyState(icon: "checkmark.circle", title: "今日のタスクはありません", detail: "上のフォームから、今日やることを追加できます。")
+                        EmptyState(icon: "checkmark.circle", title: "通常タスクはありません", detail: "会話から作った用事は「暮らしのアシスタント」で確認できます。")
                     } else {
                         SectionTitle("タスク")
                         ForEach(model.today?.tasks ?? []) { task in TaskRow(task: task) }
@@ -1704,7 +1704,7 @@ struct TodayView: View {
         case .failed:
             return model.today == nil ? "読み込みに失敗しました" : "前回のデータを表示中"
         case .loaded:
-            return remaining == 0 ? "すべて完了しました" : "あと\(remaining)件です"
+            return remaining == 0 ? "予定・用事・体調を確認" : "通常タスク・ルーティンがあと\(remaining)件です"
         }
     }
 }
