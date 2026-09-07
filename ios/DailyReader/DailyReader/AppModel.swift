@@ -52,6 +52,7 @@ final class AppModel: ObservableObject {
     private var fixture: DaymeldFixture?
 #if os(iOS)
     private let health = HealthService()
+    lazy var deviceLocation = DeviceLocationService(isEnabled: !isFixture)
 #endif
     #if os(iOS)
     private let agentNotifications = AgentNotificationCoordinator.shared

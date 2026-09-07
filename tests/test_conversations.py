@@ -501,3 +501,65 @@ def test_explicit_transcript_date_overrides_filename(tmp_path):
         "2026-09-05T15:26:25-07:00",
     )
     assert recording["recorded_at"] == "2026-09-05T15:26:25-07:00"
+
+
+def test_location_history_uses_local_day_bounds_and_paginates(tmp_path):
+    from daily_reader.conversations import list_location_events
+
+    db = tmp_path / "recordings.db"
+    stamps = ["2026-09-04T14:59:59Z", "2026-09-05T00:00:00+09:00",
+              "2026-09-05T23:59:59+09:00", "2026-09-05T15:00:00Z"]
+    events = [{"timestamp": stamp, "latitude": 35, "longitude": 139,
+               "horizontal_accuracy": 30, "is_approximate": True} for stamp in stamps]
+    store_location_events(db, events)
+    store_location_events(db, events)  # retry must not duplicate the saved history
+    bounds = ("2026-09-05T00:00:00+09:00", "2026-09-06T00:00:00+09:00")
+    first = list_location_events(db, *bounds, limit=1)
+    second = list_location_events(db, *bounds, offset=1, limit=1)
+    assert first["total"] == second["total"] == 2
+    assert first["has_more"] is True
+    assert second["has_more"] is False
+    assert first["items"][0]["timestamp"] == "2026-09-05T14:59:59+00:00"
+    assert second["items"][0]["timestamp"] == "2026-09-04T15:00:00+00:00"
+    assert first["items"][0]["is_approximate"] is True
+
+
+@pytest.mark.parametrize("timestamp", ["", "yesterday", "2026-09-05T15:26:25"])
+def test_location_sync_rejects_invalid_or_naive_time_atomically(tmp_path, timestamp):
+    db = tmp_path / "recordings.db"
+    event = {"timestamp": "2026-09-05T00:00:00Z", "latitude": 35, "longitude": 139,
+             "horizontal_accuracy": 20}
+    with pytest.raises(ValueError):
+        store_location_events(db, [event, {**event, "timestamp": timestamp}])
+    with sqlite3.connect(db) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM location_events").fetchone()[0] == 0
+
+
+def test_location_match_requires_verified_recording_date_and_skips_legacy_invalid_event(tmp_path):
+    db = tmp_path / "recordings.db"
+    recording = store_transcript(db, io.BytesIO(b"text"), 4, "sample.txt")
+    store_location_events(db, [{"timestamp": recording["created_at"], "latitude": 35,
+                               "longitude": 139, "horizontal_accuracy": 20}])
+    assert match_recording_location(db, recording["id"]) is None
+    with sqlite3.connect(db) as connection:
+        connection.execute("UPDATE recordings SET recorded_at=created_at")
+    assert match_recording_location(db, recording["id"]) is None
+    with sqlite3.connect(db) as connection:
+        connection.execute("UPDATE recordings SET recorded_at_verified=1")
+        connection.execute("INSERT INTO location_events VALUES ('bad','invalid',0,0,1,0)")
+    assert match_recording_location(db, recording["id"])["latitude"] == 35
+
+
+@pytest.mark.parametrize("start,end,offset,limit", [
+    ("", "2026-09-05T00:00:00Z", 0, 500),
+    ("2026-09-05T00:00:00", "2026-09-06T00:00:00Z", 0, 500),
+    ("2026-09-05T00:00:00Z", "2026-09-04T00:00:00Z", 0, 500),
+    ("2026-09-05T00:00:00Z", "2026-12-05T00:00:00Z", 0, 500),
+    ("2026-09-05T00:00:00Z", "2026-09-06T00:00:00Z", -1, 500),
+    ("2026-09-05T00:00:00Z", "2026-09-06T00:00:00Z", 0, 501),
+])
+def test_location_history_rejects_invalid_ranges(tmp_path, start, end, offset, limit):
+    from daily_reader.conversations import list_location_events
+
+    with pytest.raises(ValueError):
+        list_location_events(tmp_path / "db", start, end, offset, limit)

@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
@@ -132,6 +133,9 @@ struct RootView: View {
                 try? await Task.sleep(for: .seconds(5))
                 if !Task.isCancelled {
                     await model.refreshAgents()
+                    #if os(iOS)
+                    if !model.isFixture { await model.deviceLocation.syncPending() }
+                    #endif
                 }
             }
         }
@@ -1525,8 +1529,13 @@ struct TodayView: View {
             LazyVStack(alignment: .leading, spacing: 16) {
                 StatusHero(title: "今日", subtitle: todaySubtitle, icon: "sun.max.fill", color: .orange)
 #if os(iOS)
-                DeviceLocationCard()
+                DeviceLocationCard(location: model.deviceLocation)
 #endif
+                NavigationLink { LocationHistoryView() } label: {
+                    Label("GPSの取得履歴・マップ", systemImage: "map.fill")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .glassCard()
+                }
                 if model.today == nil && model.todayLoadState != .loaded {
                     ResourceStatusView(state: model.todayLoadState, label: "今日") {
                         Task { await model.refresh() }
@@ -1576,12 +1585,13 @@ struct TodayView: View {
 
 #if os(iOS)
 struct DeviceLocationCard: View {
-    @StateObject private var location = DeviceLocationService()
+    @EnvironmentObject private var model: AppModel
+    @ObservedObject var location: DeviceLocationService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("現在地", systemImage: "location.fill")
+                Label(location.isRecording ? "GPS記録中" : "GPS記録", systemImage: "location.fill")
                     .appFont(.headline)
                     .foregroundStyle(.cyan)
                 Spacer()
@@ -1604,11 +1614,37 @@ struct DeviceLocationCard: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.cyan)
-            .disabled(isRequesting)
+            .disabled(isRequesting || location.isRecording || model.isFixture)
 
-            Text("位置情報はこの画面の表示にだけ使用し、送信・保存しません。")
+            Button {
+                if location.isRecording { location.stopRecording() }
+                else { location.startRecording() }
+            } label: {
+                Label(location.isRecording ? "記録を停止" : "移動の記録を開始", systemImage: location.isRecording ? "stop.circle.fill" : "record.circle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(location.isRecording ? .red : .cyan)
+            .disabled((isRequesting && !location.isRecording) || model.isFixture)
+
+            Text("開始すると画面を閉じても移動に応じて記録します。時刻・座標・精度を端末に保存し、Mac miniへ同期します。アプリを強制終了した場合は、再度開始してください。")
                 .appFont(.caption2)
                 .foregroundStyle(.secondary)
+            if !location.pending.isEmpty {
+                Text("未同期 \(location.pending.count)件").appFont(.caption)
+                Button("今すぐ同期") { Task { await location.syncPending(force: true) } }
+                    .disabled(location.isSyncing)
+                DisclosureGroup("未同期の取得履歴") {
+                    ForEach(Array(location.pending.suffix(20).reversed())) { event in
+                        Text("\(event.date?.formatted(date: .abbreviated, time: .standard) ?? event.timestamp) · 精度 約\(Int(event.horizontal_accuracy)) m")
+                            .appFont(.caption)
+                    }
+                }
+            }
+            if let message = location.syncMessage { Text(message).appFont(.caption).foregroundStyle(.orange) }
+            if let synced = location.lastSyncedAt {
+                Text("最終同期 \(synced.formatted(date: .abbreviated, time: .standard))").appFont(.caption2)
+            }
         }
         .glassCard()
     }
@@ -1623,7 +1659,7 @@ struct DeviceLocationCard: View {
             Label("位置情報の利用許可を確認しています…", systemImage: "hand.raised.fill")
                 .foregroundStyle(.secondary)
         case .locating:
-            Label("現在地を一回だけ取得しています…", systemImage: "location.magnifyingglass")
+            Label("現在地を取得しています…", systemImage: "location.magnifyingglass")
                 .foregroundStyle(.secondary)
         case .located(let reading):
             VStack(alignment: .leading, spacing: 8) {
@@ -1656,11 +1692,181 @@ struct DeviceLocationCard: View {
     }
 
     private var buttonTitle: String {
-        if case .located = location.state { return "現在地を再取得" }
-        return "現在地を取得"
+        if case .located = location.state { return "現在地を再取得して保存" }
+        return "現在地を一回取得して保存"
     }
 }
 #endif
+
+#if os(macOS)
+private typealias HistoryMapRepresentable = NSViewRepresentable
+private typealias HistoryMapColor = NSColor
+#else
+private typealias HistoryMapRepresentable = UIViewRepresentable
+private typealias HistoryMapColor = UIColor
+#endif
+
+private final class HistoryMapPoint: MKPointAnnotation {
+    let event: LocationEvent
+    init(_ event: LocationEvent) {
+        self.event = event
+        super.init()
+        coordinate = CLLocationCoordinate2D(latitude: event.latitude, longitude: event.longitude)
+        title = event.date?.formatted(date: .omitted, time: .standard) ?? event.timestamp
+        subtitle = "水平精度 約\(Int(event.horizontal_accuracy)) m"
+    }
+}
+
+private struct HistoryNativeMap: HistoryMapRepresentable {
+    let events: [LocationEvent]
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    #if os(macOS)
+    func makeNSView(context: Context) -> MKMapView { makeMap(context) }
+    func updateNSView(_ map: MKMapView, context: Context) { updateMap(map, context) }
+    #else
+    func makeUIView(context: Context) -> MKMapView { makeMap(context) }
+    func updateUIView(_ map: MKMapView, context: Context) { updateMap(map, context) }
+    #endif
+
+    private func makeMap(_ context: Context) -> MKMapView {
+        let map = MKMapView()
+        map.delegate = context.coordinator
+        map.showsUserLocation = false
+        return map
+    }
+
+    private func updateMap(_ map: MKMapView, _ context: Context) {
+        let coordinator = context.coordinator
+        let ids = events.map(\.id)
+        let changed = coordinator.ids != ids
+        if changed {
+            coordinator.ids = ids
+            map.removeAnnotations(map.annotations)
+            map.addAnnotations(events.map(HistoryMapPoint.init))
+            if events.count > 1 { map.showAnnotations(map.annotations, animated: false) }
+        }
+        if changed, events.count == 1, let target = events.first {
+            let center = CLLocationCoordinate2D(latitude: target.latitude, longitude: target.longitude)
+            map.setRegion(MKCoordinateRegion(center: center, latitudinalMeters: max(1000, target.horizontal_accuracy * 4), longitudinalMeters: max(1000, target.horizontal_accuracy * 4)), animated: false)
+        }
+    }
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        var ids: [String] = []
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            guard let point = annotation as? HistoryMapPoint else { return nil }
+            let view = MKMarkerAnnotationView(annotation: point, reuseIdentifier: "location")
+            view.markerTintColor = point.event.is_approximate ? HistoryMapColor.systemOrange : HistoryMapColor.systemCyan
+            view.canShowCallout = true
+            return view
+        }
+
+    }
+}
+
+struct LocationHistoryView: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var day = Date.now
+    @State private var events: [LocationEvent] = []
+    @State private var total = 0
+    @State private var hasMore = false
+    @State private var nextOffset = 0
+    @State private var isLoading = false
+    @State private var error: String?
+    @State private var requestID = UUID()
+
+    private var startOfDay: Date { Calendar.current.startOfDay(for: day) }
+
+    var body: some View {
+        Group {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    DatePicker("取得日", selection: $day, displayedComponents: .date)
+                    Text("\(TimeZone.current.identifier) の日付で表示 · \(events.count) / \(total)件")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                    if !events.isEmpty {
+                        historyMap.id("history-map")
+                        Text("地図に取得地点を表示しています。取得時刻と精度はピンや下の履歴で確認できます。")
+                            .appFont(.caption).foregroundStyle(.secondary)
+                    }
+                    if let error {
+                        Text(error).foregroundStyle(.orange)
+                        Button("再試行") { Task { await load() } }.disabled(isLoading)
+                    } else if events.isEmpty && !isLoading {
+                        ContentUnavailableView("この日の取得履歴はありません", systemImage: "map", description: Text("iPhoneの「今日」でGPSの記録を開始してください。未同期の記録はMac miniへの同期後に表示されます。"))
+                    }
+                    if isLoading { ProgressView("履歴を読み込み中…") }
+                    ForEach(events) { event in
+                        readingDetails(event)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .glassCard()
+                    }
+                    if hasMore {
+                        Button("さらに500件を表示") { Task { await load(more: true) } }.disabled(isLoading)
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("GPS取得履歴")
+            .toolbar { Button { Task { await load() } } label: { Image(systemName: "arrow.clockwise") }.disabled(isLoading) }
+            .refreshable { await load() }
+            .task(id: startOfDay) { await load() }
+        }
+    }
+
+    private var historyMap: some View {
+        HistoryNativeMap(events: events)
+            .frame(maxWidth: .infinity)
+            .frame(height: 320)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func readingDetails(_ event: LocationEvent) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(event.date?.formatted(date: .abbreviated, time: .standard) ?? event.timestamp).appFont(.headline)
+            Text("緯度 \(event.latitude.formatted(.number.precision(.fractionLength(6)))) · 経度 \(event.longitude.formatted(.number.precision(.fractionLength(6))))").appFont(.caption)
+            Text("水平精度 約\(Int(event.horizontal_accuracy)) m · \(event.is_approximate ? "概算位置" : "正確な位置")").appFont(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @MainActor
+    private func load(more: Bool = false) async {
+        let id = UUID()
+        requestID = id
+        isLoading = true
+        error = nil
+        let start = startOfDay
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: start)!
+        let offset = more ? nextOffset : 0
+        if !more { events = []; total = 0; hasMore = false }
+        defer { if requestID == id { isLoading = false } }
+        if model.isFixture {
+            events = [LocationEvent(timestamp: start.addingTimeInterval(36000).ISO8601Format(), latitude: 35.6812, longitude: 139.7671, horizontal_accuracy: 35, is_approximate: false)]
+            total = events.count
+            return
+        }
+        do {
+            let result: LocationHistoryResponse = try await APIClient.shared.get("api/locations", queryItems: [
+                URLQueryItem(name: "start", value: start.ISO8601Format()),
+                URLQueryItem(name: "end", value: end.ISO8601Format()),
+                URLQueryItem(name: "offset", value: String(offset))
+            ])
+            guard requestID == id, !Task.isCancelled else { return }
+            // Duplicate delivery during concurrent sync must not create duplicate SwiftUI IDs.
+            let existing = Set(events.map(\.id))
+            events += result.items.filter { !existing.contains($0.id) }
+            total = result.total
+            hasMore = result.has_more
+            nextOffset = offset + result.items.count
+        } catch {
+            guard requestID == id, !Task.isCancelled else { return }
+            self.error = "GPS履歴を取得できませんでした。Mac miniへの接続を確認してください。"
+        }
+    }
+
+}
 
 struct TaskComposer: View {
     @EnvironmentObject private var model: AppModel

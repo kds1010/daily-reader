@@ -26,6 +26,19 @@ let url = makeAPIURL(
 )
 precondition(url.absoluteString == "https://example.test/api/tanomi/tasks?limit=50")
 precondition(!url.absoluteString.contains("%3F"))
+let recorded = LocationEvent(timestamp: "2026-09-05T15:26:25.123+09:00",
+    latitude: 35, longitude: 139, horizontal_accuracy: 20, is_approximate: false)
+let utc = LocationEvent(timestamp: "2026-09-05T06:26:25.123000+00:00",
+    latitude: 35, longitude: 139, horizontal_accuracy: 20, is_approximate: false)
+precondition(recorded.date != nil && recorded.date == utc.date)
+let plain = LocationEvent(timestamp: "2026-09-05T06:26:25Z",
+    latitude: 35, longitude: 139, horizontal_accuracy: 20, is_approximate: true)
+precondition(plain.date != nil)
+let invalid = LocationEvent(timestamp: "invalid",
+    latitude: 35, longitude: 139, horizontal_accuracy: 20, is_approximate: false)
+precondition(invalid.date == nil)
+let roundtrip = try JSONDecoder().decode(LocationEvent.self, from: JSONEncoder().encode(recorded))
+precondition(roundtrip == recorded)
 print(url.absoluteString)
 """,
         encoding="utf-8",

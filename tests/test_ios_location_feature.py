@@ -5,18 +5,19 @@ ROOT = Path(__file__).resolve().parents[1]
 IOS = ROOT / "ios" / "DailyReader" / "DailyReader"
 
 
-def test_location_usage_description_is_foreground_only_and_explicit() -> None:
+def test_location_usage_description_covers_persistence_and_background_recording() -> None:
     with (IOS / "Info.plist").open("rb") as file:
         info = plistlib.load(file)
 
     description = info["NSLocationWhenInUseUsageDescription"]
-    assert "端末内" in description
-    assert "送信・保存しません" in description
+    assert "Mac mini" in description
+    assert "保存" in description
+    assert "バックグラウンド" in description
     assert "NSLocationAlwaysAndWhenInUseUsageDescription" not in info
-    assert "location" not in info.get("UIBackgroundModes", [])
+    assert "location" in info.get("UIBackgroundModes", [])
 
 
-def test_location_service_is_one_shot_and_has_no_persistence_or_networking() -> None:
+def test_location_service_supports_explicit_sessions_and_durable_retry() -> None:
     source = (IOS / "DeviceLocationService.swift").read_text()
 
     assert "requestWhenInUseAuthorization()" in source
@@ -26,11 +27,18 @@ def test_location_service_is_one_shot_and_has_no_persistence_or_networking() -> 
     assert "case .restricted:" in source
     assert "accuracyAuthorization == .reducedAccuracy" in source
     assert "requestPending = true" in source
-    assert "startUpdatingLocation" not in source
+    assert "manager.startUpdatingLocation()" in source
+    assert "manager.stopUpdatingLocation()" in source
+    assert "manager.showsBackgroundLocationIndicator = true" in source
+    assert "guard isEnabled, storageAvailable, !isRecording" in source
+    assert source.index("try persist(updated)") < source.index("Task { await syncPending() }")
+    assert source.index("try await APIClient.shared.syncLocations(batch)") < source.index(
+        "try persist(remaining)"
+    )
     assert "requestAlwaysAuthorization" not in source
     assert "URLSession" not in source
     assert "UserDefaults" not in source
-    assert "FileManager" not in source
+    assert "FileManager" in source
     assert "print(" not in source
 
 
@@ -38,7 +46,7 @@ def test_location_card_displays_required_values_and_supports_retry() -> None:
     source = (IOS / "RootView.swift").read_text()
 
     assert "struct DeviceLocationCard: View" in source
-    assert 'return "現在地を再取得"' in source
+    assert 'return "現在地を再取得して保存"' in source
     for label in ("緯度", "経度", "水平精度", "取得時刻", "概算位置"):
         assert label in source
 

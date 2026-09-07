@@ -98,7 +98,23 @@ func makeAPIURL(baseURL: URL, path: String, queryItems: [URLQueryItem] = []) -> 
 
 struct EmptyResponse: Decodable {}
 struct EmptyRequest: Encodable {}
-struct LocationEvent: Codable { let timestamp: String; let latitude: Double; let longitude: Double; let horizontal_accuracy: Double; let is_approximate: Bool }
+struct LocationEvent: Codable, Identifiable, Equatable {
+    let timestamp: String
+    let latitude: Double
+    let longitude: Double
+    let horizontal_accuracy: Double
+    let is_approximate: Bool
+    var id: String { "\(timestamp)|\(latitude)|\(longitude)" }
+    var date: Date? {
+        (try? Date(timestamp, strategy: .iso8601.year().month().day().time(includingFractionalSeconds: true).timeZone(separator: .colon)))
+        ?? (try? Date(timestamp, strategy: .iso8601))
+    }
+}
+struct LocationHistoryResponse: Decodable {
+    let items: [LocationEvent]
+    let total: Int
+    let has_more: Bool
+}
 struct LocationSyncRequest: Encodable { let events: [LocationEvent] }
 struct LocationSyncResponse: Decodable { let stored: Int }
 enum APIClientError: LocalizedError {

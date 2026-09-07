@@ -44,6 +44,7 @@ from daily_reader.conversations import (
     ACTIONABLE_INSIGHT_KINDS,
     get_recording,
     list_insight_items,
+    list_location_events,
     list_recordings,
     mark_insight_item_approved,
     mark_proposal_approved,
@@ -697,6 +698,17 @@ def make_handler(
         def do_GET(self) -> None:  # noqa: N802
             parsed_url = urllib.parse.urlsplit(self.path)
             path = parsed_url.path
+            if path == "/api/locations":
+                query = dict(urllib.parse.parse_qsl(parsed_url.query))
+                try:
+                    result = list_location_events(
+                        conversations_db, query.get("start", ""), query.get("end", ""),
+                        int(query.get("offset", "0")), int(query.get("limit", "500")),
+                    )
+                    self._send_json(200, result)
+                except (ValueError, TypeError) as error:
+                    self._send_json(400, {"error": str(error)})
+                return
             if path == "/api/soan/catalog":
                 if soan is None:
                     self._send_json(503, {"error": "Soanは設定されていません"})

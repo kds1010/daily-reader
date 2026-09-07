@@ -558,7 +558,10 @@ def store_location_events(database: Path, events: list[dict[str, object]]) -> in
         raise ValueError("位置イベントが多すぎます")
     with _connect(database) as connection:
         for event in events:
-            timestamp = str(event["timestamp"])
+            timestamp = _validated_recording_date(str(event["timestamp"]))
+            if timestamp is None:
+                raise ValueError("invalid location timestamp")
+            timestamp = datetime.fromisoformat(timestamp).astimezone(UTC).isoformat()
             latitude, longitude = float(event["latitude"]), float(event["longitude"])
             accuracy = float(event["horizontal_accuracy"])
             if (
@@ -583,19 +586,47 @@ def store_location_events(database: Path, events: list[dict[str, object]]) -> in
     return len(events)
 
 
+def list_location_events(
+    database: Path, start: str, end: str, offset: int = 0, limit: int = 500
+) -> dict[str, object]:
+    start, end = _validated_recording_date(start), _validated_recording_date(end)
+    if not start or not end:
+        raise ValueError("location date range is required")
+    duration = (datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds()
+    if not 0 < duration <= 32 * 86400 or offset < 0 or not 1 <= limit <= 500:
+        raise ValueError("invalid location history range")
+    with _connect(database) as connection:
+        total = connection.execute(
+            "SELECT COUNT(*) FROM location_events "
+            "WHERE julianday(timestamp) >= julianday(?) AND julianday(timestamp) < julianday(?)",
+            (start, end),
+        ).fetchone()[0]
+        rows = connection.execute(
+            "SELECT * FROM location_events "
+            "WHERE julianday(timestamp) >= julianday(?) AND julianday(timestamp) < julianday(?) "
+            "ORDER BY julianday(timestamp) DESC, id DESC LIMIT ? OFFSET ?",
+            (start, end, limit, offset),
+        ).fetchall()
+        items = [{**dict(row), "is_approximate": bool(row["is_approximate"])} for row in rows]
+    return {"items": items, "total": total, "has_more": offset + len(items) < total}
+
+
 def match_recording_location(
     database: Path, recording_id: str, max_delta_seconds: float = 7200
 ) -> dict[str, object] | None:
     with _connect(database) as connection:
         row = connection.execute(
-            "SELECT recorded_at, created_at FROM recordings WHERE id=?", (recording_id,)
+            "SELECT recorded_at, recorded_at_verified FROM recordings WHERE id=?", (recording_id,)
         ).fetchone()
         if row is None:
             raise KeyError(recording_id)
-        target = row[0] or row[1]
+        if not row[0] or not row[1]:
+            return None
+        target = row[0]
         candidate = connection.execute(
             """SELECT *, ABS(strftime('%s', timestamp)-strftime('%s', ?)) AS delta
-            FROM location_events ORDER BY delta LIMIT 1""",
+            FROM location_events WHERE julianday(timestamp) IS NOT NULL
+            ORDER BY delta, horizontal_accuracy, id LIMIT 1""",
             (target,),
         ).fetchone()
         if candidate is None or candidate["delta"] > max_delta_seconds:

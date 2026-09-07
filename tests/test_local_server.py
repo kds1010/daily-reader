@@ -1643,3 +1643,32 @@ def test_duplicate_audio_upload_preserves_completed_analysis(
     assert result["status"] == "completed"
     assert result["insight_status"] == "completed"
     assert result["recorded_at"] == expected_date
+
+
+@pytest.mark.parametrize("query,status", [
+    ({"start": "2026-09-05T00:00:00+09:00", "end": "2026-09-06T00:00:00+09:00"}, 200),
+    ({}, 400),
+    ({"start": "2026-09-05T00:00:00Z", "end": "2026-09-06T00:00:00Z", "offset": "bad"}, 400),
+])
+def test_location_history_endpoint(tmp_path, query, status):
+    from daily_reader.conversations import store_location_events
+
+    db = tmp_path / "conversations.sqlite3"
+    store_location_events(db, [{"timestamp": "2026-09-05T01:00:00Z", "latitude": 35,
+                               "longitude": 139, "horizontal_accuracy": 40}])
+    factory = make_handler(
+        tmp_path / "site", tmp_path / "articles", tmp_path / "reads",
+        tmp_path / "feedback", tmp_path / "mail.db", tmp_path / "client",
+        tmp_path / "token", conversations_db=db,
+    )
+    handler = factory.func.__new__(factory.func)
+    responses = []
+    handler._send_json = lambda code, payload: responses.append((code, payload))
+    handler.path = "/api/locations?" + urlencode(query)
+    handler.do_GET()
+    assert responses[0][0] == status
+    if status == 200:
+        result = responses[0][1]
+        assert result["total"] == 1
+        assert result["items"][0]["latitude"] == 35
+        assert result["items"][0]["is_approximate"] is False
