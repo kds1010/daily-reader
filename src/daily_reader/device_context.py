@@ -72,8 +72,10 @@ def ingest(database: Path, payload: dict) -> dict:
                 if not isinstance(item, dict):
                     raise ValueError("取得内容が不正です")
                 a, b = _date(item.get("start_at")), _date(item.get("end_at"))
-                if a >= b or b <= start or a >= end:
-                    raise ValueError("取得した項目の期間が不正です")
+                if a >= b:
+                    raise ValueError(f"取得した項目の期間が不正です: {kind} empty_or_reversed")
+                if b <= start or a >= end:
+                    raise ValueError(f"取得した項目の期間が不正です: {kind} outside_window")
                 if kind == "calendar":
                     event_id = _text(item.get("id"), 200)
                     if not event_id or event_id in ids:
