@@ -307,3 +307,5 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 - カレンダー・移動・健康データはCodexへ送信しない。端末で取得を個別停止できる。OSによるバックグラウンド制限と取得期間上限は維持する。仕様・保存境界・公式根拠・検証は[自動取得コンテキスト](docs/iphone-context.md)を参照する。
 
 - 2026-09-07の実機設定で、GPSと端末コンテキストの小数秒付き日時がUTC設定でも末尾Zを含まず、APIがHTTP 400で拒否する問題を確認した。`preciseUTCTimestamp`でタイムゾーンを明示し、旧版がGMTで作った端末内キューだけ`repairLegacyQueuedUTCTimestamp`で復元して再送する。ユーザー入力やAPIのタイムゾーン必須条件は緩めない。同期拒否時はGPS・予定の本文をログへ出さず理由と転送形式だけ記録する。`tests/test_ios_sync_timestamps.py`はSwiftの実出力をPython保存処理へ渡し、再送の重複排除も検証する。
+
+- 同日の実機同期で、Core Motionの1秒未満の区間を秒単位へ丸めると開始・終了が同値になり、予定を含む同期全体が拒否されることも確認した。移動区間・取得窓は小数秒とUTCを保持し、シリアライズ後も正の長さを持つ区間だけ作る。旧キュー内の同時刻の移動区間は再送から除外し、続くCore Motion再取得で補う。小数秒の日時解析にも対応し、旧キューを解析不能として読み飛ばさない。Swiftの実出力による0.7秒区間と旧キュー回復をPython保存まで検証する。

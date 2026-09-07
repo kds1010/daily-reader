@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from daily_reader import device_context
-from daily_reader.conversations import list_location_events, store_location_events
+from daily_reader.conversations import _connect, list_location_events, store_location_events
 
 
 @pytest.mark.skipif(shutil.which('xcrun') is None, reason='Xcode is unavailable')
@@ -30,7 +30,25 @@ let event = LocationEvent(timestamp: recovered, latitude: 35, longitude: 139,
     horizontal_accuracy: 10, is_approximate: false)
 precondition(event.date != nil)
 precondition(abs(event.date!.timeIntervalSince(now)) < 0.001)
-let output = ["current": current, "recovered": recovered, "legacy": legacy]
+precondition(parseISOTimestamp(recovered) != nil)
+let base = Date(timeIntervalSince1970: floor(now.timeIntervalSince1970) - 120)
+let a = base.addingTimeInterval(0.1), b = base.addingTimeInterval(0.8)
+precondition(a.ISO8601Format() == b.ISO8601Format())
+let precise = makePhoneMotionInterval(start: a, end: b, activity: "walking", confidence: "high")!
+precondition(precise.start_at != precise.end_at)
+precondition(makePhoneMotionInterval(start: b, end: a,
+    activity: "walking", confidence: "high") == nil)
+precondition(makePhoneMotionInterval(start: a, end: a.addingTimeInterval(0.00001),
+    activity: "walking", confidence: "high") == nil)
+let collapsed = PhoneMotionInterval(start_at: a.ISO8601Format(), end_at: b.ISO8601Format(),
+    activity: "walking", confidence: "high")
+let retained = PhoneMotionInterval(start_at: base.addingTimeInterval(-3).ISO8601Format(),
+    end_at: base.addingTimeInterval(-1).ISO8601Format(), activity: "stationary", confidence: "high")
+let repaired = repairLegacyQueuedMotionIntervals([collapsed, retained])
+precondition(repaired.count == 1 && repaired.first?.start_at == retained.start_at)
+let motionJSON = String(data: try JSONEncoder().encode(repaired + [precise]), encoding: .utf8)!
+let output = ["current": current, "recovered": recovered,
+    "legacy": legacy, "motion_json": motionJSON]
 print(String(data: try JSONEncoder().encode(output), encoding: .utf8)!)
 ''')
     env = os.environ.copy()
@@ -46,10 +64,16 @@ print(String(data: try JSONEncoder().encode(output), encoding: .utf8)!)
     assert result.returncode == 0, result.stderr
     stamps = json.loads(result.stdout)
     database = tmp_path / 'context.sqlite3'
+    captured = datetime.fromisoformat(stamps['current'])
     for timestamp in [stamps['current'], stamps['recovered']]:
         device_context.ingest(database, {
             'device_id': 'test-phone', 'captured_at': timestamp, 'timezone': 'Asia/Tokyo',
-            'calendar': {'state': 'denied'}, 'motion': {'state': 'denied'},
+            'calendar': {'state': 'denied'},
+            'motion': {
+                'state': 'available',
+                'start_at': (captured - timedelta(days=7)).isoformat(),
+                'end_at': timestamp, 'items': json.loads(stamps['motion_json']),
+            },
         })
         store_location_events(database, [{
             'timestamp': timestamp, 'latitude': 35, 'longitude': 139,
@@ -61,5 +85,13 @@ print(String(data: try JSONEncoder().encode(output), encoding: .utf8)!)
         (captured + timedelta(seconds=1)).isoformat(),
     )
     assert locations['total'] == 1
+    with _connect(database) as connection:
+        rows = connection.execute('SELECT start_at,end_at FROM device_motion_intervals').fetchall()
+    assert len(rows) == 2
+    durations = sorted(
+        (datetime.fromisoformat(r[1]) - datetime.fromisoformat(r[0])).total_seconds()
+        for r in rows
+    )
+    assert durations == pytest.approx([0.7, 2.0], abs=0.0011)
     with pytest.raises(ValueError, match='日時が不正'):
         device_context._date(stamps['legacy'])

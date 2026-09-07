@@ -138,7 +138,9 @@ LANソースを使う場合、初回接続時にiOSがSideStoreのローカル�
 「インストール済み」の版を配信版と比較してください。7 DAYSだけでは新版の導入成功と判定しません。
 Daymeldに更新ありと出ているのにSource側がOPENのままなら、LocalDevVPN接続後に
 SideStoreだけをアプリ切替画面で終了・再起動し、ソースを読み直します。
-処理中表示のまま止まった場合も同じ手順で再試行します。
+更新中はSideStoreを前面に保ち、完了前にほかのアプリへ切り替えないでください。
+`Swift.CancellationError`が出た場合はSourceへ戻り、UPDATEを一度だけ押して再試行します。
+更新対象のDaymeldでGPSを停止した場合は、更新後にTailscaleへ戻して記録を再開します。
 アプリ削除・Deactivate・データベース初期化は不要です。
 
 2026-09-07の実機では、複数版ソースの詳細に0.1.194が表示されていても、SourceのUPDATEが
@@ -149,6 +151,7 @@ SideStore 0.6.3（4deda922）は詳細表示に`versions[0]`、Sourceからの�
 `verify_sidestore_remote.py`も複数版の再公開を失敗として検出します。
 修正後、同じiPhone・LocalDevVPN・Daymeld Remoteから0.1.195へ更新し、
 Daymeld自身の「インストール済み 0.1.195 (195)」を2026-09-07 17:36 JSTに確認しました。
+続く0.1.198への更新も18:19 JSTに確認し、GPSとHealthKitのMacへの実同期に成功しました。
 
 また、このSideStoreでは`My Apps`の検索がCore Dataの保存済み`hasUpdate`列を使う一方、
 SourceのボタンはSwiftの計算プロパティを使います。保存列は既定のNOから更新されておらず、

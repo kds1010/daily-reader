@@ -104,7 +104,7 @@ struct LifeRequest: Encodable {
         try values.encodeIfPresent(feedback, forKey: .feedback)
     }
 }
-func lifeDate(_ value: String?) -> Date? { value.flatMap { ISO8601DateFormatter().date(from: $0) } }
+func lifeDate(_ value: String?) -> Date? { value.flatMap { parseISOTimestamp($0) } }
 func lifeLabel(_ value: String) -> String {
     ["task": "タスク", "research": "調査", "event": "予定", "profile": "関心・人物",
      "active": "有効", "open": "未完了", "queued": "調査待ち", "running": "調査中",

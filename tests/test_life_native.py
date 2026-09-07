@@ -97,6 +97,7 @@ let draftRequest = LifeRequest(draft.data)
 precondition(draftRequest.start_at != nil && draftRequest.end_at == nil)
 let task = snapshot.entries.first { $0.kind == "task" }!
 precondition(lifeDate(task.due_at) != nil)
+precondition(lifeDate("2026-09-07T09:00:00.123Z") != nil)
 precondition(snapshot.people.first { $0.id == "self" }?.name == "自分")
 var request = LifeRequest(task)
 request.status = "completed"

@@ -52,6 +52,7 @@ final class PhoneContextSync: ObservableObject {
             if FileManager.default.fileExists(atPath: queueURL.path) {
                 var saved = try JSONDecoder().decode(PhonePayload.self, from: Data(contentsOf: queueURL))
                 saved.captured_at = repairLegacyQueuedUTCTimestamp(saved.captured_at)
+                saved.motion.items = repairLegacyQueuedMotionIntervals(saved.motion.items)
                 // Revoked permissions or a disabled switch also apply to queued uploads.
                 if !calendarEnabled || EKEventStore.authorizationStatus(for: .event) != .fullAccess {
                     saved.calendar = PhoneCalendarPayload(state: calendarEnabled ? "denied" : "disabled")
@@ -138,10 +139,12 @@ final class PhoneContextSync: ObservableObject {
             let activity = options.count == 1 && !row.unknown ? options[0].1 : "unknown"
             let confidence = row.confidence == .high ? "high" : row.confidence == .medium ? "medium" : "low"
             guard activity != "unknown", confidence != "low" else { continue }
-            intervals.append(PhoneMotionInterval(start_at: a.ISO8601Format(), end_at: b.ISO8601Format(), activity: activity, confidence: confidence))
+            if let interval = makePhoneMotionInterval(start: a, end: b, activity: activity, confidence: confidence) {
+                intervals.append(interval)
+            }
         }
         guard intervals.count <= 3000 else { return PhoneMotionPayload(state: "unavailable") }
-        return PhoneMotionPayload(state: "available", start_at: start.ISO8601Format(), end_at: now.ISO8601Format(), items: intervals)
+        return PhoneMotionPayload(state: "available", start_at: preciseUTCTimestamp(start), end_at: preciseUTCTimestamp(now), items: intervals)
     }
 }
 #endif

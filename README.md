@@ -181,7 +181,8 @@ LAN側では`source.json`、`DailyReader.ipa`、`icon.png`の3ファイルだけ
 初回だけ32-byteのランダムなURLトークンを`secrets/sidestore-remote-token.txt`へ`0600`で
 作成し、標準出力へ秘密URLを表示しません。秘密URLを含む`remote-source.json`も`0600`で
 保存します。`127.0.0.1:8789`の専用サーバーは秘密URL配下のソースJSON、アイコン、
-ソースに列挙した現在版と直前版を含む最大10版のIPAだけを配信し、Tailscale Funnelの
+ソースに列挙した最新版1件のIPAだけを配信し、旧版は非公開の`release-history.json`と
+最大10版のIPAとしてMac内に保持します。Tailscale Funnelの
 `8443`番からのみ中継します。URLを知る人は配布物を取得できるため、URLやトークンを
 共有しないでください。SideStoreは取得失敗時などにURLを端末診断ログへ記録し得るため、
 SideStoreやiPhoneの診断ログも共有しないでください。

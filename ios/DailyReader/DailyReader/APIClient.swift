@@ -96,6 +96,23 @@ func preciseUTCTimestamp(_ date: Date) -> String {
     date.ISO8601Format(.iso8601(timeZone: .gmt, includingFractionalSeconds: true).timeZone(separator: .colon))
 }
 
+func parseISOTimestamp(_ value: String) -> Date? {
+    (try? Date(value, strategy: .iso8601.year().month().day().time(includingFractionalSeconds: true).timeZone(separator: .colon)))
+    ?? (try? Date(value, strategy: .iso8601))
+}
+
+func makePhoneMotionInterval(start: Date, end: Date, activity: String, confidence: String) -> PhoneMotionInterval? {
+    let a = preciseUTCTimestamp(start), b = preciseUTCTimestamp(end)
+    guard let parsedStart = parseISOTimestamp(a), let parsedEnd = parseISOTimestamp(b), parsedStart < parsedEnd else { return nil }
+    return PhoneMotionInterval(start_at: a, end_at: b, activity: activity, confidence: confidence)
+}
+
+// Old clients rounded subsecond motion transitions to the same second. Those
+// intervals have no recoverable duration; a fresh Core Motion query follows.
+func repairLegacyQueuedMotionIntervals(_ values: [PhoneMotionInterval]) -> [PhoneMotionInterval] {
+    values.filter { !($0.start_at == $0.end_at && parseISOTimestamp($0.start_at) != nil) }
+}
+
 // Only migrate our private queues, which older clients explicitly formatted
 // in GMT. Never infer a timezone for arbitrary user-provided timestamps.
 func repairLegacyQueuedUTCTimestamp(_ value: String) -> String {
