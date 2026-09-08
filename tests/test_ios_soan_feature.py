@@ -4,12 +4,23 @@ ROOT = Path(__file__).resolve().parents[1]
 IOS = ROOT / "ios" / "DailyReader" / "DailyReader"
 
 
-def test_native_tab_order_places_documents_after_agent() -> None:
+def test_native_tab_order_preserves_navigation_tags() -> None:
     source = (IOS / "RootView.swift").read_text()
     tab_lines = [line for line in source.splitlines() if ".tabItem" in line]
 
-    assert 'Label("Agent"' in tab_lines[0]
-    assert 'Label("資料"' in tab_lines[1]
+    expected_tabs = [
+        ("Agent", 0),
+        ("今日", 1),
+        ("会話", 4),
+        ("資料", 5),
+        ("メール", 2),
+        ("ニュース", 3),
+        ("設定", 6),
+    ]
+    assert len(tab_lines) == len(expected_tabs)
+    for line, (label, tag) in zip(tab_lines, expected_tabs, strict=True):
+        assert f'Label("{label}"' in line
+        assert f".tag({tag})" in line
 
 
 def test_keyboard_dismissal_does_not_delay_touches_or_mutate_during_the_tap() -> None:
