@@ -370,3 +370,11 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - EventKitの同期検索・保存は専用actor内で完結し、EKEventをUIへ渡さない。端末コンテキストの保護ファイルとCore Motionの並べ替えもMainActor外で処理する。停止・権限変更は送信直前と自動カレンダー反映前に再確認する。
 - GPSの`LocationJournal`が未同期キューを所有し、追加・成功IDの削除を保存成功後に確定する。復元完了前の取得は保留し、保存待ち中の停止・権限拒否を古い完了通知で上書きしない。端末全体の位置情報OFFの確認は権限拒否時に専用actorから行う。旧キュー・日時修復・ファイル保護・500件単位の送信は維持する。
 - 回帰検証は`tests/test_ios_performance.py`と`tests/swift/AppRefreshHarness.swift`で実AppModel／URLSessionへ匿名の遅延・失敗応答を注入する。GPSの追加・送信中追加・保存失敗・状態競合は`tests/test_ios_location_runtime.py`で実サービス／journalを実行する。既存の静的fixtureは通信を省略するため、fixture表示だけで通信待ちや性能改善を判定しない。
+
+## 日記の自動下書き
+
+- iPhone・macOSの「今日」→「日記」から、Asia/Tokyoの日付ごとに記録から作る下書きを閲覧・編集・保存・削除できる。`diary.DiaryWorker`がWebサーバー内で起動時と5分ごとに当日＋過去7日、導入日以降を自動更新する。過去日は手動生成、自動生成は停止可能。
+- 完了タスク・日別ルーティン・健康チェックイン・確認済み録音日時の会話・登録予定を、Mac内のテンプレートだけでまとめる。Codex・外部APIを呼ばず、GPS・メール・Agent履歴・人物プロフィールを材料にしない。予定の参加、会話の本人同定、感情を推測しない。材料なし・取得失敗を区別する。
+- `data/planner.sqlite3`の`diary_entries/settings/revisions`へ自動本文・本人編集・根拠・改訂を保存する。本人編集と保存時の根拠を自動更新で消さず、旧版は日付ごとに最大20版を保持する。競合は409で入力を保持する。日記削除は本文・根拠コピー・履歴を消し、削除済みの印で自動再作成を防ぐ。元の生活記録は保持する。
+- 日記の再取得はネイティブの補助情報レーンで並行実行し、Agent一覧や今日・メールの取得を待たせない。AppModelと同じAPIClientを使い、遅延した日記APIがAgent初期表示を妨げないことを性能テストでも確認する。
+- 実装は`src/daily_reader/diary.py`と共有`Diary.swift`。検証は`tests/test_diary.py`、`tests/test_diary_native.py`、`tests/test_local_server.py`と両OSビルド。仕様・データ境界・制限は[日記](docs/diary.md)を参照する。配信にはWebサーバー再起動と両OS成果物の生成・配信検証が必要。

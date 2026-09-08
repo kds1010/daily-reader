@@ -1672,6 +1672,10 @@ struct TodayView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
                 StatusHero(title: "今日", subtitle: todaySubtitle, icon: "sun.max.fill", color: .orange)
+                NavigationLink { DiaryView(store: model.diary) } label: {
+                    Label("日記 · 記録から自動下書き", systemImage: "book.closed")
+                        .frame(maxWidth: .infinity, alignment: .leading).glassCard()
+                }
                 LifeBrief(store: model.life)
 #if os(iOS)
                 DeviceLocationCard(location: model.deviceLocation)

@@ -44,6 +44,7 @@ final class ResourceRefreshes {
 @MainActor
 final class AppModel: ObservableObject {
     let life = LifeStore()
+    let diary: DiaryStore
     @Published var agents: [AgentJob] = []
     @Published var archivedAgents: [AgentJob] = []
     @Published var tanomiTasks: [TanomiTask] = []
@@ -109,6 +110,7 @@ final class AppModel: ObservableObject {
 
     init(fixture: DaymeldFixture? = nil, api: APIClient = .shared) {
         self.api = api
+        self.diary = DiaryStore(api: api)
         if fixture == nil {
             readArticleIDs = Self.loadArticleIDs(forKey: "daily-reader.native.read")
             savedArticleIDs = Self.loadArticleIDs(forKey: "daily-reader.native.saved")
@@ -125,6 +127,7 @@ final class AppModel: ObservableObject {
     }
 
     private func applyFixture(_ fixture: DaymeldFixture) {
+        diary.configureFixture(fixture.diaryScenario)
         repositories = fixture.repositories
         agentModels = fixture.agentModels
         agents = fixture.agents
@@ -224,6 +227,7 @@ final class AppModel: ObservableObject {
         // Metadata and usage are independent of the fast task-list lane.
         async let metadata: Void = refreshTanomiMetadata(force: true)
         async let lifeData: Void = life.refresh()
+        async let diaryData: Void = diary.refresh()
         await refreshResource("usage", path: "api/codex-usage", state: \.codexUsageLoadState,
                               force: afterMutation, as: CodexUsageEnvelope.self) {
             self.codexUsage = $0
@@ -232,7 +236,7 @@ final class AppModel: ObservableObject {
         codexUsageFailed = codexUsageLoadState != .loaded
         await refreshResource("deployment", path: "api/deployment", state: \.deploymentLoadState,
                               force: afterMutation, as: DeploymentInfo.self) { self.deploymentInfo = $0 }
-        _ = await (metadata, lifeData)
+        _ = await (metadata, lifeData, diaryData)
     }
 
     private func setLoadState(_ key: ReferenceWritableKeyPath<AppModel, ResourceLoadState>, _ value: ResourceLoadState) {

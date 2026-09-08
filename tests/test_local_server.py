@@ -1741,3 +1741,49 @@ def test_agent_resume_rejects_archive_already_being_deleted(monkeypatch, tmp_pat
     handler.path = "/api/agent-jobs/resume"
     handler.do_POST()
     assert responses == [(409, {"error": "期限切れタスクの削除処理中です"})]
+
+
+def test_diary_api_validation_conflict_and_read_without_generation(tmp_path):
+    from daily_reader import diary, life_assistant
+
+    planner, conversations = tmp_path / "planner.db", tmp_path / "conversations.db"
+    with life_assistant.connect(conversations):
+        pass
+    factory = make_handler(
+        tmp_path, tmp_path / "articles.json", tmp_path / "reads", tmp_path / "feedback",
+        tmp_path / "assistant.db", tmp_path / "client.json", tmp_path / "token.json",
+        planner_db=planner, conversations_db=conversations,
+    )
+    handler = factory.func.__new__(factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+
+    def post(action, payload, **headers):
+        raw = json.dumps(payload, ensure_ascii=False).encode()
+        handler.path = "/api/diary/" + action
+        handler.headers = {"Content-Type": "application/json", "Content-Length": str(len(raw)),
+                           "Host": "127.0.0.1:8787", **headers}
+        handler.rfile = BytesIO(raw)
+        handler.do_POST()
+        return responses[-1]
+
+    handler.path = "/api/diary?date=2026-09-01"
+    handler.do_GET()
+    assert responses[-1][1]["state"] == "missing"
+    assert post("generate", {"date": "2026-09-01", "revision": 0})[0] == 200
+    assert post("save", {"date": "2026-09-01", "revision": 1, "body": "本人の文章"})[0] == 200
+    assert post("save", {"date": "2026-09-01", "revision": 1, "body": "古い文章"})[0] == 409
+    assert post("delete", {"date": "2026-09-01", "revision": 1})[0] == 409
+    assert post("generate", {"date": "2026-02-30", "revision": 0})[0] == 400
+    assert post("save", {"date": "2026-09-01", "revision": True, "body": "本文"})[0] == 400
+    assert post("settings", {"enabled": False})[1]["enabled"] is False
+    assert post("settings", {"enabled": 1})[0] == 400
+    assert post("settings", {"enabled": True}, Origin="https://example.invalid")[0] == 403
+    assert post("settings", {"enabled": True}, **{"Content-Type": "text/plain"})[0] == 415
+    assert not diary.settings(planner)["enabled"]
+    conversations.write_bytes(b"broken")
+    assert post("generate", {"date": "2026-09-01", "revision": 2})[0] == 503
+    handler.path = "/api/diary?date=2026-09-01"
+    handler.do_GET()
+    assert responses[-1][1]["entry"]["body"] == "本人の文章"
+    assert post("delete", {"date": "2026-09-01", "revision": 2})[1]["state"] == "deleted"

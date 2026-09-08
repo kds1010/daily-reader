@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from contextlib import closing
 from datetime import date, datetime
 from math import isfinite
 from pathlib import Path
@@ -12,7 +13,7 @@ RECURRENCES = {"none", "daily", "weekdays", "weekly"}
 
 def initialize_database(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection, connection:
         connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS tasks (
@@ -181,6 +182,37 @@ def delete_task(path: Path, task_id: str) -> bool:
         connection.execute("PRAGMA foreign_keys = ON")
         cursor = connection.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     return cursor.rowcount == 1
+
+
+def diary_records(path: Path, day: date, start: datetime, end: datetime) -> dict[str, Any]:
+    """Read actual completions, including tasks omitted by list_today.
+
+    Compare aware datetimes in Python to preserve submillisecond boundaries.
+    Routine and HealthKit dates are already day keys and must not be shifted.
+    """
+    with closing(sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)) as connection:
+        connection.row_factory = sqlite3.Row
+        connection.execute("BEGIN")
+        tasks = []
+        for row in connection.execute(
+            "SELECT id,title,completed_at FROM tasks "
+            "WHERE recurrence='none' AND completed_at IS NOT NULL ORDER BY id"
+        ):
+            completed = datetime.fromisoformat(row["completed_at"])
+            if completed.tzinfo and start <= completed < end:
+                tasks.append(dict(row))
+        routines = [
+            dict(row)
+            for row in connection.execute(
+                "SELECT t.id,t.title,c.completed_at FROM routine_completions c "
+                "JOIN tasks t ON t.id=c.task_id WHERE c.completed_date=? ORDER BY t.id",
+                (day.isoformat(),),
+            )
+        ]
+        health = connection.execute(
+            "SELECT * FROM health_checkins WHERE checkin_date=?", (day.isoformat(),)
+        ).fetchone()
+    return {"tasks": tasks, "routines": routines, "health": dict(health) if health else None}
 
 
 def upsert_health_checkin(

@@ -11,6 +11,7 @@ enum DaymeldResource: String, CaseIterable, Hashable {
 }
 
 struct DaymeldFixture {
+    var diaryScenario = "standard"
     var repositories: [Repository]
     var agentModels: [AgentModelOption]
     var agents: [AgentJob]
@@ -260,6 +261,7 @@ struct DaymeldFixture {
             return .standard
         case .empty:
             var fixture = standard
+            fixture.diaryScenario = "empty"
             fixture.agents = []
             fixture.archivedAgents = []
             fixture.tanomiTasks = []
@@ -273,12 +275,14 @@ struct DaymeldFixture {
             return fixture
         case .partialFailure:
             var fixture = standard
+            fixture.diaryScenario = "partial-failure"
             fixture.failedResources = [.today, .email, .news, .tanomi]
             fixture.tanomiAvailable = false
             fixture.tanomiStatusMessage = "fixture上流が停止しています"
             return fixture
         case .inFlight:
             var fixture = standard
+            fixture.diaryScenario = "in-flight"
             fixture.agents = fixture.agents.map { job in
                 AgentJob(id: job.id, repository: job.repository, repositoryLabel: job.repositoryLabel, prompt: job.prompt, status: "running", phase: "実行中", summary: nil, model: job.model, reasoningEffort: job.reasoningEffort, updatedAt: job.updatedAt, recentEvents: job.recentEvents, events: job.events, mode: job.mode, followUp: job.followUp, worktree: job.worktree)
             }
@@ -291,6 +295,7 @@ struct DaymeldFixture {
             return fixture
         case .stress:
             var fixture = standard
+            fixture.diaryScenario = "stress"
             fixture.agents = (0..<42).map { index in
                 let base = standard.agents[index % standard.agents.count]
                 return AgentJob(id: "fixture-stress-agent-\(index)", repository: base.repository, repositoryLabel: base.repositoryLabel, prompt: "大量データ用の長い依頼タイトル \(index)：" + String(repeating: "折返し確認 ", count: 8), status: ["queued", "running", "blocked", "completed", "failed"][index % 5], phase: "fixtureフェーズ", summary: index % 3 == 0 ? String(repeating: "長い完了サマリーです。", count: 40) : nil, model: base.model, reasoningEffort: base.reasoningEffort, updatedAt: "2026-09-01T09:\(String(format: "%02d", index % 60)):00+09:00", recentEvents: base.recentEvents, events: base.events, mode: "execute", followUp: nil, worktree: index % 5 == 4 ? "/tmp/stress-\(index)" : nil)

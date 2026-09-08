@@ -4,7 +4,7 @@ import Combine
 final class Responses: @unchecked Sendable {
     static let shared = Responses()
     let lock = NSLock()
-    var delays: [String: Double] = ["/api/emails/unread": 2, "/api/tanomi/repos": 2]
+    var delays: [String: Double] = ["/api/emails/unread": 2, "/api/tanomi/repos": 2, "/api/diary": 2]
     var failures: Set<String> = []
     var counts: [String: Int] = [:]
     var completed: Set<String> = []
@@ -30,6 +30,10 @@ final class Responses: @unchecked Sendable {
             case "/api/tanomi/config": payload = #"{"models":["opus"],"default_model":"opus","efforts":["low"],"permission_modes":["acceptEdits"]}"#
             case "/api/tanomi/health": payload = #"{"ok":true}"#
             case "/api/tanomi/usage": payload = #"{"limits":{},"running":0}"#
+            case "/api/diary":
+                let day = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!.first { $0.name == "date" }!.value!
+                payload = #"{"date":"\#(day)","timezone":"Asia/Tokyo","state":"missing","entry":null,"history":[]}"#
+            case "/api/diary/settings": payload = #"{"enabled":true,"since":"2026-09-01T00:00:00Z","timezone":"Asia/Tokyo"}"#
             case "/api/today": payload = #"{"date":"2026-09-08","tasks":[],"routines":[]}"#
             case "/api/emails/unread":
                 payload = includeEmail && !emailHidden
@@ -84,11 +88,13 @@ final class DelayedProtocol: URLProtocol, @unchecked Sendable {
         let start = Date()
         var firstAgent: Double?
         var agentBeforeMail = false
+        var agentBeforeDiary = false
         var tanomiBeforeMetadata = false
         let agentSubscription = model.$agents.sink { values in
             if !values.isEmpty && firstAgent == nil {
                 firstAgent = Date().timeIntervalSince(start)
                 agentBeforeMail = server.locked { !server.completed.contains("/api/emails/unread") }
+                agentBeforeDiary = server.locked { !server.completed.contains("/api/diary") }
             }
         }
         let tanomiSubscription = model.$tanomiTasks.sink { values in
@@ -98,6 +104,10 @@ final class DelayedProtocol: URLProtocol, @unchecked Sendable {
         precondition(firstAgent != nil && model.agentLoadState == .loaded && model.tanomiLoadState == .loaded)
         agentSubscription.cancel(); tanomiSubscription.cancel()
         if !baseline {
+            precondition(agentBeforeDiary, "diary delay blocked initial Agent display")
+            #if !BASELINE
+            precondition(model.diary.current?.state == "missing" && model.diary.policy?.enabled == true)
+            #endif
             precondition(agentBeforeMail, "mail delay blocked initial Agent display")
             precondition(tanomiBeforeMetadata, "metadata delay blocked tanomi tasks")
         }

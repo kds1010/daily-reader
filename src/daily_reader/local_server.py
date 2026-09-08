@@ -26,7 +26,7 @@ from ipaddress import IPv4Network, ip_address, ip_network
 from pathlib import Path
 from time import monotonic, sleep
 
-from daily_reader import device_context, life_assistant, life_automation
+from daily_reader import device_context, diary, life_assistant, life_automation
 from daily_reader.agent_jobs import (
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
@@ -731,6 +731,21 @@ def make_handler(
         def do_GET(self) -> None:  # noqa: N802
             parsed_url = urllib.parse.urlsplit(self.path)
             path = parsed_url.path
+            if path in {"/api/diary", "/api/diary/settings"}:
+                try:
+                    if path.endswith("/settings"):
+                        result = diary.settings(planner_db)
+                    else:
+                        query = dict(urllib.parse.parse_qsl(parsed_url.query))
+                        result = diary.get_entry(planner_db, diary.parse_day(query.get("date")))
+                    self._send_json(200, result)
+                except ValueError as error:
+                    self._send_json(400, {"error": str(error)})
+                except (sqlite3.Error, OSError):
+                    self._send_json(
+                        503, {"error": "日記を読み込めませんでした。再試行してください。"}
+                    )
+                return
             if path == "/api/life":
                 try:
                     articles = json.loads(articles_path.read_text()).get("articles", [])
@@ -1018,6 +1033,40 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path in {
+                "/api/diary/generate", "/api/diary/save", "/api/diary/delete", "/api/diary/settings"
+            }:
+                origin = self.headers.get("Origin")
+                if origin:
+                    parsed_origin = urllib.parse.urlsplit(origin)
+                    if (
+                        parsed_origin.scheme not in {"http", "https"}
+                        or parsed_origin.netloc != self.headers.get("Host")
+                    ):
+                        self._send_json(403, {"error": "別のサイトから日記を変更できません"})
+                        return
+                if self.headers.get("Content-Type", "").split(";", 1)[0] != "application/json":
+                    self._send_json(415, {"error": "application/jsonが必要です"})
+                    return
+                try:
+                    payload = self._read_json(max_length=160_000)
+                    if path.endswith("/settings"):
+                        result = diary.update_settings(planner_db, payload)
+                    elif path.endswith("/generate"):
+                        result = diary.generate(
+                            planner_db, conversations_db, diary.parse_day(payload.get("date")),
+                            revision=payload.get("revision"),
+                        )
+                    else:
+                        result = diary.save(planner_db, payload, delete=path.endswith("/delete"))
+                    self._send_json(200, result)
+                except diary.DiaryConflict as error:
+                    self._send_json(409, {"error": str(error)})
+                except (ValueError, TypeError):
+                    self._send_json(400, {"error": "日付・改訂番号・本文を確認してください。"})
+                except (diary.SourceUnavailable, sqlite3.Error, OSError):
+                    self._send_json(503, {"error": str(diary.SourceUnavailable())})
+                return
             if (
                 path == "/api/life/entries"
                 or path == "/api/life/people"
@@ -2101,8 +2150,11 @@ def main() -> None:
         args.conversation_insight_model,
     )
     automation_worker.start()
+    diary_worker = diary.DiaryWorker(args.planner_db, args.conversations_db)
+    diary_worker.start()
 
     def stop_research(_signum, _frame):
+        diary_worker.stop()
         automation_worker.stop()
         research_worker.stop()
         raise SystemExit(0)
@@ -2177,6 +2229,7 @@ def main() -> None:
     except KeyboardInterrupt:
         LOGGER.info("Stopping")
     finally:
+        diary_worker.stop()
         automation_worker.stop()
         research_worker.stop()
         if sidestore_server is not None:

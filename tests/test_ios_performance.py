@@ -41,6 +41,11 @@ struct NotificationOptions: OptionSet {
     func schedule(for job: AgentJob) async {}
 }
 """)
+    diary = tmp_path / "Diary.swift"
+    diary.write_text(
+        (IOS / "Diary.swift").read_text().split("struct DiaryView: View")[0]
+        .replace("import SwiftUI\n", "")
+    )
     runner = tmp_path / "Runner.swift"
     runner.write_text((Path(__file__).parent / "swift/AppRefreshHarness.swift").read_text())
     model = tmp_path / "AppModel.swift"
@@ -67,7 +72,7 @@ struct NotificationOptions: OptionSet {
     result = subprocess.run(
         ["xcrun", "swiftc", "-whole-module-optimization",
          str(IOS / "Models.swift"), str(IOS / "APIClient.swift"),
-         str(IOS / "DaymeldFixtures.swift"), str(model), str(stubs), str(runner),
+         str(IOS / "DaymeldFixtures.swift"), str(model), str(diary), str(stubs), str(runner),
          *(["-D", "BASELINE"] if baseline_path else []), "-o", str(binary)],
         capture_output=True, text=True, env=env,
     )
