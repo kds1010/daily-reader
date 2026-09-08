@@ -8,13 +8,15 @@ import ipaddress
 import json
 import math
 import os
+import queue
 import re
 import shutil
 import socket
 import ssl
+import threading
 import time
 import urllib.parse
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -106,14 +108,30 @@ def _audio_url(url: object) -> str:
     return str(url).strip()
 
 
-def _public_addresses(host: str) -> list[str]:
+def _remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise SoundcoreCloudError("network")
+    return remaining
+
+
+def _public_addresses(host: str, deadline: float) -> list[str]:
+    result = queue.Queue(maxsize=1)
+
+    def resolve():
+        try:
+            result.put(socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM))
+        except OSError:
+            result.put(None)
+
+    # A blocked OS resolver must not occupy the import worker indefinitely.
+    threading.Thread(target=resolve, daemon=True).start()
     try:
-        addresses = list(
-            dict.fromkeys(
-                row[4][0] for row in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
-            )
-        )
-    except OSError:
+        rows = result.get(timeout=min(SOCKET_SECONDS, _remaining(deadline)))
+        if rows is None:
+            raise SoundcoreCloudError("network")
+        addresses = list(dict.fromkeys(row[4][0] for row in rows))
+    except queue.Empty:
         raise SoundcoreCloudError("network") from None
     if not addresses or any(not ipaddress.ip_address(ip).is_global for ip in addresses):
         raise SoundcoreCloudError("network")
@@ -124,26 +142,53 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
     def __init__(self, host: str, address: str):
         super().__init__(host, timeout=SOCKET_SECONDS, context=ssl.create_default_context())
         self.address = address
+        self.transport = None
+        self.deadline = time.monotonic() + TRANSFER_SECONDS
 
     def connect(self):
         # Resolve once, validate every answer, then connect to that exact address.
         raw = socket.create_connection((self.address, self.port), self.timeout)
+        self.transport = raw
         try:
-            self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
+            self.sock = self._context.wrap_socket(
+                raw, server_hostname=self.host, do_handshake_on_connect=False
+            )
+            self.transport = self.sock
+            self.sock.settimeout(min(SOCKET_SECONDS, _remaining(self.deadline)))
+            self.sock.do_handshake()
+            _remaining(self.deadline)
         except Exception:
+            if self.sock is not None:
+                self.sock.close()
             raw.close()
             raise
 
 
 @contextmanager
-def _open(url: str, *, body: bytes | None = None):
+def _open(url: str, *, body: bytes | None = None, deadline: float):
     parts = _url_parts(url)
     host = parts.hostname
     if host not in AUDIO_HOSTS | {SHARE_HOST}:
         raise SoundcoreCloudError("audio_host")
-    addresses = _public_addresses(host)
+    addresses = _public_addresses(host, deadline)
     connection = _PinnedHTTPSConnection(host, addresses[0])
+    connection.deadline = deadline
+    connection.timeout = min(SOCKET_SECONDS, _remaining(deadline))
     response = None
+
+    def abort():
+        # HTTPConnection may clear sock after Connection: close while the
+        # response's buffered file still owns and reads the same transport.
+        transport = connection.transport
+        if transport is not None:
+            with suppress(OSError):
+                transport.shutdown(socket.SHUT_RDWR)
+
+    # The socket timeout alone only detects silence. Interrupt even a peer that
+    # keeps trickling bytes, including while headers or one read are incomplete.
+    timer = threading.Timer(_remaining(deadline), abort)
+    timer.daemon = True
+    timer.start()
     try:
         path = urllib.parse.urlunsplit(("", "", parts.path, parts.query, ""))
         headers = {"User-Agent": "Daymeld-Soundcore-Import/1", "Accept-Encoding": "identity"}
@@ -154,6 +199,7 @@ def _open(url: str, *, body: bytes | None = None):
             response = connection.getresponse()
         except (OSError, http.client.HTTPException):
             raise SoundcoreCloudError("network") from None
+        _remaining(deadline)
         if response.status in (404, 410):
             raise SoundcoreCloudError("expired")
         if response.status == 429 or response.status >= 500:
@@ -166,6 +212,7 @@ def _open(url: str, *, body: bytes | None = None):
             raise SoundcoreCloudError("response")
         yield response
     finally:
+        timer.cancel()
         if response is not None:
             response.close()
         connection.close()
@@ -197,7 +244,11 @@ def _recorded_at(data: dict) -> str | None:
     """Confirm the epoch against Soundcore's unchanged Japan-time recording title."""
     timestamp = data.get("timestamp")
     title = data.get("title")
-    if type(timestamp) not in (int, float) or not math.isfinite(timestamp):
+    if (
+        type(timestamp) not in (int, float)
+        or abs(timestamp) > 10**15
+        or not math.isfinite(timestamp)
+    ):
         return None
     if not isinstance(title, str) or not re.fullmatch(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d", title):
         return None
@@ -214,13 +265,15 @@ def _recorded_at(data: dict) -> str | None:
     return recorded.isoformat()
 
 
-def read_share(url: object) -> tuple[str, dict]:
+def read_share(url: object, *, deadline: float | None = None) -> tuple[str, dict]:
+    deadline = deadline if deadline is not None else time.monotonic() + TRANSFER_SECONDS
     canonical = validate_share_url(url)
     code = canonical.rsplit("/", 1)[1]
     body = json.dumps({"share_code": code}).encode()
-    with _open(f"https://{SHARE_HOST}{API_PATH}", body=body) as response:
+    with _open(f"https://{SHARE_HOST}{API_PATH}", body=body, deadline=deadline) as response:
         expected = _length(response, MAX_METADATA_BYTES)
         content = _read(response, MAX_METADATA_BYTES + 1)
+        _remaining(deadline)
     if len(content) > MAX_METADATA_BYTES:
         raise SoundcoreCloudError("size")
     if expected is not None and len(content) != expected:
@@ -245,7 +298,8 @@ def read_share(url: object) -> tuple[str, dict]:
 
 def download_share(url: object, directory: Path) -> CloudAudio:
     started = time.monotonic()
-    canonical, data = read_share(url)
+    deadline = started + TRANSFER_SECONDS
+    canonical, data = read_share(url, deadline=deadline)
     audio_url = _audio_url(data.get("audio_url"))
     suffix = Path(urllib.parse.urlsplit(audio_url).path).suffix.lower()
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -253,7 +307,7 @@ def download_share(url: object, directory: Path) -> CloudAudio:
     written = 0
     created = False
     try:
-        with _open(audio_url) as response:
+        with _open(audio_url, deadline=deadline) as response:
             expected = _length(response, MAX_AUDIO_BYTES)
             # Storage will copy this original into the permanent recording directory.
             if expected and shutil.disk_usage(directory).free - 2 * expected < MINIMUM_FREE_BYTES:
@@ -265,6 +319,7 @@ def download_share(url: object, directory: Path) -> CloudAudio:
                     if time.monotonic() - started > TRANSFER_SECONDS:
                         raise SoundcoreCloudError("network")
                     chunk = _read(response, 1024 * 1024)
+                    _remaining(deadline)
                     if not chunk:
                         break
                     written += len(chunk)

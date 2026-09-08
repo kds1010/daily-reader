@@ -403,6 +403,10 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 
 ## SoundcoreのMP3取り込みショートカット
 
+- 2026-09-09のユーザー指示により、主導線にSoundcoreクラウドの共有リンク取り込みを追加した。`soundcore_cloud.py`が実装を確認したEU共有APIとCloudFrontからOGG/MP3原音を変換せず取得し、`soundcore_imports.py`の永続キューがMac側で保存・既存音声解析の受付まで進める。未文字起こし共有音声の取得を実データで確認した。リンクを渡した後の処理はMacが継続し、アカウント全体の新規録音の自動発見やSoundcoreのログイン・クラウド設定変更は行わない。
+- 会話画面のリンク入力とURL用AppIntentを使う。`/api/conversations/soundcore-imports`のPOSTで受付、GETで状態、`/{id}/retry`のPOSTで再試行する。最大10件待機・1件ずつ取得・通信失敗は初回を含め最大3回・再起動後復帰。受付/原音保存・解析受付/文字起こし完了を区別する。共有URLはDB内だけに0600で保持し、API・ログ・Codexへ出さない。`cloud_metadata`は取得元情報と存在するクラウド本文を非公開で保持し、要約を発言にしない。解析はMacの既存文字起こしを使用する。
+- クラウドepochと元の日時タイトル（JST）が一致したときだけ`recorded_at_source=soundcore_cloud_timestamp`を確定し、不一致・改名・欠落は日時不明とする。取得時刻は代用しない。source_typeはaudioを維持し、発話時刻・GPS・候補整理へ既存経路で接続する。同一原音SHAの再送で既存本文・日時・候補を上書きしない。通常ファイルuploadは従来のMP3/TXTだけを維持する。詳細・公式根拠・検証は[クラウド取り込み](docs/soundcore-import.md)。サーバーと共有Swift変更のため、統合後はWeb LaunchAgent再起動、両OS成果物生成・配信検証が必要。
+
 - `ImportRecordingIntent`がiPhone・macOSのショートカットへ「MP3をDaymeldに取り込む」を公開する。共有・書き出し済みMP3を受け付け、Daymeldを開いて送信を継続する。2026-09-08の公式資料調査では未出力録音を直接取得する公開API・Shortcuts仕様を確認できていない。Soundcore側のMP3書き出し操作は残り、完全自動エクスポートと説明しない。資格情報・クラウド設定は変更しない。
 - `ConversationImports.swift`はファイル選択・iPhone共有・ショートカットを共通の端末内キューへ保存する。Application Supportの`Daymeld/ConversationImports/`に保護された原音コピー・元ファイル名・Inbox受信元の索引を保持し、バックアップから除外する。受付済み同内容をまとめ、既存APIClientから1件ずつ送信する。失敗分は「会話」で再送、再起動時は復元して再試行する。受付とサーバー保存・解析の成功は区別する。
 - 成功後だけ端末キューを削除し、iPhoneの受信Inboxコピーは元の内容と一致する場合だけ削除する。外部原本とMac miniの原音は保持する。読み取れない項目は保持・警告し、正常分は送信する。受付前に中断された一時コピーは次の復元時に回収する。録音日時、SHA重複排除、Macの5 GiB残量条件、自動整理の設定は従来どおり。OSの停止中の転送は保証しない。

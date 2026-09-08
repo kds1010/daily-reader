@@ -1,6 +1,8 @@
 import io
 import json
 import socket
+import threading
+import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -40,7 +42,7 @@ def responses(monkeypatch, metadata=None, audio=b"OggS" + b"\0" * 32, audio_head
     calls = []
 
     @contextmanager
-    def open_response(url, *, body=None):
+    def open_response(url, *, body=None, deadline):
         calls.append((url, body))
         if body:
             assert json.loads(body) == {"share_code": "CODE1234"}
@@ -102,6 +104,9 @@ def test_untranscribed_audio_download_preserves_original_and_verified_time(tmp_p
         {"timestamp": None},
         {"timestamp": float("nan")},
         {"timestamp": True},
+        {"timestamp": 10**400},
+        {"timestamp": -(10**400)},
+        {"timestamp": float("inf")},
         {"title": "renamed recording"},
         {"title": "2026-09-01 13:00:00"},
         {"title": "2026-99-01 12:00:00"},
@@ -235,13 +240,16 @@ def test_dns_mixed_private_answers_are_rejected(monkeypatch):
         ],
     )
     with pytest.raises(cloud.SoundcoreCloudError):
-        cloud._public_addresses(cloud.SHARE_HOST)
+        cloud._public_addresses(cloud.SHARE_HOST, time.monotonic() + 2)
 
 
 def test_tls_connects_to_validated_address_with_hostname_verification(monkeypatch):
     raw = SimpleNamespace(close=lambda: None)
     connects = []
-    wrapped = object()
+    handshakes = []
+    wrapped = SimpleNamespace(
+        settimeout=lambda _: None, do_handshake=lambda: handshakes.append(True)
+    )
     monkeypatch.setattr(
         socket,
         "create_connection",
@@ -250,11 +258,14 @@ def test_tls_connects_to_validated_address_with_hostname_verification(monkeypatc
     client = cloud._PinnedHTTPSConnection(cloud.SHARE_HOST, "18.193.246.36")
     names = []
     client._context = SimpleNamespace(
-        wrap_socket=lambda sock, server_hostname: names.append((sock, server_hostname)) or wrapped
+        wrap_socket=lambda sock, server_hostname, do_handshake_on_connect: (
+            names.append((sock, server_hostname, do_handshake_on_connect)) or wrapped
+        )
     )
     client.connect()
     assert connects == [(("18.193.246.36", 443), cloud.SOCKET_SECONDS)]
-    assert names == [(raw, cloud.SHARE_HOST)]
+    assert names == [(raw, cloud.SHARE_HOST, False)]
+    assert handshakes == [True]
     assert client.sock is wrapped
 
 
@@ -265,14 +276,89 @@ def test_tls_connects_to_validated_address_with_hostname_verification(monkeypatc
 def test_http_errors_and_redirects_never_follow_or_expose_urls(monkeypatch, status, expected):
     requests = []
     client = SimpleNamespace(
+        transport=None,
         request=lambda *args: requests.append(args),
         close=lambda: None,
         getresponse=lambda: Response(b"private error", {"Location": "http://127.0.0.1"}, status),
     )
-    monkeypatch.setattr(cloud, "_public_addresses", lambda _: ["18.193.246.36"])
+    monkeypatch.setattr(cloud, "_public_addresses", lambda *a: ["18.193.246.36"])
     monkeypatch.setattr(cloud, "_PinnedHTTPSConnection", lambda *a: client)
-    with pytest.raises(cloud.SoundcoreCloudError) as caught, cloud._open(URL):
+    with (
+        pytest.raises(cloud.SoundcoreCloudError) as caught,
+        cloud._open(URL, deadline=time.monotonic() + 2),
+    ):
         pass
     assert caught.value.code == expected
     assert len(requests) == 1
     assert "CODE1234" not in str(caught.value)
+
+
+@pytest.mark.parametrize("slow_headers", [False, True])
+def test_absolute_deadline_interrupts_trickling_headers_and_close_body(monkeypatch, slow_headers):
+    receiver, sender = socket.socketpair()
+    receiver.settimeout(0.3)
+    stopped = threading.Event()
+
+    def trickle():
+        try:
+            header = b"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 100\r\n\r\n"
+            if not slow_headers:
+                sender.sendall(header)
+            for byte in header if slow_headers else b"x" * 100:
+                if stopped.wait(0.03):
+                    break
+                sender.sendall(bytes([byte]))
+        except OSError:
+            pass
+
+    def get_response():
+        response = cloud.http.client.HTTPResponse(receiver)
+        response.begin()
+        client.sock = None  # Connection: close detaches it from HTTPConnection.
+        return response
+
+    client = SimpleNamespace(
+        transport=receiver,
+        sock=receiver,
+        request=lambda *a: None,
+        getresponse=get_response,
+        close=receiver.close,
+    )
+    monkeypatch.setattr(cloud, "_public_addresses", lambda *a: ["18.193.246.36"])
+    monkeypatch.setattr(cloud, "_PinnedHTTPSConnection", lambda *a: client)
+    worker = threading.Thread(target=trickle, daemon=True)
+    worker.start()
+    started = time.monotonic()
+    deadline = started + 0.2
+    try:
+        with (
+            pytest.raises(cloud.SoundcoreCloudError) as caught,
+            cloud._open(URL, deadline=deadline) as response,
+        ):
+            cloud._read(response, 100)
+            cloud._remaining(deadline)
+        assert caught.value.code == "network"
+        assert time.monotonic() - started < 1.0
+    finally:
+        stopped.set()
+        sender.close()
+        receiver.close()
+        worker.join(timeout=1)
+
+
+def test_blocked_dns_resolver_does_not_block_worker(monkeypatch):
+    release = threading.Event()
+
+    def resolve(*args, **kwargs):
+        release.wait(2)
+        return []
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+    started = time.monotonic()
+    try:
+        with pytest.raises(cloud.SoundcoreCloudError) as caught:
+            cloud._public_addresses(cloud.SHARE_HOST, started + 0.05)
+        assert caught.value.code == "network"
+        assert time.monotonic() - started < 1.0
+    finally:
+        release.set()
