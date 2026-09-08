@@ -31,6 +31,7 @@ from daily_reader.agent_jobs import (
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
     FALLBACK_MODEL_OPTIONS,
+    ArchiveCleanupInProgress,
     attach_to_job,
     create_job,
     get_job,
@@ -1491,6 +1492,9 @@ def make_handler(
                 json.JSONDecodeError,
             ):
                 self._send_json(400, {"error": "invalid event"})
+                return
+            except ArchiveCleanupInProgress as error:
+                self._send_json(409, {"error": str(error)})
                 return
             except sqlite3.OperationalError as error:
                 LOGGER.warning("database request failed: %s", error)

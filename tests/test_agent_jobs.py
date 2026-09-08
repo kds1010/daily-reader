@@ -1,6 +1,8 @@
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from threading import Event
 
 import pytest
 
@@ -63,6 +65,36 @@ def test_connect_database_closes_after_error(monkeypatch, tmp_path: Path) -> Non
 
     assert connection.exited_with is RuntimeError
     assert connection.closed
+
+
+def test_archive_cleanup_does_not_block_other_jobs(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    configured = repositories(tmp_path)
+    archived = create_job(database, configured, {"repository": "repo", "prompt": "Old job"})
+    active = create_job(database, configured, {"repository": "repo", "prompt": "Live job"})
+    update_job(database, archived["id"], status="failed")
+    hide_job(database, archived["id"])
+    hidden_at = get_job(database, archived["id"])["hidden_at"]
+    entered = Event()
+    release = Event()
+
+    def slow_cleanup():
+        entered.set()
+        assert release.wait(15)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        cleanup = pool.submit(
+            delete_expired_archived_job, database, archived["id"], hidden_at,
+            before_delete=slow_cleanup,
+        )
+        try:
+            assert entered.wait(5)
+            write = pool.submit(append_event, database, active["id"], "progress", "Working")
+            write.result(timeout=7)
+            assert get_job(database, active["id"])["events"][-1]["message"] == "Working"
+        finally:
+            release.set()
+        assert cleanup.result(timeout=5)
 
 
 def repositories(tmp_path: Path) -> dict[str, dict[str, str]]:
@@ -177,28 +209,6 @@ def test_hidden_job_returns_to_list_after_an_update(tmp_path: Path) -> None:
 
 def test_hide_job_rejects_unknown_job(tmp_path: Path) -> None:
     assert not hide_job(tmp_path / "agent.sqlite3", "missing")
-
-
-def test_hide_job_uses_worker_sized_database_lock_timeout(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    database = tmp_path / "agent.sqlite3"
-    job = create_job(
-        database,
-        repositories(tmp_path),
-        {"repository": "repo", "prompt": "Hide this task"},
-    )
-    timeouts: list[float] = []
-    real_connect = sqlite3.connect
-
-    def recording_connect(*args, **kwargs):
-        timeouts.append(kwargs["timeout"])
-        return real_connect(*args, **kwargs)
-
-    monkeypatch.setattr(sqlite3, "connect", recording_connect)
-
-    assert hide_job(database, job["id"])
-    assert timeouts == [30, 30]
 
 
 def test_archived_job_is_deleted_after_seven_days(tmp_path: Path) -> None:
@@ -543,3 +553,273 @@ def test_final_jobs_omit_recent_events_from_list_payload(tmp_path: Path) -> None
     listed = list_jobs(database)[0]
 
     assert "recent_events" not in listed
+
+
+def expired_job(database: Path, configured: dict) -> dict:
+    job = create_job(database, configured, {"repository": "repo", "prompt": "Old archive"})
+    update_job(database, job["id"], status="failed", worktree="/retained/worktree")
+    with connect_database(database) as connection:
+        connection.execute(
+            "UPDATE agent_jobs SET hidden_at=? WHERE id=?", ("2020-01-01T00:00:00+00:00", job["id"])
+        )
+    return get_job(database, job["id"])
+
+
+@pytest.mark.parametrize("mutation", [
+    lambda db, job: attach_to_job(db, job, "resume"),
+    lambda db, job: resume_job(db, job, "resume"),
+    lambda db, job: hide_job(db, job),
+    lambda db, job: request_cancel(db, job),
+    lambda db, job: update_job(db, job, status="running"),
+    lambda db, job: append_event(db, job, "progress", "late event"),
+    lambda db, job: take_pending_instructions(db, job),
+])
+def test_partial_cleanup_blocks_mutation_but_can_be_retried(tmp_path: Path, mutation) -> None:
+    from daily_reader.agent_jobs import ArchiveCleanupInProgress
+
+    database = tmp_path / "agent.sqlite3"
+    job = expired_job(database, repositories(tmp_path))
+
+    def partial_cleanup():
+        raise OSError("branch cleanup failed after worktree removal")
+
+    with pytest.raises(OSError, match="branch cleanup failed"):
+        delete_expired_archived_job(database, job["id"], job["hidden_at"],
+                                    before_delete=partial_cleanup)
+    assert get_job(database, job["id"])["cleanup_pending"] == 1
+    with pytest.raises(ArchiveCleanupInProgress):
+        mutation(database, job["id"])
+    assert get_job(database, job["id"])["status"] == "failed"
+    assert delete_expired_archived_job(database, job["id"], job["hidden_at"])
+    append_event(database, job["id"], "progress", "after deletion")
+    with connect_database(database) as connection:
+        assert connection.execute("SELECT count(*) FROM agent_events").fetchone()[0] == 0
+
+
+def test_resumed_archive_cannot_be_deleted_from_stale_snapshot(tmp_path: Path) -> None:
+    database = tmp_path / "agent.sqlite3"
+    job = expired_job(database, repositories(tmp_path))
+    assert attach_to_job(database, job["id"], "resume")
+    cleaned = []
+    assert not delete_expired_archived_job(database, job["id"], job["hidden_at"],
+                                          before_delete=lambda: cleaned.append(True))
+    assert not cleaned
+    assert claim_next_job(database)["id"] == job["id"]
+
+
+def test_process_exit_releases_cleanup_lock_and_preserves_deletion_intent(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    database = tmp_path / "agent.sqlite3"
+    job = expired_job(database, repositories(tmp_path))
+    code = """
+import os, sys
+from pathlib import Path
+from daily_reader.agent_jobs import delete_expired_archived_job
+delete_expired_archived_job(Path(sys.argv[1]), sys.argv[2], sys.argv[3],
+                           before_delete=lambda: os._exit(9))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code, str(database), job["id"], job["hidden_at"]],
+        timeout=30, check=False,
+    )
+    assert result.returncode == 9
+    assert get_job(database, job["id"])["cleanup_pending"] == 1
+    # A clock adjustment must not postpone an already committed deletion.
+    pending = list_expired_archived_jobs(database, now=datetime(2019, 1, 1, tzinfo=UTC))
+    assert pending[0]["id"] == job["id"]
+    assert delete_expired_archived_job(database, job["id"], job["hidden_at"])
+
+
+def test_cleanup_lock_excludes_another_process(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    database = tmp_path / "agent.sqlite3"
+    job = expired_job(database, repositories(tmp_path))
+
+    def competing_cleanup():
+        code = """
+import sys
+from pathlib import Path
+from daily_reader.agent_jobs import delete_expired_archived_job
+assert not delete_expired_archived_job(Path(sys.argv[1]), sys.argv[2], sys.argv[3],
+                                      before_delete=lambda: sys.exit(99))
+"""
+        subprocess.run([sys.executable, "-c", code, str(database), job["id"], job["hidden_at"]],
+                       timeout=30, check=True)
+
+    assert delete_expired_archived_job(database, job["id"], job["hidden_at"],
+                                      before_delete=competing_cleanup)
+
+
+def test_busy_event_write_retries_without_duplicate_or_open_connection(monkeypatch, tmp_path):
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(database, repositories(tmp_path), {"repository": "repo", "prompt": "Live"})
+    real_connect = sqlite3.connect
+    failures = []
+    opened = []
+
+    class Connection(sqlite3.Connection):
+        closed = False
+
+        def execute(self, sql, *args, **kwargs):
+            if sql.startswith("UPDATE agent_jobs SET updated_at") and not failures:
+                failures.append(True)
+                error = sqlite3.OperationalError("database is locked")
+                error.sqlite_errorcode = sqlite3.SQLITE_BUSY
+                raise error
+            return super().execute(sql, *args, **kwargs)
+
+        def close(self):
+            self.closed = True
+            super().close()
+
+    def connect(*args, **kwargs):
+        connection = real_connect(*args, **kwargs, factory=Connection)
+        opened.append(connection)
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", connect)
+    append_event(database, job["id"], "progress", "one event")
+    assert failures == [True]
+    events = get_job(database, job["id"])["events"]
+    assert sum(event["message"] == "one event" for event in events) == 1
+    assert all(connection.closed for connection in opened)
+
+
+def test_real_write_lock_is_retried_after_release(monkeypatch, tmp_path):
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(database, repositories(tmp_path), {"repository": "repo", "prompt": "Live"})
+    real_connect = sqlite3.connect
+    holder = real_connect(database)
+    holder.execute("BEGIN IMMEDIATE")
+    releases = []
+
+    def release(_seconds):
+        releases.append(True)
+        holder.rollback()
+
+    def connect(*args, **kwargs):
+        kwargs["timeout"] = 0.01
+        return real_connect(*args, **kwargs)
+
+    monkeypatch.setattr(sqlite3, "connect", connect)
+    monkeypatch.setattr("daily_reader.agent_jobs.sleep", release)
+    try:
+        assert hide_job(database, job["id"])
+        assert releases == [True]
+    finally:
+        holder.close()
+    assert get_job(database, job["id"])["hidden_at"]
+
+
+@pytest.mark.parametrize(("code", "attempts"), [(sqlite3.SQLITE_BUSY, 3),
+                                                 (sqlite3.SQLITE_LOCKED, 3),
+                                                 (sqlite3.SQLITE_BUSY_SNAPSHOT, 3),
+                                                 (sqlite3.SQLITE_IOERR, 1),
+                                                 (sqlite3.SQLITE_ERROR, 1)])
+def test_database_retry_is_bounded_and_only_for_contention(monkeypatch, code, attempts):
+    from daily_reader.agent_jobs import retry_database_busy
+
+    calls = []
+    monkeypatch.setattr("daily_reader.agent_jobs.sleep", lambda _seconds: None)
+
+    @retry_database_busy
+    def operation():
+        calls.append(True)
+        error = sqlite3.OperationalError("failure")
+        error.sqlite_errorcode = code
+        raise error
+
+    with pytest.raises(sqlite3.OperationalError):
+        operation()
+    assert len(calls) == attempts
+
+
+def test_ten_workers_claim_and_record_each_job_once(tmp_path):
+    from threading import Barrier
+
+    database = tmp_path / "agent.sqlite3"
+    configured = repositories(tmp_path)
+    jobs = [create_job(database, configured, {"repository": "repo", "prompt": str(i)})
+            for i in range(20)]
+    ready = Barrier(10)
+
+    def work(_number):
+        ready.wait(timeout=30)
+        claimed = []
+        while job := claim_next_job(database):
+            claimed.append(job["id"])
+            append_event(database, job["id"], "progress", "claimed once")
+            update_job(database, job["id"], status="completed")
+        return claimed
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        claimed = [job_id for group in pool.map(work, range(10)) for job_id in group]
+    assert sorted(claimed) == sorted(job["id"] for job in jobs)
+    for job in jobs:
+        stored = get_job(database, job["id"])
+        assert stored["status"] == "completed"
+        assert sum(event["kind"] == "progress" for event in stored["events"]) == 1
+
+
+def test_legacy_database_migration_is_safe_for_simultaneous_startup(monkeypatch, tmp_path):
+    from threading import Barrier
+
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(database, repositories(tmp_path), {"repository": "repo", "prompt": "Kept"})
+    with connect_database(database) as connection:
+        connection.execute("ALTER TABLE agent_jobs DROP COLUMN cleanup_pending")
+    real_connect = sqlite3.connect
+    inspected = Barrier(2)
+
+    class Connection(sqlite3.Connection):
+        inspected_columns = False
+
+        def execute(self, sql, *args, **kwargs):
+            cursor = super().execute(sql, *args, **kwargs)
+            if sql == "PRAGMA table_info(agent_jobs)" and not self.inspected_columns:
+                self.inspected_columns = True
+                columns = cursor.fetchall()
+                inspected.wait(timeout=15)
+                return iter(columns)
+            return cursor
+
+    monkeypatch.setattr(sqlite3, "connect",
+                        lambda *args, **kwargs: real_connect(*args, **kwargs, factory=Connection))
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        jobs = list(pool.map(lambda _number: get_job(database, job["id"]), range(2)))
+    assert all(row["cleanup_pending"] == 0 and row["prompt"] == "Kept" for row in jobs)
+
+
+def test_failure_state_and_events_roll_back_together(monkeypatch, tmp_path):
+    from daily_reader.agent_jobs import record_job_failure
+
+    database = tmp_path / "agent.sqlite3"
+    job = create_job(database, repositories(tmp_path), {"repository": "repo", "prompt": "Live"})
+    update_job(database, job["id"], status="running")
+    real_connect = sqlite3.connect
+
+    class Connection(sqlite3.Connection):
+        def execute(self, sql, *args, **kwargs):
+            if "'preserved'" in sql:
+                error = sqlite3.OperationalError("disk failure")
+                error.sqlite_errorcode = sqlite3.SQLITE_IOERR
+                raise error
+            return super().execute(sql, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(sqlite3, "connect",
+                      lambda *args, **kwargs: real_connect(*args, **kwargs, factory=Connection))
+        with pytest.raises(sqlite3.OperationalError, match="disk failure"):
+            record_job_failure(database, job["id"], "original error", "/retained/worktree")
+    stored = get_job(database, job["id"])
+    assert stored["status"] == "running"
+    assert not any(event["kind"] == "failed" for event in stored["events"])
+    record_job_failure(database, job["id"], "original error", "/retained/worktree")
+    stored = get_job(database, job["id"])
+    assert stored["status"] == "failed"
+    assert stored["summary"] == "original error"
+    assert [event["kind"] for event in stored["events"]][-2:] == ["failed", "preserved"]

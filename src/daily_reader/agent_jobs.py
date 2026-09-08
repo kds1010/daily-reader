@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import fcntl
 import sqlite3
 import tomllib
 import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from functools import wraps
 from pathlib import Path
+from time import sleep
 from typing import Any
 
 FINAL_STATES = {"completed", "blocked", "failed", "cancelled"}
@@ -26,6 +29,47 @@ FALLBACK_MODEL_OPTIONS = [
         "supported_reasoning_efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
     }
 ]
+
+
+class ArchiveCleanupInProgress(Exception):
+    """An expired archive has been committed to resource deletion."""
+
+
+def is_database_busy(error: sqlite3.OperationalError) -> bool:
+    # Include extended BUSY codes (for example SQLITE_BUSY_SNAPSHOT), but never
+    # retry disk, permission, schema or programming errors based on their text.
+    code = getattr(error, "sqlite_errorcode", 0)
+    return (code & 0xFF) in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+
+
+def retry_database_busy(operation):
+    """Retry a DB-only operation after its connection has rolled back and closed.
+
+    Each connection waits up to five seconds; at most three attempts are made.
+    Never wrap Git/subprocess work or an operation that commits midway through.
+    """
+    @wraps(operation)
+    def wrapped(*args, **kwargs):
+        for attempt in range(3):
+            try:
+                return operation(*args, **kwargs)
+            except sqlite3.OperationalError as error:
+                if not is_database_busy(error) or attempt == 2:
+                    raise
+                sleep(0.05 * (2 ** attempt))
+        raise AssertionError("unreachable")
+    return wrapped
+
+
+def _ensure_mutable(connection: sqlite3.Connection, job_id: str) -> bool:
+    # The caller holds BEGIN IMMEDIATE, so cleanup cannot reserve the job
+    # between this check and the mutation.
+    row = connection.execute(
+        "SELECT cleanup_pending FROM agent_jobs WHERE id = ?", (job_id,)
+    ).fetchone()
+    if row is not None and row[0]:
+        raise ArchiveCleanupInProgress("期限切れタスクの削除処理中です")
+    return row is not None
 
 
 @contextmanager
@@ -105,7 +149,8 @@ def initialize_database(path: Path, *, timeout: float = 5.0) -> None:
                 follow_up INTEGER NOT NULL DEFAULT 0,
                 model TEXT NOT NULL DEFAULT 'gpt-5.6-luna',
                 reasoning_effort TEXT NOT NULL DEFAULT 'low',
-                finished_at TEXT
+                finished_at TEXT,
+                cleanup_pending INTEGER NOT NULL DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS agent_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -132,6 +177,21 @@ def initialize_database(path: Path, *, timeout: float = 5.0) -> None:
         columns = {
             row[1] for row in connection.execute("PRAGMA table_info(agent_jobs)")
         }
+        migration_columns = {
+            "mode", "hidden_at", "follow_up", "completion_summary", "model",
+            "reasoning_effort", "cleanup_pending",
+        }
+        if not migration_columns.issubset(columns):
+            # Recheck under the write lock: the server and worker can start
+            # concurrently against the same legacy database.
+            connection.execute("BEGIN IMMEDIATE")
+            columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(agent_jobs)")
+            }
+        if "cleanup_pending" not in columns:
+            connection.execute(
+                "ALTER TABLE agent_jobs ADD COLUMN cleanup_pending INTEGER NOT NULL DEFAULT 0"
+            )
         if "mode" not in columns:
             connection.execute(
                 "ALTER TABLE agent_jobs ADD COLUMN mode TEXT NOT NULL DEFAULT 'execute'"
@@ -165,6 +225,7 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+@retry_database_busy
 def create_job(
     path: Path,
     repositories: dict[str, dict[str, str]],
@@ -227,6 +288,7 @@ def create_job(
     return job
 
 
+@retry_database_busy
 def list_jobs(path: Path, limit: int = 50) -> list[dict[str, Any]]:
     initialize_database(path)
     with connect_database(path) as connection:
@@ -251,6 +313,7 @@ def list_jobs(path: Path, limit: int = 50) -> list[dict[str, Any]]:
     return jobs
 
 
+@retry_database_busy
 def list_archived_jobs(
     path: Path, limit: int = 50, now: datetime | None = None
 ) -> list[dict[str, Any]]:
@@ -279,6 +342,7 @@ def list_archived_jobs(
     return jobs
 
 
+@retry_database_busy
 def list_expired_archived_jobs(
     path: Path, now: datetime | None = None
 ) -> list[dict[str, Any]]:
@@ -291,11 +355,42 @@ def list_expired_archived_jobs(
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
             f"""SELECT * FROM agent_jobs
-            WHERE hidden_at <= ? AND status IN ({placeholders})
+            WHERE (hidden_at <= ? OR cleanup_pending = 1) AND status IN ({placeholders})
             ORDER BY hidden_at""",  # noqa: S608
             (cutoff.isoformat(), *final_states),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+@retry_database_busy
+def _reserve_archived_job(path: Path, job_id: str, hidden_at: str) -> bool:
+    initialize_database(path)
+    final_states = sorted(FINAL_STATES)
+    placeholders = ", ".join("?" for _ in final_states)
+    with connect_database(path) as connection:
+        cursor = connection.execute(
+            f"""UPDATE agent_jobs SET cleanup_pending = 1
+            WHERE id = ? AND hidden_at = ? AND status IN ({placeholders})""",  # noqa: S608
+            (job_id, hidden_at, *final_states),
+        )
+    return cursor.rowcount == 1
+
+
+@retry_database_busy
+def _finish_archived_job(path: Path, job_id: str, hidden_at: str) -> bool:
+    with connect_database(path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            """SELECT id FROM agent_jobs
+            WHERE id = ? AND hidden_at = ? AND cleanup_pending = 1""",
+            (job_id, hidden_at),
+        ).fetchone()
+        if row is None:
+            return False
+        connection.execute("DELETE FROM agent_events WHERE job_id = ?", (job_id,))
+        connection.execute("DELETE FROM agent_instructions WHERE job_id = ?", (job_id,))
+        connection.execute("DELETE FROM agent_jobs WHERE id = ?", (job_id,))
+    return True
 
 
 def delete_expired_archived_job(
@@ -305,28 +400,31 @@ def delete_expired_archived_job(
     *,
     before_delete: Callable[[], None] | None = None,
 ) -> bool:
-    """Delete an unchanged archive, cleaning external resources in the same lock."""
-    initialize_database(path)
-    final_states = sorted(FINAL_STATES)
-    placeholders = ", ".join("?" for _ in final_states)
-    with connect_database(path, timeout=30) as connection:
-        connection.execute("BEGIN IMMEDIATE")
-        row = connection.execute(
-            f"""SELECT id FROM agent_jobs
-            WHERE id = ? AND hidden_at = ? AND status IN ({placeholders})""",  # noqa: S608
-            (job_id, hidden_at, *final_states),
-        ).fetchone()
-        if row is None:
-            connection.commit()
+    """Reserve an archive, close SQLite, clean resources, then delete history.
+
+    A durable deletion intent prevents revival even after partial Git failure.
+    The OS lock serializes cleaners across threads/processes, and releases on
+    process exit. A later sweep resumes pending deletion rather than clearing it.
+    Keep the lock file: unlinking it would let cleaners lock different inodes.
+    """
+    path = path.resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.with_name(path.name + "-archive-cleanup.lock").open("a") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
             return False
-        if before_delete is not None:
-            before_delete()
-        connection.execute("DELETE FROM agent_events WHERE job_id = ?", (job_id,))
-        connection.execute("DELETE FROM agent_instructions WHERE job_id = ?", (job_id,))
-        connection.execute("DELETE FROM agent_jobs WHERE id = ?", (job_id,))
-    return True
+        try:
+            if not _reserve_archived_job(path, job_id, hidden_at):
+                return False
+            if before_delete is not None:
+                before_delete()
+            return _finish_archived_job(path, job_id, hidden_at)
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
+@retry_database_busy
 def get_job(path: Path, job_id: str) -> dict[str, Any] | None:
     initialize_database(path)
     with connect_database(path) as connection:
@@ -346,10 +444,13 @@ def get_job(path: Path, job_id: str) -> dict[str, Any] | None:
     return result
 
 
+@retry_database_busy
 def request_cancel(path: Path, job_id: str) -> bool:
     initialize_database(path)
     now = _now()
     with connect_database(path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        _ensure_mutable(connection, job_id)
         row = connection.execute(
             "SELECT status FROM agent_jobs WHERE id = ?", (job_id,)
         ).fetchone()
@@ -375,15 +476,15 @@ def request_cancel(path: Path, job_id: str) -> bool:
     return True
 
 
+@retry_database_busy
 def hide_job(path: Path, job_id: str) -> bool:
     """Archive a job until its next update or the retention period expires."""
     if not isinstance(job_id, str) or not job_id:
         return False
-    # The worker can legitimately hold a write transaction while updating the same
-    # job. Match its 30-second lock wait instead of dropping the HTTP connection
-    # after the default five seconds.
-    initialize_database(path, timeout=30)
-    with connect_database(path, timeout=30) as connection:
+    initialize_database(path)
+    with connect_database(path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        _ensure_mutable(connection, job_id)
         cursor = connection.execute(
             "UPDATE agent_jobs SET hidden_at = ? WHERE id = ?",
             (_now(), job_id),
@@ -391,12 +492,15 @@ def hide_job(path: Path, job_id: str) -> bool:
     return cursor.rowcount == 1
 
 
+@retry_database_busy
 def attach_to_job(path: Path, job_id: str, instruction: object) -> bool:
     if not isinstance(instruction, str) or not instruction.strip() or len(instruction) > 10_000:
         return False
     initialize_database(path)
     now = _now()
     with connect_database(path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        _ensure_mutable(connection, job_id)
         row = connection.execute(
             "SELECT status, worktree, follow_up FROM agent_jobs WHERE id = ?", (job_id,)
         ).fetchone()
@@ -435,12 +539,14 @@ def resume_job(path: Path, job_id: str, instruction: object) -> bool:
     return attach_to_job(path, job_id, instruction)
 
 
+@retry_database_busy
 def take_pending_instructions(path: Path, job_id: str) -> list[str]:
     initialize_database(path)
     now = _now()
-    with connect_database(path, timeout=30) as connection:
-        connection.row_factory = sqlite3.Row
+    with connect_database(path) as connection:
         connection.execute("BEGIN IMMEDIATE")
+        _ensure_mutable(connection, job_id)
+        connection.row_factory = sqlite3.Row
         rows = connection.execute(
             """SELECT id, instruction FROM agent_instructions
             WHERE job_id = ? AND delivered_at IS NULL ORDER BY id""",
@@ -455,14 +561,15 @@ def take_pending_instructions(path: Path, job_id: str) -> list[str]:
     return [row["instruction"] for row in rows]
 
 
+@retry_database_busy
 def claim_next_job(path: Path) -> dict[str, Any] | None:
     initialize_database(path)
     now = _now()
-    with connect_database(path, timeout=30) as connection:
-        connection.row_factory = sqlite3.Row
+    with connect_database(path) as connection:
         connection.execute("BEGIN IMMEDIATE")
+        connection.row_factory = sqlite3.Row
         row = connection.execute(
-            """SELECT * FROM agent_jobs WHERE status='queued'
+            """SELECT * FROM agent_jobs WHERE status='queued' AND cleanup_pending=0
             ORDER BY created_at LIMIT 1"""
         ).fetchone()
         if row is None:
@@ -477,15 +584,16 @@ def claim_next_job(path: Path) -> dict[str, Any] | None:
     return dict(row)
 
 
+@retry_database_busy
 def recover_interrupted_jobs(path: Path) -> int:
     """Requeue jobs left running by a previous worker process."""
     initialize_database(path)
     now = _now()
     message = "Agentワーカーの再起動により処理が中断されたため、自動で再試行します。"
-    with connect_database(path, timeout=30) as connection:
+    with connect_database(path) as connection:
         connection.execute("BEGIN IMMEDIATE")
         rows = connection.execute(
-            "SELECT id FROM agent_jobs WHERE status='running'"
+            "SELECT id FROM agent_jobs WHERE status='running' AND cleanup_pending=0"
         ).fetchall()
         if not rows:
             connection.commit()
@@ -505,6 +613,7 @@ def recover_interrupted_jobs(path: Path) -> int:
     return len(job_ids)
 
 
+@retry_database_busy
 def update_job(path: Path, job_id: str, **fields: object) -> None:
     allowed = {
         "status",
@@ -527,16 +636,22 @@ def update_job(path: Path, job_id: str, **fields: object) -> None:
     assignments = ", ".join(f"{name} = ?" for name in values)
     initialize_database(path)
     with connect_database(path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        _ensure_mutable(connection, job_id)
         connection.execute(
             f"UPDATE agent_jobs SET {assignments} WHERE id = ?",  # noqa: S608
             (*values.values(), job_id),
         )
 
 
+@retry_database_busy
 def append_event(path: Path, job_id: str, kind: str, message: str) -> None:
     initialize_database(path)
     now = _now()
     with connect_database(path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if not _ensure_mutable(connection, job_id):
+            return
         connection.execute(
             """INSERT INTO agent_events (job_id, created_at, kind, message)
             VALUES (?, ?, ?, ?)""",
@@ -546,3 +661,29 @@ def append_event(path: Path, job_id: str, kind: str, message: str) -> None:
             "UPDATE agent_jobs SET updated_at = ?, hidden_at = NULL WHERE id = ?",
             (now, job_id),
         )
+
+
+@retry_database_busy
+def record_job_failure(path: Path, job_id: str, summary: str, worktree: str | None) -> None:
+    """Persist a failure and its recovery information in one transaction."""
+    initialize_database(path)
+    now = _now()
+    with connect_database(path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if not _ensure_mutable(connection, job_id):
+            return
+        connection.execute(
+            """UPDATE agent_jobs SET status='failed', phase='失敗', summary=?,
+            finished_at=?, updated_at=?, hidden_at=NULL WHERE id=?""",
+            (summary, now, now, job_id),
+        )
+        connection.execute(
+            """INSERT INTO agent_events (job_id, created_at, kind, message)
+            VALUES (?, ?, 'failed', ?)""", (job_id, now, summary),
+        )
+        if worktree is not None:
+            connection.execute(
+                """INSERT INTO agent_events (job_id, created_at, kind, message)
+                VALUES (?, ?, 'preserved', ?)""",
+                (job_id, now, f"復旧できるよう作業環境を保持しました: {worktree}"),
+            )

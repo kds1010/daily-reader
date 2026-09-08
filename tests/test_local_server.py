@@ -1720,3 +1720,24 @@ def test_device_sync_diagnostic_does_not_log_invalid_sensor_value(tmp_path, capl
     assert "reason=ValueError" in caplog.text
     handler._log_device_sync_failure("context", ValueError("端末情報の日時が不正です"))
     assert "端末情報の日時が不正です" in caplog.text
+
+
+def test_agent_resume_rejects_archive_already_being_deleted(monkeypatch, tmp_path):
+    from daily_reader.agent_jobs import ArchiveCleanupInProgress
+
+    def resume(*_args):
+        raise ArchiveCleanupInProgress("期限切れタスクの削除処理中です")
+
+    monkeypatch.setattr("daily_reader.local_server.resume_job", resume)
+    handler_factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "assistant.sqlite3",
+        tmp_path / "gmail-client.json", tmp_path / "gmail-token.json",
+    )
+    handler = handler_factory.func.__new__(handler_factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler._read_json = lambda: {"job_id": "old", "instruction": "resume"}
+    handler.path = "/api/agent-jobs/resume"
+    handler.do_POST()
+    assert responses == [(409, {"error": "期限切れタスクの削除処理中です"})]

@@ -4,14 +4,19 @@ import argparse
 import functools
 import json
 import logging
+import os
+import signal
+import sqlite3
 import subprocess
 import tempfile
+from collections import deque
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
-from threading import Lock
-from time import sleep
+from threading import Event, Lock
+from time import monotonic, sleep
 from typing import Any
 
 from daily_reader.agent_jobs import (
@@ -21,8 +26,10 @@ from daily_reader.agent_jobs import (
     claim_next_job,
     delete_expired_archived_job,
     get_job,
+    is_database_busy,
     list_expired_archived_jobs,
     load_repositories,
+    record_job_failure,
     recover_interrupted_jobs,
     take_pending_instructions,
     update_job,
@@ -32,11 +39,54 @@ LOGGER = logging.getLogger(__name__)
 MAX_TURNS = 8
 DEPLOYMENT_LOCK = Lock()
 ARCHIVE_CLEANUP_LOCK = Lock()
+ARCHIVE_SWEEP_SECONDS = 60
+ARCHIVE_RETRY_MAX_SECONDS = 3600
+ARCHIVE_NEXT_SWEEP: dict[Path, float] = {}
+ARCHIVE_RETRIES: dict[tuple[Path, str], tuple[int, float]] = {}
+WORKER_STOPPING = Event()
+CODEX_PROCESS_LOCK = Lock()
+CODEX_PROCESSES: dict[int, subprocess.Popen[str]] = {}
+
+
+class WorkerStopping(Exception):
+    """The service is stopping; leave running jobs for restart recovery."""
+
+
+def stop_codex_processes(
+    processes: list[subprocess.Popen[str]], *, grace_seconds: float = 5
+) -> None:
+    # Signal every group before waiting, so ten workers share one grace period.
+    for process in processes:
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+    deadline = monotonic() + grace_seconds
+    for process in processes:
+        with suppress(subprocess.TimeoutExpired):
+            process.wait(timeout=max(0, deadline - monotonic()))
+    for process in processes:
+        # A child may ignore TERM even after its parent has exited.
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+
+
+def stop_worker(_signum: int, _frame: object) -> None:
+    if WORKER_STOPPING.is_set():
+        return
+    WORKER_STOPPING.set()
+    # Popen and registration hold the same lock. A process being created when
+    # SIGTERM arrives cannot escape this snapshot; later starts are rejected.
+    with CODEX_PROCESS_LOCK:
+        processes = list(CODEX_PROCESSES.values())
+    # Finish before the deployed LaunchAgent's five-second exit timeout.
+    stop_codex_processes(processes, grace_seconds=1)
 
 
 def run_command(
     command: list[str], cwd: Path, *, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
+    if WORKER_STOPPING.is_set():
+        raise WorkerStopping
     LOGGER.info("Running %s in %s", command, cwd)
     return subprocess.run(
         command,
@@ -183,19 +233,35 @@ def run_codex_turn(
             reasoning_effort,
         )
         with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr_file:
-            process = subprocess.Popen(command, cwd=worktree, stdout=subprocess.PIPE,
-                                       stderr=stderr_file, text=True)
+            with CODEX_PROCESS_LOCK:
+                if WORKER_STOPPING.is_set():
+                    raise WorkerStopping
+                process = subprocess.Popen(
+                    command, cwd=worktree, stdout=subprocess.PIPE, stderr=stderr_file,
+                    text=True, start_new_session=True,
+                )
+                CODEX_PROCESSES[process.pid] = process
             lines: list[str] = []
             assert process.stdout is not None
-            for line in process.stdout:
-                lines.append(line)
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if on_event is not None:
-                    on_event(event)
-            process.wait()
+            try:
+                for line in process.stdout:
+                    lines.append(line)
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if on_event is not None:
+                        on_event(event)
+                process.wait()
+            except BaseException:
+                # A callback failure must not leave Codex writing to a worktree
+                # which the worker now considers failed/retryable.
+                stop_codex_processes([process])
+                raise
+            finally:
+                process.stdout.close()
+                with CODEX_PROCESS_LOCK:
+                    CODEX_PROCESSES.pop(process.pid, None)
             stderr_file.seek(0)
             stderr = stderr_file.read()
             returncode = process.returncode
@@ -467,6 +533,15 @@ def cleanup_archived_worktree(
     """Remove an expired archive's worktree and branch without masking failures."""
     repository_path = Path(repository["path"])
     if worktree.exists():
+        registered = run_command(
+            ["git", "worktree", "list", "--porcelain", "-z"], repository_path
+        ).stdout
+        registered_paths = {
+            Path(field.removeprefix("worktree ")).resolve()
+            for field in registered.split("\0") if field.startswith("worktree ")
+        }
+        if worktree.resolve() not in registered_paths:
+            raise OSError("Worktree registration missing; residual files retained")
         run_command(
             ["git", "worktree", "remove", "--force", str(worktree)],
             repository_path,
@@ -489,8 +564,19 @@ def cleanup_expired_archives(
 ) -> int:
     """Remove expired archive resources before permanently deleting their records."""
     deleted = 0
-    with ARCHIVE_CLEANUP_LOCK:
+    database_key = database.resolve()
+    if not ARCHIVE_CLEANUP_LOCK.acquire(blocking=False):
+        return 0
+    try:
+        if monotonic() < ARCHIVE_NEXT_SWEEP.get(database_key, 0):
+            return 0
+        # Schedule before work so a failed sweep is also rate limited.
+        ARCHIVE_NEXT_SWEEP[database_key] = monotonic() + ARCHIVE_SWEEP_SECONDS
         for job in list_expired_archived_jobs(database, now=now):
+            retry_key = (database_key, job["id"])
+            attempts, retry_at = ARCHIVE_RETRIES.get(retry_key, (0, 0))
+            if monotonic() < retry_at:
+                continue
             repository = repositories.get(job["repository"])
             if repository is None:
                 LOGGER.error(
@@ -515,11 +601,26 @@ def cleanup_expired_archives(
                     job["hidden_at"],
                     before_delete=cleanup_resources,
                 )
-            except (OSError, subprocess.CalledProcessError):
-                LOGGER.exception("Could not clean resources for archived job %s", job["id"])
+            except (OSError, subprocess.CalledProcessError, sqlite3.OperationalError) as error:
+                if isinstance(error, sqlite3.OperationalError) and not is_database_busy(error):
+                    raise
+                delay = min(ARCHIVE_SWEEP_SECONDS * 2 ** min(attempts, 6),
+                            ARCHIVE_RETRY_MAX_SECONDS)
+                ARCHIVE_RETRIES[retry_key] = (attempts + 1, monotonic() + delay)
+                # Local git cleanup has no remote URLs or credentials in its
+                # arguments. Include stderr to distinguish invalid worktrees
+                # from actual filesystem/permission failures.
+                detail = (error.stderr or "")[-1000:] if isinstance(
+                    error, subprocess.CalledProcessError
+                ) else str(error)
+                LOGGER.warning("Archive cleanup failed for %s; retry in %ss: %s",
+                               job["id"], delay, detail)
                 continue
             if removed:
+                ARCHIVE_RETRIES.pop(retry_key, None)
                 deleted += 1
+    finally:
+        ARCHIVE_CLEANUP_LOCK.release()
     return deleted
 
 
@@ -530,6 +631,8 @@ def execute_job(
     worktree_root: Path,
     job: dict[str, Any],
 ) -> None:
+    if WORKER_STOPPING.is_set():
+        return
     job_id = job["id"]
     repository = repositories[job["repository"]]
     branch = ""
@@ -577,10 +680,28 @@ current worktree state. Continue autonomously until the task is committed and ve
         elif attached:
             prompt = f"{prompt}\n\n{_attached_prompt(attached)}"
         final_result: dict[str, Any] = {}
+        pending_activity: deque[tuple[str, str]] = deque()
+        activity_retry_at = 0.0
+
+        def flush_activity() -> None:
+            while pending_activity:
+                append_event(database, job_id, *pending_activity[0])
+                pending_activity.popleft()
+
         def record_activity(event: dict[str, Any]) -> None:
+            nonlocal activity_retry_at
             activity = _activity_from_event(event)
             if activity is not None:
-                append_event(database, job_id, *activity)
+                pending_activity.append(activity)
+            if monotonic() < activity_retry_at:
+                return
+            try:
+                flush_activity()
+            except sqlite3.OperationalError as error:
+                if not is_database_busy(error):
+                    raise
+                LOGGER.warning("Deferring progress persistence for busy Agent job %s", job_id)
+                activity_retry_at = monotonic() + 5
         planning_turn = (
             not follow_up
             and not existing_worktree
@@ -624,6 +745,9 @@ current worktree state. Continue autonomously until the task is committed and ve
                 ),
                 on_event=record_activity,
             )
+            # Result/state persistence remains mandatory. A transient progress
+            # lock does not abandon the running Codex process or lose events.
+            flush_activity()
             final_result = result
             update_fields = {"thread_id": thread_id}
             update_fields["summary"] = result["summary"]
@@ -851,23 +975,28 @@ clean. Return done only when the rebase and verification succeed."""
     except Exception as error:  # noqa: BLE001
         if deployment_lock_acquired:
             DEPLOYMENT_LOCK.release()
+        if WORKER_STOPPING.is_set():
+            LOGGER.info("Agent job %s interrupted for service restart", job_id)
+            return
         LOGGER.exception("Agent job %s failed", job_id)
-        update_job(
-            database,
-            job_id,
-            status="failed",
-            phase="失敗",
-            summary=str(error)[-4000:],
-            finished_at=datetime.now(UTC).isoformat(),
-        )
-        append_event(database, job_id, "failed", str(error)[-4000:])
-        if worktree is not None:
-            append_event(
-                database,
-                job_id,
-                "preserved",
-                f"復旧できるよう作業環境を保持しました: {worktree}",
-            )
+        failure = PendingJobFailure(job_id, str(error)[-4000:],
+                                    str(worktree) if worktree is not None else None)
+        try:
+            record_job_failure(database, failure.job_id, failure.summary, failure.worktree)
+        except sqlite3.OperationalError as persistence_error:
+            if not is_database_busy(persistence_error):
+                raise
+            raise failure from persistence_error
+
+
+class PendingJobFailure(Exception):
+    """Only failure persistence must be retried; never replay the task itself."""
+
+    def __init__(self, job_id: str, summary: str, worktree: str | None) -> None:
+        super().__init__(f"Failure persistence pending for Agent job {job_id}")
+        self.job_id = job_id
+        self.summary = summary
+        self.worktree = worktree
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -898,17 +1027,46 @@ def build_parser() -> argparse.ArgumentParser:
 def run_worker(
     args: argparse.Namespace, repositories: dict[str, dict[str, str]]
 ) -> None:
-    while True:
-        cleanup_expired_archives(args.database, repositories)
-        job = claim_next_job(args.database)
+    pending_failure: PendingJobFailure | None = None
+    while not WORKER_STOPPING.is_set():
+        if pending_failure is not None:
+            try:
+                record_job_failure(args.database, pending_failure.job_id,
+                                   pending_failure.summary, pending_failure.worktree)
+                pending_failure = None
+            except sqlite3.OperationalError as error:
+                if not is_database_busy(error):
+                    raise
+                LOGGER.warning("Agent failure persistence is busy; retrying without rerunning task")
+                sleep(args.poll_seconds)
+                continue
+        try:
+            cleanup_expired_archives(args.database, repositories)
+            if WORKER_STOPPING.is_set():
+                return
+            job = claim_next_job(args.database)
+        except sqlite3.OperationalError as error:
+            if not is_database_busy(error):
+                raise
+            LOGGER.warning("Agent queue is busy; polling will retry")
+            if args.once:
+                raise
+            sleep(args.poll_seconds)
+            continue
         if job:
-            execute_job(
-                args.database,
-                repositories,
-                args.schema,
-                args.worktree_root,
-                job,
-            )
+            try:
+                execute_job(
+                    args.database,
+                    repositories,
+                    args.schema,
+                    args.worktree_root,
+                    job,
+                )
+            except PendingJobFailure as failure:
+                LOGGER.warning("%s; retaining failure details for next poll", failure)
+                if args.once:
+                    raise
+                pending_failure = failure
         if args.once:
             return
         sleep(args.poll_seconds)
@@ -920,6 +1078,7 @@ def resolve_schema_path(schema: Path) -> Path:
 
 def main() -> None:
     args = build_parser().parse_args()
+    signal.signal(signal.SIGTERM, stop_worker)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     if args.poll_seconds < 1:
         raise SystemExit("--poll-seconds must be at least 1")
