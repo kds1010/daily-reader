@@ -20,6 +20,7 @@ REQUIRED_ENTITLEMENTS = frozenset(
     {
         "com.apple.security.app-sandbox",
         "com.apple.security.network.client",
+        "com.apple.security.files.user-selected.read-only",
     }
 )
 FORBIDDEN_ENTITLEMENTS = frozenset(

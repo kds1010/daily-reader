@@ -13,6 +13,8 @@ data/planner.sqlite3
 data/agent.sqlite3
 data/agent.sqlite3-*
 data/planner.sqlite3-*
+data/payments.sqlite3
+data/payments.sqlite3-*
 data/conversations.sqlite3
 data/conversations.sqlite3-*
 data/conversations/audio/

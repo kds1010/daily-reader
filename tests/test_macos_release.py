@@ -21,6 +21,7 @@ def test_macos_entitlements_allow_network_without_healthkit() -> None:
         {
             "com.apple.security.app-sandbox": True,
             "com.apple.security.network.client": True,
+            "com.apple.security.files.user-selected.read-only": True,
         }
     )
 
@@ -33,6 +34,7 @@ def test_macos_entitlements_allow_network_without_healthkit() -> None:
             {
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.network.client": True,
+                "com.apple.security.files.user-selected.read-only": True,
                 "com.apple.developer.healthkit": True,
             },
             "iPhone entitlements",
@@ -41,6 +43,7 @@ def test_macos_entitlements_allow_network_without_healthkit() -> None:
             {
                 "com.apple.security.app-sandbox": True,
                 "com.apple.security.network.client": True,
+                "com.apple.security.files.user-selected.read-only": True,
                 "com.apple.security.files.user-selected.read-write": True,
             },
             "unexpected entitlements",

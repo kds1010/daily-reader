@@ -4,6 +4,14 @@
 
 Codexへの自律タスク投入、今日やること、重要メール、関心のあるニュースをiPhoneとMacで扱える個人用ダッシュボードです。Mac miniのlocalhostで動かし、Tailscale Serveを通して自分のtailnet内だけに公開します。外部サーバーやデータベースは必要ありません。SideStoreの更新成果物だけは、秘密URLで保護したTailscale Funnelの専用ポートから配信できます。起動時はAgentタブを最初に表示します。
 
+## PayPayの支払い明細
+
+iPhone・macOSの「今日」→「PayPayの支払い明細」から、PayPayでダウンロードした個人向けCSVを
+取り込めます。取得は手動で、日時・取引先・入出金額・種別をMac miniへ保存し、期間別に確認します。
+同じファイルの再送と取引番号による重複を除き、内容の競合は上書きせず表示します。
+番号なしの明細は別ファイル間で重複する可能性があり、件数を表示します。
+明細はGit・Codexへ送りません。操作・対応形式・制限は[支払い明細](docs/payment-history.md)を参照してください。
+
 ## 会話データの解析
 
 iPhone版ではSoundcore Workの共有・エクスポート先にDaymeldを選べます。iPhone・macOS版の

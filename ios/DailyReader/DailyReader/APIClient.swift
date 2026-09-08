@@ -89,6 +89,28 @@ actor APIClient {
         let _: LocationSyncResponse = try await post("api/locations/sync", body: LocationSyncRequest(events: events), as: LocationSyncResponse.self)
     }
 
+    func importPayPayCSV(_ fileURL: URL) async throws -> PaymentImportResult {
+        let allowed = fileURL.startAccessingSecurityScopedResource()
+        defer { if allowed { fileURL.stopAccessingSecurityScopedResource() } }
+        guard fileURL.pathExtension.lowercased() == "csv" else {
+            throw APIClientError.server("PayPayのCSVファイルを選択してください")
+        }
+        // Read a bounded snapshot. Neither filenames nor financial fields enter the URL.
+        let file = try FileHandle(forReadingFrom: fileURL)
+        defer { try? file.close() }
+        let maximum = 10 * 1024 * 1024
+        let content = try file.read(upToCount: maximum + 1) ?? Data()
+        guard !content.isEmpty && content.count <= maximum else {
+            throw APIClientError.server("CSVは空でない10 MiB以下のファイルにしてください")
+        }
+        var request = URLRequest(url: makeAPIURL(baseURL: baseURL, path: "api/payments/import"))
+        request.httpMethod = "POST"
+        request.setValue("text/csv; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.httpBody = content
+        request.timeoutInterval = 60
+        return try await execute(request, as: PaymentImportResult.self)
+    }
+
     private func execute<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
         let (data, response) = try await session.data(for: request)
         try Task.checkCancellation()

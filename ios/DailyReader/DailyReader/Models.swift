@@ -1,5 +1,39 @@
 import Foundation
 
+struct PaymentRecord: Decodable, Identifiable {
+    let id: String
+    let source: String
+    let transaction_id: String?
+    let occurred_at: String
+    let outgoing_yen: Int64?
+    let incoming_yen: Int64?
+    let kind: String
+    let counterparty: String
+    let payment_method: String
+    let row_number: Int
+    let details: [String: String]
+}
+
+struct PaymentHistoryResponse: Decodable {
+    let items: [PaymentRecord]
+    let total: Int
+    let offset: Int
+    let has_more: Bool
+    let last_imported_at: String?
+    let missing_ids: Int
+}
+
+struct PaymentImportResult: Decodable {
+    let total: Int
+    let added: Int
+    let duplicates: Int
+    let conflicts: Int
+    let missing_ids: Int
+    let conflict_rows: [Int]
+    let imported_at: String
+    let file_duplicate: Bool
+}
+
 enum ResourceLoadState: Equatable {
     case idle
     case loading

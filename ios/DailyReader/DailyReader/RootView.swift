@@ -1677,6 +1677,11 @@ struct TodayView: View {
                         .frame(maxWidth: .infinity, alignment: .leading).glassCard()
                 }
                 LifeBrief(store: model.life)
+                NavigationLink { PaymentHistoryView() } label: {
+                    Label("PayPayの支払い明細", systemImage: "yensign.circle")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .glassCard()
+                }
 #if os(iOS)
                 DeviceLocationCard(location: model.deviceLocation)
 #endif

@@ -316,6 +316,15 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 
 - 同日の実機同期で、Core Motionの1秒未満の区間を秒単位へ丸めると開始・終了が同値になり、予定を含む同期全体が拒否されることも確認した。移動区間・取得窓は小数秒とUTCを保持し、シリアライズ後も正の長さを持つ区間だけ作る。旧キュー内の同時刻の移動区間は再送から除外し、続くCore Motion再取得で補う。小数秒の日時解析にも対応し、旧キューを解析不能として読み飛ばさない。Swiftの実出力による0.7秒区間と旧キュー回復をPython保存まで検証する。
 
+## PayPayの支払い明細
+
+- iPhone・macOSの「今日」→「PayPayの支払い明細」で、本人がPayPayから出力したUTF-8の個人向け13列CSVを手動取り込みする。自動取得や資格情報の保存は行わない。
+- `payment_history.py`が全行検証後、`data/payments.sqlite3`へ原文の列・正規化日時・整数の円金額・取引番号・取り込み履歴を保存する。DBは0600、Git管理外。日時は日本時間と明示して解釈し、元の日時も保持する。
+- `POST /api/payments/import`と期間・ページ指定付き`GET /api/payments`を8787で提供する。同一ファイルと同内容・同番号の行を重複除外し、内容競合は既存行を保持して報告する。番号なし行は別ファイル間で自動統合せず注意件数を表示する。支出の合計や残高は算出しない。
+- 明細APIはloopback/既存Tailscale ServeのHostと同一Originを検査し、no-storeで応答する。金融明細をURL・ログ・Codexへ送らず、Funnelへ公開しない。CSV原本は変更しない。Debug fixtureは実APIへ接続しない。
+- macOSは選択したCSVを読むため`com.apple.security.files.user-selected.read-only`を持つ。配布スクリプトも必須entitlementとして検証し、選択ファイルへの書き込みは許可しない。
+- 操作・公式根拠・形式の制限・重複条件は[支払い明細](docs/payment-history.md)を参照する。検証は`tests/test_payment_history.py`、`tests/test_local_server.py`、`tests/test_payment_native.py`と両OSのビルド。配信時はWeb再起動と両クライアントの成果物再生成・配信確認が必要。
+
 ## Gmail認証の診断と継続利用
 
 アクセストークンの期限は自動更新します。`invalid_grant`などでrefresh token自体が

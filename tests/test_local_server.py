@@ -1787,3 +1787,129 @@ def test_diary_api_validation_conflict_and_read_without_generation(tmp_path):
     handler.do_GET()
     assert responses[-1][1]["entry"]["body"] == "本人の文章"
     assert post("delete", {"date": "2026-09-01", "revision": 2})[1]["state"] == "deleted"
+
+
+@pytest.fixture
+def payment_handler(tmp_path):
+    factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "assistant.sqlite3",
+        tmp_path / "client.json", tmp_path / "token.json", payments_db=tmp_path / "payments.db",
+    )
+    handler = factory.func.__new__(factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.headers = {"Host": "127.0.0.1:8787", "Content-Type": "text/csv; charset=utf-8"}
+    handler.path = "/api/payments/import"
+    return handler, responses
+
+
+def test_payment_import_and_paginated_list(payment_handler):
+    handler, responses = payment_handler
+    content = (Path(__file__).parent / "fixtures/paypay.csv").read_bytes()
+    handler.headers["Content-Length"] = str(len(content))
+    handler.rfile = io.BytesIO(content)
+    handler.do_POST()
+    assert responses[-1][0] == 201
+    assert responses[-1][1]["added"] == 6
+    assert handler.close_connection is True
+    handler.path = "/api/payments?start=2026-09-08&end=2026-09-08&limit=2&offset=2"
+    handler.do_GET()
+    assert responses[-1][0] == 200
+    assert responses[-1][1]["total"] == 4
+    assert len(responses[-1][1]["items"]) == 2
+    assert not responses[-1][1]["has_more"]
+    handler.path = "/api/payments?start=private-invalid-value"
+    handler.do_GET()
+    assert responses[-1][0] == 400
+    assert "private-invalid-value" not in str(responses[-1])
+
+
+@pytest.mark.parametrize("headers,status", [
+    ({"Content-Type": "application/json"}, 415),
+    ({"Content-Length": "100000000"}, 413),
+    ({"Content-Length": "bad"}, 413),
+    ({"Content-Length": "0"}, 413),
+    ({"Transfer-Encoding": "chunked"}, 413),
+    ({"Origin": "https://untrusted.example"}, 403),
+    ({"Sec-Fetch-Site": "cross-site"}, 403),
+    ({"Host": "untrusted.example:8787", "Origin": "http://untrusted.example:8787",
+      "Sec-Fetch-Site": "same-origin"}, 403),
+])
+def test_payment_import_rejects_before_reading_body(payment_handler, headers, status):
+    handler, responses = payment_handler
+    handler.headers.update({"Content-Length": "100", **headers})
+    # No rfile: these requests must fail before touching the body.
+    handler.do_POST()
+    assert responses[-1][0] == status
+
+
+@pytest.mark.parametrize("headers", [
+    {"Host": "evil.example"}, {"Origin": "null"}, {"Sec-Fetch-Site": "cross-site"},
+])
+def test_payment_get_rejects_untrusted_browser_requests(payment_handler, headers):
+    handler, responses = payment_handler
+    handler.headers.update(headers)
+    handler.path = "/api/payments"
+    handler.do_GET()
+    assert responses[-1][0] == 403
+
+
+def test_payment_truncated_body_and_storage_errors_are_safe(payment_handler, monkeypatch):
+    handler, responses = payment_handler
+    handler.headers["Content-Length"] = "50"
+    handler.rfile = io.BytesIO(b"short")
+    handler.do_POST()
+    assert responses[-1][0] == 400
+    handler.headers["Content-Length"] = "5"
+    handler.rfile = io.BytesIO(b"short")
+
+    def failed(*args):
+        raise OSError("private-path-and-content")
+
+    monkeypatch.setattr("daily_reader.local_server.payment_history.import_csv", failed)
+    handler.do_POST()
+    assert responses[-1][0] == 503
+    assert "private-path-and-content" not in str(responses[-1])
+
+
+def test_payment_access_logs_exclude_request_inputs(payment_handler):
+    handler, _ = payment_handler
+    messages = []
+    handler.log_message = lambda fmt, *args: messages.append(fmt % args)
+    handler.path = "/api/payments/import?filename=private-statement.csv"
+    handler.log_request(201)
+    assert messages == ["payment API response 201"]
+
+
+def test_payment_http_json_is_private_and_round_trips(tmp_path):
+    import http.client
+    import threading
+    from http.server import ThreadingHTTPServer
+
+    factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "assistant.sqlite3",
+        tmp_path / "client.json", tmp_path / "token.json", payments_db=tmp_path / "payments.db",
+    )
+    server = ThreadingHTTPServer(("127.0.0.1", 0), factory)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    connection = http.client.HTTPConnection(*server.server_address, timeout=5)
+    try:
+        content = (Path(__file__).parent / "fixtures/paypay.csv").read_bytes()
+        connection.request("POST", "/api/payments/import", content, {"Content-Type": "text/csv"})
+        response = connection.getresponse()
+        assert response.status == 201
+        assert response.getheader("Cache-Control") == "no-store"
+        assert json.loads(response.read())["added"] == 6
+        connection.request("GET", "/api/payments")
+        response = connection.getresponse()
+        assert response.status == 200
+        assert response.getheader("Cache-Control") == "no-store"
+        assert json.loads(response.read())["total"] == 6
+    finally:
+        connection.close()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)

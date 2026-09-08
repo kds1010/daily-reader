@@ -26,7 +26,7 @@ from ipaddress import IPv4Network, ip_address, ip_network
 from pathlib import Path
 from time import monotonic, sleep
 
-from daily_reader import device_context, diary, life_assistant, life_automation
+from daily_reader import device_context, diary, life_assistant, life_automation, payment_history
 from daily_reader.agent_jobs import (
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
@@ -653,12 +653,35 @@ def make_handler(
     conversation_insight_schema: Path = Path("config/conversation-insight-schema.json"),
     conversation_codex_command: str = "codex",
     conversation_insight_model: str = DEFAULT_INSIGHT_MODEL,
+    payments_db: Path = Path("data/payments.sqlite3"),
 ):
     repositories = agent_repositories or {}
     tanomi = tanomi_client
     soan = soan_client
 
     class DailyReaderHandler(SimpleHTTPRequestHandler):
+        def _payment_access_allowed(self) -> bool:
+            host = self.headers.get("Host", "")
+            try:
+                hostname = urllib.parse.urlsplit("//" + host).hostname
+            except ValueError:
+                hostname = None
+            origin = self.headers.get("Origin")
+            allowed = (
+                hostname in {"127.0.0.1", "localhost", "sk-mins-mac-mini.tailc193b2.ts.net"}
+                and self.headers.get("Sec-Fetch-Site") != "cross-site"
+                and (not origin or origin in {"http://" + host, "https://" + host})
+            )
+            if not allowed:
+                self._send_json(403, {"error": "この接続元からは明細を利用できません"})
+            return allowed
+
+        def log_request(self, code="-", size="-") -> None:
+            # Never log a supplied filename, query, or other payment input.
+            if urllib.parse.urlsplit(self.path).path.startswith("/api/payments"):
+                self.log_message("payment API response %s", code)
+            else:
+                super().log_request(code, size)
         def end_headers(self) -> None:
             path = urllib.parse.urlsplit(self.path).path
             if path in {"/", "/index.html", "/sw.js"}:
@@ -745,6 +768,21 @@ def make_handler(
                     self._send_json(
                         503, {"error": "日記を読み込めませんでした。再試行してください。"}
                     )
+                return
+            if path == "/api/payments":
+                if not self._payment_access_allowed():
+                    return
+                try:
+                    query = dict(urllib.parse.parse_qsl(parsed_url.query))
+                    result = payment_history.list_payments(
+                        payments_db, start=query.get("start"), end=query.get("end"),
+                        limit=query.get("limit", "100"), offset=query.get("offset", "0"),
+                    )
+                    self._send_json(200, result)
+                except ValueError:
+                    self._send_json(400, {"error": "明細の期間またはページ指定が不正です"})
+                except (OSError, sqlite3.Error):
+                    self._send_json(503, {"error": "明細を読み込めませんでした"})
                 return
             if path == "/api/life":
                 try:
@@ -1066,6 +1104,39 @@ def make_handler(
                     self._send_json(400, {"error": "日付・改訂番号・本文を確認してください。"})
                 except (diary.SourceUnavailable, sqlite3.Error, OSError):
                     self._send_json(503, {"error": str(diary.SourceUnavailable())})
+                return
+            if path == "/api/payments/import":
+                self.close_connection = True
+                if not self._payment_access_allowed():
+                    return
+                media_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip()
+                if media_type not in {"text/csv", "application/octet-stream"}:
+                    self._send_json(415, {"error": "PayPayのCSVファイルを選択してください"})
+                    return
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                except ValueError:
+                    length = 0
+                if (
+                    self.headers.get("Transfer-Encoding")
+                    or not 0 < length <= payment_history.MAX_BYTES
+                ):
+                    self._send_json(
+                        413, {"error": "CSVは空でない10 MiB以下のファイルにしてください"}
+                    )
+                    return
+                try:
+                    content = self.rfile.read(length)
+                    if len(content) != length:
+                        raise ValueError("CSVの受信が完了しませんでした")
+                    self._send_json(201, payment_history.import_csv(payments_db, content))
+                except ValueError as error:
+                    # Parser messages contain only fixed field names and row numbers.
+                    self._send_json(400, {"error": str(error)})
+                except (OSError, sqlite3.Error):
+                    self._send_json(
+                        503, {"error": "明細を保存できませんでした。再試行してください"}
+                    )
                 return
             if (
                 path == "/api/life/entries"
@@ -2093,6 +2164,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--update-stats", type=Path, default=Path("data/update-stats.jsonl"))
     parser.add_argument("--assistant-db", type=Path, default=Path("data/assistant.sqlite3"))
     parser.add_argument("--planner-db", type=Path, default=Path("data/planner.sqlite3"))
+    parser.add_argument("--payments-db", type=Path, default=Path("data/payments.sqlite3"))
     parser.add_argument("--agent-db", type=Path, default=Path("data/agent.sqlite3"))
     parser.add_argument("--conversations-db", type=Path, default=Path("data/conversations.sqlite3"))
     parser.add_argument(
@@ -2210,6 +2282,7 @@ def main() -> None:
         conversation_insight_schema=args.conversation_insight_schema,
         conversation_codex_command=_codex_executable(),
         conversation_insight_model=args.conversation_insight_model,
+        payments_db=args.payments_db,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     sidestore_server = start_sidestore_server(
