@@ -176,8 +176,8 @@ SourceのボタンはSwiftの計算プロパティを使います。保存列は
 は、SideStoreが端末識別情報を取得できず、認証・再署名を進められないエラーです。
 2026-09-08の更新失敗で、この文言をユーザーから確認しました。
 配信検証の成功だけでは、この端末内エラーの解消を確認できません。
-ペアリングの失効・不整合やLocalDevVPN経由の接続を確認しますが、文言だけで
-失効の契機やペアリングファイルの破損まで断定しません。
+LocalDevVPN経由の接続と端末探索状態を先に確認し、改善しない場合にペアリングを調べます。
+文言だけで失効の契機やペアリングファイルの破損まで断定しません。
 
 使用中のSideStore 0.6.3（`4deda922`）では、
 [`OperationError.swift`](https://github.com/SideStore/SideStore/blob/4deda9229c6746234f1ace7df16eb9af9e19f3fd/AltStore/Operations/Errors/OperationError.swift#L203)がこの文言を1006として
@@ -186,8 +186,44 @@ SourceのボタンはSwiftの計算プロパティを使います。保存列は
 SideStore自身の再署名時には`ResignAppOperation`のペアリング情報欠落も同じ1006になります。
 DaymeldのIPAやFunnelを再生成する操作では、これらの端末識別情報は修復されません。
 
-[公式の1006復旧手順](https://docs.sidestore.io/docs/troubleshooting/error-codes#1006-sidestore-could-not-determine-this-devices-udid)
-と[ペアリング配置手順](https://docs.sidestore.io/docs/advanced/pairing-file)に従い、次を行います。
+同版が参照するMinimuxer（`e3614068`）の[端末探索](https://github.com/SideStore/minimuxer/blob/e3614068c77fb09945eff363fbc3f9e8abf4c834/Sources/Minimuxer.swift#L90)は、
+VPNの端末情報がなければ失敗します。経路監視がVPNを見つけられない、または設定したDevice IPへ
+到達できない場合は端末情報を消し、仮想usbmuxdが空の端末一覧を返すためです。
+実装は[`NetworkObserver.refreshEndpoint`](https://github.com/SideStore/minimuxer/blob/e3614068c77fb09945eff363fbc3f9e8abf4c834/Sources/NetworkObserver.swift#L44)と
+[`Muxer`の`ListDevices`](https://github.com/SideStore/minimuxer/blob/e3614068c77fb09945eff363fbc3f9e8abf4c834/Sources/Muxer.swift#L228)を参照してください。
+正しいペアリングが残っていても、この経路で1006になり得ます。
+
+まず、既存ペアリングを維持したまま次の順に確認します。
+
+1. iPhoneのTailscaleを切り、LocalDevVPNを`Connected`にします。LocalDevVPNに表示される
+   実際の`Tunnel IP`（端末への接続先）を確認し、`Local IP`と取り違えないようにします。
+2. SideStoreの`Settings → VPN Configuration`を開き、`User Configuration`の`Device IP`を
+   その接続先に合わせます。使用中の0.6.3は[iOS 26.4以降の既定値が`192.168.1.50`](https://github.com/SideStore/SideStore/blob/4deda9229c6746234f1ace7df16eb9af9e19f3fd/AltStore/Settings/VPNConfigurationView.swift#L100)です。
+   LocalDevVPNの実設定とは異なる場合があるため、この値も`10.7.0.1`も無条件には適用しません。
+3. `Confirm`を押します。値が既に一致していても、[Confirmからの設定再適用](https://github.com/SideStore/SideStore/blob/4deda9229c6746234f1ace7df16eb9af9e19f3fd/AltStore/Settings/VPNConfigurationView.swift#L51)は
+   [`IfaceScanner.bindTunnelConfig`](https://github.com/SideStore/minimuxer/blob/e3614068c77fb09945eff363fbc3f9e8abf4c834/Sources/IfaceScanner.swift#L108)を通して経路を再スキャンします。
+   `Discovered from network`の`Device IP`が接続先と一致し、`Active`が`Yes`になることを確認します。
+   これは接続先の検出・設定適用の確認であり、再署名や更新の成功を意味しません。
+4. なお1006が続く場合は、更新処理が動いていないことを確認してSideStoreをアプリスイッチャーから
+   完全終了し、LocalDevVPN接続中に開き直します。ホームへ戻って開き直すだけでは完全終了になりません。
+   [通常の前景復帰](https://github.com/SideStore/SideStore/blob/4deda9229c6746234f1ace7df16eb9af9e19f3fd/AltStore/SceneDelegate.swift#L31)は
+   Minimuxerを再初期化せず、[完全起動時](https://github.com/SideStore/SideStore/blob/4deda9229c6746234f1ace7df16eb9af9e19f3fd/AltStore/LaunchViewController.swift#L81)に
+   保存済みペアリングの読み込みとMinimuxerの開始を行います。
+5. `Sources → Daymeld Remote → UPDATE`を実行し、処理が終了するまでSideStoreを前面に保ちます。
+   失敗時は現在のエラーを確認します。成功の判定はDaymeld自身のインストール済み版が配信版へ
+   上がったこととし、`Active Yes`や`7 DAYS`だけで更新済みとは判断しません。
+
+2026-09-08 20:02 JSTの実機では、LocalDevVPNが`Connected`、`Local IP = 10.7.0.0`、
+`Tunnel IP = 10.7.0.1`に対して、SideStoreは`User Device IP = 192.168.1.50`、
+`Discovered Device IP = N/A`、`Active = No`でした。User Device IPを実際の接続先である
+`10.7.0.1`へ合わせてConfirmした後、20:06に`Discovered Device IP = 10.7.0.1`、
+`Active = Yes`を確認しました。この時点では更新完了を確認しておらず、再ペアリングも行っていません。
+端末への接続先設定の不一致は確認できましたが、1006の全原因が解消したとは断定しません。
+
+上記でも1006が続く場合に、[公式の1006復旧手順](https://docs.sidestore.io/docs/troubleshooting/error-codes#1006-sidestore-could-not-determine-this-devices-udid)
+と[ペアリング配置手順](https://docs.sidestore.io/docs/advanced/pairing-file)の再ペアリング工程へ進みます。
+公式手順にもVPNの実設定との一致確認があります。本環境では、上記の実装と実機観測に基づいて
+VPN確認をリセットより先に行います。接続可能な端末を確認するまでは既存ペアリングを保持します。
 
 1. iPhoneをMacへUSB接続してロックを解除し、iLoaderで対象端末を選択できることを確認します。
    端末が未接続・`unavailable`の間は、既存ペアリングを先に削除しないでください。
@@ -201,9 +237,7 @@ DaymeldのIPAやFunnelを再生成する操作では、これらの端末識別�
    `Refresh`が1006なしで成功することを確認します。続いて`Sources → Daymeld Remote → UPDATE`を
    実行し、Daymeld自身のインストール済み版が配信版に上がったことを確認します。
 
-1006が続く場合は、SideStoreの`Settings → VPN Configuration`のDevice IPがLocalDevVPNの
-設定と一致することを確認します。公式手順の既定値は`10.7.0.1`ですが、変更済みなら実際の
-設定値に合わせます。配置とVPNを確認しても解消しない場合はiPhoneを再起動して再確認します。
+配置とVPNを確認しても解消しない場合はiPhoneを再起動して再確認します。
 この段階でもApple Accountやanisetteサーバーの問題と決めつけず、現在の失敗文言を確認します。
 ペアリングファイルは端末アクセス用の秘密情報なので、Git・会話・診断ログへ内容を貼りません。
 
