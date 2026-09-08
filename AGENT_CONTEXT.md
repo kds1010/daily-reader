@@ -46,8 +46,8 @@
 - 実装・継続・デプロイ中の必須コマンドが`Operation not permitted`、CoreSimulatorService接続拒否、Simulator runtimeなしで失敗した場合は、ホスト環境不足と決めつけず承認付きで同じコマンドを再実行する。同じ隔離環境の失敗を複数ターン繰り返さない。
 - デプロイ確認でAgentワーカー自身を再起動する場合は、現在のPID、起動時刻、デプロイ済みコミット、サービスログを先に確認する。復旧後のセッションで対象コミットへの再起動済みと確認できた場合は再度kickstartせず、自己再起動の反復と同一worktreeへのCodex多重実行を防ぐ。
 - Codexの構造化出力スキーマはワーカー起動時にDaily Reader基準の絶対パスへ解決し、tonoiなど別リポジトリのworktreeでも同じスキーマを使用する。
-- tonoiとconfigは`config/agent-repositories.toml`の`deploy = false`により、検証済み変更を`main`へ統合してpushした時点で完了とし、実環境デプロイは行わない。
-- `config/agent-repositories.toml`: Agentが操作できるGitリポジトリの許可リスト。Daily Reader、soan、宿直（tonoi）、configを登録し、ホーム相対パスにも対応する。
+- tonoi、config、tsugitateは`config/agent-repositories.toml`の`deploy = false`により、検証済み変更を`main`へ統合してpushした時点で完了とし、実環境デプロイは行わない。tsugitateの実環境への適用はNix/Home Managerで管理し、ユーザーが別途行う。
+- `config/agent-repositories.toml`: Agentが操作できるGitリポジトリの許可リスト。Daily Reader、soan、宿直（tonoi）、config、継立（tsugitate）を登録し、ホーム相対パスにも対応する。
 - `site/app.js`, `site/style.css`: iPhone向け1ページUI。ニュース／メールを上部タブで切り替える。
 - `ios/DailyReader/`: SwiftUIで全面実装したiPhone・macOSネイティブクライアント。`DailyReader` iPhoneターゲットと`DaymeldMac` macOSターゲットがAgent、今日、メール、ニュース、会話、音声インボックス、設定の画面とAPIモデルを共有する。会話のCodex整理は送信範囲と停止設定を表示し、新規録音は自動開始、旧録音は手動開始とする。候補の編集、根拠確認、保存、破棄、Planner・Agentへの明示的な振り分けに対応する。iPhoneのBundle IDとHealthKit entitlementは更新互換性のためmacOSターゲットから分離する。
 - iPhoneネイティブクライアントはHealthKit日次集計、Agentの完了・判断待ち・失敗遷移に対するローカル通知、App Intents、Keychainでの同期トークン保存に対応する。`public.mp3`のViewerとして登録し、Soundcore Workなどの共有・エクスポート先から受け取ったMP3を「会話」へ送信する。送信成功後はアプリの`Documents/Inbox`内にある受信コピーだけを削除し、共有元の原本は変更しない。初回一覧取得は通知せず、停止中の遷移は次回の成功した一覧更新時に一度だけ通知する。APNsではないため、強制終了中の即時通知は保証しない。無料Personal TeamのApp ID消費を抑えるため、iPhone版は単一アプリターゲットを維持し、ウィジェットや通知Extensionは実機署名検証後に追加する。

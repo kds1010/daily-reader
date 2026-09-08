@@ -23,3 +23,10 @@ label = "config"
 path = "~/.config"
 default_branch = "main"
 deploy = false
+
+[[repositories]]
+name = "tsugitate"
+label = "継立 (tsugitate)"
+path = "~/ghq/github.com/kds1010/tsugitate"
+default_branch = "main"
+deploy = false
