@@ -519,6 +519,67 @@ main,
   margin-top: 3px;
 }
 
+.tanomi-job, .tanomi-job-body { min-width: 0; }
+.agent-job.tanomi-job { touch-action: pan-x pan-y; }
+.tanomi-markdown pre, .markdown-table-scroll { touch-action: pan-x pan-y; }
+.tanomi-markdown {
+  min-width: 0;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: .94rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.tanomi-markdown > :first-child { margin-top: 0; }
+.tanomi-markdown > :last-child { margin-bottom: 0; }
+.tanomi-markdown p { margin: .6em 0; white-space: pre-wrap; }
+.tanomi-markdown h1, .tanomi-markdown h2, .tanomi-markdown h3,
+.tanomi-markdown h4, .tanomi-markdown h5, .tanomi-markdown h6 {
+  margin: 1em 0 .4em;
+  line-height: 1.35;
+}
+.tanomi-markdown h1 { font-size: 1.4em; }
+.tanomi-markdown h2 { font-size: 1.25em; }
+.tanomi-markdown h3 { font-size: 1.1em; }
+.tanomi-markdown h4, .tanomi-markdown h5, .tanomi-markdown h6 { font-size: 1em; }
+.tanomi-markdown ul, .tanomi-markdown ol { padding-left: 1.6em; margin: .6em 0; }
+.tanomi-markdown li { margin: .3em 0; white-space: pre-wrap; }
+.tanomi-markdown li > p { margin: .3em 0; }
+.tanomi-markdown blockquote {
+  margin: .75em 0;
+  padding: .1em 0 .1em .8em;
+  border-left: 3px solid var(--line);
+}
+.tanomi-markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .9em;
+  padding: .1em .25em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.tanomi-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  white-space: pre;
+  overflow-wrap: normal;
+}
+.tanomi-markdown pre code { padding: 0; background: transparent; }
+.tanomi-markdown a { color: var(--accent); text-decoration: underline; }
+.markdown-table-scroll { max-width: 100%; overflow-x: auto; margin: .75em 0; }
+.tanomi-markdown table { border-collapse: collapse; min-width: 100%; }
+.tanomi-markdown th, .tanomi-markdown td {
+  min-width: 5em;
+  padding: .5em .7em;
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+.tanomi-markdown th { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.tanomi-markdown hr { border: 0; border-top: 1px solid var(--line); margin: 1em 0; }
+.markdown-plain { white-space: pre-wrap; }
+
 .agent-live {
   margin-top: 12px;
   padding: 10px;

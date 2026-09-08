@@ -1065,7 +1065,6 @@ private struct TanomiTaskCard: View {
     @State private var expanded = false
     @State private var instruction = ""
     @State private var sending = false
-    @State private var showFullResult = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1103,23 +1102,18 @@ private struct TanomiTaskCard: View {
                 Divider()
                 if let prompt = task.prompt, !prompt.isEmpty {
                     Text("依頼内容").appFont(.caption, weight: .bold).foregroundStyle(.secondary)
-                    Text(prompt).appFont(.caption).textSelection(.enabled)
+                    MarkdownContentView(source: prompt)
                 }
                 if !task.displayResult.isEmpty {
-                    Text(task.error != nil ? "エラー" : "結果")
+                    Text(task.result != nil ? "結果" : "エラー")
                         .appFont(.caption, weight: .bold).foregroundStyle(.secondary)
-                    Text(task.displayResult)
-                        .appFont(.caption)
-                        .lineLimit(showFullResult ? nil : 8)
-                        .textSelection(.enabled)
-                    if task.displayResult.count > 600 {
-                        Button(showFullResult ? "結果を折りたたむ" : "結果を全文表示") {
-                            showFullResult.toggle()
-                        }
-                        .appFont(.caption, weight: .semibold)
-                        .buttonStyle(.borderless)
+                    if let result = task.result {
+                        MarkdownContentView(source: result, collapsible: true)
+                    } else {
+                        Text(verbatim: task.displayResult).appFont(.body).textSelection(.enabled)
                     }
                 }
+
                 if !archived && task.canContinue {
                     TextField("このtanomiタスクへの追加指示", text: $instruction, axis: .vertical)
                         .lineLimit(2...5).textFieldStyle(.roundedBorder)

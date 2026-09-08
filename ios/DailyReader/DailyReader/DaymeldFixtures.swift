@@ -81,6 +81,42 @@ struct DaymeldFixture {
     }
 
 #if DEBUG
+    static let tanomiMarkdown = """
+    # 実装結果
+
+    日本語の**太字**と*斜体*、`inline_code`、[参照](https://example.com/docs)です。
+    改行後の説明も読みやすく表示します。
+
+    3. 検証を実行しました。
+       - 子項目の確認
+       - **入れ子の強調**
+    4. 次の作業へ進めます。
+
+    > 補足の引用です。
+    > 二行目の引用です。
+
+    ```swift
+    let message = "こんにちは"
+    print(message)
+    ```
+
+    | 対象 | 結果 | 件数 |
+    | :--- | :---: | ---: |
+    | iPhone | 成功 | 12 |
+    | macOS | | 8 |
+
+    <script>本文として表示します</script>
+
+    ![画像の代替文字](https://example.com/image.png)
+    [危険なリンク](javascript:alert(1))は開きません。
+
+    ## 未完の入力
+
+    **閉じていない強調 と [途中のリンク](
+    """
+
+    static let tanomiShortLines = (1...12).map { "短い行 \($0)" }.joined(separator: "\n")
+
     static let standard: DaymeldFixture = {
         let day = "2026-09-01"
         let repositories = [
@@ -170,8 +206,8 @@ struct DaymeldFixture {
                 startedAt: 1_788_070_020, endedAt: nil, sessionID: "fixture-session-running"
             ),
             TanomiTask(
-                id: "tanomi-done", title: "tanomi完了", prompt: "完了結果を確認する",
-                repoPath: "/workspace/daily-reader", cwd: nil, status: "done", result: String(repeating: "完了結果の長いサンプルです。", count: 24), error: nil,
+                id: "tanomi-done", title: "tanomi完了", prompt: "## 確認事項\n\n- **表示**を確認する\n- `コード`と表を読む",
+                repoPath: "/workspace/daily-reader", cwd: nil, status: "done", result: tanomiMarkdown, error: nil,
                 model: "opus", permissionMode: "plan", createdAt: 1_788_069_000,
                 startedAt: 1_788_069_010, endedAt: 1_788_069_200, sessionID: "fixture-session-done"
             ),
@@ -303,7 +339,7 @@ struct DaymeldFixture {
             let tanomiStatuses = ["queued", "running", "done", "error", "stopped"]
             fixture.tanomiTasks = (0..<30).map { index -> TanomiTask in
                 let bucket = index % tanomiStatuses.count
-                let result: String? = bucket == 2 ? String(repeating: "長い結果本文です。", count: 500) : nil
+                let result: String? = bucket == 2 ? (index == 2 ? tanomiShortLines : String(repeating: tanomiMarkdown + "\n\n", count: 12)) : nil
                 let error: String? = bucket == 3 ? String(repeating: "エラー詳細です。", count: 80) : nil
                 let endedAt: Double? = index % 2 == 0 ? 1_788_060_020 + Double(index) : nil
                 let sessionID: String? = bucket == 0 ? nil : "stress-session-\(index)"

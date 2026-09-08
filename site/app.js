@@ -186,6 +186,7 @@ const agentStatusLabels = {
 const openAgentConversations = new Set();
 const openAgentJobs = new Set();
 const openTanomiJobs = new Set();
+let renderedTanomiTasks = null;
 
 const agentStatusIcons = {
   queued: "◷",
@@ -759,7 +760,7 @@ async function loadAgentJobs() {
 
 function renderTanomiJob(task) {
   const card = document.createElement("details");
-  card.className = `agent-job status-${({ done: "completed", error: "failed", stopped: "cancelled" }[task.status] || task.status)}`;
+  card.className = `agent-job tanomi-job status-${({ done: "completed", error: "failed", stopped: "cancelled" }[task.status] || task.status)}`;
   card.open = openTanomiJobs.has(task.id);
   card.addEventListener("toggle", () => {
     if (card.open) openTanomiJobs.add(task.id);
@@ -791,9 +792,7 @@ function renderTanomiJob(task) {
     const promptLabel = document.createElement("strong");
     promptLabel.className = "agent-summary-label";
     promptLabel.textContent = "依頼内容";
-    const prompt = document.createElement("p");
-    prompt.className = "agent-summary";
-    prompt.textContent = task.prompt;
+    const prompt = TanomiMarkdown.render(task.prompt);
     body.append(promptLabel, prompt);
   }
   const result = task.result || task.error;
@@ -801,9 +800,11 @@ function renderTanomiJob(task) {
     const resultLabel = document.createElement("strong");
     resultLabel.className = "agent-summary-label";
     resultLabel.textContent = task.result ? "結果" : "エラー";
-    const resultText = document.createElement("p");
-    resultText.className = "agent-summary";
-    resultText.textContent = result;
+    const resultText = task.result ? TanomiMarkdown.render(result) : document.createElement("p");
+    if (!task.result) {
+      resultText.className = "agent-summary markdown-plain";
+      resultText.textContent = result;
+    }
     body.append(resultLabel, resultText);
   }
   if (task.session_id && !["queued", "running"].includes(task.status)) {
@@ -912,7 +913,11 @@ async function loadTanomiTasks() {
     const editing = elements.tanomiJobs.contains(active)
       || (window.getSelection?.() && !window.getSelection().isCollapsed
         && elements.tanomiJobs.contains(window.getSelection().anchorNode));
-    if (!editing) elements.tanomiJobs.replaceChildren(...tasks.map(renderTanomiJob));
+    const snapshot = JSON.stringify(tasks);
+    if (!editing && snapshot !== renderedTanomiTasks) {
+      elements.tanomiJobs.replaceChildren(...tasks.map(renderTanomiJob));
+      renderedTanomiTasks = snapshot;
+    }
     elements.tanomiStatus.textContent = `${tasks.length}件・5秒ごとに更新`;
     elements.tanomiHealth.textContent = "接続中";
     setTanomiEnabled(true);

@@ -100,6 +100,12 @@ let sameBuckets = try decoder.decode(TanomiBuckets.self, from: Data(#"""
 """#.utf8))
 precondition(buckets.tasks[0] == buckets.tasks[0])
 precondition(buckets.tasks[0] != sameBuckets.tasks[0])
+let markdown = "# 見出し\n\n**太字**と`code`\n\n| A | B |\n|---|---|\n| 1 | 2 |"
+let markdownData = try JSONSerialization.data(withJSONObject: [
+    "id": "markdown", "status": "done", "prompt": markdown, "result": markdown
+])
+let markdownTask = try decoder.decode(TanomiTask.self, from: markdownData)
+precondition(markdownTask.prompt == markdown && markdownTask.displayResult == markdown)
 print("tanomi contract decoded")
 ''',
         encoding="utf-8",
