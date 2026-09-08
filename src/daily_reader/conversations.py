@@ -2,12 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import shutil
 import sqlite3
-import subprocess
-import tempfile
 import threading
 import uuid
 from datetime import UTC, date, datetime
@@ -28,6 +25,7 @@ from daily_reader.conversation_insights import (
     chunk_utterances,
     request_insights,
 )
+from daily_reader.conversation_transcription import TranscriptionError, transcribe_audio
 
 MINIMUM_FREE_BYTES = 5 * 1024**3
 MAX_UPLOAD_BYTES = 2 * 1024**3
@@ -67,6 +65,10 @@ def initialize_database(path: Path) -> None:
                 source_type TEXT NOT NULL DEFAULT 'audio', transcript_text TEXT,
                 insight_status TEXT NOT NULL DEFAULT 'not_requested', insight_error TEXT,
                 insight_analyzed_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS conversation_transcription_history (
+                id TEXT PRIMARY KEY, recording_id TEXT NOT NULL REFERENCES recordings(id),
+                created_at TEXT NOT NULL, snapshot TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS speakers (
                 id TEXT PRIMARY KEY, recording_id TEXT NOT NULL REFERENCES recordings(id),
@@ -185,6 +187,8 @@ def initialize_database(path: Path) -> None:
             "insight_status": "TEXT NOT NULL DEFAULT 'not_requested'",
             "insight_error": "TEXT",
             "insight_analyzed_at": "TEXT",
+            "transcription_metadata": "TEXT NOT NULL DEFAULT '{}'",
+            "transcription_needs_review": "INTEGER NOT NULL DEFAULT 0",
         }.items():
             if name not in columns:
                 connection.execute(f"ALTER TABLE recordings ADD COLUMN {name} {definition}")
@@ -464,6 +468,7 @@ def get_recording(database: Path, recording_id: str) -> dict[str, object]:
         if row is None:
             raise KeyError(recording_id)
         result = dict(row)
+        result["transcription_metadata"] = json.loads(result["transcription_metadata"])
         result["location_contexts"] = read_contexts(connection, recording_id)
         result.pop("audio_path", None)
         result.pop("transcript_text", None)
@@ -515,7 +520,7 @@ def _items_for_query(
         f"""SELECT items.*, recordings.filename AS recording_filename,
         recordings.recorded_at, recordings.recorded_at_verified,
         recordings.created_at AS recording_created_at,
-        recordings.source_type AS recording_source_type
+        recordings.source_type AS recording_source_type, recordings.transcription_needs_review
         FROM conversation_items AS items
         JOIN recordings ON recordings.id = items.recording_id
         {where}
@@ -794,15 +799,6 @@ def mark_proposal_approved(database: Path, proposal_id: str, target: str, item_i
         )
 
 
-def _speaker_for(start: float, end: float, turns: list[tuple[float, float, str]]) -> str:
-    overlaps = (
-        (max(0.0, min(end, turn_end) - max(start, turn_start)), label)
-        for turn_start, turn_end, label in turns
-    )
-    overlap, label = max(overlaps, default=(0.0, "話者1"))
-    return label if overlap > 0 else "話者1"
-
-
 def _classify(text: str) -> tuple[str, str]:
     categories = {
         "予定・調整": ("予定", "日程", "いつ", "予約", "会議"),
@@ -907,81 +903,107 @@ def _analyze_recording(database: Path, recording_id: str, token_file: Path) -> N
                 "UPDATE recordings SET status='analyzing', error=NULL WHERE id=?", (recording_id,)
             )
             audio_path = Path(row["audio_path"])
-        token = token_file.read_text(encoding="utf-8").strip()
-        if not token:
-            raise RuntimeError("Hugging Faceトークンが設定されていません")
-        import torch
-        from faster_whisper import WhisperModel
-        from pyannote.audio import Pipeline
-        from scipy.io import wavfile
-
-        with tempfile.TemporaryDirectory(prefix="daymeld-audio-") as temporary:
-            wav = Path(temporary) / "analysis.wav"
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-v",
-                    "error",
-                    "-i",
-                    str(audio_path),
-                    "-ar",
-                    "16000",
-                    "-ac",
-                    "1",
-                    str(wav),
-                ],
-                check=True,
-            )
-            diarizer = Pipeline.from_pretrained(
-                "pyannote/speaker-diarization-community-1", token=token
-            )
-            sample_rate, waveform = wavfile.read(wav)
-            waveform = waveform.astype("float32") / 32768.0
-            diarization = diarizer(
-                {
-                    "waveform": torch.from_numpy(waveform).unsqueeze(0),
-                    "sample_rate": sample_rate,
-                }
-            )
-            annotation = getattr(diarization, "speaker_diarization", diarization)
-            raw_turns = list(annotation.itertracks(yield_label=True))
-            raw_labels = list(dict.fromkeys(label for _, _, label in raw_turns))
-            label_names = {label: f"話者{index + 1}" for index, label in enumerate(raw_labels)}
-            turns = [
-                (float(turn.start), float(turn.end), label_names[label])
-                for turn, _, label in raw_turns
-            ]
-            model = WhisperModel(
-                os.environ.get("DAYMELD_WHISPER_MODEL", "small"), device="cpu", compute_type="int8"
-            )
-            segments, _ = model.transcribe(str(wav), language="ja", vad_filter=True)
-            raw_transcript = [
-                (float(s.start), float(s.end), s.text.strip(), float(s.avg_logprob))
-                for s in segments
-            ]
-        transcript = [
-            (start, end, text, confidence, _speaker_for(start, end, turns))
-            for start, end, text, confidence in raw_transcript
-        ]
+        result = transcribe_audio(audio_path, token_file)
+        if not result.segments:
+            raise TranscriptionError("empty")
         now = datetime.now(UTC).isoformat()
-        with _connect(database) as connection:
-            _replace_analysis_results(connection, recording_id, transcript, now)
+        # Automation reads candidates before writing drafts. Serialize only the final
+        # replacement with adoption, never the expensive audio processing itself.
+        from daily_reader.life_automation import OPERATION_LOCK
+
+        with OPERATION_LOCK, _connect(database) as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            old_utterances = [dict(item) for item in connection.execute(
+                "SELECT * FROM utterances WHERE recording_id=?", (recording_id,)
+            )]
+            if old_utterances:
+                snapshot = {"utterances": old_utterances}
+                snapshot["speakers"] = [dict(item) for item in connection.execute(
+                    "SELECT * FROM speakers WHERE recording_id=?", (recording_id,)
+                )]
+                previous = connection.execute(
+                    "SELECT transcription_metadata, analyzed_at FROM recordings WHERE id=?",
+                    (recording_id,),
+                ).fetchone()
+                snapshot["metadata"] = json.loads(previous["transcription_metadata"])
+                snapshot["analyzed_at"] = previous["analyzed_at"]
+                connection.execute(
+                    "INSERT INTO conversation_transcription_history VALUES(?,?,?,?)",
+                    (uuid.uuid4().hex, recording_id, now, json.dumps(snapshot, ensure_ascii=False)),
+                )
+                connection.execute(
+                    "UPDATE recordings SET transcription_needs_review=1 WHERE id=?",
+                    (recording_id,),
+                )
+                result.metadata["warnings"].append(
+                    "再解析前の本文・話者名は履歴に保持しています。話者名は再確認してください。"
+                )
+                if connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='life_drafts'"
+                ).fetchone():
+                    connection.execute(
+                        """UPDATE life_drafts SET status='superseded',reason=?
+                        WHERE status='pending' AND json_extract(evidence,'$.type')='conversation'
+                        AND json_extract(evidence,'$.recording_id')=?""",
+                        ("録音が再解析されたため、新しい根拠で確認してください。", recording_id),
+                    )
+                if connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='life_speaker_people'"
+                ).fetchone():
+                    connection.execute(
+                        "DELETE FROM life_speaker_people WHERE recording_id=?", (recording_id,)
+                    )
+            _replace_analysis_results(connection, recording_id, result.segments, now)
             connection.execute(
-                "UPDATE recordings SET status='completed', analyzed_at=? WHERE id=?",
-                (now, recording_id),
+                """UPDATE recordings SET status='completed', analyzed_at=?, error=NULL,
+                transcription_metadata=? WHERE id=?""",
+                (now, json.dumps(result.metadata, ensure_ascii=False), recording_id),
             )
     except Exception as error:
+        message = (
+            str(error) if isinstance(error, TranscriptionError) else
+            "音声解析に失敗しました。原音・モデルの取得状況を確認して再試行してください。"
+        )
         with _connect(database) as connection:
             connection.execute(
                 "UPDATE recordings SET status='failed', error=? WHERE id=?",
-                (str(error)[:500], recording_id),
+                (message + "既存の結果は保持しています。", recording_id),
             )
 
 
-def start_analysis(database: Path, recording_id: str, token_file: Path) -> None:
-    threading.Thread(
-        target=analyze_recording, args=(database, recording_id, token_file), daemon=True
-    ).start()
+class AnalysisConflict(ValueError):
+    """Another operation owns this recording."""
+
+
+def start_analysis(database: Path, recording_id: str, token_file: Path) -> bool:
+    with _connect(database) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT source_type,status,insight_status FROM recordings WHERE id=?", (recording_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(recording_id)
+        if row["source_type"] != "audio":
+            raise ValueError("文字起こしテキストは音声解析できません")
+        if row["status"] == "analyzing" or row["insight_status"] in {"queued", "extracting"}:
+            raise AnalysisConflict("この録音は処理中です。完了後に再試行してください。")
+        # Uploads already have status=queued, so a separate reserved state is unnecessary:
+        # mark analyzing synchronously before launching the serial worker.
+        connection.execute(
+            "UPDATE recordings SET status='analyzing',error=NULL WHERE id=?", (recording_id,)
+        )
+    try:
+        threading.Thread(
+            target=analyze_recording, args=(database, recording_id, token_file), daemon=True
+        ).start()
+    except Exception:
+        with _connect(database) as connection:
+            connection.execute(
+                "UPDATE recordings SET status='failed',error=? WHERE id=?",
+                ("解析を開始できませんでした。再試行してください。", recording_id),
+            )
+        raise
+    return True
 
 
 def _insight_input(
@@ -1013,6 +1035,7 @@ def queue_insight_extraction(
     model: str = DEFAULT_INSIGHT_MODEL,
 ) -> bool:
     with _connect(database) as connection:
+        connection.execute("BEGIN IMMEDIATE")
         recording = connection.execute(
             "SELECT status, insight_status FROM recordings WHERE id=?", (recording_id,)
         ).fetchone()
@@ -1220,6 +1243,12 @@ def extract_recording_insights(
         run_id: str | None = None
         try:
             with _connect(database) as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                recording = connection.execute(
+                    "SELECT status FROM recordings WHERE id=?", (recording_id,)
+                ).fetchone()
+                if recording is None or recording["status"] != "completed":
+                    return
                 connection.execute(
                     """UPDATE recordings SET insight_status='extracting', insight_error=NULL
                     WHERE id=?""",

@@ -26,10 +26,14 @@ TXTは10 MiBまでです。MP3保存後の空き容量が5 GiB未満になるア
 原音・原文は自動削除しません。共有先として受け取ったiPhone内の一時コピーは、Mac miniへの
 送信成功後に削除します。
 
-Mac側ではfaster-whisperで日本語を文字起こしし、pyannoteの
+Mac側ではfaster-whisperのlarge-v3-turbo（既定）で日本語を文字起こしし、pyannoteの
 `speaker-diarization-community-1`で話者区間を分離します。Hugging Faceでモデルの利用条件に
 同意したうえで、アクセストークンを改行付きの
 `secrets/huggingface-token.txt`へ保存してください。音声の保存、文字起こし、話者分離はMac内で完結します。
+話者分離だけの失敗時も本文は「話者未判定」で保存します。完了済み録音は会話詳細から
+再解析できます。成功時だけ本文を更新し、旧本文・話者名はMac内の履歴へ保持します。
+再解析後の候補は、追加済みの用事との重複を確認してから保存します。
+モデル・診断・比較方法は[文字起こし](docs/conversation-transcription.md)を参照してください。
 TXTは音声解析を行わないため、Hugging Faceトークンは不要です。非空行を順番に発話として扱い、
 話者を推測せず「話者1」として分類します。解析結果、話者、話題、発話、確認待ち候補は
 `data/conversations.sqlite3`へ保存されます。

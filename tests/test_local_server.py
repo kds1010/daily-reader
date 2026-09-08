@@ -2032,3 +2032,27 @@ def test_secretary_news_freshness_includes_recommendation_snapshot(
     assert source["last_success_at"] == (
         min(article_time, highlight_time) if highlight_time else None
     )
+
+
+def test_conversation_reanalysis_conflict_returns_409(tmp_path, monkeypatch):
+    from daily_reader.conversations import AnalysisConflict
+
+    db = tmp_path / 'db'
+    record = store_transcript(db, io.BytesIO(b'old'), 3, 'test.txt')
+    with sqlite3.connect(db) as connection:
+        connection.execute("UPDATE recordings SET source_type='audio'")
+    factory = make_handler(
+        tmp_path / 'site', tmp_path / 'articles', tmp_path / 'read', tmp_path / 'feedback',
+        tmp_path / 'assistant', tmp_path / 'client', tmp_path / 'token', conversations_db=db,
+    )
+    handler = factory.func.__new__(factory.func)
+    responses = []
+    handler._send_json = lambda status, payload: responses.append((status, payload))
+    handler.path = f"/api/conversations/{record['id']}/analyze"
+
+    def conflict(*_):
+        raise AnalysisConflict('処理中です')
+
+    monkeypatch.setattr('daily_reader.local_server.start_analysis', conflict)
+    handler.do_POST()
+    assert responses == [(409, {'error': '処理中です'})]

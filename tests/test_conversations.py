@@ -567,3 +567,83 @@ def test_location_history_rejects_invalid_ranges(tmp_path, start, end, offset, l
 
     with pytest.raises(ValueError):
         list_location_events(tmp_path / "db", start, end, offset, limit)
+
+
+def test_reanalysis_failure_keeps_previous_results_and_success_archives_them(tmp_path, monkeypatch):
+    from daily_reader import conversations as conv
+    from daily_reader.conversation_transcription import Transcription
+
+    db = tmp_path / "db"
+    content = "資料を確認してください".encode()
+    record = store_transcript(db, io.BytesIO(content), len(content), "test.txt")
+    rid = record["id"]
+    with sqlite3.connect(db) as connection:
+        connection.execute("UPDATE recordings SET source_type='audio'")
+    update_speaker(db, record["speakers"][0]["id"], "確認済みの名前")
+
+    def failed(*_):
+        raise RuntimeError("private-path secret-token")
+
+    monkeypatch.setattr(conv, "transcribe_audio", failed)
+    conv.analyze_recording(db, rid, tmp_path / "token")
+    failed_record = get_recording(db, rid)
+    assert failed_record["status"] == "failed"
+    assert failed_record["utterances"][0]["text"] == content.decode()
+    assert failed_record["speakers"][0]["display_name"] == "確認済みの名前"
+    assert failed_record["transcription_needs_review"] == 0
+    assert "secret-token" not in failed_record["error"]
+
+    monkeypatch.setattr(
+        conv,
+        "transcribe_audio",
+        lambda *_: Transcription(
+            [(0, 2, "新しい本文", -0.2, "話者未判定")], {"model": "test", "warnings": []}
+        ),
+    )
+    conv.analyze_recording(db, rid, tmp_path / "token")
+    current = get_recording(db, rid)
+    assert current["status"] == "completed"
+    assert current["error"] is None
+    assert current["transcription_metadata"]["model"] == "test"
+    assert current["transcription_needs_review"] == 1
+    assert current["utterances"][0]["text"] == "新しい本文"
+    assert current["speakers"][0]["display_name"] is None
+    with sqlite3.connect(db) as connection:
+        snapshot = connection.execute(
+            "SELECT snapshot FROM conversation_transcription_history"
+        ).fetchone()[0]
+    assert "確認済みの名前" in snapshot
+    assert content.decode() in snapshot
+
+
+def test_analysis_reservation_rejects_duplicates_and_insight_races(tmp_path, monkeypatch):
+    from daily_reader import conversations as conv
+
+    db = tmp_path / "db"
+    record = store_upload(db, tmp_path / "audio", io.BytesIO(b"ID3audio"), 8, "test.mp3")
+    monkeypatch.setattr(conv.threading.Thread, "start", lambda _: None)
+    assert conv.start_analysis(db, record["id"], tmp_path / "token")
+    with pytest.raises(conv.AnalysisConflict):
+        conv.start_analysis(db, record["id"], tmp_path / "token")
+    with pytest.raises(ValueError, match="完了後"):
+        conv.queue_insight_extraction(db, record["id"], tmp_path / "schema", "unused")
+    with sqlite3.connect(db) as connection:
+        connection.execute("UPDATE recordings SET status='completed',insight_status='extracting'")
+    with pytest.raises(conv.AnalysisConflict):
+        conv.start_analysis(db, record["id"], tmp_path / "token")
+
+
+def test_empty_reanalysis_does_not_replace_old_transcript(tmp_path, monkeypatch):
+    from daily_reader import conversations as conv
+    from daily_reader.conversation_transcription import Transcription
+
+    db = tmp_path / "db"
+    record = store_transcript(db, io.BytesIO(b"old"), 3, "test.txt")
+    with sqlite3.connect(db) as connection:
+        connection.execute("UPDATE recordings SET source_type='audio'")
+    monkeypatch.setattr(conv, "transcribe_audio", lambda *_: Transcription([], {}))
+    conv.analyze_recording(db, record["id"], tmp_path / "token")
+    current = get_recording(db, record["id"])
+    assert current["utterances"][0]["text"] == "old"
+    assert current["transcription_needs_review"] == 0
+    assert current["status"] == "failed"

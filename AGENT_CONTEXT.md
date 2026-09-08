@@ -407,3 +407,11 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - `ConversationImports.swift`はファイル選択・iPhone共有・ショートカットを共通の端末内キューへ保存する。Application Supportの`Daymeld/ConversationImports/`に保護された原音コピー・元ファイル名・Inbox受信元の索引を保持し、バックアップから除外する。受付済み同内容をまとめ、既存APIClientから1件ずつ送信する。失敗分は「会話」で再送、再起動時は復元して再試行する。受付とサーバー保存・解析の成功は区別する。
 - 成功後だけ端末キューを削除し、iPhoneの受信Inboxコピーは元の内容と一致する場合だけ削除する。外部原本とMac miniの原音は保持する。読み取れない項目は保持・警告し、正常分は送信する。受付前に中断された一時コピーは次の復元時に回収する。録音日時、SHA重複排除、Macの5 GiB残量条件、自動整理の設定は従来どおり。OSの停止中の転送は保証しない。
 - 手順と公式根拠は[SoundcoreのMP3取り込み](docs/soundcore-import.md)。検証は`tests/test_conversation_import_native.py`（実Intentファイル・Swiftキュー・URLSessionと匿名HTTP）、`tests/test_ios_file_sharing.py`、両OSビルド。共有Swift変更の配信はサーバー事前確認と両OS成果物の再生成・配信検証を行う。サーバー正常時の再起動は不要。
+
+## 音声認識の精度と再解析
+
+- `conversation_transcription.py`がfaster-whisperのlarge-v3-turbo（既定）、CPU int8、日本語、VAD既定で認識する。`DAYMELD_WHISPER_MODEL`の既存指定を優先する。前文引き継ぎを無効にして反復ループを抑えるが、窓間の表記不一致は起こり得る。モデル・設定版・時間・VAD通過・品質診断を`transcription_metadata`に保存し、avg_logprobを正解率とは表示しない。原音はMac外へ送らない。
+- 話者分離だけの失敗時は本文を話者未判定で保存する。認識失敗・空結果では旧本文を保持する。完了済みMP3を会話詳細から再解析でき、二重投入・Codex整理との競合は原子的に拒否する。
+- 再解析成功時は旧本文・話者名・設定を`conversation_transcription_history`へ保持する。話者名の同番号による引き継ぎはせず、この録音の人物対応を解除する。旧未確認候補・暮らしの下書きはsupersededにし、保存済みentry・確認済み根拠は保持する。`transcription_needs_review=1`では自動Codex整理を停止し、手動再整理の候補も自動採用せず重複確認へ送る。旧録音の一括再解析はしない。
+- 約28秒録音のVAD保持は約0.5秒で、感度を緩めても改善しなかった。変換後のクリッピングがあるが原音破損とは断定しない。全録音のVADを無根拠に緩めない。実音声診断、比較手順、制約は[音声認識](docs/conversation-transcription.md)を参照する。
+- `scripts/evaluate_conversation_transcription.py`はDB非更新・本文非表示で同一区間のモデル比較を行う。正解文がない実録音ではCERを算出せず、合成音声の精度と区別する。回帰テストは音声認識・会話・暮らし・HTTP・Swiftデコードと両OSビルド。配信にはWeb再起動と両OS成果物再生成・検証が必要。

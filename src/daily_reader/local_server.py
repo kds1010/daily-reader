@@ -52,6 +52,7 @@ from daily_reader.agent_jobs import (
 from daily_reader.conversation_insights import DEFAULT_INSIGHT_MODEL, codex_available
 from daily_reader.conversations import (
     ACTIONABLE_INSIGHT_KINDS,
+    AnalysisConflict,
     get_recording,
     list_insight_items,
     list_location_events,
@@ -1369,6 +1370,8 @@ def make_handler(
                     self._send_json(202, {"queued": True})
                 except KeyError:
                     self._send_json(404, {"error": "recording not found"})
+                except AnalysisConflict as error:
+                    self._send_json(409, {"error": str(error)})
                 except ValueError as error:
                     self._send_json(400, {"error": str(error)})
                 return

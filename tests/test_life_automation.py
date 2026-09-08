@@ -414,3 +414,49 @@ def test_duplicate_conversion_preserves_confirmed_profile_owner(db, worker, monk
     with life.connect(db) as connection:
         mapped = connection.execute("SELECT person_id FROM life_speaker_people").fetchone()[0]
     assert mapped == "self"
+
+
+def test_audio_reanalysis_keeps_adopted_entries_and_requires_review(db, worker, monkeypatch):
+    from daily_reader.conversation_transcription import Transcription
+
+    record = extracted(db, monkeypatch, [{}, {"title": "検討する", "certainty": "ambiguous"}])
+    worker.step()
+    saved = life.snapshot(db)["entries"]
+    pending = auto.drafts(db)
+    assert len(saved) == len(pending) == 1
+    with life.connect(db) as connection:
+        connection.execute("UPDATE recordings SET source_type='audio'")
+        connection.execute(
+            "INSERT INTO life_speaker_people VALUES(?,?,?)", (record["id"], "話者1", "self")
+        )
+    monkeypatch.setattr(
+        conv,
+        "transcribe_audio",
+        lambda *_: Transcription(
+            [(0, 2, "資料を確認します", -0.1, "話者1")], {"warnings": [], "model": "test"}
+        ),
+    )
+    conv.analyze_recording(db, record["id"], Path("/unused/token"))
+    assert auto.drafts(db) == []
+    with pytest.raises(ValueError):
+        auto.adopt(db, pending[0]["id"], {})
+    with life.connect(db) as connection:
+        assert connection.execute("SELECT count(*) FROM life_speaker_people").fetchone()[0] == 0
+    conv.extract_recording_insights(db, record["id"], SCHEMA)
+    worker.step()
+    worker.step()
+    assert [entry["id"] for entry in life.snapshot(db)["entries"]] == [saved[0]["id"]]
+    assert len(auto.drafts(db)) == 2
+    assert all("再解析後" in draft["reason"] for draft in auto.drafts(db))
+
+
+def test_reanalysis_is_not_automatically_sent_to_codex(db, monkeypatch):
+    record = conv.store_transcript(db, io.BytesIO(b"text"), 4, "test.txt")
+    with life.connect(db) as connection:
+        connection.execute("UPDATE recordings SET transcription_needs_review=1")
+    queued = []
+    monkeypatch.setattr(conv, "queue_insight_extraction", lambda *args: queued.append(args))
+    value = auto.AutomationWorker(db, SCHEMA, "unused", "unused")
+    value._queue_recording(auto.settings(db))
+    assert queued == []
+    assert conv.get_recording(db, record["id"])["insight_status"] == "not_requested"

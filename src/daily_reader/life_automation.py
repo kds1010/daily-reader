@@ -372,6 +372,7 @@ class AutomationWorker:
                 FROM recordings r LEFT JOIN life_automation_recordings a ON a.recording_id=r.id
                 WHERE r.status='completed' AND julianday(r.created_at)>=julianday(?)
                 AND r.insight_status IN ('not_requested','failed')
+                AND r.transcription_needs_review=0
                 AND COALESCE(a.attempts,0)<3 ORDER BY r.created_at LIMIT 20""",
                 (policy["since"],),
             ).fetchall()
@@ -432,6 +433,12 @@ class AutomationWorker:
                 payload, evidence, reason, automatic = _candidate(self.database, item)
                 if payload["kind"] == "research" and not policy["research_enabled"]:
                     reason = "自動調査を停止中です。内容を確認して個別に開始できます。"
+                if item["transcription_needs_review"]:
+                    automatic = False
+                    reason = "\n".join(filter(None, [
+                        reason,
+                        "再解析後の候補です。追加済みの用事・調査との重複を確認してください。",
+                    ]))
                 draft_id = _put_draft(
                     self.database,
                     f"conversation:{item['recording_id']}:{item['fingerprint']}",

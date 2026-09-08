@@ -292,6 +292,14 @@ def create_entry(database: Path, payload: dict, *, automatic: bool = False) -> d
             ).fetchone()
             if row:
                 return present(row)
+        if payload.get("source_type") == "conversation":
+            item = connection.execute(
+                "SELECT status FROM conversation_items WHERE id=?", (payload.get("source_id"),)
+            ).fetchone()
+            if not item or item["status"] in {"superseded", "dismissed"}:
+                raise ValueError(
+                    "元の会話候補が更新・破棄されています。最新の候補を確認してください。"
+                )
         if payload.get("source_type") == "event":
             parent = connection.execute(
                 "SELECT * FROM life_entries WHERE id=?", (payload.get("source_id"),)

@@ -325,6 +325,8 @@ struct ConversationDetailView: View {
     let recordingID: String
     @State private var recording: ConversationRecording?
     @State private var showExtractionConfirmation = false
+    @State private var showTranscriptionConfirmation = false
+    @State private var transcriptionInFlight = false
     @State private var extractionInFlight = false
 
     var body: some View {
@@ -344,8 +346,23 @@ struct ConversationDetailView: View {
                     }
                     if recording.status == "failed" {
                         Text(recording.error ?? "解析に失敗しました").foregroundStyle(.orange)
-                        if !recording.isTranscript {
-                            Button("解析を再実行") { Task { await model.analyzeConversation(recordingID); await reload() } }
+                    }
+                    if let name = recording.transcriptionMetadata?.model {
+                        Text("文字起こしモデル: \(name)").appFont(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(recording.transcriptionMetadata?.warnings ?? [], id: \.self) { warning in
+                        Text(warning).appFont(.caption).foregroundStyle(.orange)
+                    }
+                    if recording.transcriptionNeedsReview == 1 {
+                        Text("再解析後の自動整理は停止しています。Codexで整理した候補も、追加済みの用事との重複を確認してから保存してください。")
+                            .appFont(.caption).foregroundStyle(.secondary)
+                    }
+                    if !recording.isTranscript {
+                        if recording.status == "queued" || recording.status == "analyzing" {
+                            HStack { ProgressView(); Text("Macで文字起こし・話者分離を処理しています…") }
+                        } else {
+                            Button("文字起こしを再実行") { showTranscriptionConfirmation = true }
+                                .disabled(transcriptionInFlight || extractionInFlight || recording.insightStatus == "queued" || recording.insightStatus == "extracting")
                         }
                     }
                     insightExtractionControls(recording)
@@ -417,6 +434,20 @@ struct ConversationDetailView: View {
             }
         }
         .refreshable { await reload() }
+        .confirmationDialog("文字起こしを再実行しますか？", isPresented: $showTranscriptionConfirmation, titleVisibility: .visible) {
+            Button("Macで再実行") {
+                Task {
+                    guard !transcriptionInFlight else { return }
+                    transcriptionInFlight = true
+                    defer { transcriptionInFlight = false }
+                    await model.analyzeConversation(recordingID)
+                    await reload()
+                }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("Macの現在の認識モデルで原音を解析します。長い録音は時間がかかります。成功時に本文・話者を更新し、旧本文はMac内の履歴に保持します。確認待ち候補は更新対象になります。保存済みの用事は保持し、再解析後の候補は重複を確認してから追加します。")
+        }
         .confirmationDialog(
             "文字起こしをCodexで整理しますか？",
             isPresented: $showExtractionConfirmation,
@@ -425,7 +456,11 @@ struct ConversationDetailView: View {
             Button("Codexで整理") { Task { await extractInsights() } }
             Button("キャンセル", role: .cancel) {}
         } message: {
-            Text("この録音の日時、話者、発話時刻、文字起こしだけをCodexへ渡します。原音、GPS、ファイル名、ほかの録音は渡しません。自動整理が有効な場合、明確な用事はタスク化し、公開用に整理した明示的な調べものを自動実行します。曖昧な日時・人物は確認待ちになります。")
+            if recording?.transcriptionNeedsReview == 1 {
+                Text("この録音の日時、話者、発話時刻、文字起こしだけをCodexへ渡し、確認候補として保存します。原音、GPS、ファイル名、ほかの録音は渡しません。追加済みの用事・調査との重複を確認してから保存してください。")
+            } else {
+                Text("この録音の日時、話者、発話時刻、文字起こしだけをCodexへ渡します。原音、GPS、ファイル名、ほかの録音は渡しません。自動整理が有効な場合、明確な用事はタスク化し、公開用に整理した明示的な調べものを自動実行します。曖昧な日時・人物は確認待ちになります。")
+            }
         }
     }
 
@@ -446,7 +481,7 @@ struct ConversationDetailView: View {
             Text(recording.insightError ?? "Codexによる整理に失敗しました。")
                 .foregroundStyle(.orange)
             Button("Codex整理を再試行") { showExtractionConfirmation = true }
-                .disabled(!model.conversationLLMAvailable || extractionInFlight)
+                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight)
         default:
             Button("Codexでタスク・予定・関心などを整理") { showExtractionConfirmation = true }
                 .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight)

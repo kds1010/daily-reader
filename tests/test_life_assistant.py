@@ -485,3 +485,19 @@ def test_registered_event_finishes_linked_registration_task(database):
     life.update_entry(database, parent["id"], {"revision": 1, "status": "registered"})
     assert life.get_entry(database, child["id"])["status"] == "completed"
     assert life.snapshot(database)["notifications"] == []
+
+
+def test_superseded_conversation_cannot_create_new_entry_but_retry_is_idempotent(database):
+    content = "資料を確認してください".encode()
+    record = store_transcript(database, io.BytesIO(content), len(content), "test.txt")
+    item = list_insight_items(database)[0]
+    payload = task(source_type="conversation", source_id=item["id"])
+    existing = life.create_entry(database, payload)
+    with life.connect(database) as connection:
+        connection.execute(
+            "UPDATE conversation_items SET status='superseded' WHERE recording_id=?",
+            (record["id"],),
+        )
+    assert life.create_entry(database, payload)["id"] == existing["id"]
+    with pytest.raises(ValueError, match="更新・破棄"):
+        life.create_entry(database, {**payload, "kind": "research"})

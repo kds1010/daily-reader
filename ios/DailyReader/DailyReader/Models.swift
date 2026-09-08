@@ -435,6 +435,11 @@ struct ConversationEnvelope: Decodable {
 
 struct ConversationItemsEnvelope: Decodable { let items: [ConversationInsightItem] }
 
+struct ConversationTranscriptionMetadata: Decodable {
+    let model: String?
+    let warnings: [String]?
+}
+
 struct ConversationRecording: Decodable, Identifiable {
     let id: String
     let filename: String
@@ -459,6 +464,8 @@ struct ConversationRecording: Decodable, Identifiable {
     let locationAccuracy: Double?
     let locationTimestamp: String?
     let locationTimeDelta: Double?
+    var transcriptionMetadata: ConversationTranscriptionMetadata? = nil
+    var transcriptionNeedsReview: Int? = nil
     var locationContexts: [ConversationLocationContext]? = nil
     var isTranscript: Bool { sourceType == "transcript" }
     enum CodingKeys: String, CodingKey {
@@ -472,6 +479,8 @@ struct ConversationRecording: Decodable, Identifiable {
         case insightAnalyzedAt = "insight_analyzed_at"
         case insightItemCount = "insight_item_count"
         case recordedAt = "recorded_at", locationLatitude = "location_latitude", locationLongitude = "location_longitude", locationAccuracy = "location_accuracy", locationTimestamp = "location_timestamp", locationTimeDelta = "location_time_delta"
+        case transcriptionMetadata = "transcription_metadata"
+        case transcriptionNeedsReview = "transcription_needs_review"
         case locationContexts = "location_contexts"
     }
 }
