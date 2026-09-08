@@ -346,15 +346,48 @@ uv run daily-reader-local
 
 既存カレンダー・移動区間・GPS速度・健康集計を自動取得し、予定の重なり、カレンダー上の着手枠、会話時の参考情報へつなぎます。取得失敗と情報なしを区別し、各取得を停止できます。詳しくは[自動取得コンテキスト](docs/iphone-context.md)を参照してください。
 
-## Gmail認証が失効した場合
+## Gmail認証の診断と継続利用
 
-Gmailが`invalid_grant`を返した場合は再認証が必要です。保存済みメールは保持し、
-通信障害とは区別して案内します。Mac miniのサービス用リポジトリで
-`uv run --frozen daily-reader-gmail auth`を実行し、Googleのログイン・同意を完了してください。
-失効したトークンが残っていても認証画面へ進み、認証成功後にだけトークンを置き換えます。
-キャンセル時は既存トークンを保持します。再認証後に同期成功と最終取得日時を確認してください。
+アクセストークンの期限は自動更新します。`invalid_grant`などでrefresh token自体が
+失効した場合は本人の再同意が必要です。通信障害とは区別して案内し、保存済みメールは保持します。
+まずMac miniのサービス用リポジトリで、ネットワーク接続・トークン更新・DB初期化を行わない
+診断を実行してください（作業用worktreeでは実運用の資格情報やDBを参照しません）。
 
-[Google公式資料](https://developers.google.com/identity/protocols/oauth2#expiration)によると、
-外部向けOAuthアプリの公開ステータスがTestingの場合、Gmail権限のrefresh tokenは7日で失効します。
-繰り返す場合はGoogle Cloudの公開ステータスを確認してください。本環境の設定は未確認であり、
-失効原因をTestingと断定したり、アプリの公開設定を自動変更したりはしません。
+```bash
+uv run --frozen daily-reader-gmail doctor
+```
+
+診断にはファイルの有無、refresh tokenの有無、Gmail権限、アクセストークン期限、保存権限、
+最終同期成功・試行日時、認証要求状態だけを表示します。秘密値・メール本文は表示しません。
+アクセストークン期限からrefresh tokenの期限やOAuthアプリの公開状態は判定できず、
+これらは不明と表示します。ファイルが読めてもGoogleとの接続成功を意味しません。
+
+[Google公式資料](https://support.google.com/cloud/answer/15549945?hl=en)によると、
+外部向けOAuthアプリがTestingの場合、Gmail権限のrefresh tokenは同意から7日で失効します。
+繰り返す場合は次の順で確認してください。
+
+1. Google Cloudで`secrets/gmail-client.json`を発行したプロジェクトを選び、
+   Google Auth Platform → Audienceの公開状態を確認します。診断コマンドでは取得しません。
+2. Testingなら、[個人利用の審査例外](https://support.google.com/cloud/answer/13464323?hl=en)
+   と対象ユーザーを確認し、本人が公開状態をIn productionへ変更します。個人利用でも未確認アプリの
+   警告やユーザー数上限は残ります。これはOAuthアプリの公開設定であり、DaymeldのWebサーバーを
+   インターネットへ公開する操作ではありません。本環境の状態は未確認で、自動変更しません。
+3. 変更後は、古いトークンが有効でも新しく同意するため、次を実行します。
+
+```bash
+uv run --frozen daily-reader-gmail auth --force
+```
+
+`--force`は`auth`専用です。ブラウザでGoogleのログイン・Gmail権限への同意を完了してください。
+通常の初回認証・失効からの復旧は従来の`auth`も使えます。`auth`は成功後にメールを同期します。
+有効なrefresh tokenと必要権限を取得できた場合だけ、0600の一時ファイルから認証情報を置き換えます。
+キャンセル、権限不足、保存失敗時は既存トークンを保持します。定期更新とCLIは同じロックを使い、
+同意待ち中はロックを保持しません。その間に別処理がトークンを更新した場合は上書きを避け、
+再実行を案内します（通常のアクセストークン更新との競合でも再実行が必要になる場合があります）。
+有効なトークンを読み取っただけでは書き直しません。
+
+再認証後は`doctor`とメール画面で最終同期成功日時の更新・認証要求の解除を確認してください。
+In productionでもユーザーの取り消し、Gmail権限を含む場合のパスワード変更などで失効し得ます。
+[失効条件](https://developers.google.com/identity/protocols/oauth2#expiration)を確認し、永久接続や
+7日超の継続を即時の検証だけで保証しないでください。Google側の設定変更・本人の同意・実同期復旧は、
+コードの検証・配信とは分けて報告します。

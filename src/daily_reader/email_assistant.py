@@ -3,13 +3,15 @@ from __future__ import annotations
 import argparse
 import base64
 import email.utils
+import fcntl
 import html
 import json
 import os
 import re
 import sqlite3
+import tempfile
 import urllib.parse
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -116,6 +118,10 @@ class GmailThreadRecord:
 
 class GmailAuthorizationRequired(RuntimeError):
     """Raised when the stored Gmail token cannot perform the requested operation."""
+
+
+class GmailAuthorizationFailed(RuntimeError):
+    """New consent failed; this does not establish that the saved token is invalid."""
 
 
 def clean_message_text(value: str, max_length: int = 1200) -> str:
@@ -388,50 +394,186 @@ def mark_gmail_thread_read(
     return True
 
 
+@contextmanager
+def _token_lock(token_path: Path):
+    # Lock a stable sidecar inode: the token itself is replaced atomically.
+    token_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(token_path.with_name(token_path.name + ".lock"),
+                         os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(descriptor)
+
+
+def _read_token(token_path: Path) -> str | None:
+    try:
+        return token_path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+
+
+def _save_credentials(token_path: Path, credentials: Credentials) -> None:
+    # The caller holds _token_lock; the temporary file is private from creation.
+    serialized = credentials.to_json()
+    descriptor, temporary = tempfile.mkstemp(prefix=".gmail-token-", dir=token_path.parent)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(serialized)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, token_path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def _granted_scopes(credentials: Credentials) -> set[str]:
+    granted = credentials.granted_scopes
+    # OAuth permits an omitted scope when it equals the requested scope.
+    return set((credentials.scopes if granted is None else granted) or ())
+
+
 def load_credentials(
     client_secret: Path,
     token_path: Path,
     interactive: bool,
     require_modify: bool = False,
+    force: bool = False,
 ) -> Credentials:
-    credentials = None
-    if token_path.exists():
-        token = json.loads(token_path.read_text(encoding="utf-8"))
-        token_scopes = set(token.get("scopes", []))
-        read_scope = (
-            GMAIL_MODIFY_SCOPE
-            if GMAIL_MODIFY_SCOPE in token_scopes
-            else GMAIL_READONLY_SCOPE
+    if force and not interactive:
+        raise ValueError("--force is only supported with auth")
+    # Refresh and save under the same cross-process lock. Never hold it while
+    # waiting for browser consent, and never write already-valid credentials.
+    with _token_lock(token_path):
+        original = _read_token(token_path)
+        credentials = None
+        if original is not None and not force:
+            try:
+                token = json.loads(original)
+                token_scopes = set(token.get("scopes", []))
+                read_scope = (
+                    GMAIL_MODIFY_SCOPE
+                    if GMAIL_MODIFY_SCOPE in token_scopes
+                    else GMAIL_READONLY_SCOPE
+                )
+                scope = GMAIL_MODIFY_SCOPE if require_modify else read_scope
+                if scope in token_scopes:
+                    credentials = Credentials.from_authorized_user_info(token, [scope])
+            except (ValueError, TypeError, AttributeError):
+                # A damaged/incomplete token can be replaced through consent.
+                credentials = None
+        if credentials and credentials.expired and credentials.refresh_token:
+            try:
+                credentials.refresh(Request())
+            except RefreshError as error:
+                invalid_grant = any(
+                    isinstance(detail, dict) and detail.get("error") == "invalid_grant"
+                    for detail in error.args
+                )
+                if error.retryable or not invalid_grant:
+                    raise
+                credentials = None
+            else:
+                if scope not in _granted_scopes(credentials):
+                    credentials = None
+                elif credentials.valid:
+                    _save_credentials(token_path, credentials)
+        if credentials and credentials.valid:
+            return credentials
+    if not interactive:
+        raise GmailAuthorizationRequired(
+            "Gmailの再認証が必要です。Mac miniで daily-reader-gmail auth を実行してください。"
         )
-        if (GMAIL_MODIFY_SCOPE if require_modify else read_scope) in token_scopes:
-            credentials = Credentials.from_authorized_user_info(
-                token, [GMAIL_MODIFY_SCOPE if require_modify else read_scope]
-            )
-    if credentials and credentials.expired and credentials.refresh_token:
-        try:
-            credentials.refresh(Request())
-        except RefreshError as error:
-            invalid_grant = any(
-                isinstance(detail, dict) and detail.get("error") == "invalid_grant"
-                for detail in error.args
-            )
-            if error.retryable or not invalid_grant:
-                raise
-            # Keep the saved token until a replacement is successfully authorized.
-            credentials = None
-    if not credentials or not credentials.valid:
-        if not interactive:
-            raise GmailAuthorizationRequired(
-                "Gmailの再認証が必要です。Mac miniで daily-reader-gmail auth を実行してください。"
-            )
-        flow = InstalledAppFlow.from_client_secrets_file(client_secret, [GMAIL_MODIFY_SCOPE])
-        credentials = flow.run_local_server(
-            host="127.0.0.1", port=0, open_browser=True, prompt="consent"
+    flow = InstalledAppFlow.from_client_secrets_file(client_secret, [GMAIL_MODIFY_SCOPE])
+    # google-auth-oauthlib requests access_type=offline by default.
+    credentials = flow.run_local_server(
+        host="127.0.0.1", port=0, open_browser=True, prompt="consent"
+    )
+    if (not credentials.valid or not credentials.refresh_token
+            or GMAIL_MODIFY_SCOPE not in _granted_scopes(credentials)):
+        raise GmailAuthorizationFailed(
+            "継続利用に必要なGmail権限を取得できませんでした。既存の認証情報は保持しました。"
         )
-    token_path.parent.mkdir(parents=True, exist_ok=True)
-    token_path.write_text(credentials.to_json(), encoding="utf-8")
-    os.chmod(token_path, 0o600)
+    with _token_lock(token_path):
+        if _read_token(token_path) != original:
+            raise GmailAuthorizationFailed(
+                "認証中に別の処理が認証情報を更新しました。上書きせず保持しました。"
+                "必要なら auth --force を再実行してください。"
+            )
+        _save_credentials(token_path, credentials)
     return credentials
+
+
+def _diagnostic_timestamp(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value).isoformat()
+    except ValueError:
+        return None
+
+
+def gmail_doctor(database: Path, client_secret: Path, token_path: Path) -> dict[str, Any]:
+    """Inspect local metadata without network access, writes, or raw secret output."""
+    report: dict[str, Any] = {
+        "client_file_present": client_secret.is_file(),
+        "token_file_present": token_path.is_file(),
+        "token_file_status": "missing",
+        "token_permissions": None,
+        "has_refresh_token": False,
+        "gmail_scopes": [],
+        "access_token_expiry": None,
+        "last_sync_completed_at": None,
+        "last_sync_attempt_at": None,
+        "authorization_required": None,
+        "sync_error": None,
+        "database_status": "missing",
+        "oauth_publishing_status": "unknown_check_google_cloud_audience",
+        "refresh_token_expiry": "unknown",
+    }
+    try:
+        report["token_permissions"] = f"{token_path.stat().st_mode & 0o777:04o}"
+        token = json.loads(token_path.read_text(encoding="utf-8"))
+        scopes = token.get("scopes", [])
+        if not isinstance(scopes, list):
+            scopes = []
+        report.update(
+            token_file_status="readable",
+            has_refresh_token=bool(token.get("refresh_token")),
+            gmail_scopes=[s for s in (GMAIL_READONLY_SCOPE, GMAIL_MODIFY_SCOPE) if s in scopes],
+            access_token_expiry=_diagnostic_timestamp(token.get("expiry")),
+        )
+    except FileNotFoundError:
+        pass
+    except (OSError, ValueError, AttributeError):
+        report["token_file_status"] = "unreadable_or_invalid"
+    if database.is_file():
+        try:
+            uri = database.resolve().as_uri() + "?mode=ro"
+            with closing(sqlite3.connect(uri, uri=True)) as conn:
+                # Do not call helpers that initialize or migrate the database.
+                state = conn.execute(
+                    "SELECT completed_at FROM gmail_sync_state WHERE id = 1"
+                ).fetchone()
+                status = conn.execute(
+                    "SELECT last_attempt_at, authorization_required, last_error "
+                    "FROM gmail_sync_status WHERE id = 1"
+                ).fetchone()
+                report["database_status"] = "readable"
+                if state:
+                    report["last_sync_completed_at"] = _diagnostic_timestamp(state[0])
+                if status:
+                    report["last_sync_attempt_at"] = _diagnostic_timestamp(status[0])
+                    report["authorization_required"] = bool(status[1])
+                    report["sync_error"] = (
+                        status[2] if status[2] in (None, "authorization_required", "sync_failed")
+                        else "unknown"
+                    )
+        except sqlite3.Error:
+            report["database_status"] = "unreadable_or_uninitialized"
+    return report
 
 
 def get_gmail_sync_status(path: Path) -> dict[str, Any] | None:
@@ -585,6 +727,7 @@ def sync_gmail(
     query: str = GMAIL_RECENT_QUERY,
     account_index: int = 0,
     interactive: bool = False,
+    force: bool = False,
 ) -> int:
     attempted_at = datetime.now(UTC)
     credentials = None
@@ -594,6 +737,7 @@ def sync_gmail(
             token_path,
             interactive,
             require_modify=interactive,
+            force=force,
         )
         can_mark_read = GMAIL_MODIFY_SCOPE in set(credentials.scopes or ())
         service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
@@ -666,9 +810,14 @@ def sync_gmail(
         record_gmail_sync_status(database, attempted_at, None, False, can_mark_read)
         return len(records)
     except GmailAuthorizationRequired:
-        record_gmail_sync_status(database, attempted_at, "authorization_required", True, False)
+        if not interactive:
+            record_gmail_sync_status(database, attempted_at, "authorization_required", True, False)
         raise
     except Exception:
+        if interactive and credentials is None:
+            # Cancelled, incomplete, or superseded consent must not overwrite a
+            # successful background sync (or a previous real authorization error).
+            raise
         record_gmail_sync_status(
             database,
             attempted_at,
@@ -680,8 +829,10 @@ def sync_gmail(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Authorize or synchronize Gmail")
-    parser.add_argument("command", choices=("auth", "sync"))
+    parser = argparse.ArgumentParser(description="Authorize, synchronize, or diagnose Gmail")
+    parser.add_argument("command", choices=("auth", "sync", "doctor"))
+    parser.add_argument("--force", action="store_true",
+                        help="Start new browser consent even with a valid token (auth only)")
     parser.add_argument("--database", type=Path, default=Path("data/assistant.sqlite3"))
     parser.add_argument("--client-secret", type=Path, default=Path("secrets/gmail-client.json"))
     parser.add_argument("--token", type=Path, default=Path("secrets/gmail-token.json"))
@@ -691,10 +842,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.force and args.command != "auth":
+        parser.error("--force is only supported with auth")
+    if args.command == "doctor":
+        print(json.dumps(gmail_doctor(args.database, args.client_secret, args.token), indent=2))
+        return
     count = sync_gmail(
         args.database, args.client_secret, args.token, args.query,
-        args.account_index, interactive=args.command == "auth"
+        args.account_index, interactive=args.command == "auth", force=args.force
     )
     print(f"Synchronized {count} Gmail threads")
 

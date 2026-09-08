@@ -6,6 +6,7 @@ import pytest
 
 from daily_reader.email_assistant import (
     GMAIL_READONLY_SCOPE,
+    GmailAuthorizationFailed,
     GmailAuthorizationRequired,
     GmailThreadRecord,
     assess_email,
@@ -204,7 +205,9 @@ def test_readonly_credentials_are_accepted_but_modify_is_rejected(
 def test_interactive_sync_requires_modify_scope(tmp_path: Path, monkeypatch) -> None:
     requested = []
 
-    def fake_load_credentials(client_secret, token_path, interactive, require_modify=False):
+    def fake_load_credentials(
+        client_secret, token_path, interactive, require_modify=False, force=False,
+    ):
         requested.append((interactive, require_modify))
         raise GmailAuthorizationRequired("authorization required")
 
@@ -462,6 +465,11 @@ def test_revoked_token_recovers_only_with_interactive_authorization(
             raise RefreshError("private response", {"error": "invalid_grant"})
 
     class FreshCredentials:
+        valid = True
+        refresh_token = "replacement-refresh"
+        scopes = ["https://www.googleapis.com/auth/gmail.modify"]
+        granted_scopes = None
+
         def to_json(self):
             return '{"replacement": true}'
 
@@ -560,3 +568,322 @@ def test_successful_sync_clears_authorization_failure(tmp_path: Path, monkeypatc
     assert status["authorization_required"] == 0
     assert status["can_mark_read"] == 1
     assert get_gmail_sync_state(database)["completed_at"] is not None
+
+
+def _oauth_credentials(*, token="private-access", refresh_token="private-refresh",
+                       granted_scopes=None, expired=False):
+    from datetime import timedelta
+
+    from google.oauth2.credentials import Credentials
+
+    return Credentials(
+        token=token, refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id="test-client", client_secret="private-client-secret",
+        scopes=["https://www.googleapis.com/auth/gmail.modify"],
+        granted_scopes=granted_scopes,
+        expiry=(datetime.now(UTC) + timedelta(hours=-1 if expired else 1)).replace(tzinfo=None),
+    )
+
+
+def _install_consent(monkeypatch, callback):
+    class Flow:
+        def run_local_server(self, **kwargs):
+            assert kwargs == {
+                "host": "127.0.0.1", "port": 0, "open_browser": True, "prompt": "consent",
+            }
+            return callback()
+
+    monkeypatch.setattr(
+        "daily_reader.email_assistant.InstalledAppFlow.from_client_secrets_file",
+        lambda *a: Flow(),
+    )
+
+
+def test_valid_token_is_not_rewritten_or_reauthorized(tmp_path, monkeypatch):
+    token = tmp_path / "token.json"
+    token.write_text(_oauth_credentials().to_json())
+    original = token.read_bytes(), token.stat().st_mtime_ns
+    _install_consent(monkeypatch, lambda: pytest.fail("unexpected consent"))
+    assert load_credentials(tmp_path / "client.json", token, False).valid
+    assert (token.read_bytes(), token.stat().st_mtime_ns) == original
+
+
+def test_expired_access_token_refreshes_without_consent(tmp_path, monkeypatch):
+    token = tmp_path / "token.json"
+    token.write_text(_oauth_credentials(expired=True).to_json())
+    _install_consent(monkeypatch, lambda: pytest.fail("unexpected consent"))
+
+    def refresh(credentials, request):
+        credentials.token = "updated-access"
+        credentials.expiry = _oauth_credentials().expiry
+
+    monkeypatch.setattr("daily_reader.email_assistant.Credentials.refresh", refresh)
+    credentials = load_credentials(tmp_path / "client.json", token, False)
+    assert credentials.token == "updated-access"
+    saved = json.loads(token.read_text())
+    assert saved["token"] == "updated-access"
+    assert saved["refresh_token"] == "private-refresh"
+    assert token.stat().st_mode & 0o777 == 0o600
+
+
+def test_force_auth_replaces_valid_token_after_consent(tmp_path, monkeypatch):
+    token = tmp_path / "token.json"
+    token.write_text(_oauth_credentials().to_json())
+    original = token.read_text()
+
+    def consent():
+        assert token.read_text() == original
+        return _oauth_credentials(refresh_token="new-refresh")
+
+    _install_consent(monkeypatch, consent)
+    monkeypatch.setattr("daily_reader.email_assistant.Credentials.refresh",
+                        lambda *a: pytest.fail("force must skip old credentials"))
+    load_credentials(tmp_path / "client.json", token, True, force=True)
+    assert json.loads(token.read_text())["refresh_token"] == "new-refresh"
+    assert token.stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize("failure", ["cancel", "no-refresh", "scope", "empty-scope", "expired"])
+def test_force_auth_failure_preserves_token(tmp_path, monkeypatch, failure):
+    token = tmp_path / "token.json"
+    token.write_text(_oauth_credentials().to_json())
+    original = token.read_bytes()
+
+    def consent():
+        if failure == "cancel":
+            raise ValueError("cancelled")
+        return _oauth_credentials(
+            refresh_token=None if failure == "no-refresh" else "new-refresh",
+            granted_scopes=([GMAIL_READONLY_SCOPE] if failure == "scope"
+                            else [] if failure == "empty-scope" else None),
+            expired=failure == "expired",
+        )
+
+    _install_consent(monkeypatch, consent)
+    with pytest.raises(ValueError if failure == "cancel" else GmailAuthorizationFailed):
+        load_credentials(tmp_path / "client.json", token, True, force=True)
+    assert token.read_bytes() == original
+
+
+def test_refresh_rejects_reduced_granted_scope_without_saving(tmp_path, monkeypatch):
+    token = tmp_path / "token.json"
+    token.write_text(_oauth_credentials(expired=True).to_json())
+    original = token.read_bytes()
+
+    def refresh(credentials, request):
+        credentials.expiry = _oauth_credentials().expiry
+        credentials._granted_scopes = [GMAIL_READONLY_SCOPE]
+
+    monkeypatch.setattr("daily_reader.email_assistant.Credentials.refresh", refresh)
+    with pytest.raises(GmailAuthorizationRequired):
+        load_credentials(tmp_path / "client.json", token, False)
+    assert token.read_bytes() == original
+
+
+def test_failed_atomic_replace_keeps_original_and_cleans_private_temp(tmp_path, monkeypatch):
+    token = tmp_path / "token.json"
+    token.write_text(_oauth_credentials().to_json())
+    original = token.read_bytes()
+    _install_consent(monkeypatch, lambda: _oauth_credentials(refresh_token="new-refresh"))
+
+    def fail_replace(source, destination):
+        assert Path(source).stat().st_mode & 0o777 == 0o600
+        assert Path(source).parent == token.parent
+        assert destination == token
+        raise OSError("disk failure")
+
+    monkeypatch.setattr("daily_reader.email_assistant.os.replace", fail_replace)
+    with pytest.raises(OSError, match="disk failure"):
+        load_credentials(tmp_path / "client.json", token, True, force=True)
+    assert token.read_bytes() == original
+    assert not list(tmp_path.glob(".gmail-token-*"))
+
+
+def test_concurrent_auth_does_not_block_reader_or_overwrite_newer_auth(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    token = tmp_path / "token.json"
+    token.write_text(_oauth_credentials().to_json())
+    started, finish = Event(), Event()
+
+    def consent():
+        started.set()
+        assert finish.wait(5)
+        return _oauth_credentials(refresh_token="stale-consent")
+
+    _install_consent(monkeypatch, consent)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        pending = pool.submit(load_credentials, tmp_path / "client.json", token, True, False, True)
+        try:
+            assert started.wait(5)
+            # A consent dialog must not prevent API callers from loading credentials.
+            reader = pool.submit(load_credentials, tmp_path / "client.json", token, False)
+            assert reader.result(timeout=5).valid
+            _install_consent(monkeypatch, lambda: _oauth_credentials(refresh_token="newest"))
+            load_credentials(tmp_path / "client.json", token, True, force=True)
+        finally:
+            finish.set()
+        with pytest.raises(GmailAuthorizationFailed, match="別の処理"):
+            pending.result(timeout=5)
+    assert json.loads(token.read_text())["refresh_token"] == "newest"
+
+
+def test_parallel_process_refreshes_reload_under_lock(tmp_path, monkeypatch):
+    import multiprocessing
+
+    token = tmp_path / "token.json"
+    token.write_text(_oauth_credentials(expired=True).to_json())
+    # fork gives both workers the same deterministic, network-free refresh stub.
+    context = multiprocessing.get_context("fork")
+    entered, release, second_started = context.Event(), context.Event(), context.Event()
+    results = context.Queue()
+
+    def refresh(credentials, request):
+        entered.set()
+        assert release.wait(5)
+        credentials.token = "refreshed-once"
+        credentials.expiry = _oauth_credentials().expiry
+        results.put("refresh")
+
+    def worker(second=False):
+        if second:
+            second_started.set()
+        credentials = load_credentials(tmp_path / "client.json", token, False)
+        results.put(credentials.token)
+
+    monkeypatch.setattr("daily_reader.email_assistant.Credentials.refresh", refresh)
+    first = context.Process(target=worker)
+    second = context.Process(target=worker, args=(True,))
+    first.start()
+    try:
+        assert entered.wait(5)
+        second.start()
+        assert second_started.wait(5)
+    finally:
+        release.set()
+        for process in (first, second):
+            if process.pid is not None:
+                process.join(timeout=5)
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=5)
+    assert first.exitcode == second.exitcode == 0
+    assert sorted(results.get(timeout=5) for _ in range(3)) == [
+        "refresh", "refreshed-once", "refreshed-once",
+    ]
+    results.close()
+    assert json.loads(token.read_text())["token"] == "refreshed-once"
+
+
+def test_doctor_is_read_only_and_reports_only_safe_metadata(tmp_path, monkeypatch, capsys):
+    from daily_reader.email_assistant import main
+
+    database = tmp_path / "db.sqlite3"
+    token, client = tmp_path / "token.json", tmp_path / "client.json"
+    record_gmail_sync_status(database, NOW, "private-error-response", True, False)
+    import sqlite3
+
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "INSERT INTO gmail_sync_state VALUES (1, ?, 0)", (NOW.isoformat(),),
+        )
+    payload = json.loads(_oauth_credentials().to_json())
+    payload["scopes"].append("private-unknown-scope")
+    token.write_text(json.dumps(payload))
+    token.chmod(0o600)
+    client.write_text("private-client-contents")
+    before = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.iterdir()}
+    monkeypatch.setattr("sys.argv", ["daily-reader-gmail", "doctor", "--database", str(database),
+                                     "--token", str(token), "--client-secret", str(client)])
+    monkeypatch.setattr("daily_reader.email_assistant.load_credentials",
+                        lambda *a, **k: pytest.fail("doctor must not load/refresh credentials"))
+    main()
+    output = capsys.readouterr().out
+    report = json.loads(output)
+    assert "private" not in output
+    assert report["has_refresh_token"]
+    assert report["token_permissions"] == "0600"
+    assert report["authorization_required"]
+    assert report["sync_error"] == "unknown"
+    assert report["refresh_token_expiry"] == "unknown"
+    assert report["last_sync_completed_at"] == NOW.isoformat()
+    assert report["last_sync_attempt_at"] == NOW.isoformat()
+    assert {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in tmp_path.iterdir()} == before
+
+
+@pytest.mark.parametrize("contents", [None, "private-invalid-json", "[]", '{"expiry":"private"}'])
+def test_doctor_handles_missing_and_invalid_files_without_creating_database(tmp_path, contents):
+    from daily_reader.email_assistant import gmail_doctor
+
+    token = tmp_path / "token.json"
+    if contents is not None:
+        token.write_text(contents)
+    original_files = list(tmp_path.iterdir())
+    report = gmail_doctor(tmp_path / "missing.sqlite3", tmp_path / "missing-client.json", token)
+    assert report["database_status"] == "missing"
+    assert report["access_token_expiry"] is None
+    assert "private" not in json.dumps(report)
+    assert list(tmp_path.iterdir()) == original_files
+
+
+@pytest.mark.parametrize("command", ["sync", "doctor"])
+def test_force_is_only_accepted_for_auth(monkeypatch, command):
+    from daily_reader.email_assistant import main
+
+    monkeypatch.setattr("sys.argv", ["daily-reader-gmail", command, "--force"])
+    monkeypatch.setattr("daily_reader.email_assistant.sync_gmail",
+                        lambda *a, **k: pytest.fail("invalid arguments must not synchronize"))
+    with pytest.raises(SystemExit) as error:
+        main()
+    assert error.value.code == 2
+
+
+def test_auth_cli_passes_force_and_requires_modify(tmp_path, monkeypatch, capsys):
+    from daily_reader.email_assistant import main
+
+    calls = []
+    monkeypatch.setattr("sys.argv", ["daily-reader-gmail", "auth", "--force"])
+    monkeypatch.setattr("daily_reader.email_assistant.sync_gmail",
+                        lambda *a, **k: calls.append(k) or 0)
+    main()
+    assert calls == [{"interactive": True, "force": True}]
+    assert "Synchronized 0" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("failure", ["cancel", "scope", "conflict", "save"])
+def test_failed_force_auth_preserves_current_sync_status(tmp_path, monkeypatch, failure):
+    database, token = tmp_path / "db.sqlite3", tmp_path / "token.json"
+    record_gmail_sync_status(database, NOW, None, False, True)
+    token.write_text(_oauth_credentials().to_json())
+    original = token.read_bytes()
+    expected_status = get_gmail_sync_status(database)
+
+    def consent():
+        if failure == "cancel":
+            raise ValueError("cancelled")
+        if failure == "conflict":
+            # Another successful auth/sync finishes while this consent is open.
+            from daily_reader.email_assistant import _save_credentials, _token_lock
+
+            with _token_lock(token):
+                _save_credentials(token, _oauth_credentials(refresh_token="newest"))
+            record_gmail_sync_status(database, NOW, None, False, True)
+        return _oauth_credentials(granted_scopes=[] if failure == "scope" else None)
+
+    _install_consent(monkeypatch, consent)
+    if failure == "save":
+        def fail_replace(*args):
+            raise OSError("disk failure")
+
+        monkeypatch.setattr("daily_reader.email_assistant.os.replace", fail_replace)
+    expected = (ValueError if failure == "cancel" else OSError if failure == "save"
+                else GmailAuthorizationFailed)
+    with pytest.raises(expected):
+        sync_gmail(database, tmp_path / "client.json", token, interactive=True, force=True)
+    assert get_gmail_sync_status(database) == expected_status
+    if failure == "conflict":
+        assert json.loads(token.read_text())["refresh_token"] == "newest"
+    else:
+        assert token.read_bytes() == original
