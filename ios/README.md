@@ -220,6 +220,13 @@ VPNの端末情報がなければ失敗します。経路監視がVPNを見つ�
 `Active = Yes`を確認しました。この時点では更新完了を確認しておらず、再ペアリングも行っていません。
 端末への接続先設定の不一致は確認できましたが、1006の全原因が解消したとは断定しません。
 
+その後、同日20:39〜20:40 JSTにSideStoreを完全終了後の新規起動から開き、
+`Sources → Daymeld Remote → UPDATE`を実行しました。My Appsの更新なし・Daymeldの`7 DAYS`表示に
+加え、20:41にDaymeld本体の`インストール済み 0.1.214 (214)`を確認し、実機更新の成功を確認しました。
+再ペアリングは一切行っていません。この実機では接続先設定の修正とSideStoreの完全再起動後に
+更新できましたが、今後の1006がすべて同じ操作で解消することを保証するものではありません。
+同日20:42にTailscaleのConnected復帰、20:44:47にGPS記録の再開と新規取得、20:45:16にGPS最終同期成功を実機画面で確認しました。
+
 上記でも1006が続く場合に、[公式の1006復旧手順](https://docs.sidestore.io/docs/troubleshooting/error-codes#1006-sidestore-could-not-determine-this-devices-udid)
 と[ペアリング配置手順](https://docs.sidestore.io/docs/advanced/pairing-file)の再ペアリング工程へ進みます。
 公式手順にもVPNの実設定との一致確認があります。本環境では、上記の実装と実機観測に基づいて
