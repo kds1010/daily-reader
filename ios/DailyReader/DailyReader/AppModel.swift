@@ -290,9 +290,9 @@ final class AppModel: ObservableObject {
 
     @discardableResult
     func importConversationFile(_ url: URL) async -> Bool {
+        guard !isFixture else { return false }
         do {
-            _ = try await api.uploadConversationFile(url, recordedAt: nil)
-            await refreshConversations(afterMutation: true)
+            try await ConversationImports.shared.enqueue(url: url, filename: url.lastPathComponent)
             return true
         } catch {
             errorMessage = "会話データを送信できませんでした：\(error.localizedDescription)"
@@ -310,24 +310,13 @@ final class AppModel: ObservableObject {
             return
         }
 
+        guard !isFixture else { return }
         selectedTab = 4
-        let removesInboxCopy = Self.isInboxCopy(url)
-        if await importConversationFile(url), removesInboxCopy {
-            try? FileManager.default.removeItem(at: url)
+        do {
+            try await ConversationImports.shared.enqueue(url: url, filename: url.lastPathComponent, shared: true)
+        } catch {
+            errorMessage = "共有されたMP3を端末に保存できませんでした。元のファイルから再度共有してください。"
         }
-    }
-
-    private static func isInboxCopy(_ url: URL) -> Bool {
-        guard let documents = FileManager.default.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first else { return false }
-        let inbox = documents
-            .appending(path: "Inbox", directoryHint: .isDirectory)
-            .standardizedFileURL
-            .resolvingSymlinksInPath()
-        let candidate = url.standardizedFileURL.resolvingSymlinksInPath()
-        return candidate.path.hasPrefix(inbox.path + "/")
     }
 #endif
 

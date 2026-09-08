@@ -81,6 +81,7 @@ struct NotificationOptions: OptionSet {
     result = subprocess.run(
         ["xcrun", "swiftc", "-whole-module-optimization",
          str(IOS / "Models.swift"), str(IOS / "APIClient.swift"),
+         str(IOS / "ConversationImports.swift"),
          str(IOS / "DaymeldFixtures.swift"), str(life_types),
          str(model), str(diary), str(stubs), str(runner),
          *(["-D", "BASELINE"] if baseline_path else []), "-o", str(binary)],

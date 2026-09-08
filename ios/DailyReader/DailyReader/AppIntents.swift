@@ -1,4 +1,5 @@
 import AppIntents
+import Foundation
 
 struct OpenAgentIntent: AppIntent {
     static let title: LocalizedStringResource = "Agentを開く"
@@ -10,5 +11,45 @@ struct OpenAgentIntent: AppIntent {
 struct DailyReaderShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: OpenAgentIntent(), phrases: ["\(.applicationName)でAgentを開く"], shortTitle: "Agentを開く", systemImageName: "terminal")
+        AppShortcut(intent: ImportRecordingIntent(), phrases: ["\(.applicationName)に録音を取り込む"], shortTitle: "MP3を取り込む", systemImageName: "waveform.badge.plus")
+    }
+}
+
+struct ImportRecordingIntent: AppIntent {
+    static let title: LocalizedStringResource = "MP3をDaymeldに取り込む"
+    static let description = IntentDescription("共有または書き出し済みのMP3を受け付け、DaymeldでMac miniへ送信します。Soundcore内の録音を直接取得する機能ではありません。")
+    // Keep compatibility with iOS 17/macOS 14. Transfer continues in the app,
+    // rather than keeping the intent alive for a potentially long upload.
+    static let openAppWhenRun = true
+
+    @Parameter(title: "MP3ファイル", description: "Soundcoreなどから書き出したMP3を指定してください。")
+    var file: IntentFile
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("\(\.$file)をDaymeldに取り込む")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+#if DEBUG
+        if DaymeldFixture.fromProcessArguments() != nil {
+            return .result(dialog: "プレビュー中は録音を送信しません。")
+        }
+#endif
+        try await acceptFile(into: .shared)
+        return .result(dialog: "MP3を端末に受け付けました。送信状況はDaymeldの「会話」で確認できます。")
+    }
+
+    @MainActor
+    func acceptFile(into imports: ConversationImports) async throws {
+        let input = file
+        let (url, data, filename) = await Task.detached {
+            let url = input.fileURL
+            return (url, url == nil ? input.data : nil, input.filename)
+        }.value
+        guard (filename as NSString).pathExtension.lowercased() == "mp3" else {
+            throw ConversationImportError.invalidFile
+        }
+        try await imports.enqueue(url: url, data: data, filename: filename)
     }
 }

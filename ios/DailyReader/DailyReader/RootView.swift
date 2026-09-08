@@ -107,6 +107,7 @@ struct DaymeldRootPreview: PreviewProvider {
 #endif
 
 struct RootView: View {
+    @ObservedObject private var conversationImports = ConversationImports.shared
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
     #if os(macOS)
@@ -168,6 +169,17 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openAgentFromNotification)) { _ in
             model.selectedTab = 0
         }
+        .task(id: scenePhase) {
+            guard scenePhase == .active, !model.isFixture else { return }
+            await conversationImports.resume()
+        }
+        .onReceive(conversationImports.$openRequest) { request in
+            if request > 0, !model.isFixture { model.selectedTab = 4 }
+        }
+        .onChange(of: conversationImports.completedCount) { _, _ in
+            guard !model.isFixture else { return }
+            Task { await model.refreshConversations(afterMutation: true) }
+        }
         #if os(macOS)
         .onAppear { macAgentKeyboard.isEnabled = model.selectedTab == 0 }
         .onChange(of: model.selectedTab) { _, tab in
@@ -179,6 +191,7 @@ struct RootView: View {
 
 struct ConversationsView: View {
     @EnvironmentObject private var model: AppModel
+    @ObservedObject private var imports = ConversationImports.shared
     @State private var importing = false
 
     var body: some View {
@@ -189,6 +202,45 @@ struct ConversationsView: View {
                 }
                 Text("MP3の原音とTXTの原文はMac miniに保存され、自動削除されません。")
                     .appFont(.caption).foregroundStyle(.secondary)
+                DisclosureGroup("Soundcore・ショートカットから取り込む") {
+                    Text("Soundcoreで録音をMP3として書き出し、共有先にDaymeldを選ぶと送信が始まります。Soundcore内の未出力録音を直接取得する機能ではありません。")
+                    Text("ショートカットに「MP3をDaymeldに取り込む」を追加し、入力を「ショートカットの入力」または書き出し済みMP3に設定できます。固定ファイルを指定してホーム画面に追加すれば、次回はそのボタンから取り込めます。")
+                    Text("送信が終わるまでDaymeldを開いておいてください。失敗時は端末に保持し、再送できます。")
+                }.appFont(.caption)
+            }
+            if !model.isFixture {
+                if imports.unreadableCount > 0 {
+                    Section {
+                        Text("端末コピー\(imports.unreadableCount)件を読み込めませんでした。コピーは保持しています。元のMP3・TXTから再度取り込んでください。")
+                            .appFont(.caption).foregroundStyle(.orange)
+                    }
+                }
+                if let error = imports.storageError {
+                    Section {
+                        Text(error).foregroundStyle(.orange)
+                        Button("送信待ちを再読み込み") { Task { await imports.resume() } }
+                    }
+                }
+                if !imports.pending.isEmpty {
+                    Section("Mac miniへ送信待ち（\(imports.pending.count)件）") {
+                        ForEach(imports.pending) { entry in
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(entry.filename)
+                                if imports.activeID == entry.id {
+                                    ProgressView("送信中")
+                                } else if let error = imports.failures[entry.id] {
+                                    Text(error).appFont(.caption).foregroundStyle(.orange)
+                                } else {
+                                    Text("端末に保存済み・送信待ち").appFont(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        if !imports.failures.isEmpty {
+                            Button("失敗したファイルを再送") { imports.retry() }
+                                .disabled(imports.activeID != nil)
+                        }
+                    }
+                }
             }
             Section("音声インボックス") {
                 if model.conversationItems.isEmpty {

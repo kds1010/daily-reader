@@ -6,6 +6,11 @@ iPhone版の「今日」から現在地の一回保存、または移動の記�
 
 GPSカードは記録の稼働状態、最終取得日時と経過時間、最終同期成功日時、取得失敗、未同期件数を区別します。取得時刻が古いだけでは、静止・記録終了・取得失敗のどれかは断定しません。記録中も「現在地を再取得して保存」を押せます。一回取得専用のCLLocationManagerを使い、継続記録のマネージャーは停止しません。100 mの移動基準とWhen In Use権限は維持します。最終取得・同期成功の時刻だけを保護された`location-diagnostics.json`へ保存し、起動時に復元します。診断ファイルには座標を保存せず、記録自体は再開しません。一回取得と継続記録の分離は[AppleのrequestLocation仕様](https://developer.apple.com/documentation/corelocation/cllocationmanager/requestlocation())と[複数マネージャーの利用仕様](https://developer.apple.com/documentation/corelocation/cllocationmanager)に基づきます。旧未同期キューは引き続き読み込み・再送できます。同期エラーには接続・応答・保存処理などの安全な分類だけを表示します。
 
+ショートカットの「MP3をDaymeldに取り込む」は、共有入力または書き出し済みMP3を受け付けます。
+Soundcore内の録音を直接取得するものではなく、Soundcore側の書き出し操作は残ります。
+端末へコピーしてから1件ずつ送信し、失敗時は「会話」から再送できます。再起動時にも送信待ちを復元します。
+[設定手順・保存場所・制限](../docs/soundcore-import.md)を参照してください。
+
 Soundcore WorkなどがMP3ファイルを共有・エクスポートするときは、共有先にDaymeldを
 選択できます。Daymeldが開いて「会話」タブへ移動し、既存のファイル選択と同じ経路で
 Mac miniへ原音を送信します。送信成功後はDaymeldの受信Inbox内に作られたコピーだけを

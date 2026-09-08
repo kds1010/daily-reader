@@ -37,6 +37,15 @@ def test_shared_mp3_uses_the_existing_recording_upload_flow() -> None:
     assert "url.isFileURL" in model_source
     assert "conforms(to: .mp3) == true" in model_source
     assert "selectedTab = 4" in model_source
-    assert "if await importConversationFile(url), removesInboxCopy" in model_source
-    assert "FileManager.default.removeItem(at: url)" in model_source
-    assert 'appending(path: "Inbox", directoryHint: .isDirectory)' in model_source
+    assert "ConversationImports.shared.enqueue" in model_source
+    assert "shared: true" in model_source
+    assert "guard !isFixture" in model_source
+
+
+def test_shortcut_accepts_mp3_and_hands_off_to_the_app():
+    source = (IOS / "AppIntents.swift").read_text()
+    assert 'pathExtension.lowercased() == "mp3"' in source
+    assert "struct ImportRecordingIntent: AppIntent" in source
+    assert "acceptFile(into: .shared)" in source
+    assert "static let openAppWhenRun = true" in source
+    assert '未出力録音を直接取得' in (IOS / "RootView.swift").read_text()

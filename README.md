@@ -14,6 +14,10 @@ iPhone・macOSの「今日」→「PayPayの支払い明細」から、PayPayで
 
 ## 会話データの解析
 
+ショートカットの「MP3をDaymeldに取り込む」で、共有・書き出し済みMP3の取り込みを開始できます。
+Soundcore側の書き出し操作は必要です。送信失敗時は端末に保持し、「会話」から再送できます。
+設定手順と自動化の範囲は[SoundcoreのMP3取り込み](docs/soundcore-import.md)を参照してください。
+
 iPhone版ではSoundcore Workの共有・エクスポート先にDaymeldを選べます。iPhone・macOS版の
 「会話」タブでは、Soundcore Workが書き出したMP3に加え、文字起こし済みのUTF-8 TXTを
 取り込めます。MP3原音は`data/conversations/audio/`へ再圧縮せず保存し、TXT原文は

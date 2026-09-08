@@ -400,3 +400,10 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - Gmailの鮮度目安は1時間、ニュースとCalendarは24時間。取得成功時刻を集約時刻で代用せず、未取得・失敗・認証必要・停止・古さを区別する。既読・非表示記事は推薦前に除外する。カレンダー・GPS・健康をCodexへ送る範囲は増やさない。
 - iPhone/macOSは`LifeAssistant.swift`の秘書カードから元項目、全件、取得状況、20分着手候補、週次評価へ移動する。自己記録の空欄と0を区別し、本人見積もり節約分数を別集計する。無駄な時間や忘れ、改善率は自動推定しない。定期調査・イベント変更監視は対象・周期・終了条件を要する後続拡張。
 - 検証は`tests/test_secretary.py`、`tests/test_local_server.py`、`tests/test_life_native.py`と両OSのビルド。匿名fixtureの秘書導線は実APIへ書き込まない。サーバーと共有Swift変更のため、統合後はWeb LaunchAgent再起動、両OS成果物の再生成と配信検証が必要。
+
+## SoundcoreのMP3取り込みショートカット
+
+- `ImportRecordingIntent`がiPhone・macOSのショートカットへ「MP3をDaymeldに取り込む」を公開する。共有・書き出し済みMP3を受け付け、Daymeldを開いて送信を継続する。2026-09-08の公式資料調査では未出力録音を直接取得する公開API・Shortcuts仕様を確認できていない。Soundcore側のMP3書き出し操作は残り、完全自動エクスポートと説明しない。資格情報・クラウド設定は変更しない。
+- `ConversationImports.swift`はファイル選択・iPhone共有・ショートカットを共通の端末内キューへ保存する。Application Supportの`Daymeld/ConversationImports/`に保護された原音コピー・元ファイル名・Inbox受信元の索引を保持し、バックアップから除外する。受付済み同内容をまとめ、既存APIClientから1件ずつ送信する。失敗分は「会話」で再送、再起動時は復元して再試行する。受付とサーバー保存・解析の成功は区別する。
+- 成功後だけ端末キューを削除し、iPhoneの受信Inboxコピーは元の内容と一致する場合だけ削除する。外部原本とMac miniの原音は保持する。読み取れない項目は保持・警告し、正常分は送信する。受付前に中断された一時コピーは次の復元時に回収する。録音日時、SHA重複排除、Macの5 GiB残量条件、自動整理の設定は従来どおり。OSの停止中の転送は保証しない。
+- 手順と公式根拠は[SoundcoreのMP3取り込み](docs/soundcore-import.md)。検証は`tests/test_conversation_import_native.py`（実Intentファイル・Swiftキュー・URLSessionと匿名HTTP）、`tests/test_ios_file_sharing.py`、両OSビルド。共有Swift変更の配信はサーバー事前確認と両OS成果物の再生成・配信検証を行う。サーバー正常時の再起動は不要。
