@@ -48,4 +48,4 @@ def test_shortcut_accepts_mp3_and_hands_off_to_the_app():
     assert "struct ImportRecordingIntent: AppIntent" in source
     assert "acceptFile(into: .shared)" in source
     assert "static let openAppWhenRun = true" in source
-    assert '未出力録音を直接取得' in (IOS / "RootView.swift").read_text()
+    assert '共有リンクを使わない場合' in (IOS / "RootView.swift").read_text()

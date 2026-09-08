@@ -191,19 +191,36 @@ struct RootView: View {
 
 struct ConversationsView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var imports = ConversationImports.shared
+    @ObservedObject private var soundcore = SoundcoreImports.shared
     @State private var importing = false
+
+    private var isActive: Bool { scenePhase == .active && model.selectedTab == 4 && !model.isFixture }
+    private var hasPendingProcessing: Bool {
+        soundcore.hasPendingJobs || model.conversations.contains {
+            ["pending", "queued", "analyzing"].contains($0.status)
+                || ["queued", "extracting"].contains($0.insightStatus ?? "")
+        }
+    }
+
+    private func refreshConversationData() async {
+        async let cloud: Void = soundcore.refresh()
+        async let recordings: Void = model.refreshConversations()
+        _ = await (cloud, recordings)
+    }
 
     var body: some View {
         List {
+            SoundcoreImportSection(imports: soundcore, isFixture: model.isFixture)
             Section {
                 Button { importing = true } label: {
                     Label("MP3または文字起こしTXTを取り込む", systemImage: "square.and.arrow.down")
                 }
-                Text("MP3の原音とTXTの原文はMac miniに保存され、自動削除されません。")
+                Text("音声の原本とTXTの原文はMac miniに保存され、自動削除されません。")
                     .appFont(.caption).foregroundStyle(.secondary)
-                DisclosureGroup("Soundcore・ショートカットから取り込む") {
-                    Text("Soundcoreで録音をMP3として書き出し、共有先にDaymeldを選ぶと送信が始まります。Soundcore内の未出力録音を直接取得する機能ではありません。")
+                DisclosureGroup("MP3・TXTをファイルから取り込む") {
+                    Text("共有リンクを使わない場合は、Soundcoreで録音をMP3として書き出し、共有先にDaymeldを選ぶと送信が始まります。")
                     Text("ショートカットに「MP3をDaymeldに取り込む」を追加し、入力を「ショートカットの入力」または書き出し済みMP3に設定できます。固定ファイルを指定してホーム画面に追加すれば、次回はそのボタンから取り込めます。")
                     Text("送信が終わるまでDaymeldを開いておいてください。失敗時は端末に保持し、再送できます。")
                 }.appFont(.caption)
@@ -299,12 +316,98 @@ struct ConversationsView: View {
             }
         }
         .navigationTitle("会話")
-        .refreshable { await model.refreshConversations() }
+        .refreshable { if !model.isFixture { await refreshConversationData() } }
+        .task(id: "\(isActive)-\(soundcore.pollRevision)-\(imports.completedCount)") {
+            guard isActive else { return }
+            // Refresh once when opened/accepted, then only while retrieval or
+            // existing recording analysis is pending. View/scene exit cancels it.
+            await refreshConversationData()
+            while !Task.isCancelled, hasPendingProcessing {
+                do { try await Task.sleep(for: .seconds(3)) } catch { return }
+                await refreshConversationData()
+            }
+        }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.mp3, .plainText], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
                 Task { await model.importConversationFile(url) }
             } else if case .failure(let error) = result {
                 model.errorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+private struct SoundcoreImportSection: View {
+    @ObservedObject var imports: SoundcoreImports
+    let isFixture: Bool
+
+    var body: some View {
+        Section("Soundcoreの共有リンクを取り込む") {
+            TextField("Soundcoreの共有URLを貼り付け", text: $imports.draft)
+                .autocorrectionDisabled()
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                .keyboardType(.URL)
+                #endif
+                .disabled(isFixture || imports.isSubmitting)
+                .accessibilityLabel("Soundcore共有リンク")
+            Button {
+                Task { await imports.submit() }
+            } label: {
+                Label(imports.isSubmitting ? "Mac miniへ送信中…" : "共有リンクから取り込む", systemImage: "icloud.and.arrow.down")
+            }
+            .disabled(isFixture || imports.isSubmitting || imports.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            if !isFixture {
+                if let error = imports.submissionError {
+                    Text(error).appFont(.caption).foregroundStyle(.orange)
+                }
+                if let message = imports.acceptedMessage {
+                    Text(message).appFont(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Text("Soundcoreで録音の共有リンクを作り、ここへ貼り付けてください。Mac miniがクラウドから音声原本を取得するため、MP3の書き出しやSoundcore側の文字起こしは不要です。")
+                .appFont(.caption).foregroundStyle(.secondary)
+            DisclosureGroup("取り込み後の流れ・ショートカット") {
+                Text("受付後はアプリを閉じても、Mac miniで取得と文字起こしが続きます。録音日時とGPSを照合し、自動整理が有効ならタスク・予定・調べものなどを整理します。")
+                Text("ショートカットの「SoundcoreリンクをDaymeldに取り込む」に共有URLを渡すこともできます。Mac miniでの受付が済むまでは接続が必要です。")
+                Text("指定した共有リンクの録音だけを取得します。Soundcoreアカウント全体の自動同期ではありません。対応するのはspeaker-eu.eufylife.comの共有リンクです。")
+            }.appFont(.caption)
+        }
+        if !isFixture {
+            Section("クラウドからの取得状況") {
+                ResourceStatusView(state: imports.loadState, label: "クラウド取り込み") {
+                    Task { await imports.refresh() }
+                }
+                if imports.jobs.isEmpty && imports.loadState == .loaded {
+                    Text("共有リンクの取り込みはまだありません。")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(imports.jobs) { job in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            if job.isPending { ProgressView().controlSize(.small) }
+                            Text(job.statusLabel).appFont(.subheadline)
+                        }
+                        if let created = job.createdAt, let date = parseISOTimestamp(created) {
+                            Text("受付: \(date.formatted(date: .abbreviated, time: .shortened))")
+                                .appFont(.caption).foregroundStyle(.secondary)
+                        }
+                        if job.status == "completed" {
+                            Text("音声の保存が完了しました。文字起こし・整理の状況は録音の詳細で確認してください。")
+                                .appFont(.caption).foregroundStyle(.secondary)
+                        }
+                        if let error = job.error { Text(error).appFont(.caption).foregroundStyle(.orange) }
+                        if let error = imports.retryErrors[job.id] { Text(error).appFont(.caption).foregroundStyle(.orange) }
+                        if job.status == "failed" {
+                            Button(imports.retryingIDs.contains(job.id) ? "再試行を送信中…" : "取得を再試行") {
+                                Task { await imports.retry(job) }
+                            }.disabled(imports.retryingIDs.contains(job.id))
+                        }
+                        if let recordingID = job.recordingID {
+                            NavigationLink("録音と解析状況を確認") { ConversationDetailView(recordingID: recordingID) }
+                        }
+                    }
+                }
             }
         }
     }
@@ -521,6 +624,7 @@ private struct ConversationLocationSummary: View {
     private var dateLabel: String {
         switch link.dateSource {
         case "soundcore_filename_jst": "ファイル名・日本時間"
+        case "soundcore_cloud_timestamp": "Soundcoreクラウドの日時"
         case "explicit": "明示指定の日時"
         case "legacy_verified": "確認済みの既存日時"
         default: "日時不明"

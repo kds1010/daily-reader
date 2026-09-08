@@ -12,6 +12,37 @@ struct DailyReaderShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(intent: OpenAgentIntent(), phrases: ["\(.applicationName)でAgentを開く"], shortTitle: "Agentを開く", systemImageName: "terminal")
         AppShortcut(intent: ImportRecordingIntent(), phrases: ["\(.applicationName)に録音を取り込む"], shortTitle: "MP3を取り込む", systemImageName: "waveform.badge.plus")
+        AppShortcut(intent: ImportSoundcoreLinkIntent(), phrases: ["\(.applicationName)にSoundcoreリンクを取り込む"], shortTitle: "Soundcoreリンク", systemImageName: "icloud.and.arrow.down")
+    }
+}
+
+struct ImportSoundcoreLinkIntent: AppIntent {
+    static let title: LocalizedStringResource = "SoundcoreリンクをDaymeldに取り込む"
+    static let description = IntentDescription("Soundcoreの共有URLをMac miniへ送り、クラウドの音声取得を受け付けます。取得と文字起こしはMacで続き、状況はDaymeldの「会話」で確認できます。")
+    static let openAppWhenRun = true
+
+    @Parameter(title: "Soundcore共有リンク")
+    var url: URL
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("\(\.$url)から音声をDaymeldに取り込む")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+#if DEBUG
+        if DaymeldFixture.fromProcessArguments() != nil {
+            return .result(dialog: "プレビュー中は共有リンクを送信しません。")
+        }
+#endif
+        _ = try await acceptLink(into: .shared)
+        ConversationImports.shared.openConversations()
+        return .result(dialog: "Mac miniで受け付けました。音声の取得・解析状況はDaymeldの「会話」で確認できます。")
+    }
+
+    @MainActor
+    func acceptLink(into imports: SoundcoreImports) async throws -> SoundcoreImportJob {
+        try await imports.accept(url.absoluteString)
     }
 }
 

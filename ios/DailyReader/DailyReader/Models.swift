@@ -435,6 +435,61 @@ struct ConversationEnvelope: Decodable {
 
 struct ConversationItemsEnvelope: Decodable { let items: [ConversationInsightItem] }
 
+struct SoundcoreImportJob: Decodable, Identifiable, Equatable, Sendable {
+    let id: String
+    let status: String
+    let recordingID: String?
+    let error: String?
+    var createdAt: String? = nil
+    var updatedAt: String? = nil
+    var isPending: Bool { ["queued", "downloading", "saved"].contains(status) }
+    var statusLabel: String {
+        switch status {
+        case "queued": "Mac miniで取得待ち"
+        case "downloading": "Soundcoreクラウドから取得中"
+        case "saved": "音声を保存済み・解析の受付待ち"
+        case "completed": "音声の取り込み済み"
+        case "failed": "取得に失敗"
+        default: "取得状況を確認してください"
+        }
+    }
+    enum CodingKeys: String, CodingKey {
+        case id, status, error
+        case recordingID = "recording_id", createdAt = "created_at", updatedAt = "updated_at"
+    }
+}
+
+struct SoundcoreImportsEnvelope: Decodable { let items: [SoundcoreImportJob] }
+struct SoundcoreImportRequest: Encodable { let url: String }
+
+enum SoundcoreLinkError: LocalizedError {
+    case unsupported
+    var errorDescription: String? {
+        "対応するSoundcore共有リンク（https://speaker-eu.eufylife.com/knowledge/sharelink/…）を入力してください。ほかの地域・形式には未対応です。"
+    }
+}
+
+// This exact share-link format has been verified against Soundcore. The Mac
+// validates it again; clients never follow the cloud URL themselves.
+func normalizedSoundcoreShareURL(_ value: String) throws -> String {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard trimmed.count <= 2048,
+          trimmed.range(of: #"^https://speaker-eu\.eufylife\.com/"#, options: [.regularExpression, .caseInsensitive]) != nil,
+          var parts = URLComponents(string: trimmed),
+          parts.scheme?.lowercased() == "https",
+          parts.host?.lowercased() == "speaker-eu.eufylife.com",
+          parts.user == nil, parts.password == nil, parts.port == nil,
+          parts.percentEncodedPath.range(of: #"^/knowledge/sharelink/[A-Za-z0-9]{6,64}$"#, options: .regularExpression) != nil,
+          (parts.queryItems ?? []).allSatisfy({ $0.name == "language" })
+    else { throw SoundcoreLinkError.unsupported }
+    parts.scheme = "https"
+    parts.host = "speaker-eu.eufylife.com"
+    parts.query = nil
+    parts.fragment = nil
+    guard let normalized = parts.url?.absoluteString else { throw SoundcoreLinkError.unsupported }
+    return normalized
+}
+
 struct ConversationTranscriptionMetadata: Decodable {
     let model: String?
     let warnings: [String]?
