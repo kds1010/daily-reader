@@ -168,6 +168,31 @@ SourceのボタンはSwiftの計算プロパティを使います。保存列は
 `Model/MergePolicies/MergePolicy.swift`、`Model/StoreApp.swift`、
 `AltStore/Sources/SourceDetailContentViewController.swift`、`Managing Apps/AppManager.swift`です。
 
+### 配信エラーの診断
+
+Mac miniのサービス用リポジトリで`uv run --frozen python scripts/verify_sidestore_remote.py`を
+実行すると、秘密URLを表示せず配布物と拒否パスを確認できます。Python 3.12以上が必要です。
+`--request-origin http://127.0.0.1:8789 --skip-tailscale-config`を付けると、同じ配布物を
+Funnel経由ではなく転送先へ直接要求し、障害の層を切り分けられます。
+
+| 診断 | 次に確認すること |
+| --- | --- |
+| `connection failed` / `timed out` | DNS、接続経路、待受PIDと応答。証明書エラーとは断定しません。 |
+| `TLS certificate verification failed` / `TLS connection failed` | HTTPS接続の証明書検証またはTLS接続。証明書検証を無効化しないでください。 |
+| 成果物の`HTTP 404` | 登録ソース、トークン設定、公開中の版。旧版URLは配信対象外です。 |
+| `HTTP 502 gateway failure` | Funnel転送先の`127.0.0.1:8789`とサービス実体。HTTPSでHTTP応答が返っている場合、TLS不成立と混同しません。 |
+| `HTTP 200 but content did not match` | 配信先とローカル成果物の相違、または検証中の別リリース公開。 |
+| `incomplete HTTP response` | 転送途中の切断。配信ログと通信経路を確認します。 |
+| `rejection check: expected HTTP 404` | 拒否すべきパスの応答。502なら転送障害であり、情報公開の証拠ではありません。 |
+
+検証コマンド自身も意図的な404をログへ残します。ユーザー操作の失敗と照合する際は、
+実行時刻、ソース取得、要求IPA版、HTTP結果を区別してください。ソース取得200だけでは、
+IPA取得や端末での再署名・インストール成功を意味しません。取得要求がない場合も、
+キャッシュ・VPN・再署名のどれが原因かをサーバーログだけで断定できません。
+診断は例外の固定分類だけを表示し、通信例外のURL・理由・本文・原因チェーンを出しません。
+[PythonのURLError仕様](https://docs.python.org/3.12/library/urllib.error.html)では原因が
+文字列または例外になり得るため、どちらの場合も秘密値を含む原文は表示しません。
+
 ### HealthKit対応SideStore
 
 公式SideStore 0.6.3のAltSignは、元IPAにHealthKit entitlementがあってもApple Developer

@@ -6,9 +6,12 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import http.client
 import json
+import ssl
 import stat
 import subprocess
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -29,6 +32,10 @@ TOKEN_CHARACTERS = frozenset(
 OpenURL = Callable[..., object]
 
 
+class VerificationError(RuntimeError):
+    """A diagnostic safe to display without a credential-bearing exception chain."""
+
+
 def valid_release_date(value: str) -> bool:
     if "T" not in value:
         try:
@@ -47,22 +54,53 @@ def valid_release_date(value: str) -> bool:
 
 
 def fetch(open_url: OpenURL, url: str, method: str = "GET") -> tuple[int, bytes]:
-    request = urllib.request.Request(url, method=method)
     try:
-        with open_url(request, timeout=30) as response:
-            return response.status, response.read()
-    except urllib.error.HTTPError as error:
-        return error.code, error.read()
-    except urllib.error.URLError as error:
-        raise RuntimeError("Could not reach the remote SideStore endpoint") from error
+        request = urllib.request.Request(url, method=method)
+        try:
+            with open_url(request, timeout=30) as response:
+                return response.status, response.read() if response.status == 200 else b""
+        except urllib.error.HTTPError as error:
+            # Only the status is needed. Error bodies/reasons can contain the secret URL.
+            with error:
+                return error.code, b""
+    except (OSError, http.client.HTTPException) as error:
+        reason = error.reason if isinstance(error, urllib.error.URLError) else error
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            diagnostic = "TLS certificate verification failed"
+        elif isinstance(reason, ssl.SSLError):
+            diagnostic = "TLS connection failed"
+        elif isinstance(reason, TimeoutError):
+            diagnostic = "connection or response timed out"
+        elif isinstance(reason, http.client.IncompleteRead):
+            diagnostic = "incomplete HTTP response"
+        elif isinstance(reason, http.client.HTTPException):
+            diagnostic = "invalid or interrupted HTTP response"
+        else:
+            diagnostic = "connection failed"
+        raise VerificationError(f"SideStore: {diagnostic}") from None
+
+
+def http_failure(status: int) -> str:
+    if status == 404:
+        return "HTTP 404; check the registered source, token configuration and published version"
+    if status == 502:
+        return "HTTP 502 gateway failure; check the distribution listener on 127.0.0.1:8789"
+    return f"HTTP {status}; unexpected HTTP response"
+
+
+def parse_url(value: str) -> urllib.parse.SplitResult:
+    try:
+        return urllib.parse.urlsplit(value)
+    except ValueError:
+        raise VerificationError("SideStore metadata contains an invalid URL") from None
 
 
 def request_url(origin: str, path: str) -> str:
-    parsed = urllib.parse.urlsplit(origin)
+    parsed = parse_url(origin)
     try:
         port = parsed.port
-    except ValueError as error:
-        raise ValueError("Request origin has an invalid port") from error
+    except ValueError:
+        raise ValueError("Request origin has an invalid port") from None
     if (
         parsed.scheme not in {"http", "https"}
         or not parsed.hostname
@@ -83,7 +121,7 @@ def validated_artifact_paths(
     source: dict[str, object], token: str
 ) -> tuple[dict[str, str], dict[str, int]]:
     if not isinstance(source, dict) or source.get("subtitle") != SOURCE_SUBTITLE:
-        raise RuntimeError("Remote SideStore source would reveal its credential URL")
+        raise VerificationError("Remote SideStore source would reveal its credential URL")
     try:
         app = source["apps"][0]
         versions = app["versions"]
@@ -91,10 +129,10 @@ def validated_artifact_paths(
             "source": source["sourceURL"],
             "icon": app["iconURL"],
         }
-    except (IndexError, KeyError, TypeError) as error:
-        raise RuntimeError("Remote SideStore source has invalid metadata") from error
+    except (IndexError, KeyError, TypeError):
+        raise VerificationError("Remote SideStore source has invalid metadata") from None
     if not isinstance(versions, list) or len(versions) != 1:
-        raise RuntimeError("Remote SideStore source must publish exactly one current version")
+        raise VerificationError("Remote SideStore source must publish exactly one current version")
     ipa_names = []
     declared_sizes = {}
     for index, version_item in enumerate(versions):
@@ -103,8 +141,8 @@ def validated_artifact_paths(
             date_value = version_item["date"]
             size_value = version_item["size"]
             download_url = version_item["downloadURL"]
-        except (KeyError, TypeError) as error:
-            raise RuntimeError("Remote SideStore source has invalid metadata") from error
+        except (KeyError, TypeError):
+            raise VerificationError("Remote SideStore source has invalid metadata") from None
         if (
             not isinstance(version_value, str)
             or not isinstance(date_value, str)
@@ -113,25 +151,25 @@ def validated_artifact_paths(
             or size_value < 0
             or not isinstance(download_url, str)
         ):
-            raise RuntimeError("Remote SideStore source has invalid version metadata")
+            raise VerificationError("Remote SideStore source has invalid version metadata")
         if not valid_release_date(date_value):
-            raise RuntimeError("Remote SideStore source has invalid version metadata")
+            raise VerificationError("Remote SideStore source has invalid version metadata")
         label = f"IPA-{index}"
         urls[label] = download_url
-        ipa_name = urllib.parse.urlsplit(download_url).path.rsplit("/", 1)[-1]
+        ipa_name = parse_url(download_url).path.rsplit("/", 1)[-1]
         if ipa_name != f"DailyReader-{version_value}.ipa":
-            raise RuntimeError("Remote SideStore source contains unsafe artifact URLs")
+            raise VerificationError("Remote SideStore source contains unsafe artifact URLs")
         ipa_names.append(ipa_name)
         declared_sizes[label] = size_value
     if not all(isinstance(url, str) for url in urls.values()):
-        raise RuntimeError("Remote SideStore source contains non-string artifact URLs")
+        raise VerificationError("Remote SideStore source contains non-string artifact URLs")
 
-    parsed_urls = {label: urllib.parse.urlsplit(url) for label, url in urls.items()}
+    parsed_urls = {label: parse_url(url) for label, url in urls.items()}
     try:
         for parsed in parsed_urls.values():
             _ = parsed.port
-    except ValueError as error:
-        raise RuntimeError("Remote SideStore source contains an invalid URL port") from error
+    except ValueError:
+        raise VerificationError("Remote SideStore source contains an invalid URL port") from None
     origin = parsed_urls["source"].netloc
     expected_paths = {
         "source": f"/{token}/source.json",
@@ -168,7 +206,7 @@ def validated_artifact_paths(
         for ipa_name in ipa_names
     )
     if not versions_are_safe or not urls_are_safe:
-        raise RuntimeError("Remote SideStore source contains unsafe artifact URLs")
+        raise VerificationError("Remote SideStore source contains unsafe artifact URLs")
     return expected_paths, declared_sizes
 
 
@@ -182,9 +220,9 @@ def load_tailscale_config(tailscale: Path, command: str) -> dict[str, object]:
         )
         config = json.loads(result.stdout)
     except (FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError):
-        raise RuntimeError("Could not read the Tailscale distribution configuration") from None
+        raise VerificationError("Could not read the Tailscale distribution configuration") from None
     if not isinstance(config, dict):
-        raise RuntimeError("Tailscale returned an invalid distribution configuration")
+        raise VerificationError("Tailscale returned an invalid distribution configuration")
     return config
 
 
@@ -214,7 +252,9 @@ def verify_tailscale_config(
         or serve_config.get("Services")
         or serve_config.get("Foreground")
     ):
-        raise RuntimeError("Tailscale Serve/Funnel boundary does not match the approved layout")
+        raise VerificationError(
+            "Tailscale Serve/Funnel boundary does not match the approved layout"
+        )
     return "Tailscale: 443 private and 8443 distribution-only"
 
 
@@ -225,10 +265,10 @@ def verify_remote_release(
     open_url: OpenURL = urllib.request.urlopen,
 ) -> list[str]:
     if token_path.is_symlink():
-        raise RuntimeError("Remote SideStore token file must not be a symlink")
+        raise VerificationError("Remote SideStore token file must not be a symlink")
     token = token_path.read_text(encoding="utf-8").strip()
     if stat.S_IMODE(token_path.stat().st_mode) != 0o600:
-        raise RuntimeError("Remote SideStore token file permissions must be 0600")
+        raise VerificationError("Remote SideStore token file permissions must be 0600")
     try:
         decoded = base64.b64decode(token + "=", altchars=b"-_", validate=True)
     except (binascii.Error, ValueError):
@@ -242,21 +282,21 @@ def verify_remote_release(
         or not set(token) <= TOKEN_CHARACTERS
         or not is_canonical
     ):
-        raise RuntimeError("Remote SideStore token is not a canonical URL-safe token")
+        raise VerificationError("Remote SideStore token is not a canonical URL-safe token")
 
     source_path = directory / "remote-source.json"
     icon_path = directory / "icon.png"
     if source_path.is_symlink() or icon_path.is_symlink() or not icon_path.is_file():
-        raise RuntimeError("Remote SideStore source references an unsafe local artifact")
+        raise VerificationError("Remote SideStore source references an unsafe local artifact")
     if stat.S_IMODE(source_path.stat().st_mode) != 0o600:
-        raise RuntimeError("Remote SideStore source file permissions must be 0600")
+        raise VerificationError("Remote SideStore source file permissions must be 0600")
     source_bytes = source_path.read_bytes()
     source = json.loads(source_bytes)
     artifact_paths, declared_sizes = validated_artifact_paths(source, token)
-    source_url = urllib.parse.urlsplit(source["sourceURL"])
+    source_url = parse_url(source["sourceURL"])
 
     if request_origin_override:
-        override = urllib.parse.urlsplit(request_origin_override)
+        override = parse_url(request_origin_override)
         if override.scheme != "http" or override.hostname != "127.0.0.1":
             raise ValueError("Request origin override must use loopback HTTP")
         origin = request_origin_override
@@ -271,7 +311,7 @@ def verify_remote_release(
         and (directory / name).stat().st_size == declared_sizes[label]
         for label, name in zip(ipa_labels, ipa_names, strict=True)
     ):
-        raise RuntimeError("Remote SideStore source references a missing local IPA")
+        raise VerificationError("Remote SideStore source references a missing local IPA")
     ipa_name = ipa_names[0]
     artifact_urls = {
         "source": (artifact_paths["source"], source_bytes),
@@ -281,9 +321,16 @@ def verify_remote_release(
 
     results = []
     for label, (path, expected_body) in artifact_urls.items():
-        status, body = fetch(open_url, request_url(origin, path))
-        if status != 200 or body != expected_body:
-            raise RuntimeError(f"Remote SideStore {label} did not match the local artifact")
+        try:
+            status, body = fetch(open_url, request_url(origin, path))
+        except VerificationError as error:
+            raise VerificationError(f"Remote SideStore {label}: {error}") from None
+        if status != 200:
+            raise VerificationError(f"Remote SideStore {label}: {http_failure(status)}")
+        if body != expected_body:
+            raise VerificationError(
+                f"Remote SideStore {label}: HTTP 200 but content did not match the local artifact"
+            )
         results.append(f"{label}: 200 and content matched")
 
     wrong_token = "A" * TOKEN_LENGTH
@@ -300,9 +347,14 @@ def verify_remote_release(
         ("/", "GET"),
     )
     for path, method in rejected_requests:
-        status, _ = fetch(open_url, request_url(origin, path), method)
+        try:
+            status, _ = fetch(open_url, request_url(origin, path), method)
+        except VerificationError as error:
+            raise VerificationError(f"SideStore rejection check: {error}") from None
         if status != 404:
-            raise RuntimeError("Remote SideStore endpoint exposed an unexpected path")
+            raise VerificationError(
+                f"SideStore rejection check: expected HTTP 404; {http_failure(status)}"
+            )
     results.append("unrelated paths: 404")
     return results
 
@@ -328,9 +380,9 @@ def main() -> None:
         source = json.loads(
             (args.output_dir / "remote-source.json").read_text(encoding="utf-8")
         )
-        hostname = urllib.parse.urlsplit(source["sourceURL"]).hostname
+        hostname = parse_url(source["sourceURL"]).hostname
         if hostname is None:
-            raise RuntimeError("Remote SideStore source has no hostname")
+            raise VerificationError("Remote SideStore source has no hostname")
         serve_config = load_tailscale_config(args.tailscale, "serve")
         funnel_config = load_tailscale_config(args.tailscale, "funnel")
         results.append(verify_tailscale_config(serve_config, funnel_config, hostname))
@@ -339,4 +391,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except VerificationError as error:
+        sys.exit(str(error))
+    except (OSError, ValueError):
+        sys.exit("SideStore verification failed: unreadable or invalid local configuration")
