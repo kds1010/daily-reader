@@ -205,7 +205,10 @@ SideStoreまたはiPhoneの診断ログを共有した場合はトークン漏�
 
 ### UX fixture とプレビュー
 
-Debugビルドでは起動引数 `-daymeld-fixture` に次のシナリオを指定して、実データへ接続せずに
+fixture確認用のビルドでは `SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG` を明示してください。
+これは[AppleのActive Compilation Conditions](https://developer.apple.com/documentation/xcode/build-settings-reference)で、
+構成名がDebugだけでは、このプロジェクトの`#if DEBUG`は有効になりません。
+起動引数 `-daymeld-fixture` に次のシナリオを指定して、実データへ接続せずに
 画面状態を再現できます。
 
 ```text
@@ -224,10 +227,59 @@ Releaseビルドでは起動引数から選択できません。fixtureからの
 ```bash
 xcodebuild -project ios/DailyReader/DailyReader.xcodeproj \
   -scheme DailyReader -sdk iphonesimulator -configuration Debug \
+  SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG \
   CODE_SIGNING_ALLOWED=NO build
 
 xcodebuild -project ios/DailyReader/DailyReader.xcodeproj \
   -scheme DaymeldMac -sdk macosx -configuration Debug \
   -derivedDataPath /tmp/daily-reader-macos-derived \
+  SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG \
   CODE_SIGNING_ALLOWED=NO build
 ```
+
+### 応答性の回帰確認
+
+Agentの初期表示はメール等の取得を待たず、tanomi一覧も補助情報の取得から独立しています。
+前景のDaymeld一覧とtanomi一覧は別々に取得完了後5秒で更新するため、一方の接続不調は
+他方の通知検出周期を延ばしません。repos/config/usageは手動更新時と約60秒ごとに取得します。
+カレンダーの同期検索、端末情報のファイル処理、GPSキューの保存は画面処理から分離しています。
+
+匿名の遅延・失敗応答を使い、実際のAppModelとURLSessionで初期表示、同値更新、重複取得、
+非表示操作中の古い応答、キャンセル復帰を検証できます。実サーバー・Gmail・通知へは書き込みません。
+画面を持たないこのテストではアニメーション・OS通知・生活データ取得を置き換え、更新処理と
+Combine通知を実行します。描画の検証とは分けて扱ってください。
+
+```bash
+uv run --frozen pytest -q -s tests/test_ios_performance.py tests/test_ios_location_runtime.py
+```
+
+EventKit検索が同期処理である点はApple SDKの`EKEventStore.h`に記載されています。
+[EKEventStoreの仕様](https://developer.apple.com/documentation/eventkit/ekeventstore)に従い、
+検索・変換・保存で同じstoreを使用し、別storeのEKEventを混在させません。
+位置情報の端末全体の有効状態も、権限拒否時に限って専用actorから確認します。
+[Apple DTSの説明](https://developer.apple.com/forums/thread/732108)では、この同期確認が
+メインスレッドの応答性を損なう可能性が示されています。
+このテストはiPhone実機の停止時間や描画フレームを測定するものではありません。
+
+2026-09-08の比較では、メールとtanomiのrepos応答をそれぞれ2秒遅らせ、
+修正前後のAppModelを同じ匿名応答で各1回実行しました。
+
+| 確認項目 | 修正前 | 修正後 |
+| --- | ---: | ---: |
+| Agentが最初に届くまで | 2.62秒 | 0.31秒 |
+| Agent定期更新1回のHTTP要求数 | 6 | 2 |
+| 同一応答でのAppModel更新通知 | 2 | 0 |
+
+直列取得によるAgent表示待ちと、同一応答での不要な更新通知を再現・改善できました。
+取得の一本化、古い応答の破棄、非表示・メール完了との競合、キャンセル後の再開も成功しています。
+同期EventKit・ファイル処理はコード上のメインスレッド停止要因として分離しましたが、
+実機で観測された個々のフリーズとの対応は未確定です。検証ホストの負荷が高かったため秒数は
+この条件での参考値であり、iPhone実機の停止時間、描画フレーム、メモリ改善量は未測定です。
+
+同日の回帰検証は既存397件、AppModel実行テスト1件、GPS実行テスト1件が成功しています。
+署名なしのiPhone SDK・macOS・Simulatorビルドも成功しました。Simulatorのstress fixtureは
+起動後約1分でも動作し、3秒間のスタック採取ではメインスレッドがイベント待機状態でした。
+その時点のRSSは約77 MiBですが、操作中や修正前との比較値ではありません。
+ruff、JavaScript構文、JSON、diffチェックも成功しました。SimulatorのGUI操作はComputer Useの
+許可対象外だったため、タブ切替・入力・スクロールの操作確認は未実施です。
+このタスクではコミットまでを行い、統合・配布成果物の再生成と配信は外部supervisorが担当します。

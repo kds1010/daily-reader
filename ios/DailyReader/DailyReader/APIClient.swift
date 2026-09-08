@@ -8,7 +8,16 @@ actor APIClient {
         return decoder
     }()
 
+    private let session: URLSession
+    private let serverURL: URL?
+
+    init(session: URLSession = .shared, serverURL: URL? = nil) {
+        self.session = session
+        self.serverURL = serverURL
+    }
+
     private var baseURL: URL {
+        if let serverURL { return serverURL }
         let stored = UserDefaults.standard.string(forKey: "serverURL")
         return URL(string: stored ?? "https://sk-mins-mac-mini.tailc193b2.ts.net/")!
     }
@@ -66,7 +75,8 @@ actor APIClient {
         )
         request.setValue(String(size), forHTTPHeaderField: "Content-Length")
         request.timeoutInterval = 3600
-        let (data, response) = try await URLSession.shared.upload(for: request, fromFile: fileURL)
+        let (data, response) = try await session.upload(for: request, fromFile: fileURL)
+        try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse else { throw APIClientError.invalidResponse }
         guard 200..<300 ~= http.statusCode else {
             let message = (try? decoder.decode(APIErrorPayload.self, from: data).error) ?? "HTTP \(http.statusCode)"
@@ -80,7 +90,8 @@ actor APIClient {
     }
 
     private func execute<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse else { throw APIClientError.invalidResponse }
         guard 200..<300 ~= http.statusCode else {
             let message = (try? decoder.decode(APIErrorPayload.self, from: data).error) ?? "HTTP \(http.statusCode)"
@@ -130,7 +141,7 @@ func makeAPIURL(baseURL: URL, path: String, queryItems: [URLQueryItem] = []) -> 
 
 struct EmptyResponse: Decodable {}
 struct EmptyRequest: Encodable {}
-struct LocationEvent: Codable, Identifiable, Equatable {
+struct LocationEvent: Codable, Identifiable, Equatable, Sendable {
     var timestamp: String
     let latitude: Double
     let longitude: Double

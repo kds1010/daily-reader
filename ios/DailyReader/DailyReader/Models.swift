@@ -714,12 +714,12 @@ extension String {
     }
 }
 
-struct PhoneCalendarEvent: Codable, Identifiable {
+struct PhoneCalendarEvent: Sendable, Codable, Identifiable {
     let id: String; let title: String; let location: String
     let start_at: String; let end_at: String; let busy: Bool; let all_day: Bool
     let daymeld_entry_id: String
 }
-struct PhoneMotionInterval: Codable, Identifiable {
+struct PhoneMotionInterval: Sendable, Codable, Identifiable {
     let start_at: String; let end_at: String; let activity: String; let confidence: String
     var id: String { start_at + activity }
 }

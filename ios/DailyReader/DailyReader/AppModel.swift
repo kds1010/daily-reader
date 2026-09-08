@@ -6,6 +6,41 @@ import UserNotifications
 import UniformTypeIdentifiers
 #endif
 
+// Coalesce reads of the same resource. A successful mutation replaces the
+// in-flight read, so a response issued before that mutation cannot undo it.
+@MainActor
+final class ResourceRefreshes {
+    private struct Flight { let generation: Int; let task: Task<Void, Never> }
+    private var flights: [String: Flight] = [:]
+    private var nextGeneration = 0
+
+    func isCurrent(_ key: String, _ generation: Int, includingCancelled: Bool = false) -> Bool {
+        flights[key]?.generation == generation && (includingCancelled || !Task.isCancelled)
+    }
+
+    func invalidate(_ key: String) { flights.removeValue(forKey: key)?.task.cancel() }
+
+    func run(_ key: String, replacing: Bool = false,
+             operation: @escaping @MainActor (Int) async -> Void) async {
+        guard !Task.isCancelled else { return }
+        if let existing = flights[key], !replacing, !existing.task.isCancelled {
+            await existing.task.value
+            return
+        }
+        flights[key]?.task.cancel()
+        nextGeneration += 1
+        let generation = nextGeneration
+        let task = Task { await operation(generation) }
+        flights[key] = Flight(generation: generation, task: task)
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+        if flights[key]?.generation == generation { flights.removeValue(forKey: key) }
+    }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     let life = LifeStore()
@@ -49,7 +84,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var savedArticleIDs: Set<String>
     @Published private(set) var hiddenArticleIDs: Set<String>
 
-    private let api = APIClient.shared
+    private let api: APIClient
     private var fixture: DaymeldFixture?
 #if os(iOS)
     lazy var deviceLocation = DeviceLocationService(isEnabled: !isFixture)
@@ -59,9 +94,9 @@ final class AppModel: ObservableObject {
     #else
     private let agentNotifications = AgentNotificationCoordinator()
     #endif
-    private var agentRefreshGeneration = 0
-    private var tanomiRefreshGeneration = 0
-    private var snapshotRefreshInProgress = false
+    private let refreshes = ResourceRefreshes()
+    private var fullRefreshCount = 0
+    private var lastTanomiMetadataRefresh: Date = .distantPast
     private var pendingEmailActions: [String: (email: EmailReminder, index: Int)] = [:]
     private struct PendingArchive {
         let index: Int
@@ -72,7 +107,8 @@ final class AppModel: ObservableObject {
 
     var isFixture: Bool { fixture != nil }
 
-    init(fixture: DaymeldFixture? = nil) {
+    init(fixture: DaymeldFixture? = nil, api: APIClient = .shared) {
+        self.api = api
         if fixture == nil {
             readArticleIDs = Self.loadArticleIDs(forKey: "daily-reader.native.read")
             savedArticleIDs = Self.loadArticleIDs(forKey: "daily-reader.native.saved")
@@ -141,99 +177,108 @@ final class AppModel: ObservableObject {
         await refresh()
     }
 
-    func refresh() async {
-        guard !isRefreshing else { return }
-        if let fixture {
-            isRefreshing = true
-            defer { isRefreshing = false }
-            applyFixture(fixture)
-            return
-        }
-        isRefreshing = true
-        snapshotRefreshInProgress = true
-        errorMessage = nil
+    func refresh(afterMutation: Bool = false) async {
+        guard !Task.isCancelled else { return }
+        if let fixture { applyFixture(fixture); return }
+        fullRefreshCount += 1
+        if !isRefreshing { isRefreshing = true }
+        if errorMessage != nil { errorMessage = nil }
         defer {
-            snapshotRefreshInProgress = false
-            isRefreshing = false
+            fullRefreshCount -= 1
+            if fullRefreshCount == 0 { isRefreshing = false }
         }
-        var updated = false
-        todayLoadState = .loading
-        do {
-            today = try await api.get("api/today", as: TodayEnvelope.self)
-            todayLoadState = .loaded
-            updated = true
-        } catch { todayLoadState = .failed(error.localizedDescription) }
-        emailLoadState = .loading
-        do {
-            let mail = try await api.get("api/emails/unread", as: EmailEnvelope.self)
-            let pendingIDs = Set(pendingEmailActions.keys)
-            emails = mail.items.filter { !pendingIDs.contains($0.threadID) }
-            if mail.authorizationRequired == true {
-                emailSyncError = "Gmailの再認証が必要です。Mac miniで再接続してください。"
-            } else if mail.syncError != nil {
-                emailSyncError = "Gmailの同期に失敗したため、保存済みのメールを表示しています。"
-            } else {
-                emailSyncError = nil
-            }
-            emailCanMarkRead = mail.canMarkRead ?? true
-            emailLoadState = .loaded
-            updated = true
-        } catch {
-            emailLoadState = .failed(error.localizedDescription)
-            emailSyncError = "メール同期結果を取得できませんでした：\(error.localizedDescription)"
-        }
-        if await refreshAgentSnapshot() {
-            updated = true
-        }
-        if await refreshTanomiSnapshot() { updated = true }
-        codexUsageLoadState = .loading
-        do {
-            codexUsage = try await api.get("api/codex-usage", as: CodexUsageEnvelope.self)
-            codexUsageFailed = false
-            codexUsageLoadState = .loaded
-            updated = true
-        } catch {
-            codexUsageFailed = true
-            codexUsageLoadState = .failed(error.localizedDescription)
-        }
-        newsLoadState = .loading
-        do {
-            let news = try await api.get("data/articles.json", as: ArticleEnvelope.self)
-            articles = news.articles
-            newsLoadState = .loaded
-            updated = true
-        } catch { newsLoadState = .failed(error.localizedDescription) }
-        await refreshConversations()
-        await life.refresh()
-        deploymentLoadState = .loading
-        do {
-            deploymentInfo = try await api.get("api/deployment", as: DeploymentInfo.self)
-            deploymentLoadState = .loaded
-        } catch { deploymentLoadState = .failed(error.localizedDescription) }
-        if updated {
-            lastUpdated = .now
+        // Three independent lanes bound fan-out while keeping the initial Agent
+        // screen independent of mail, news, device context and tanomi metadata.
+        async let agent: Void = refreshAgents(afterMutation: afterMutation)
+        async let content: Void = refreshContent(afterMutation: afterMutation)
+        async let supplemental: Void = refreshSupplemental(afterMutation: afterMutation)
+        _ = await (agent, content, supplemental)
+    }
+
+    private func refreshContent(afterMutation: Bool) async {
+        await refreshToday(force: afterMutation)
+        await refreshEmails(force: afterMutation)
+        await refreshResource("news", path: "data/articles.json", state: \.newsLoadState,
+                              force: afterMutation, as: ArticleEnvelope.self) { self.articles = $0.articles }
+        await refreshConversations(afterMutation: afterMutation)
+    }
+
+    private func refreshToday(force: Bool) async {
+        await refreshResource("today", path: "api/today", state: \.todayLoadState,
+                              force: force, as: TodayEnvelope.self) { self.today = $0 }
+    }
+
+    private func refreshEmails(force: Bool) async {
+        await refreshResource("email", path: "api/emails/unread", state: \.emailLoadState,
+                              force: force, as: EmailEnvelope.self) { mail in
+            let pendingIDs = Set(self.pendingEmailActions.keys)
+            self.emails = mail.items.filter { !pendingIDs.contains($0.threadID) }
+            self.emailSyncError = mail.authorizationRequired == true
+                ? "Gmailの再認証が必要です。Mac miniで再接続してください。"
+                : mail.syncError != nil ? "Gmailの同期に失敗したため、保存済みのメールを表示しています。" : nil
+            self.emailCanMarkRead = mail.canMarkRead ?? true
         }
     }
 
-    func refreshConversations() async {
+    private func refreshSupplemental(afterMutation: Bool) async {
+        // Metadata and usage are independent of the fast task-list lane.
+        async let metadata: Void = refreshTanomiMetadata(force: true)
+        async let lifeData: Void = life.refresh()
+        await refreshResource("usage", path: "api/codex-usage", state: \.codexUsageLoadState,
+                              force: afterMutation, as: CodexUsageEnvelope.self) {
+            self.codexUsage = $0
+            self.codexUsageFailed = false
+        }
+        codexUsageFailed = codexUsageLoadState != .loaded
+        await refreshResource("deployment", path: "api/deployment", state: \.deploymentLoadState,
+                              force: afterMutation, as: DeploymentInfo.self) { self.deploymentInfo = $0 }
+        _ = await (metadata, lifeData)
+    }
+
+    private func setLoadState(_ key: ReferenceWritableKeyPath<AppModel, ResourceLoadState>, _ value: ResourceLoadState) {
+        if self[keyPath: key] != value { self[keyPath: key] = value }
+    }
+
+    private func refreshResource<T: Decodable>(
+        _ key: String, path: String, state: ReferenceWritableKeyPath<AppModel, ResourceLoadState>,
+        force: Bool, as type: T.Type, apply: @escaping (T) -> Void
+    ) async {
+        await refreshes.run(key, replacing: force) { generation in
+            let previous = self[keyPath: state]
+            if previous == .idle { self.setLoadState(state, .loading) }
+            do {
+                let value = try await self.api.get(path, as: type)
+                guard self.refreshes.isCurrent(key, generation) else { return }
+                apply(value)
+                self.setLoadState(state, .loaded)
+                self.lastUpdated = .now
+            } catch {
+                guard self.refreshes.isCurrent(key, generation, includingCancelled: true) else { return }
+                self.setLoadState(state, Task.isCancelled ? (previous == .loading ? .idle : previous) : .failed(error.localizedDescription))
+            }
+        }
+    }
+
+    func refreshConversations(afterMutation: Bool = false) async {
         guard !isFixture else { return }
-        conversationLoadState = .loading
-        do {
-            let envelope = try await api.get("api/conversations", as: ConversationEnvelope.self)
-            conversations = envelope.recordings
-            conversationLLMAvailable = envelope.llmAvailable ?? false
-            conversationItems = try await api.get(
-                "api/conversation-items",
-                as: ConversationItemsEnvelope.self
-            ).items
-            keptConversationItems = try await api.get(
-                "api/conversation-items",
-                queryItems: [URLQueryItem(name: "status", value: "kept")],
-                as: ConversationItemsEnvelope.self
-            ).items
-            conversationLoadState = .loaded
-        } catch {
-            conversationLoadState = .failed(error.localizedDescription)
+        await refreshes.run("conversations", replacing: afterMutation) { generation in
+            let previous = self.conversationLoadState
+            if previous == .idle { self.conversationLoadState = .loading }
+            do {
+                let envelope = try await self.api.get("api/conversations", as: ConversationEnvelope.self)
+                let items = try await self.api.get("api/conversation-items", as: ConversationItemsEnvelope.self)
+                let kept = try await self.api.get("api/conversation-items",
+                    queryItems: [URLQueryItem(name: "status", value: "kept")], as: ConversationItemsEnvelope.self)
+                guard self.refreshes.isCurrent("conversations", generation) else { return }
+                self.conversations = envelope.recordings
+                self.conversationLLMAvailable = envelope.llmAvailable ?? false
+                self.conversationItems = items.items
+                self.keptConversationItems = kept.items
+                self.conversationLoadState = .loaded
+            } catch {
+                guard self.refreshes.isCurrent("conversations", generation, includingCancelled: true) else { return }
+                self.conversationLoadState = Task.isCancelled ? (previous == .loading ? .idle : previous) : .failed(error.localizedDescription)
+            }
         }
     }
 
@@ -241,7 +286,7 @@ final class AppModel: ObservableObject {
     func importConversationFile(_ url: URL) async -> Bool {
         do {
             _ = try await api.uploadConversationFile(url, recordedAt: nil)
-            await refreshConversations()
+            await refreshConversations(afterMutation: true)
             return true
         } catch {
             errorMessage = "会話データを送信できませんでした：\(error.localizedDescription)"
@@ -288,7 +333,7 @@ final class AppModel: ObservableObject {
     func analyzeConversation(_ id: String) async {
         do {
             let _: EmptyResponse = try await api.post("api/conversations/\(id)/analyze", body: EmptyRequest(), as: EmptyResponse.self)
-            await refreshConversations()
+            await refreshConversations(afterMutation: true)
         } catch { errorMessage = "解析を開始できませんでした：\(error.localizedDescription)" }
     }
 
@@ -303,7 +348,7 @@ final class AppModel: ObservableObject {
                 body: EmptyRequest(),
                 as: ConversationExtractionResponse.self
             )
-            await refreshConversations()
+            await refreshConversations(afterMutation: true)
             return true
         } catch {
             errorMessage = "会話をCodexで整理できませんでした：\(error.localizedDescription)"
@@ -331,7 +376,7 @@ final class AppModel: ObservableObject {
                 ),
                 as: ConversationInsightItem.self
             )
-            await refreshConversations()
+            await refreshConversations(afterMutation: true)
             return true
         } catch {
             errorMessage = "会話の候補を更新できませんでした：\(error.localizedDescription)"
@@ -361,7 +406,7 @@ final class AppModel: ObservableObject {
                 ),
                 as: EmptyResponse.self
             )
-            await refresh()
+            await refresh(afterMutation: true)
             return true
         } catch {
             errorMessage = "会話の候補を送信できませんでした：\(error.localizedDescription)"
@@ -376,7 +421,7 @@ final class AppModel: ObservableObject {
                 body: ConversationTaskApproval(target: target, instruction: instruction, repository: repository),
                 as: EmptyResponse.self
             )
-            await refresh()
+            await refresh(afterMutation: true)
         } catch { errorMessage = "タスクを承認できませんでした：\(error.localizedDescription)" }
     }
 
@@ -397,7 +442,7 @@ final class AppModel: ObservableObject {
         }
         do {
             let _: AgentJob = try await api.post("api/agent-jobs", body: NewAgentJob(repository: repository, prompt: prompt, model: model, reasoningEffort: reasoningEffort), as: AgentJob.self)
-            await refresh()
+            await refreshAgentSnapshot(force: true)
             return true
         } catch { errorMessage = error.localizedDescription; return false }
     }
@@ -421,7 +466,7 @@ final class AppModel: ObservableObject {
                 body: NewTanomiTask(prompt: prompt, repo: repo, model: model, permissionMode: permissionMode, effort: effort),
                 as: EmptyResponse.self
             )
-            await refreshAgents()
+            await refreshTanomiSnapshot(force: true)
             return true
         } catch { errorMessage = error.localizedDescription; return false }
     }
@@ -439,7 +484,7 @@ final class AppModel: ObservableObject {
         }
         do {
             let _: EmptyResponse = try await api.post("api/tanomi/tasks/\(task.id)/stop", body: EmptyRequest(), as: EmptyResponse.self)
-            await refreshAgents()
+            await refreshTanomiSnapshot(force: true)
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -451,7 +496,7 @@ final class AppModel: ObservableObject {
                 body: TanomiFollowUp(prompt: instruction, parentID: taskID),
                 as: EmptyResponse.self
             )
-            await refreshAgents()
+            await refreshTanomiSnapshot(force: true)
             return true
         } catch { errorMessage = error.localizedDescription; return false }
     }
@@ -474,86 +519,94 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func refreshAgents() async {
-        guard !isRefreshing, !snapshotRefreshInProgress else { return }
-        if fixture != nil { return }
-        snapshotRefreshInProgress = true
-        defer { snapshotRefreshInProgress = false }
-        _ = await refreshAgentSnapshot()
-        _ = await refreshTanomiSnapshot()
+    func refreshAgents(afterMutation: Bool = false) async {
+        guard !isFixture, !Task.isCancelled else { return }
+        if afterMutation {
+            refreshes.invalidate("agents")
+            refreshes.invalidate("tanomi")
+        }
+        async let daymeld: Void = refreshAgentSnapshot(force: afterMutation)
+        async let tanomi: Void = refreshTanomiSnapshot(force: afterMutation)
+        _ = await (daymeld, tanomi)
     }
 
-    @discardableResult
-    private func refreshTanomiSnapshot() async -> Bool {
-        if fixture != nil {
-            tanomiLoadState = fixture?.failedResources.contains(.tanomi) == true
-                ? .failed(fixture?.tanomiStatusMessage ?? "fixture: tanomiを取得できません") : .loaded
-            return true
-        }
-        tanomiRefreshGeneration += 1
-        let generation = tanomiRefreshGeneration
-        do {
-            async let repositories: [TanomiRepository] = api.get("api/tanomi/repos")
-            async let config: TanomiConfig = api.get("api/tanomi/config")
-            async let buckets: TanomiBuckets = api.get(
-                "api/tanomi/tasks",
-                queryItems: [URLQueryItem(name: "limit", value: "50")]
-            )
-            async let health: TanomiHealth = api.get("api/tanomi/health")
-            async let usage: TanomiUsage? = try? api.get("api/tanomi/usage")
-            let (repos, configSnapshot, tasks, status, usageSnapshot) = try await (repositories, config, buckets, health, usage)
-            guard generation == tanomiRefreshGeneration else { return false }
-            tanomiLoadState = .loaded
-            if tanomiRepositories != repos { tanomiRepositories = repos }
-            if tanomiConfig != configSnapshot { tanomiConfig = configSnapshot }
-            let pending = Set(pendingArchives.keys.filter { $0.hasPrefix("tanomi-") }.map { String($0.dropFirst(7)) })
-            let visibleTasks = tasks.tasks.filter { !pending.contains($0.id) }
-            if tanomiTasks != visibleTasks { tanomiTasks = visibleTasks }
-            if tanomiArchivedTasks != tasks.archived { tanomiArchivedTasks = tasks.archived }
-            if tanomiAvailable != status.ok { tanomiAvailable = status.ok }
-            if let usageSnapshot, tanomiUsage != usageSnapshot { tanomiUsage = usageSnapshot }
-            let usageFailed = usageSnapshot == nil
-            if tanomiUsageFailed != usageFailed { tanomiUsageFailed = usageFailed }
-            let message = status.ok ? nil : "tanomiのヘルスチェックが失敗しました"
-            if tanomiStatusMessage != message { tanomiStatusMessage = message }
-            return true
-        } catch {
-            guard generation == tanomiRefreshGeneration else { return false }
-            tanomiLoadState = .failed(error.localizedDescription)
-            if tanomiAvailable { tanomiAvailable = false }
-            if !tanomiUsageFailed { tanomiUsageFailed = true }
-            let message = error.localizedDescription
-            if tanomiStatusMessage != message { tanomiStatusMessage = message }
-            return false
+    func pollDaymeldAgents() async {
+        guard !isFixture else { return }
+        await refreshAgentSnapshot(force: false)
+    }
+
+    func pollTanomiTasks() async {
+        guard !isFixture else { return }
+        await refreshTanomiSnapshot(force: false)
+    }
+
+    func refreshTanomiMetadata(force: Bool = false) async {
+        guard !isFixture, !Task.isCancelled else { return }
+        guard force || Date.now.timeIntervalSince(lastTanomiMetadataRefresh) >= 60 else { return }
+        await refreshes.run("tanomi-metadata") { generation in
+            self.lastTanomiMetadataRefresh = .now
+            // This low-frequency lane never gates usable task results. Partial
+            // failures keep the previous configuration and usage snapshot.
+            if let repos = try? await self.api.get("api/tanomi/repos", as: [TanomiRepository].self),
+               self.refreshes.isCurrent("tanomi-metadata", generation), self.tanomiRepositories != repos {
+                self.tanomiRepositories = repos
+            }
+            if let config = try? await self.api.get("api/tanomi/config", as: TanomiConfig.self),
+               self.refreshes.isCurrent("tanomi-metadata", generation), self.tanomiConfig != config {
+                self.tanomiConfig = config
+            }
+            let usage = try? await self.api.get("api/tanomi/usage", as: TanomiUsage.self)
+            guard self.refreshes.isCurrent("tanomi-metadata", generation) else {
+                self.lastTanomiMetadataRefresh = .distantPast
+                return
+            }
+            if let usage, self.tanomiUsage != usage { self.tanomiUsage = usage }
+            if self.tanomiUsageFailed != (usage == nil) { self.tanomiUsageFailed = usage == nil }
         }
     }
 
-    @discardableResult
-    private func refreshAgentSnapshot() async -> Bool {
-        if fixture != nil {
-            agentLoadState = fixture?.failedResources.contains(.agents) == true
-                ? .failed("fixture: Agentを取得できません") : .loaded
-            return true
+    private func refreshTanomiSnapshot(force: Bool) async {
+        await refreshes.run("tanomi", replacing: force) { generation in
+            do {
+                let tasks = try await self.api.get("api/tanomi/tasks",
+                    queryItems: [URLQueryItem(name: "limit", value: "50")], as: TanomiBuckets.self)
+                guard self.refreshes.isCurrent("tanomi", generation) else { return }
+                self.setLoadState(\.tanomiLoadState, .loaded)
+                let pending = Set(self.pendingArchives.keys.filter { $0.hasPrefix("tanomi-") }.map { String($0.dropFirst(7)) })
+                let visibleTasks = tasks.tasks.filter { !pending.contains($0.id) }
+                if self.tanomiTasks != visibleTasks { self.tanomiTasks = visibleTasks }
+                if self.tanomiArchivedTasks != tasks.archived { self.tanomiArchivedTasks = tasks.archived }
+                if !self.tanomiAvailable { self.tanomiAvailable = true }
+                if self.tanomiStatusMessage != nil { self.tanomiStatusMessage = nil }
+            } catch {
+                guard self.refreshes.isCurrent("tanomi", generation) else { return }
+                self.setLoadState(\.tanomiLoadState, .failed(error.localizedDescription))
+                if self.tanomiAvailable { self.tanomiAvailable = false }
+                if self.tanomiStatusMessage != error.localizedDescription { self.tanomiStatusMessage = error.localizedDescription }
+            }
         }
-        agentRefreshGeneration += 1
-        let generation = agentRefreshGeneration
-        guard let envelope = try? await api.get("api/agent-jobs", as: AgentEnvelope.self),
-              generation == agentRefreshGeneration else {
-            agentLoadState = .failed("Agentの一覧を取得できませんでした")
-            return false
-        }
-        agentLoadState = .loaded
+    }
 
-        for job in agentNotifications.changedJobs(active: envelope.jobs, archived: envelope.archivedJobs) {
-            await agentNotifications.schedule(for: job)
+    private func refreshAgentSnapshot(force: Bool) async {
+        await refreshes.run("agents", replacing: force) { generation in
+            do {
+                let envelope = try await self.api.get("api/agent-jobs", as: AgentEnvelope.self)
+                guard self.refreshes.isCurrent("agents", generation) else { return }
+                self.setLoadState(\.agentLoadState, .loaded)
+                let pending = Set(self.pendingArchives.keys.filter { $0.hasPrefix("daymeld-") }.map { String($0.dropFirst(8)) })
+                let visibleJobs = envelope.jobs.filter { !pending.contains($0.id) }
+                if self.agents != visibleJobs { self.agents = visibleJobs }
+                if self.archivedAgents != envelope.archivedJobs { self.archivedAgents = envelope.archivedJobs }
+                if self.repositories != envelope.repositories { self.repositories = envelope.repositories }
+                if self.agentModels != envelope.models { self.agentModels = envelope.models }
+                for job in self.agentNotifications.changedJobs(active: envelope.jobs, archived: envelope.archivedJobs) {
+                    await self.agentNotifications.schedule(for: job)
+                }
+            } catch {
+                guard self.refreshes.isCurrent("agents", generation) else { return }
+                self.setLoadState(\.agentLoadState, .failed("Agentの一覧を取得できませんでした"))
+            }
         }
-        let pending = Set(pendingArchives.keys.filter { $0.hasPrefix("daymeld-") }.map { String($0.dropFirst(8)) })
-        let visibleJobs = envelope.jobs.filter { !pending.contains($0.id) }
-        if agents != visibleJobs { agents = visibleJobs }
-        if archivedAgents != envelope.archivedJobs { archivedAgents = envelope.archivedJobs }
-        if repositories != envelope.repositories { repositories = envelope.repositories }
-        if agentModels != envelope.models { agentModels = envelope.models }
-        return true
     }
 
     func agentDetail(_ jobID: String) async -> AgentJob? {
@@ -580,7 +633,7 @@ final class AppModel: ObservableObject {
                 body: AgentInstruction(jobID: jobID, instruction: instruction),
                 as: EmptyResponse.self
             )
-            await refreshAgents()
+            await refreshAgentSnapshot(force: true)
             return true
         } catch {
             errorMessage = error.localizedDescription
@@ -618,7 +671,7 @@ final class AppModel: ObservableObject {
             let _: EmptyResponse = try await api.post(
                 path, body: AgentJobAction(jobID: jobID), as: EmptyResponse.self
             )
-            await refreshAgents()
+            await refreshAgentSnapshot(force: true)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -629,10 +682,13 @@ final class AppModel: ObservableObject {
         pendingArchives[id] = PendingArchive(index: index)
         do {
             _ = try await action()
+            // Invalidate synchronously before lifting the optimistic filter.
+            refreshes.invalidate(id.hasPrefix("daymeld-") ? "agents" : "tanomi")
             pendingArchives.removeValue(forKey: id)
             pendingAgentJobs.removeValue(forKey: String(id.dropFirst(8)))
             pendingTanomiTasks.removeValue(forKey: String(id.dropFirst(7)))
-            await refreshAgents()
+            if id.hasPrefix("daymeld-") { await refreshAgentSnapshot(force: true) }
+            else { await refreshTanomiSnapshot(force: true) }
         } catch {
             let pending = pendingArchives.removeValue(forKey: id)
             if id.hasPrefix("daymeld-"), let job = pendingAgentJobs.removeValue(forKey: String(id.dropFirst(8))) {
@@ -663,7 +719,7 @@ final class AppModel: ObservableObject {
         }
         do {
             let _: EmptyResponse = try await api.post("api/task-status", body: TaskStatus(taskID: task.id, completed: !task.isCompleted), as: EmptyResponse.self)
-            await refresh()
+            await refreshToday(force: true)
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -679,7 +735,7 @@ final class AppModel: ObservableObject {
         }
         do {
             let _: PlannerTask = try await api.post("api/tasks", body: NewTask(title: title, dueDate: dueDate, priority: priority, recurrence: recurrence), as: PlannerTask.self)
-            await refresh()
+            await refreshToday(force: true)
             return true
         } catch { errorMessage = error.localizedDescription; return false }
     }
@@ -694,7 +750,7 @@ final class AppModel: ObservableObject {
         }
         do {
             let _: EmptyResponse = try await api.post("api/tasks/delete", body: TaskAction(taskID: task.id), as: EmptyResponse.self)
-            await refresh()
+            await refreshToday(force: true)
             return true
         } catch { errorMessage = error.localizedDescription; return false }
     }
@@ -747,7 +803,7 @@ final class AppModel: ObservableObject {
         }
         do {
             let _: EmptyResponse = try await api.post("api/health/checkin", body: snapshot, as: EmptyResponse.self)
-            await refresh()
+            await refresh(afterMutation: true)
             return true
         } catch { errorMessage = error.localizedDescription; return false }
     }
@@ -766,7 +822,9 @@ final class AppModel: ObservableObject {
         }
         do {
             let _: EmptyResponse = try await api.post("api/email-status", body: EmailAction(threadID: email.threadID, action: action), as: EmptyResponse.self)
+            refreshes.invalidate("email")
             pendingEmailActions.removeValue(forKey: email.threadID)
+            await refreshEmails(force: true)
             return true
         } catch { errorMessage = error.localizedDescription }
         if pendingEmailActions[email.threadID] != nil {
@@ -793,7 +851,7 @@ final class AppModel: ObservableObject {
         if fixture != nil { return }
         do {
             PhoneContextSync.shared.healthMessage = try await HealthAutoSync.shared.synchronize(force: true, requestAuthorization: true)
-            await refresh()
+            await refresh(afterMutation: true)
         } catch { errorMessage = error.localizedDescription }
     }
 #endif

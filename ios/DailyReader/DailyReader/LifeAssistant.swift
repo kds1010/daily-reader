@@ -119,44 +119,61 @@ final class LifeStore: ObservableObject {
     @Published var error: String?
     @Published var noticeStatus = ""
     @Published var calendarStatus = ""
-    private var refreshing = false
-    func refresh() async {
-        guard !refreshing else { return }; refreshing = true; defer { refreshing = false }
-        do {
-            #if os(iOS)
-            await PhoneContextSync.shared.synchronize()
-            #endif
-            let value: LifeSnapshot = try await APIClient.shared.get("api/life")
-            snapshot = value; error = nil
-            noticeStatus = await LifeNotifications.shared.reconcile(value)
-            calendarStatus = await LifeCalendar.shared.synchronize(value.entries)
-        } catch { self.error = error.localizedDescription }
+    private let refreshes = ResourceRefreshes()
+    func refresh(afterMutation: Bool = false) async {
+        await refreshes.run("life", replacing: afterMutation) { generation in
+            do {
+                #if os(iOS)
+                async let context: Bool = PhoneContextSync.shared.synchronize()
+                #endif
+                let value: LifeSnapshot = try await APIClient.shared.get("api/life")
+                guard self.refreshes.isCurrent("life", generation) else { return }
+                self.snapshot = value
+                self.error = nil
+                let notice = await LifeNotifications.shared.reconcile(value)
+                guard self.refreshes.isCurrent("life", generation) else { return }
+                if self.noticeStatus != notice { self.noticeStatus = notice }
+                let calendar = await LifeCalendar.shared.synchronize(value.entries)
+                guard self.refreshes.isCurrent("life", generation) else { return }
+                if self.calendarStatus != calendar { self.calendarStatus = calendar }
+                #if os(iOS)
+                if await context {
+                    let updated: LifeSnapshot = try await APIClient.shared.get("api/life")
+                    guard self.refreshes.isCurrent("life", generation) else { return }
+                    self.snapshot = updated
+                }
+                #endif
+            } catch {
+                guard self.refreshes.isCurrent("life", generation) else { return }
+                self.error = error.localizedDescription
+            }
+        }
     }
     func setAutomation(_ key: String, _ enabled: Bool) async {
         do {
             let _: EmptyResponse = try await APIClient.shared.post("api/life/automation", body: [key: enabled], as: EmptyResponse.self)
-            await refresh()
+            await refresh(afterMutation: true)
         } catch { self.error = error.localizedDescription }
     }
     func adopt(_ draft: LifeDraft) async {
         do {
             let _: LifeEntry = try await APIClient.shared.post("api/life/drafts/\(draft.id)/adopt", body: EmptyRequest(), as: LifeEntry.self)
-            await refresh()
+            await refresh(afterMutation: true)
         } catch { self.error = error.localizedDescription }
     }
     func dismiss(_ draft: LifeDraft) async {
         do {
             let _: EmptyResponse = try await APIClient.shared.post("api/life/drafts/\(draft.id)/dismiss", body: EmptyRequest(), as: EmptyResponse.self)
-            await refresh()
+            await refresh(afterMutation: true)
         } catch { self.error = error.localizedDescription }
     }
     func save(_ request: LifeRequest, id: String? = nil, draftID: String? = nil) async throws {
         let _: LifeEntry = try await APIClient.shared.post(draftID.map { "api/life/drafts/\($0)/adopt" } ?? id.map { "api/life/entries/\($0)" } ?? "api/life/entries", body: request, as: LifeEntry.self)
-        await refresh()
+        await refresh(afterMutation: true)
     }
     func state(_ entry: LifeEntry, _ status: String) async {
         var request = LifeRequest(entry); request.status = status
-        do { try await save(request, id: entry.id) } catch { let message = error.localizedDescription; await refresh(); self.error = message }
+        do { try await save(request, id: entry.id) } catch { let message = error.localizedDescription; await refresh(afterMutation: true); self.error = message }
     }
 }
 
@@ -241,7 +258,7 @@ struct LifeAssistantView: View {
                     catch { store.error = error.localizedDescription }
                 } }
             }
-            Section("iPhoneから取得した情報") { PhoneContextPanel(overview: store.snapshot?.device_context, onSync: { await store.refresh() }) }
+            Section("iPhoneから取得した情報") { PhoneContextPanel(overview: store.snapshot?.device_context, onSync: { await store.refresh(afterMutation: true) }) }
             Section("一文で追加") {
                 TextField("例：明日の午前中に資料を確認する。週末の近所の催しを調べて", text: $captureText, axis: .vertical).lineLimit(2...6)
                     .disabled(capturing)
@@ -253,7 +270,7 @@ struct LifeAssistantView: View {
                             let _: EmptyResponse = try await APIClient.shared.post("api/life/capture", body: ["text": captureText, "request_id": captureID], as: EmptyResponse.self)
                             captureText = ""; captureID = UUID().uuidString
                             captureMessage = "保存しました。Mac側で整理を進めています。"
-                            await store.refresh()
+                            await store.refresh(afterMutation: true)
                         } catch { captureMessage = error.localizedDescription }
                         capturing = false
                     }
@@ -327,7 +344,7 @@ struct LifeAssistantView: View {
                 Button("追加") { Task {
                     do {
                         let _: LifePerson = try await APIClient.shared.post("api/life/people", body: ["name": personName], as: LifePerson.self)
-                        personName = ""; await store.refresh()
+                        personName = ""; await store.refresh(afterMutation: true)
                     } catch { store.error = error.localizedDescription }
                 } }.disabled(personName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -353,10 +370,7 @@ struct LifeAssistantView: View {
             .refreshable { await store.refresh() }
             .task {
                 guard !model.isFixture else { return }
-                while !Task.isCancelled {
-                    await store.refresh()
-                    do { try await Task.sleep(for: .seconds(15)) } catch { return }
-                }
+                await store.refresh()
             }
     }
     private func canAdopt(_ draft: LifeDraft) -> Bool {
@@ -589,7 +603,7 @@ struct LifeEntryDetail: View {
                     guard let e = store.snapshot?.entries.first(where: { $0.id == entryID }) else { return }
                     do {
                         let _: EmptyResponse = try await APIClient.shared.post("api/life/entries/\(e.id)/delete", body: ["revision": e.revision], as: EmptyResponse.self)
-                        await store.refresh(); dismiss()
+                        await store.refresh(afterMutation: true); dismiss()
                     } catch { store.error = error.localizedDescription }
                 } }
             }
@@ -630,10 +644,9 @@ struct LifeEntryDetail: View {
     }
 }
 
-@MainActor
-final class LifeCalendar {
+actor LifeCalendar {
     static let shared = LifeCalendar()
-    private let store = EKEventStore()
+    private lazy var store = EKEventStore()
     private var synchronizing = false
     private var candidateOffset = 0
     private struct Synced: Codable { let revision: Int; let signature: String }
@@ -666,6 +679,7 @@ final class LifeCalendar {
         let batch = (Array(candidates.dropFirst(offset)) + Array(candidates.prefix(offset))).prefix(10)
         candidateOffset = offset + batch.count
         for entry in batch {
+            if Task.isCancelled { break }
             do { _ = try await apply(entry, automatic: true); updated += 1 }
             catch { problems.append("\(entry.title): \(error.localizedDescription)") }
         }
@@ -708,6 +722,13 @@ final class LifeCalendar {
                 throw APIClientError.server("カレンダー側で削除されています。再作成する場合は予定詳細から反映してください")
             }
         }
+        try Task.checkCancellation()
+        if automatic {
+            guard UserDefaults.standard.object(forKey: "life.calendar.automatic") as? Bool != false,
+                  EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
+                throw APIClientError.server("カレンダーの自動反映は停止しています")
+            }
+        }
         if entry.status == "cancelled" {
             if let owned { try store.remove(owned, span: .thisEvent, commit: true) }
             UserDefaults.standard.removeObject(forKey: key)
@@ -733,7 +754,28 @@ final class LifeCalendar {
 final class LifeNotifications {
     static let shared = LifeNotifications()
     private let center = UNUserNotificationCenter.current()
+    private var reconciliation: Task<String, Never>?
+    private var reconciliationID = 0
+
     func reconcile(_ snapshot: LifeSnapshot) async -> String {
+        // A replaced read may still be finishing an OS notification request.
+        // Serialize reconciliation so an older add cannot land after a newer
+        // snapshot has removed it. The UI remains free while the OS responds.
+        let previous = reconciliation
+        reconciliationID += 1
+        let id = reconciliationID
+        let task = Task {
+            _ = await previous?.value
+            guard !Task.isCancelled else { return "通知の更新を中断しました" }
+            return await reconcileNow(snapshot)
+        }
+        reconciliation = task
+        let result = await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        if id == reconciliationID { reconciliation = nil }
+        return result
+    }
+
+    private func reconcileNow(_ snapshot: LifeSnapshot) async -> String {
         let settings = await center.notificationSettings()
         guard [.authorized, .provisional].contains(settings.authorizationStatus) else { return "通知は未許可です。予定を保存しても通知されません。" }
         let future = snapshot.notifications.filter { (lifeDate($0.at) ?? .distantPast) > .now }
@@ -743,6 +785,7 @@ final class LifeNotifications {
         center.removePendingNotificationRequests(withIdentifiers: pending.filter { $0.identifier.hasPrefix("life.") && !identifiers.contains($0.identifier) }.map(\.identifier))
         do {
             for notice in selected {
+                try Task.checkCancellation()
                 guard let date = lifeDate(notice.at) else { continue }
                 if pending.contains(where: { $0.identifier == notice.id && $0.content.title == notice.title && ($0.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate() == date }) { continue }
                 let content = UNMutableNotificationContent(); content.title = notice.title; content.sound = .default

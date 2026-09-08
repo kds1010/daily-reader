@@ -46,8 +46,9 @@ final class AgentNotificationCoordinator {
         for job in allJobs {
             state.statuses[job.id] = job.status
         }
+        let needsPersistence = !state.initialized || previous != state.statuses
         state.initialized = true
-        persist()
+        if needsPersistence { persist() }
         return changed
     }
 

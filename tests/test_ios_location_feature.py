@@ -31,10 +31,9 @@ def test_location_service_supports_explicit_sessions_and_durable_retry() -> None
     assert "manager.stopUpdatingLocation()" in source
     assert "manager.showsBackgroundLocationIndicator = true" in source
     assert "guard isEnabled, storageAvailable, !isRecording" in source
-    assert source.index("try persist(updated)") < source.index("Task { await syncPending() }")
-    assert source.index("try await upload(batch)") < source.index(
-        "try persist(remaining)"
-    )
+    # Transaction ordering, append/ACK interleaving and write failures are
+    # executed against the production actor in test_ios_location_runtime.py.
+    assert "actor LocationJournal" in source
     assert "requestAlwaysAuthorization" not in source
     assert "URLSession" not in source
     assert "UserDefaults" not in source

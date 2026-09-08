@@ -38,8 +38,8 @@ struct CLLocation {
 protocol CLLocationManagerDelegate: AnyObject {}
 @MainActor final class CLLocationManager {
     static var instances: [CLLocationManager] = []
-    static var servicesEnabled = true
-    static func locationServicesEnabled() -> Bool { servicesEnabled }
+    nonisolated(unsafe) static var servicesEnabled = true
+    nonisolated static func locationServicesEnabled() -> Bool { servicesEnabled }
     weak var delegate: (any CLLocationManagerDelegate)?
     var desiredAccuracy = 0.0, distanceFilter = 0.0
     var pausesLocationUpdatesAutomatically = true
@@ -69,8 +69,8 @@ import Foundation
             if offline { throw URLError(.notConnectedToInternet) }
             let callback = duringUpload; duringUpload = nil
             callback?()
-            await Task.yield()
         })
+        await service.prepare()
         let continuous = CLLocationManager.instances[0], refresh = CLLocationManager.instances[1]
         precondition(!service.isRecording && service.lastAcquiredAt == nil)
         service.startRecording()
@@ -94,6 +94,7 @@ import Foundation
         clock += 60
         service.requestLocation()
         service.locationManager(refresh, didUpdateLocations: [CLLocation(timestamp: clock)])
+        await service.flushPendingWrites()
         precondition(service.isRecording && continuous.stops == 0 && !service.isRefreshingLocation)
         if case .located = service.state {} else { fatalError("failed to recover") }
         precondition(service.pending.count == 2 && service.lastAcquiredAt == clock)
@@ -101,6 +102,7 @@ import Foundation
         clock += 7200
         precondition(service.lastAcquiredAt == acquired) // passage of time is not a new fix
         service.locationManager(continuous, didUpdateLocations: [CLLocation(timestamp: acquired)])
+        await service.flushPendingWrites()
         precondition(service.lastAcquiredAt == acquired && service.pending.count == 2)
         offline = false
         duringUpload = {
@@ -120,6 +122,7 @@ import Foundation
         service.locationManager(continuous, didFailWithError: CLError(code: .locationUnknown))
         precondition(service.pending.isEmpty && service.lastAcquiredAt == finalTime)
         let restored = DeviceLocationService(queueURL: queue, now: { clock }, upload: { _ in })
+        await restored.prepare()
         precondition(!restored.isRecording && restored.lastReading == nil)
         precondition(restored.lastAcquiredAt == finalTime && restored.lastSyncedAt == finalTime)
         // Old queue format remains valid and supplies the acquisition time even
@@ -131,6 +134,7 @@ import Foundation
             latitude: 35, longitude: 139, horizontal_accuracy: 10, is_approximate: false)
         try JSONEncoder().encode([legacy]).write(to: oldQueue)
         let old = DeviceLocationService(queueURL: oldQueue, now: { clock }, upload: { _ in })
+        await old.prepare()
         precondition(old.pending.count == 1 && old.pending[0].timestamp.hasSuffix("Z"))
         precondition(old.lastAcquiredAt == clock && !old.isRecording)
         await old.syncPending(force: true)
@@ -166,16 +170,61 @@ import Foundation
         deniedManager.authorizationStatus = .denied
         bulkService.locationManagerDidChangeAuthorization(deniedManager)
         precondition(!bulkService.isRecording && bulkService.state == .denied)
+        // Late disk completion must not overwrite a subsequent permission error.
+        let stateService = DeviceLocationService(
+            queueURL: directory.appending(path: "state/location-pending.json"),
+            now: { clock }, upload: { _ in throw URLError(.notConnectedToInternet) })
+        await stateService.prepare()
+        let stateManager = CLLocationManager.instances[CLLocationManager.instances.count - 2]
+        stateService.startRecording()
+        stateService.locationManager(stateManager,
+            didUpdateLocations: [CLLocation(timestamp: clock)])
+        stateManager.authorizationStatus = .denied
+        stateService.locationManagerDidChangeAuthorization(stateManager)
+        await stateService.flushPendingWrites()
+        precondition(stateService.state == .denied && !stateService.isRecording
+            && stateService.pending.count == 1)
+        CLLocationManager.servicesEnabled = false
+        stateService.locationManagerDidChangeAuthorization(stateManager)
+        for _ in 0..<1000 {
+            if stateService.state == .servicesDisabled { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        precondition(stateService.state == .servicesDisabled)
+        CLLocationManager.servicesEnabled = true
+        // The actor transaction must preserve a new append when an older batch
+        // is acknowledged, even if the UI has not received the append snapshot.
+        let journal = LocationJournal(url: directory.appending(path: "actor/location-pending.json"))
+        let first = try await journal.append([bulk[0]], acquiredAt: clock)
+        let second = try await journal.append([bulk[1]], acquiredAt: clock)
+        let ack = try await journal.acknowledge(Set(first.pending.map(\\.id)), at: clock)
+        precondition(ack.pending == [bulk[1]] && ack.revision > second.revision)
+        let journalDisk = try JSONDecoder().decode([LocationEvent].self,
+            from: Data(contentsOf: directory.appending(path: "actor/location-pending.json")))
+        precondition(journalDisk == ack.pending)
+        // Failed appends do not publish data that has never been persisted.
+        let blockedURL = directory.appending(path: "actor/location-pending.json")
+        try FileManager.default.removeItem(at: blockedURL)
+        try FileManager.default.createDirectory(at: blockedURL, withIntermediateDirectories: true)
+        do {
+            _ = try await journal.append([bulk[2]], acquiredAt: clock)
+            fatalError("write should fail")
+        }
+        catch {}
+        let unchanged = try await journal.load()
+        precondition(unchanged.pending == ack.pending && unchanged.revision == ack.revision)
         print("GPS session, manual refresh, recovery, retry and persistence passed")
     }
 }
 ''')
     env = os.environ.copy()
-    env["CLANG_MODULE_CACHE_PATH"] = str(tmp_path / "module-cache")
-    env["SWIFT_MODULECACHE_PATH"] = str(tmp_path / "module-cache")
+    module_cache = os.environ.get("DAYMELD_SWIFT_TEST_CACHE", str(tmp_path / "module-cache"))
+    env["CLANG_MODULE_CACHE_PATH"] = module_cache
+    env["SWIFT_MODULECACHE_PATH"] = module_cache
     binary = tmp_path / "location-test"
     result = subprocess.run(
-        ["xcrun", "swiftc", str(IOS / "Models.swift"), str(IOS / "APIClient.swift"),
+        ["xcrun", "swiftc", "-whole-module-optimization",
+         str(IOS / "Models.swift"), str(IOS / "APIClient.swift"),
          str(tmp_path / "CoreLocationFake.swift"), str(tmp_path / "Service.swift"),
          str(tmp_path / "Runner.swift"), "-o", str(binary)],
         capture_output=True, text=True, env=env,

@@ -128,25 +128,39 @@ struct RootView: View {
             Button("閉じる", role: .cancel) {}
         } message: { Text(model.errorMessage ?? "") }
         .task(id: scenePhase) {
-            guard scenePhase == .active else { return }
-            var lifeTicks = 0
+            guard scenePhase == .active, !model.isFixture else { return }
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                if !Task.isCancelled {
-                    await model.refreshAgents()
-                    lifeTicks += 1
-                    if lifeTicks % 6 == 0 && !model.isFixture { await model.life.refresh() }
-                    #if os(iOS)
-                    if !model.isFixture { await model.deviceLocation.syncPending() }
-                    #endif
-                }
+                await model.pollDaymeldAgents()
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
             }
         }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                Task { await model.refreshAgents() }
+        .task(id: scenePhase) {
+            guard scenePhase == .active, !model.isFixture else { return }
+            while !Task.isCancelled {
+                await model.pollTanomiTasks()
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
             }
         }
+        .task(id: scenePhase) {
+            guard scenePhase == .active, !model.isFixture else { return }
+            while !Task.isCancelled {
+                // Initial full refresh already loads these. Keep slow work out
+                // of the five-second task/notification loop.
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
+                async let life: Void = model.life.refresh()
+                async let metadata: Void = model.refreshTanomiMetadata()
+                _ = await (life, metadata)
+            }
+        }
+        #if os(iOS)
+        .task(id: scenePhase) {
+            guard scenePhase == .active, !model.isFixture else { return }
+            while !Task.isCancelled {
+                await model.deviceLocation.syncPending()
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
+            }
+        }
+        #endif
         .onReceive(NotificationCenter.default.publisher(for: .openLifeFromNotification)) { _ in
             model.selectedTab = 1
             Task { await model.life.refresh() }

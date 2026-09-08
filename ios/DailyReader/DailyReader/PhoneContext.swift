@@ -5,24 +5,24 @@ import EventKit
 import CoreMotion
 import CryptoKit
 
-private struct PhoneCalendarPayload: Codable {
+private struct PhoneCalendarPayload: Codable, Sendable {
     var state: String; var start_at: String?; var end_at: String?
     var items: [PhoneCalendarEvent] = []
 }
-private struct PhoneMotionPayload: Codable {
+private struct PhoneMotionPayload: Codable, Sendable {
     var state: String; var start_at: String?; var end_at: String?
     var items: [PhoneMotionInterval] = []
 }
-private struct PhonePayload: Codable {
+private struct PhonePayload: Codable, Sendable {
     let device_id: String; var captured_at: String; let timezone: String
     var calendar: PhoneCalendarPayload; var motion: PhoneMotionPayload
 }
 
 @MainActor
 private final class MotionReply {
-    var continuation: CheckedContinuation<[CMMotionActivity]?, Never>?
-    init(_ value: CheckedContinuation<[CMMotionActivity]?, Never>) { continuation = value }
-    func finish(_ value: [CMMotionActivity]?) {
+    var continuation: CheckedContinuation<PhoneMotionPayload?, Never>?
+    init(_ value: CheckedContinuation<PhoneMotionPayload?, Never>) { continuation = value }
+    func finish(_ value: PhoneMotionPayload?) {
         continuation?.resume(returning: value); continuation = nil
     }
 }
@@ -32,56 +32,73 @@ final class PhoneContextSync: ObservableObject {
     static let shared = PhoneContextSync()
     @Published var message = "初回の許可後に自動取得します。"
     @Published var healthMessage = "HealthKitは一度同期すると、以後の更新時に自動同期します。"
-    private let events = EKEventStore()
+    private let worker = PhoneContextWorker()
+    private let motionQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 1
+        queue.qualityOfService = .utility
+        return queue
+    }()
     private let motion = CMMotionActivityManager()
     private var working = false
     private var lastAttempt: Date = .distantPast
-    private var queueURL: URL { URL.applicationSupportDirectory.appending(path: "Daymeld/phone-context-pending.json") }
     private var calendarEnabled: Bool { UserDefaults.standard.object(forKey: "phone.calendar.enabled") as? Bool != false }
     private var motionEnabled: Bool { UserDefaults.standard.object(forKey: "phone.motion.enabled") as? Bool != false }
     private var deviceID: String {
         if let id = UserDefaults.standard.string(forKey: "phone.context.deviceID") { return id }
         let id = UUID().uuidString; UserDefaults.standard.set(id, forKey: "phone.context.deviceID"); return id
     }
-    func synchronize(force: Bool = false, requestMotion: Bool = false) async {
-        guard !working else { return }
+    @discardableResult
+    func synchronize(force: Bool = false, requestMotion: Bool = false) async -> Bool {
+        guard !working, !Task.isCancelled else { return false }
         let lastSuccess = UserDefaults.standard.object(forKey: "phone.context.lastSuccess") as? Date ?? .distantPast
-        guard force || (Date.now.timeIntervalSince(lastAttempt) >= 60 && Date.now.timeIntervalSince(lastSuccess) >= 900) else { return }
+        guard force || (Date.now.timeIntervalSince(lastAttempt) >= 60 && Date.now.timeIntervalSince(lastSuccess) >= 900) else { return false }
         working = true; lastAttempt = .now; defer { working = false }
+        var synced = false
         do {
-            if FileManager.default.fileExists(atPath: queueURL.path) {
-                var saved = try JSONDecoder().decode(PhonePayload.self, from: Data(contentsOf: queueURL))
-                saved.captured_at = repairLegacyQueuedUTCTimestamp(saved.captured_at)
-                saved.motion.items = repairLegacyQueuedMotionIntervals(saved.motion.items)
-                // Revoked permissions or a disabled switch also apply to queued uploads.
-                if !calendarEnabled || EKEventStore.authorizationStatus(for: .event) != .fullAccess {
-                    saved.calendar = PhoneCalendarPayload(state: calendarEnabled ? "denied" : "disabled")
-                }
-                if !motionEnabled || CMMotionActivityManager.authorizationStatus() != .authorized {
-                    saved.motion = PhoneMotionPayload(state: motionEnabled ? "denied" : "disabled")
-                }
+            if var saved = try await worker.load() {
+                saved = redactedForCurrentPermissions(saved)
                 if let date = lifeDate(saved.captured_at), Date.now.timeIntervalSince(date) < 7 * 86400 {
                     let _: EmptyResponse = try await APIClient.shared.post("api/device-context/sync", body: saved, as: EmptyResponse.self)
                 }
-                try FileManager.default.removeItem(at: queueURL)
+                try await worker.remove()
             }
             let now = Date.now
-            let calendar = collectCalendar(now: now)
+            let calendar = await worker.collectCalendar(now: now, enabled: calendarEnabled)
             let activities = await collectMotion(now: now, requestPermission: requestMotion)
             try Task.checkCancellation()
-            let payload = PhonePayload(device_id: deviceID, captured_at: preciseUTCTimestamp(now), timezone: TimeZone.current.identifier, calendar: calendar, motion: activities)
-            try FileManager.default.createDirectory(at: queueURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(payload).write(to: queueURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            var payload = PhonePayload(device_id: deviceID, captured_at: preciseUTCTimestamp(now), timezone: TimeZone.current.identifier, calendar: calendar, motion: activities)
+            payload = redactedForCurrentPermissions(payload)
+            try await worker.save(payload)
+            // Settings/permissions may have changed while the actor persisted.
+            payload = redactedForCurrentPermissions(payload)
             let _: EmptyResponse = try await APIClient.shared.post("api/device-context/sync", body: payload, as: EmptyResponse.self)
-            try FileManager.default.removeItem(at: queueURL)
+            try await worker.remove()
+            synced = true
             UserDefaults.standard.set(Date.now, forKey: "phone.context.lastSuccess")
-            message = "カレンダー: \(collectionLabel(calendar.state, count: calendar.items.count)) ／ 移動: \(collectionLabel(activities.state, count: activities.items.count))。\(Date.now.formatted(date: .omitted, time: .shortened))"
+            message = "カレンダー: \(collectionLabel(payload.calendar.state, count: payload.calendar.items.count)) ／ 移動: \(collectionLabel(payload.motion.state, count: payload.motion.items.count))。\(Date.now.formatted(date: .omitted, time: .shortened))"
         } catch {
             message = "端末情報は未同期です。保存できた内容は端末に保持し、接続後に再試行します。"
         }
         do { healthMessage = try await HealthAutoSync.shared.synchronize() }
         catch { healthMessage = "HealthKitの自動同期は未完了です: " + error.localizedDescription }
+        return synced
     }
+    private func redactedForCurrentPermissions(_ value: PhonePayload) -> PhonePayload {
+        var value = value
+        if !calendarEnabled || EKEventStore.authorizationStatus(for: .event) != .fullAccess {
+            let status = EKEventStore.authorizationStatus(for: .event)
+            value.calendar = PhoneCalendarPayload(state: !calendarEnabled ? "disabled"
+                : status == .notDetermined ? "unavailable" : "denied")
+        }
+        if !motionEnabled || CMMotionActivityManager.authorizationStatus() != .authorized {
+            let status = CMMotionActivityManager.authorizationStatus()
+            value.motion = PhoneMotionPayload(state: !motionEnabled ? "disabled"
+                : status == .notDetermined ? "unavailable" : "denied")
+        }
+        return value
+    }
+
     private func collectionLabel(_ state: String, count: Int) -> String {
         switch state {
         case "available": return "同期済み\(count)件"
@@ -90,8 +107,45 @@ final class PhoneContextSync: ObservableObject {
         default: return "未取得"
         }
     }
-    private func collectCalendar(now: Date) -> PhoneCalendarPayload {
-        guard calendarEnabled else { return PhoneCalendarPayload(state: "disabled") }
+    private func collectMotion(now: Date, requestPermission: Bool) async -> PhoneMotionPayload {
+        guard motionEnabled else { return PhoneMotionPayload(state: "disabled") }
+        guard CMMotionActivityManager.isActivityAvailable() else { return PhoneMotionPayload(state: "unavailable") }
+        let status = CMMotionActivityManager.authorizationStatus()
+        guard status == .authorized || requestPermission && status == .notDetermined else {
+            return PhoneMotionPayload(state: status == .denied || status == .restricted ? "denied" : "unavailable")
+        }
+        let start = now.addingTimeInterval(-7 * 86400)
+        let payload: PhoneMotionPayload? = await withCheckedContinuation { continuation in
+            let reply = MotionReply(continuation)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { reply.finish(nil) }
+            motion.queryActivityStarting(from: start, to: now, to: motionQueue) { rows, error in
+                let value = error == nil ? rows.map { makeMotionPayload($0, start: start, now: now) } : nil
+                Task { @MainActor in reply.finish(value) }
+            }
+        }
+        return payload ?? PhoneMotionPayload(state: "unavailable")
+    }
+}
+
+// EventKit queries are synchronous. Own the store and queue on this actor;
+// no EKEvent leaves it, and each disk transaction contains no suspension point.
+private actor PhoneContextWorker {
+    private lazy var events = EKEventStore()
+    private let queueURL = URL.applicationSupportDirectory.appending(path: "Daymeld/phone-context-pending.json")
+    func load() throws -> PhonePayload? {
+        guard FileManager.default.fileExists(atPath: queueURL.path) else { return nil }
+        var saved = try JSONDecoder().decode(PhonePayload.self, from: Data(contentsOf: queueURL))
+        saved.captured_at = repairLegacyQueuedUTCTimestamp(saved.captured_at)
+        saved.motion.items = repairLegacyQueuedMotionIntervals(saved.motion.items)
+        return saved
+    }
+    func save(_ payload: PhonePayload) throws {
+        try FileManager.default.createDirectory(at: queueURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(payload).write(to: queueURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+    func remove() throws { try FileManager.default.removeItem(at: queueURL) }
+    func collectCalendar(now: Date, enabled: Bool) -> PhoneCalendarPayload {
+        guard enabled else { return PhoneCalendarPayload(state: "disabled") }
         let status = EKEventStore.authorizationStatus(for: .event)
         guard status == .fullAccess else {
             return PhoneCalendarPayload(state: status == .notDetermined ? "unavailable" : "denied")
@@ -112,22 +166,9 @@ final class PhoneContextSync: ObservableObject {
         }
         return PhoneCalendarPayload(state: "available", start_at: start.ISO8601Format(), end_at: end.ISO8601Format(), items: items)
     }
-    private func collectMotion(now: Date, requestPermission: Bool) async -> PhoneMotionPayload {
-        guard motionEnabled else { return PhoneMotionPayload(state: "disabled") }
-        guard CMMotionActivityManager.isActivityAvailable() else { return PhoneMotionPayload(state: "unavailable") }
-        let status = CMMotionActivityManager.authorizationStatus()
-        guard status == .authorized || requestPermission && status == .notDetermined else {
-            return PhoneMotionPayload(state: status == .denied || status == .restricted ? "denied" : "unavailable")
-        }
-        let start = now.addingTimeInterval(-7 * 86400)
-        let rows: [CMMotionActivity]? = await withCheckedContinuation { continuation in
-            let reply = MotionReply(continuation)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { reply.finish(nil) }
-            motion.queryActivityStarting(from: start, to: now, to: .main) { rows, error in
-                reply.finish(error == nil ? rows : nil)
-            }
-        }
-        guard let rows else { return PhoneMotionPayload(state: "unavailable") }
+}
+
+private func makeMotionPayload(_ rows: [CMMotionActivity], start: Date, now: Date) -> PhoneMotionPayload {
         let sorted = rows.sorted { $0.startDate < $1.startDate }
         var intervals: [PhoneMotionInterval] = []
         for (index, row) in sorted.enumerated() {
@@ -145,8 +186,8 @@ final class PhoneContextSync: ObservableObject {
         }
         guard intervals.count <= 3000 else { return PhoneMotionPayload(state: "unavailable") }
         return PhoneMotionPayload(state: "available", start_at: preciseUTCTimestamp(start), end_at: preciseUTCTimestamp(now), items: intervals)
-    }
 }
+
 #endif
 
 struct PhoneContextPanel: View {

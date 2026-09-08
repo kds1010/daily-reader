@@ -361,3 +361,12 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 [失効条件](https://developers.google.com/identity/protocols/oauth2#expiration)を確認し、永久接続や
 7日超の継続を即時の検証だけで保証しないでください。Google側の設定変更・本人の同意・実同期復旧は、
 コードの検証・配信とは分けて報告します。
+
+## ネイティブクライアントの応答性
+
+- 初期表示・手動更新はAgent、画面データ、補助情報を独立した更新経路で取得する。メールや端末コンテキストの完了をAgent表示の前提にしない。tanomiの一覧も設定・利用状況の取得を待たない。
+- 前景のDaymeld一覧とtanomi一覧はそれぞれ取得完了後5秒で更新し、一方の遅延で他方の周期を延ばさない。設定・利用状況は60秒間隔、暮らしは30秒間隔で更新する。同じAgent一覧・読み込み状態ではPublished通知を出さず、通知状態も変更があった場合だけ保存する。
+- `ResourceRefreshes`がリソースごとの取得を一本化する。書き込み後は古い世代を無効化し、新しい取得を開始する。非表示・メール完了の楽観表示を、操作前に発行したGETで戻さない。
+- EventKitの同期検索・保存は専用actor内で完結し、EKEventをUIへ渡さない。端末コンテキストの保護ファイルとCore Motionの並べ替えもMainActor外で処理する。停止・権限変更は送信直前と自動カレンダー反映前に再確認する。
+- GPSの`LocationJournal`が未同期キューを所有し、追加・成功IDの削除を保存成功後に確定する。復元完了前の取得は保留し、保存待ち中の停止・権限拒否を古い完了通知で上書きしない。端末全体の位置情報OFFの確認は権限拒否時に専用actorから行う。旧キュー・日時修復・ファイル保護・500件単位の送信は維持する。
+- 回帰検証は`tests/test_ios_performance.py`と`tests/swift/AppRefreshHarness.swift`で実AppModel／URLSessionへ匿名の遅延・失敗応答を注入する。GPSの追加・送信中追加・保存失敗・状態競合は`tests/test_ios_location_runtime.py`で実サービス／journalを実行する。既存の静的fixtureは通信を省略するため、fixture表示だけで通信待ちや性能改善を判定しない。
