@@ -170,6 +170,48 @@ SourceのボタンはSwiftの計算プロパティを使います。保存列は
 
 ### 配信エラーの診断
 
+#### UDIDを取得できないエラー（1006）
+
+`SideStore could not determine this device's UDID. Please replace your pairing using iloader.`
+は、SideStoreが端末識別情報を取得できず、認証・再署名を進められないエラーです。
+2026-09-08の更新失敗で、この文言をユーザーから確認しました。
+配信検証の成功だけでは、この端末内エラーの解消を確認できません。
+ペアリングの失効・不整合やLocalDevVPN経由の接続を確認しますが、文言だけで
+失効の契機やペアリングファイルの破損まで断定しません。
+
+使用中のSideStore 0.6.3（`4deda922`）では、
+[`OperationError.swift`](https://github.com/SideStore/SideStore/blob/4deda9229c6746234f1ace7df16eb9af9e19f3fd/AltStore/Operations/Errors/OperationError.swift#L203)がこの文言を1006として
+定義しています。[`AuthenticationOperation.registerCurrentDevice`](https://github.com/SideStore/SideStore/blob/4deda9229c6746234f1ace7df16eb9af9e19f3fd/AltStore/Operations/AuthenticationOperation.swift#L702)は`fetchUDID()`がnilなら
+このエラーを返し、Minimuxer未開始・端末取得失敗でもnilになります。
+SideStore自身の再署名時には`ResignAppOperation`のペアリング情報欠落も同じ1006になります。
+DaymeldのIPAやFunnelを再生成する操作では、これらの端末識別情報は修復されません。
+
+[公式の1006復旧手順](https://docs.sidestore.io/docs/troubleshooting/error-codes#1006-sidestore-could-not-determine-this-devices-udid)
+と[ペアリング配置手順](https://docs.sidestore.io/docs/advanced/pairing-file)に従い、次を行います。
+
+1. iPhoneをMacへUSB接続してロックを解除し、iLoaderで対象端末を選択できることを確認します。
+   端末が未接続・`unavailable`の間は、既存ペアリングを先に削除しないでください。
+2. iPhoneのSideStoreで`Settings → Reset Pairing File`を選び、SideStoreを終了します。
+   この操作はペアリングファイルのリセットです。DaymeldやSideStore本体は削除しません。
+3. MacのiLoaderで、対象端末の`Delete Stored Pairing`、`Refresh`の順に選び、再度ペアリングします。
+   iPhoneに「このコンピュータを信頼」が出た場合は、本人が確認して許可します。
+4. iLoaderの`Manage Pairing File`を開き、既存のSideStoreの行にある`Place`だけを選びます。
+   配置成功の表示を確認します。`Install SideStore`は選ばず、HealthKit対応の自己ビルド版を維持します。
+5. SideStoreを開き直し、iPhoneのTailscaleを切り、LocalDevVPNを有効にして、まずSideStoreの
+   `Refresh`が1006なしで成功することを確認します。続いて`Sources → Daymeld Remote → UPDATE`を
+   実行し、Daymeld自身のインストール済み版が配信版に上がったことを確認します。
+
+1006が続く場合は、SideStoreの`Settings → VPN Configuration`のDevice IPがLocalDevVPNの
+設定と一致することを確認します。公式手順の既定値は`10.7.0.1`ですが、変更済みなら実際の
+設定値に合わせます。配置とVPNを確認しても解消しない場合はiPhoneを再起動して再確認します。
+この段階でもApple Accountやanisetteサーバーの問題と決めつけず、現在の失敗文言を確認します。
+ペアリングファイルは端末アクセス用の秘密情報なので、Git・会話・診断ログへ内容を貼りません。
+
+Macでの配置成功と、iPhoneでのRefresh・更新成功は別の確認です。端末未接続の場合は、
+コード・文書の検証とコミットを完了しても、実機ペアリング修復済みとは報告しません。
+
+#### Macからの配信確認
+
 Mac miniのサービス用リポジトリで`uv run --frozen python scripts/verify_sidestore_remote.py`を
 実行すると、秘密URLを表示せず配布物と拒否パスを確認できます。Python 3.12以上が必要です。
 `--request-origin http://127.0.0.1:8789 --skip-tailscale-config`を付けると、同じ配布物を
