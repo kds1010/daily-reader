@@ -33,6 +33,7 @@ from daily_reader import (
     life_automation,
     payment_history,
     secretary,
+    soundcore_imports,
 )
 from daily_reader.agent_jobs import (
     DEFAULT_MODEL,
@@ -93,6 +94,7 @@ from daily_reader.email_assistant import (
 from daily_reader.highlights import generate_highlights
 from daily_reader.life_research import ResearchWorker
 from daily_reader.soan_client import SoanClient, SoanError
+from daily_reader.soundcore_cloud import SoundcoreCloudError
 from daily_reader.tanomi_client import (
     DEFAULT_BASE_URL,
     MODEL,
@@ -684,6 +686,22 @@ def make_handler(
     soan = soan_client
 
     class DailyReaderHandler(SimpleHTTPRequestHandler):
+        def _soundcore_access_allowed(self) -> bool:
+            host = self.headers.get("Host", "")
+            try:
+                hostname = urllib.parse.urlsplit("//" + host).hostname
+            except ValueError:
+                hostname = None
+            origin = self.headers.get("Origin")
+            allowed = (
+                hostname in {"127.0.0.1", "localhost", "sk-mins-mac-mini.tailc193b2.ts.net"}
+                and self.headers.get("Sec-Fetch-Site") != "cross-site"
+                and (not origin or origin in {"http://" + host, "https://" + host})
+            )
+            if not allowed:
+                self._send_json(403, {"error": "この接続元からは共有録音を取り込めません"})
+            return allowed
+
         def _payment_access_allowed(self) -> bool:
             host = self.headers.get("Host", "")
             try:
@@ -702,7 +720,11 @@ def make_handler(
 
         def log_request(self, code="-", size="-") -> None:
             # Never log a supplied filename, query, or other payment input.
-            if urllib.parse.urlsplit(self.path).path.startswith("/api/payments"):
+            if urllib.parse.urlsplit(self.path).path.startswith(
+                "/api/conversations/soundcore-imports"
+            ):
+                self.log_message("Soundcore import API response %s", code)
+            elif urllib.parse.urlsplit(self.path).path.startswith("/api/payments"):
                 self.log_message("payment API response %s", code)
             else:
                 super().log_request(code, size)
@@ -936,6 +958,16 @@ def make_handler(
                 except ValueError as error:
                     self._send_json(400, {"error": str(error)})
                 return
+            if path == "/api/conversations/soundcore-imports":
+                if not self._soundcore_access_allowed():
+                    return
+                try:
+                    self._send_json(
+                        200, {"items": soundcore_imports.list_imports(conversations_db)}
+                    )
+                except (OSError, sqlite3.Error):
+                    self._send_json(503, {"error": "共有録音の取り込み状態を取得できませんでした"})
+                return
             if path == "/api/conversations":
                 self._send_json(
                     200,
@@ -1137,6 +1169,31 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path == "/api/conversations/soundcore-imports" or (
+                path.startswith("/api/conversations/soundcore-imports/")
+                and path.endswith("/retry") and len(path.split("/")) == 6
+            ):
+                if not self._soundcore_access_allowed():
+                    return
+                if self.headers.get("Content-Type", "").split(";", 1)[0] != "application/json":
+                    self._send_json(415, {"error": "application/jsonが必要です"})
+                    return
+                try:
+                    payload = self._read_json(max_length=4096)
+                    if path.endswith("/retry"):
+                        item = soundcore_imports.retry(conversations_db, path.split("/")[-2])
+                    else:
+                        item = soundcore_imports.enqueue(conversations_db, payload.get("url"))
+                    self._send_json(202, item)
+                except soundcore_imports.ImportQueueFull as error:
+                    self._send_json(409, {"error": str(error)})
+                except KeyError:
+                    self._send_json(404, {"error": "取り込みが見つかりません"})
+                except (ValueError, TypeError, SoundcoreCloudError):
+                    self._send_json(400, {"error": "有効なSoundcoreの共有リンクを指定してください"})
+                except (OSError, sqlite3.Error):
+                    self._send_json(503, {"error": "共有録音の取り込みを保存できませんでした"})
+                return
             if path in {
                 "/api/diary/generate", "/api/diary/save", "/api/diary/delete", "/api/diary/settings"
             }:
@@ -2294,6 +2351,11 @@ def main() -> None:
 
     recover_interrupted_conversations(args.conversations_db)
 
+    soundcore_worker = soundcore_imports.SoundcoreImportWorker(
+        args.conversations_db, args.conversation_audio_dir, args.huggingface_token
+    )
+    soundcore_worker.start()
+
     research_worker = ResearchWorker(
         args.conversations_db, _codex_executable(), args.conversation_insight_model
     )
@@ -2309,6 +2371,7 @@ def main() -> None:
     diary_worker.start()
 
     def stop_research(_signum, _frame):
+        soundcore_worker.stop()
         diary_worker.stop()
         automation_worker.stop()
         research_worker.stop()
@@ -2385,6 +2448,7 @@ def main() -> None:
     except KeyboardInterrupt:
         LOGGER.info("Stopping")
     finally:
+        soundcore_worker.stop()
         diary_worker.stop()
         automation_worker.stop()
         research_worker.stop()

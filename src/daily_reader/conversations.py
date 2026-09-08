@@ -189,6 +189,7 @@ def initialize_database(path: Path) -> None:
             "insight_analyzed_at": "TEXT",
             "transcription_metadata": "TEXT NOT NULL DEFAULT '{}'",
             "transcription_needs_review": "INTEGER NOT NULL DEFAULT 0",
+            "cloud_metadata": "TEXT",
         }.items():
             if name not in columns:
                 connection.execute(f"ALTER TABLE recordings ADD COLUMN {name} {definition}")
@@ -303,12 +304,51 @@ def store_upload(
     filename: str,
     recorded_at: str | None = None,
 ) -> dict[str, object]:
+    return _store_audio(database, audio_directory, source, length, filename, recorded_at)
+
+
+def store_cloud_audio(
+    database: Path,
+    audio_directory: Path,
+    source: BinaryIO,
+    length: int,
+    filename: str,
+    recorded_at: str | None,
+    metadata: dict[str, object],
+    import_id: str,
+) -> dict[str, object]:
+    """Internal cloud path; normal HTTP uploads remain MP3-only."""
+    return _store_audio(
+        database, audio_directory, source, length, filename, recorded_at,
+        cloud_metadata=metadata, cloud_import_id=import_id,
+    )
+
+
+def _store_audio(
+    database: Path,
+    audio_directory: Path,
+    source: BinaryIO,
+    length: int,
+    filename: str,
+    recorded_at: str | None,
+    *,
+    cloud_metadata: dict[str, object] | None = None,
+    cloud_import_id: str | None = None,
+) -> dict[str, object]:
     if not 0 < length <= MAX_UPLOAD_BYTES:
         raise ValueError("invalid audio size")
-    if Path(filename).suffix.lower() != ".mp3":
+    extension = Path(filename).suffix.lower()
+    cloud = cloud_metadata is not None
+    if extension not in ({".mp3", ".ogg"} if cloud else {".mp3"}):
         raise ValueError("only MP3 audio is supported")
-    date_source = "explicit" if recorded_at else "soundcore_filename_jst"
-    recorded_at = _validated_recording_date(recorded_at) or _recording_date_from_filename(filename)
+    if cloud:
+        date_source = "soundcore_cloud_timestamp"
+        recorded_at = _validated_recording_date(recorded_at)
+    else:
+        date_source = "explicit" if recorded_at else "soundcore_filename_jst"
+        recorded_at = _validated_recording_date(recorded_at) or _recording_date_from_filename(
+            filename
+        )
     free = shutil.disk_usage(
         audio_directory.parent if audio_directory.parent.exists() else Path(".")
     ).free
@@ -317,12 +357,14 @@ def store_upload(
     audio_directory.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256()
     recording_id = uuid.uuid4().hex
-    destination = audio_directory / recording_id / "original.mp3"
-    destination.parent.mkdir()
+    destination = audio_directory / recording_id / ("original" + extension)
+    destination.parent.mkdir(mode=0o700)
     temporary = destination.with_suffix(".tmp")
     remaining = length
+    committed = False
     try:
         with temporary.open("wb") as output:
+            temporary.chmod(0o600)
             while remaining:
                 chunk = source.read(min(1024 * 1024, remaining))
                 if not chunk:
@@ -332,12 +374,22 @@ def store_upload(
                 remaining -= len(chunk)
         checksum = digest.hexdigest()
         with _connect(database) as connection:
+            connection.execute("BEGIN IMMEDIATE")
             existing = connection.execute(
                 "SELECT * FROM recordings WHERE sha256 = ?", (checksum,)
             ).fetchone()
             if existing:
                 shutil.rmtree(destination.parent)
-                return {**dict(existing), "upload_created": False}
+                if cloud_import_id:
+                    connection.execute(
+                        "UPDATE soundcore_imports SET recording_id=?,analysis_needed=0,"
+                        "status='saved' WHERE id=?",
+                        (existing["id"], cloud_import_id),
+                    )
+                result = dict(existing)
+                result.pop("cloud_metadata", None)
+                result.pop("audio_path", None)
+                return {**result, "upload_created": False}
             temporary.replace(destination)
             now = datetime.now(UTC).isoformat()
             connection.execute(
@@ -363,9 +415,23 @@ def store_upload(
                 ),
             )
             rebuild_context(connection, recording_id)
+            if cloud:
+                connection.execute(
+                    "UPDATE recordings SET cloud_metadata=? WHERE id=?",
+                    (json.dumps(cloud_metadata, ensure_ascii=False), recording_id),
+                )
+            if cloud_import_id:
+                connection.execute(
+                    "UPDATE soundcore_imports SET recording_id=?,analysis_needed=1,"
+                    "status='saved' WHERE id=?",
+                    (recording_id, cloud_import_id),
+                )
+        committed = True
         return {**get_recording(database, recording_id), "upload_created": True}
     except Exception:
         temporary.unlink(missing_ok=True)
+        if cloud and not committed:
+            destination.unlink(missing_ok=True)
         if destination.parent.exists() and not any(destination.parent.iterdir()):
             destination.parent.rmdir()
         raise
@@ -471,6 +537,7 @@ def get_recording(database: Path, recording_id: str) -> dict[str, object]:
         result["transcription_metadata"] = json.loads(result["transcription_metadata"])
         result["location_contexts"] = read_contexts(connection, recording_id)
         result.pop("audio_path", None)
+        result.pop("cloud_metadata", None)
         result.pop("transcript_text", None)
         result["speakers"] = [
             dict(item)
