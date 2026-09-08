@@ -34,7 +34,11 @@ struct NotificationOptions: OptionSet {
     static func current() -> UNUserNotificationCenter { UNUserNotificationCenter() }
     func requestAuthorization(options: NotificationOptions) async throws -> Bool { false }
 }
-@MainActor final class LifeStore { func refresh() async {} }
+@MainActor final class LifeStore {
+    var isFixture = false
+    var snapshot: LifeSnapshot?
+    func refresh() async {}
+}
 @MainActor final class AgentNotificationCoordinator {
     static let shared = AgentNotificationCoordinator()
     func changedJobs(active: [AgentJob], archived: [AgentJob]) -> [AgentJob] { [] }
@@ -64,6 +68,11 @@ struct NotificationOptions: OptionSet {
     # AppModel control flow; the animation closure still executes synchronously.
     source = source.replace("import SwiftUI\n", "").replace("import UserNotifications\n", "")
     model.write_text(source)
+    life_types = tmp_path / "LifeModels.swift"
+    life_source = (IOS / "LifeAssistant.swift").read_text().split("@MainActor", 1)[0]
+    for module in ("SwiftUI", "Combine", "EventKit", "UserNotifications"):
+        life_source = life_source.replace(f"import {module}\n", "")
+    life_types.write_text("import Foundation\n" + life_source)
     env = os.environ.copy()
     module_cache = os.environ.get("DAYMELD_SWIFT_TEST_CACHE", str(tmp_path / "module-cache"))
     env["CLANG_MODULE_CACHE_PATH"] = module_cache
@@ -72,7 +81,8 @@ struct NotificationOptions: OptionSet {
     result = subprocess.run(
         ["xcrun", "swiftc", "-whole-module-optimization",
          str(IOS / "Models.swift"), str(IOS / "APIClient.swift"),
-         str(IOS / "DaymeldFixtures.swift"), str(model), str(diary), str(stubs), str(runner),
+         str(IOS / "DaymeldFixtures.swift"), str(life_types),
+         str(model), str(diary), str(stubs), str(runner),
          *(["-D", "BASELINE"] if baseline_path else []), "-o", str(binary)],
         capture_output=True, text=True, env=env,
     )

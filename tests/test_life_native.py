@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from daily_reader import device_context
+from daily_reader import device_context, secretary
 from daily_reader import life_automation as auto
 from daily_reader.conversations import list_location_events, store_location_events
 from daily_reader.life_assistant import create_entry, snapshot
@@ -60,6 +60,11 @@ def test_native_models_decode_actual_life_api_and_encode_confirmed_request(tmp_p
             ensure_ascii=False,
         )
     )
+    actual = json.loads(wire.read_text())
+    actual["secretary"] = secretary.snapshot(
+        db, actual, tmp_path / "planner", tmp_path / "email", {}
+    )
+    wire.write_text(json.dumps(actual))
     gps = tmp_path / "gps.json"
     store_location_events(
         db,
@@ -79,7 +84,11 @@ def test_native_models_decode_actual_life_api_and_encode_confirmed_request(tmp_p
     )
     source = (IOS / "DailyReader/LifeAssistant.swift").read_text().split("@MainActor", 1)[0]
     types = tmp_path / "LifeModels.swift"
-    types.write_text(source)
+    # DTOs use Foundation only; importing UI frameworks makes this wire-contract
+    # executable rebuild unrelated SDK modules. The app builds verify those imports.
+    for module in ("SwiftUI", "Combine", "EventKit", "UserNotifications"):
+        source = source.replace(f"import {module}\n", "")
+    types.write_text("import Foundation\n" + source)
     main = tmp_path / "main.swift"
     main.write_text("""import Foundation
 let data = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))
@@ -89,6 +98,15 @@ let locations = try JSONDecoder().decode(LocationHistoryResponse.self, from: gps
 precondition(locations.items.first?.speed_mps == 1.5)
 precondition(locations.items.first?.is_simulated == false)
 precondition(snapshot.entries.count == 2)
+precondition(snapshot.secretary?.items.count == 2)
+precondition(snapshot.secretary?.weekly.browsing_minutes.total == nil)
+let emailSource = snapshot.secretary?.sources.first { $0.id == "email" }
+precondition(emailSource?.state == "missing")
+let oldObject = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+var old = oldObject; old.removeValue(forKey: "secretary")
+let oldData = try JSONSerialization.data(withJSONObject: old)
+let oldSnapshot = try JSONDecoder().decode(LifeSnapshot.self, from: oldData)
+precondition(oldSnapshot.secretary == nil)
 precondition(snapshot.automation?.enabled == true)
 let draft = snapshot.drafts!.first!
 precondition(draft.data.title == "終了時間の確認")

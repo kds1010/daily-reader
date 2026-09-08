@@ -139,6 +139,8 @@ final class AppModel: ObservableObject {
         tanomiUsage = fixture.tanomiUsage
         tanomiAvailable = fixture.tanomiAvailable
         tanomiStatusMessage = fixture.tanomiStatusMessage
+        life.isFixture = true
+        life.snapshot = fixture.lifeSnapshot
         today = fixture.today
         emails = fixture.emails
         articles = fixture.articles

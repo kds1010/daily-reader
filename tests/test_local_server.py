@@ -3,7 +3,7 @@ import json
 import plistlib
 import sqlite3
 import subprocess
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from ipaddress import IPv4Network
 from pathlib import Path
@@ -1913,3 +1913,122 @@ def test_payment_http_json_is_private_and_round_trips(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def test_secretary_api_round_trip_and_optional_source_failure(tmp_path, monkeypatch):
+    from daily_reader import life_assistant, secretary
+
+    factory = make_handler(
+        tmp_path / "site",
+        tmp_path / "articles.json",
+        tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl",
+        tmp_path / "email.db",
+        tmp_path / "client.json",
+        tmp_path / "token.json",
+        planner_db=tmp_path / "planner.db",
+        conversations_db=tmp_path / "life.db",
+    )
+    handler = factory.func.__new__(factory.func)
+    replies = []
+    handler._send_json = lambda code, data: replies.append((code, data))
+    entry = life_assistant.create_entry(tmp_path / "life.db", {"kind": "task", "title": "確認する"})
+    handler.path = "/api/life"
+    handler.do_GET()
+    code, value = replies[-1]
+    assert code == 200 and value["entries"][0]["id"] == entry["id"]
+    card = value["secretary"]["items"][0]
+    handler.path = "/api/life/secretary/card"
+    handler._read_json = lambda: {
+        "card_id": card["id"],
+        "version": card["version"],
+        "status": "reviewed",
+    }
+    handler.do_POST()
+    assert replies[-1][0] == 200
+    handler.path = "/api/life"
+    handler.do_GET()
+    assert replies[-1][1]["secretary"]["top_ids"] == []
+    assert replies[-1][1]["entries"][0]["status"] == "open"
+    handler.path = "/api/life/secretary/day"
+    handler._read_json = lambda: {
+        "request_id": "r",
+        "day": "2026-09-08",
+        "timezone": "Asia/Tokyo",
+        "management_minutes": 5,
+    }
+    handler.do_POST()
+    handler.do_POST()
+    assert replies[-1] == (200, {"ok": True, "revision": 1})
+    handler._read_json = lambda: {
+        "request_id": "r2",
+        "day": "2026-09-08",
+        "timezone": "Asia/Tokyo",
+        "management_minutes": True,
+    }
+    handler.do_POST()
+    assert replies[-1][0] == 400
+
+    def fail(*_args):
+        raise sqlite3.OperationalError("fixture failure")
+
+    monkeypatch.setattr(secretary.email_assistant, "list_unread_threads", fail)
+    handler.path = "/api/life"
+    handler.do_GET()
+    assert replies[-1][0] == 200
+    assert any(
+        source["id"] == "email" and source["state"] == "failed"
+        for source in replies[-1][1]["secretary"]["sources"]
+    )
+
+
+def test_secretary_excludes_read_and_hidden_news_before_ranking(tmp_path):
+    articles = [{"id": str(i), "title": "記事" + str(i), "url": "https://example.com/" + str(i)}
+                for i in range(5)]
+    (tmp_path / "articles.json").write_text(json.dumps({"articles": articles}))
+    (tmp_path / "highlights.json").write_text(json.dumps({"field_highlights": [
+        {"items": [{"article_id": a["id"]} for a in articles]}]}))
+    (tmp_path / "read.jsonl").write_text('{"article_id":"0"}\npartial\n')
+    (tmp_path / "feedback.jsonl").write_text('{"article_id":"1","feedback":"not_interested"}\n')
+    factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "email.db", tmp_path / "client.json",
+        tmp_path / "token.json", planner_db=tmp_path / "planner.db",
+        conversations_db=tmp_path / "life.db",
+    )
+    handler = factory.func.__new__(factory.func)
+    result = handler._life_snapshot()
+    assert {n["id"] for n in result["news"]} == {"2", "3", "4"}
+    assert len(result["secretary"]["top_ids"]) == 3
+
+
+@pytest.mark.parametrize(("article_hours", "highlight_hours", "expected"), [
+    (1, 2, "available"), (1, 48, "stale"), (48, 1, "stale"),
+    (1, None, "missing"), (1, -1, "stale"),
+])
+def test_secretary_news_freshness_includes_recommendation_snapshot(
+    tmp_path, article_hours, highlight_hours, expected,
+):
+    now = datetime.now(UTC)
+    article_time = (now - timedelta(hours=article_hours)).isoformat()
+    highlight_time = ((now - timedelta(hours=highlight_hours)).isoformat()
+                      if highlight_hours is not None else None)
+    (tmp_path / "articles.json").write_text(json.dumps({
+        "articles": [], "generated_at": article_time,
+    }))
+    (tmp_path / "highlights.json").write_text(json.dumps({
+        "field_highlights": [], "generated_at": highlight_time,
+    }))
+    factory = make_handler(
+        tmp_path / "site", tmp_path / "articles.json", tmp_path / "read.jsonl",
+        tmp_path / "feedback.jsonl", tmp_path / "email.db", tmp_path / "client.json",
+        tmp_path / "token.json", planner_db=tmp_path / "planner.db",
+        conversations_db=tmp_path / "life.db",
+    )
+    handler = factory.func.__new__(factory.func)
+    result = handler._life_snapshot()
+    source = next(s for s in result["secretary"]["sources"] if s["id"] == "news")
+    assert source["state"] == expected
+    assert source["last_success_at"] == (
+        min(article_time, highlight_time) if highlight_time else None
+    )

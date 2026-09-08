@@ -26,7 +26,14 @@ from ipaddress import IPv4Network, ip_address, ip_network
 from pathlib import Path
 from time import monotonic, sleep
 
-from daily_reader import device_context, diary, life_assistant, life_automation, payment_history
+from daily_reader import (
+    device_context,
+    diary,
+    life_assistant,
+    life_automation,
+    payment_history,
+    secretary,
+)
 from daily_reader.agent_jobs import (
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
@@ -526,6 +533,22 @@ def append_read_event(log_path: Path, article: dict[str, object], surface: str) 
         log_file.write(json.dumps(event, ensure_ascii=False) + "\n")
 
 
+def read_article_ids(log_path: Path) -> set[str]:
+    ids = set()
+    try:
+        with log_path.open(encoding="utf-8") as stream:
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                    if isinstance(event, dict) and isinstance(event.get("article_id"), str):
+                        ids.add(event["article_id"])
+                except ValueError:
+                    continue
+    except OSError:
+        pass
+    return ids
+
+
 def summarize_read_events(log_path: Path) -> dict[str, object]:
     events = []
     try:
@@ -751,6 +774,60 @@ def make_handler(
             query = dict(urllib.parse.parse_qsl(parsed.query, keep_blank_values=True))
             return parts, query
 
+        def _life_snapshot(self) -> dict:
+            now = datetime.now(UTC)
+            news = {"state": "missing", "updated_at": None}
+            try:
+                raw = json.loads(articles_path.read_text())
+                highlight_path = articles_path.parent / "highlights.json"
+                highlights = json.loads(highlight_path.read_text())
+                if not isinstance(raw, dict) or not isinstance(highlights, dict):
+                    raise ValueError("invalid news snapshot")
+                selected = _load_highlight_ids(highlight_path)
+                excluded = read_article_ids(read_log_path) | {
+                    e.get("article_id") for e in load_feedback_events(feedback_log_path)
+                }
+                articles = [a for a in raw.get("articles", [])
+                            if a.get("id") in selected and a.get("id") not in excluded]
+                article_time = secretary._date(raw.get("generated_at"))
+                highlight_time = secretary._date(highlights.get("generated_at"))
+                updated = (min(article_time, highlight_time).isoformat()
+                           if article_time and highlight_time else None)
+                news = {
+                    "state": secretary._fresh(updated, now, 24),
+                    "updated_at": updated,
+                }
+                if article_time and highlight_time and max(article_time, highlight_time) > now:
+                    news["state"] = "stale"
+                if raw.get("errors"):
+                    news["state"] = "failed"
+            except FileNotFoundError:
+                articles = []
+            except (OSError, ValueError, TypeError, AttributeError):
+                news["state"] = "failed"
+                articles = []
+            snapshot = life_assistant.snapshot(conversations_db, articles)
+            snapshot["automation"] = life_automation.settings(conversations_db)
+            snapshot["drafts"] = life_automation.drafts(conversations_db)
+            try:
+                snapshot["device_context"] = device_context.overview(
+                    conversations_db, snapshot["entries"], now=now
+                )
+            except (OSError, ValueError, sqlite3.Error):
+                snapshot["device_context"] = {
+                    "devices": [],
+                    "calendar_ready": False,
+                    "agenda": [],
+                    "suggestions": [],
+                    "conflicts": [],
+                    "timezone": "Asia/Tokyo",
+                    "failed": True,
+                }
+            snapshot["secretary"] = secretary.snapshot(
+                conversations_db, snapshot, planner_db, assistant_db, news, now=now
+            )
+            return snapshot
+
         def do_GET(self) -> None:  # noqa: N802
             parsed_url = urllib.parse.urlsplit(self.path)
             path = parsed_url.path
@@ -785,19 +862,7 @@ def make_handler(
                     self._send_json(503, {"error": "明細を読み込めませんでした"})
                 return
             if path == "/api/life":
-                try:
-                    articles = json.loads(articles_path.read_text()).get("articles", [])
-                    selected = _load_highlight_ids(articles_path.parent / "highlights.json")
-                    articles = [a for a in articles if a.get("id") in selected]
-                except (OSError, ValueError):
-                    articles = []
-                snapshot = life_assistant.snapshot(conversations_db, articles)
-                snapshot["automation"] = life_automation.settings(conversations_db)
-                snapshot["drafts"] = life_automation.drafts(conversations_db)
-                snapshot["device_context"] = device_context.overview(
-                    conversations_db, snapshot["entries"]
-                )
-                self._send_json(200, snapshot)
+                self._send_json(200, self._life_snapshot())
                 return
             if path.startswith("/api/life/entries/"):
                 try:
@@ -1137,6 +1202,21 @@ def make_handler(
                     self._send_json(
                         503, {"error": "明細を保存できませんでした。再試行してください"}
                     )
+                return
+            if path in {"/api/life/secretary/card", "/api/life/secretary/day"}:
+                try:
+                    payload = self._read_json()
+                    if path.endswith("/card"):
+                        result = secretary.save_card(
+                            conversations_db, payload, self._life_snapshot()["secretary"]
+                        )
+                    else:
+                        result = secretary.save_day(conversations_db, payload)
+                    self._send_json(200, result)
+                except (ValueError, KeyError) as error:
+                    self._send_json(400, {"error": str(error)})
+                except (OSError, sqlite3.Error):
+                    self._send_json(503, {"error": "保存できませんでした。再試行してください"})
                 return
             if (
                 path == "/api/life/entries"

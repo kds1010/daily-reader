@@ -32,6 +32,30 @@ struct DaymeldFixture {
     var failedResources: Set<DaymeldResource>
     var referenceDate: Date?
 
+    var lifeSnapshot: LifeSnapshot? {
+        let tasks = (today?.tasks ?? []) + (today?.routines ?? [])
+        let cards: [[String: Any]] = tasks.map { task in
+            ["id": "planner:" + task.id, "source_type": "planner", "source_id": task.id,
+             "title": task.title, "reason": "匿名の通常タスク", "certainty": "date_only",
+             "due_at": "2026-09-01T09:00:00+09:00", "urgent": true,
+             "version": "fixture", "status": "pending", "url": ""]
+        }
+        let metric: [String: Any] = ["count": 0, "total": NSNull()]
+        let weekly: [String: Any] = ["start_date": "2026-08-31", "end_date": "2026-09-01",
+            "timezone": "Asia/Tokyo", "recorded_days": 0, "browsing_minutes": metric,
+            "management_minutes": metric, "forgotten_count": metric, "research_evaluations": 0,
+            "research_useful": 0, "saved_minutes": metric]
+        let secretary: [String: Any] = ["items": cards, "top_ids": cards.prefix(3).compactMap { $0["id"] as? String },
+            "remaining_count": max(0, cards.count - 3), "urgent_count": cards.count, "deferred_urgent_count": 0,
+            "sources": [["id": "email", "label": "重要な未読メール",
+                         "state": failedResources.contains(.email) ? "failed" : "missing", "detail": "匿名の取得状況"]],
+            "weekly": weekly, "timezone": "Asia/Tokyo", "generated_at": "2026-09-01T09:00:00+09:00"]
+        let raw: [String: Any] = ["entries": [], "people": [], "news": [], "news_remaining": 0,
+                                 "notifications": [], "secretary": secretary]
+        guard let data = try? JSONSerialization.data(withJSONObject: raw) else { return nil }
+        return try? JSONDecoder().decode(LifeSnapshot.self, from: data)
+    }
+
     init(
         repositories: [Repository] = [],
         agentModels: [AgentModelOption] = [.fallback],

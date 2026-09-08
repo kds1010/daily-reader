@@ -19,6 +19,8 @@ import Foundation
 
 let standard = DaymeldFixture.scenario(.standard)
 precondition(standard.agents.count >= 6)
+precondition(standard.lifeSnapshot?.secretary?.top_ids.count == 3)
+precondition(standard.lifeSnapshot?.secretary?.weekly.browsing_minutes.total == nil)
 precondition(standard.referenceDate == Date(timeIntervalSince1970: 1_788_220_800))
 let expectedStatuses = Set(["queued", "running", "blocked", "completed", "failed", "cancelled"])
 precondition(Set(standard.agents.map(\.status)) == expectedStatuses)
@@ -52,7 +54,9 @@ if !(empty.today?.tasks.isEmpty == true && empty.today?.routines.isEmpty == true
     fatalError("empty today is not empty")
 }
 
+precondition(empty.lifeSnapshot?.secretary?.items.isEmpty == true)
 let partial = DaymeldFixture.scenario(.partialFailure)
+precondition(partial.lifeSnapshot?.secretary?.sources.first?.state == "failed")
 if partial.failedResources != Set([.today, .email, .news, .tanomi]) {
     fatalError("failed resources: \(partial.failedResources)")
 }
@@ -71,6 +75,7 @@ if !stress.tanomiTasks.contains(where: { ($0.result?.count ?? 0) > 4000 }) {
     fatalError("stress tanomi result is not long enough")
 }
 
+precondition((stress.lifeSnapshot?.secretary?.remaining_count ?? 0) > 3)
 let inFlight = DaymeldFixture.scenario(.inFlight)
 precondition(inFlight.agents.allSatisfy { $0.status == "running" })
 precondition(inFlight.agents.allSatisfy { $0.model != nil && $0.reasoningEffort != nil })
@@ -114,6 +119,12 @@ print("Daymeld UX fixture contract passed")
 ''',
         encoding="utf-8",
     )
+    life_types = tmp_path / "LifeModels.swift"
+    source = (root / "ios/DailyReader/DailyReader/LifeAssistant.swift").read_text()
+    source = source.split("@MainActor", 1)[0]
+    for module in ("SwiftUI", "Combine", "EventKit", "UserNotifications"):
+        source = source.replace(f"import {module}\n", "")
+    life_types.write_text("import Foundation\n" + source)
     binary = tmp_path / "fixture-contract"
     module_cache = tmp_path / "module-cache"
     module_cache.mkdir()
@@ -129,6 +140,7 @@ print("Daymeld UX fixture contract passed")
             str(root / "ios/DailyReader/DailyReader/Models.swift"),
             str(root / "ios/DailyReader/DailyReader/DaymeldFixtures.swift"),
             str(root / "ios/DailyReader/DailyReader/APIClient.swift"),
+            str(life_types),
             str(main),
             "-o",
             str(binary),

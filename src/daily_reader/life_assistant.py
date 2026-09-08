@@ -69,6 +69,21 @@ def connect(database: Path):
                 id INTEGER PRIMARY KEY, entry_id TEXT NOT NULL,
                 action TEXT NOT NULL, created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS secretary_cards (
+                card_id TEXT NOT NULL, version TEXT NOT NULL, content_version TEXT NOT NULL,
+                status TEXT NOT NULL,
+                until_at TEXT, updated_at TEXT NOT NULL,
+                PRIMARY KEY(card_id,content_version)
+            );
+            CREATE TABLE IF NOT EXISTS secretary_days (
+                day TEXT NOT NULL, timezone TEXT NOT NULL, browsing_minutes INTEGER,
+                management_minutes INTEGER, forgotten_count INTEGER,
+                revision INTEGER NOT NULL, updated_at TEXT NOT NULL,
+                PRIMARY KEY(day,timezone)
+            );
+            CREATE TABLE IF NOT EXISTS secretary_requests (
+                request_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, response TEXT NOT NULL
+            );
         """)
         connection.execute(
             "INSERT OR IGNORE INTO life_people VALUES('self','自分',?)", (now_string(),)

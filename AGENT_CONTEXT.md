@@ -390,3 +390,11 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - `data/planner.sqlite3`の`diary_entries/settings/revisions`へ自動本文・本人編集・根拠・改訂を保存する。本人編集と保存時の根拠を自動更新で消さず、旧版は日付ごとに最大20版を保持する。競合は409で入力を保持する。日記削除は本文・根拠コピー・履歴を消し、削除済みの印で自動再作成を防ぐ。元の生活記録は保持する。
 - 日記の再取得はネイティブの補助情報レーンで並行実行し、Agent一覧や今日・メールの取得を待たせない。AppModelと同じAPIClientを使い、遅延した日記APIがAgent初期表示を妨げないことを性能テストでも確認する。
 - 実装は`src/daily_reader/diary.py`と共有`Diary.swift`。検証は`tests/test_diary.py`、`tests/test_diary_native.py`、`tests/test_local_server.py`と両OSビルド。仕様・データ境界・制限は[日記](docs/diary.md)を参照する。配信にはWebサーバー再起動と両OS成果物の生成・配信検証が必要。
+
+## 暮らしの秘書
+
+- `secretary.py`は`GET /api/life`へ後方互換の`secretary`を追加するローカル集約処理。暮らしの用事、通常Planner、取得期間内の新鮮なCalendar、重要未読Gmail、確認候補、調査結果、既存関心記事を根拠・日時確実性付きで並べる。追加のLLM、OAuth操作、Gmail本文取得は行わない。元IDと明示的な親子関連で重複を除き、通常3件と全件・緊急件数を表示する。
+- `secretary_cards`は内容版別の確認・保留、`secretary_days`は日付・タイムゾーン別の任意自己記録、`secretary_requests`は再送応答を同じ会話DBに保存する。確認は元タスク完了・Gmail既読と独立し、内容変更・期限当日の再提示、日跨ぎ保留、翌日のルーティンに対応する。
+- Gmailの鮮度目安は1時間、ニュースとCalendarは24時間。取得成功時刻を集約時刻で代用せず、未取得・失敗・認証必要・停止・古さを区別する。既読・非表示記事は推薦前に除外する。カレンダー・GPS・健康をCodexへ送る範囲は増やさない。
+- iPhone/macOSは`LifeAssistant.swift`の秘書カードから元項目、全件、取得状況、20分着手候補、週次評価へ移動する。自己記録の空欄と0を区別し、本人見積もり節約分数を別集計する。無駄な時間や忘れ、改善率は自動推定しない。定期調査・イベント変更監視は対象・周期・終了条件を要する後続拡張。
+- 検証は`tests/test_secretary.py`、`tests/test_local_server.py`、`tests/test_life_native.py`と両OSのビルド。匿名fixtureの秘書導線は実APIへ書き込まない。サーバーと共有Swift変更のため、統合後はWeb LaunchAgent再起動、両OS成果物の再生成と配信検証が必要。

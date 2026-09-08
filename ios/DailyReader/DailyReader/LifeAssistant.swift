@@ -3,6 +3,42 @@ import Combine
 import EventKit
 import UserNotifications
 
+struct SecretaryCard: Decodable, Identifiable {
+    let id: String; let source_type: String; let source_id: String
+    let title: String; let reason: String; let due_at: String?; let certainty: String
+    let urgent: Bool; let version: String; let status: String; let until_at: String?; let url: String
+}
+struct SecretarySource: Decodable, Identifiable {
+    let id: String; let label: String; let state: String; let last_success_at: String?; let detail: String
+    var stateLabel: String {
+        ["available": "取得済み", "missing": "未取得", "stale": "古い情報", "stopped": "停止中",
+         "authorization_required": "許可・認証が必要", "failed": "取得失敗"][state] ?? "未取得"
+    }
+}
+struct SecretaryMetric: Decodable { let count: Int; let total: Int? }
+struct SecretaryDay: Decodable {
+    let day: String; let timezone: String; let revision: Int
+    let browsing_minutes: Int?; let management_minutes: Int?; let forgotten_count: Int?
+}
+struct SecretaryWeekly: Decodable {
+    let start_date: String; let end_date: String; let timezone: String; let recorded_days: Int
+    let browsing_minutes: SecretaryMetric; let management_minutes: SecretaryMetric; let forgotten_count: SecretaryMetric
+    let research_evaluations: Int; let research_useful: Int; let saved_minutes: SecretaryMetric
+    let today: SecretaryDay?
+}
+struct SecretarySnapshot: Decodable {
+    let items: [SecretaryCard]; let top_ids: [String]; let remaining_count: Int
+    let urgent_count: Int; let deferred_urgent_count: Int; let sources: [SecretarySource]
+    let weekly: SecretaryWeekly; let timezone: String; let generated_at: String
+}
+struct SecretaryCardRequest: Encodable {
+    let card_id: String; let version: String; let status: String; let until_at: String?
+}
+struct SecretaryDayRequest: Encodable {
+    let request_id: String; let day: String; let timezone: String; let revision: Int
+    let browsing_minutes: Int?; let management_minutes: Int?; let forgotten_count: Int?
+}
+
 struct LifeAutomationSettings: Decodable { let enabled: Bool; let research_enabled: Bool; let processed: Int; let pending: Int }
 struct LifeDraft: Decodable, Identifiable { let id: String; let data: LifeEntry; let evidence: LifeEvidence; let reason: String; let source_index: Int? }
 struct LifeFeedback: Codable { let useful: Bool; let saved_minutes: Int? }
@@ -36,6 +72,7 @@ struct LifeEntry: Decodable, Identifiable {
 struct LifeNews: Decodable, Identifiable { let id: String; let title: String; let url: String; let reason: String }
 struct LifeNotice: Decodable { let id: String; let entry_id: String; let title: String; let at: String }
 struct LifeSnapshot: Decodable {
+    let secretary: SecretarySnapshot?
     let device_context: PhoneContextOverview?
     let automation: LifeAutomationSettings?; let drafts: [LifeDraft]?
     let entries: [LifeEntry]; let people: [LifePerson]; let news: [LifeNews]
@@ -115,12 +152,14 @@ func lifeLabel(_ value: String) -> String {
 
 @MainActor
 final class LifeStore: ObservableObject {
+    var isFixture = false
     @Published var snapshot: LifeSnapshot?
     @Published var error: String?
     @Published var noticeStatus = ""
     @Published var calendarStatus = ""
     private let refreshes = ResourceRefreshes()
     func refresh(afterMutation: Bool = false) async {
+        guard !isFixture else { return }
         await refreshes.run("life", replacing: afterMutation) { generation in
             do {
                 #if os(iOS)
@@ -150,25 +189,43 @@ final class LifeStore: ObservableObject {
         }
     }
     func setAutomation(_ key: String, _ enabled: Bool) async {
+        guard !isFixture else { return }
         do {
             let _: EmptyResponse = try await APIClient.shared.post("api/life/automation", body: [key: enabled], as: EmptyResponse.self)
             await refresh(afterMutation: true)
         } catch { self.error = error.localizedDescription }
     }
     func adopt(_ draft: LifeDraft) async {
+        guard !isFixture else { return }
         do {
             let _: LifeEntry = try await APIClient.shared.post("api/life/drafts/\(draft.id)/adopt", body: EmptyRequest(), as: LifeEntry.self)
             await refresh(afterMutation: true)
         } catch { self.error = error.localizedDescription }
     }
     func dismiss(_ draft: LifeDraft) async {
+        guard !isFixture else { return }
         do {
             let _: EmptyResponse = try await APIClient.shared.post("api/life/drafts/\(draft.id)/dismiss", body: EmptyRequest(), as: EmptyResponse.self)
             await refresh(afterMutation: true)
         } catch { self.error = error.localizedDescription }
     }
     func save(_ request: LifeRequest, id: String? = nil, draftID: String? = nil) async throws {
+        guard !isFixture else { return }
         let _: LifeEntry = try await APIClient.shared.post(draftID.map { "api/life/drafts/\($0)/adopt" } ?? id.map { "api/life/entries/\($0)" } ?? "api/life/entries", body: request, as: LifeEntry.self)
+        await refresh(afterMutation: true)
+    }
+    func reviewCard(_ card: SecretaryCard, status: String) async {
+        guard !isFixture else { return }
+        do {
+            let request = SecretaryCardRequest(card_id: card.id, version: card.version, status: status,
+                until_at: status == "snoozed" ? Date.now.addingTimeInterval(3600).ISO8601Format() : nil)
+            let _: EmptyResponse = try await APIClient.shared.post("api/life/secretary/card", body: request, as: EmptyResponse.self)
+            await refresh(afterMutation: true)
+        } catch { self.error = error.localizedDescription }
+    }
+    func saveDay(_ request: SecretaryDayRequest) async throws {
+        guard !isFixture else { return }
+        let _: EmptyResponse = try await APIClient.shared.post("api/life/secretary/day", body: request, as: EmptyResponse.self)
         await refresh(afterMutation: true)
     }
     func state(_ entry: LifeEntry, _ status: String) async {
@@ -184,10 +241,13 @@ struct LifeBrief: View {
         VStack(alignment: .leading, spacing: 12) {
             NavigationLink { LifeAssistantView(store: store) } label: {
                 Label("暮らしのアシスタント", systemImage: "sparkles").font(.headline)
-            }
+            }.disabled(model.isFixture)
             Text("調べもの・予定・タスク・関心を、会話から次の行動へ。")
                 .font(.caption).foregroundStyle(.secondary)
             if let snapshot = store.snapshot {
+                if let secretary = snapshot.secretary {
+                    SecretaryBrief(store: store, value: secretary)
+                } else {
                 if let context = snapshot.device_context {
                     ForEach(context.suggestions) { slot in
                         NavigationLink { LifeEntryDetail(store: store, entryID: slot.task_id) } label: {
@@ -221,9 +281,243 @@ struct LifeBrief: View {
                 }
                 Text("今日のおすすめは最大3件。続きは「ニュース」で必要なときに確認できます。")
                     .font(.caption).foregroundStyle(.secondary)
+                }
             }
             if let error = store.error { Text(error).font(.caption).foregroundStyle(.red) }
         }.glassCard()
+    }
+}
+
+struct SecretaryBrief: View {
+    @ObservedObject var store: LifeStore
+    let value: SecretarySnapshot
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("今日、先に確認すること").font(.headline)
+            Text("期限超過・当日の項目 \(value.urgent_count)件（確認済み・保留中 \(value.deferred_urgent_count)件）")
+                .font(.caption).foregroundStyle(.secondary)
+            if value.top_ids.isEmpty { Text("新しく確認する項目はありません。未取得の情報は下で確認できます。").font(.caption) }
+            ForEach(value.items.filter { value.top_ids.contains($0.id) }) { card in
+                SecretaryCardRow(store: store, card: card)
+            }
+            NavigationLink { SecretaryView(store: store) } label: {
+                Label("すべての提案・取得状況・振り返り（残り\(value.remaining_count)件）", systemImage: "list.bullet.clipboard")
+            }
+            if value.sources.contains(where: { $0.state != "available" }) {
+                Text("一部の情報が未取得・停止中、または古い状態です。保存済みの情報から提案しています。")
+                    .font(.caption).foregroundStyle(.orange)
+            }
+        }
+    }
+}
+
+struct SecretaryCardRow: View {
+    @ObservedObject var store: LifeStore
+    @EnvironmentObject private var model: AppModel
+    let card: SecretaryCard
+    @State private var working = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            NavigationLink { destination } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(card.title).font(.subheadline.weight(.semibold))
+                    Text(card.reason).font(.caption).foregroundStyle(.secondary)
+                    if let date = lifeDate(card.due_at) {
+                        Text(date.formatted() + certaintyLabel).font(.caption)
+                            .foregroundStyle(card.urgent ? .orange : .secondary)
+                    }
+                }
+            }
+            if let until = lifeDate(card.until_at), card.status == "snoozed" {
+                Text("\(until.formatted())まで保留").font(.caption)
+            }
+            HStack {
+                if card.status == "pending" {
+                    Button("確認しました") { act("reviewed") }
+                    Button("1時間保留") { act("snoozed") }
+                } else {
+                    Text(card.status == "reviewed" ? "確認済み" : "保留中").font(.caption)
+                    Button("再表示") { act("pending") }
+                }
+            }.buttonStyle(.bordered).controlSize(.small).disabled(working || model.isFixture)
+        }.padding(.vertical, 4)
+    }
+    private var certaintyLabel: String {
+        ["estimated": "（メールからの推定）", "unconfirmed": "（未確認）",
+         "date_only": "（日付のみ・表示時刻は目安）"][card.certainty] ?? ""
+    }
+    @ViewBuilder private var destination: some View {
+        if model.isFixture {
+            Text("\(card.title)\n\(card.reason)\n匿名の表示確認用データです。").padding()
+        } else if card.source_type == "life" {
+            LifeEntryDetail(store: store, entryID: card.source_id)
+        } else if card.source_type == "draft", let draft = store.snapshot?.drafts?.first(where: { $0.id == card.source_id }) {
+            LifeEntryEditor(store: store, request: draftRequest(draft), draftID: draft.id, reviewReason: draft.reason)
+        } else if card.source_type == "email", let email = model.emails.first(where: { $0.id == card.source_id }) {
+            EmailDetailView(email: email)
+        } else if card.source_type == "planner", let task = ((model.today?.tasks ?? []) + (model.today?.routines ?? [])).first(where: { $0.id == card.source_id }) {
+            ScrollView { TaskRow(task: task).padding() }.navigationTitle("通常タスク")
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(card.title).font(.title3)
+                    Text(card.reason)
+                    if let due = lifeDate(card.due_at) { Text(due.formatted() + certaintyLabel) }
+                    if let url = URL(string: card.url), ["https", "http"].contains(url.scheme ?? "") {
+                        Link("元の情報を開く", destination: url)
+                    }
+                    if card.source_type == "calendar" {
+                        Text("取得済みのカレンダー情報です。予定の変更はカレンダーアプリで行ってください。")
+                    }
+                    if card.source_type == "planner" || card.source_type == "email" {
+                        Button("最新の項目を取得") { Task { await model.refresh() } }
+                    }
+                }.padding()
+            }
+        }
+    }
+    private func draftRequest(_ draft: LifeDraft) -> LifeRequest {
+        var value = LifeRequest(draft.data); value.revision = nil
+        value.source_type = draft.evidence.type
+        value.source_id = draft.evidence.item_id ?? draft.evidence.entry_id ?? ""
+        value.source_index = draft.source_index
+        return value
+    }
+    private func act(_ status: String) {
+        working = true
+        Task { await store.reviewCard(card, status: status); working = false }
+    }
+}
+
+struct SecretaryView: View {
+    @ObservedObject var store: LifeStore
+    var body: some View {
+        List {
+            if let value = store.snapshot?.secretary {
+                Section {
+                    Text("確認済みは用事の完了やメールの既読とは別です。内容の変更や期限当日には再提示します。")
+                    Text("期限超過・当日 \(value.urgent_count)件。確認済み・保留中にも\(value.deferred_urgent_count)件あります。")
+                }.font(.caption)
+                Section("用事・判断待ち") {
+                    ForEach(value.items.filter { $0.source_type != "news" }) { card in
+                        SecretaryCardRow(store: store, card: card)
+                    }
+                }
+                Section("関心のある更新") {
+                    ForEach(value.items.filter { $0.source_type == "news" }) { card in
+                        SecretaryCardRow(store: store, card: card)
+                    }
+                    Text("今回のおすすめはここまでです。必要なときにニュース一覧をご利用ください。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Section("取得できている情報") {
+                    ForEach(value.sources) { source in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(source.label) · \(source.stateLabel)")
+                            if let date = lifeDate(source.last_success_at) { Text("最終成功 \(date.formatted())").font(.caption) }
+                            Text(source.detail).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Text("全アプリの閲覧時間や、録音・入力されていない約束は取得していません。GPS・健康から無駄な時間や忘れを判定しません。")
+                        .font(.caption)
+                }
+                if let context = store.snapshot?.device_context {
+                    Section("カレンダー上の着手候補") {
+                        ForEach(context.suggestions) { slot in
+                            NavigationLink { LifeEntryDetail(store: store, entryID: slot.task_id) } label: {
+                                Text("\(slot.title) · \(lifeDate(slot.start_at)?.formatted() ?? "")から20分")
+                            }
+                        }
+                        Text("予定のない時間の候補です。20分での完了や、実際に空いていることは保証しません。")
+                            .font(.caption)
+                    }
+                    Section("予定の重なり") {
+                        ForEach(context.conflicts) { item in
+                            Text("\(item.title) / \(item.calendar_title)")
+                        }
+                    }
+                }
+                SecretaryWeeklySection(store: store, weekly: value.weekly)
+            }
+            if let error = store.error { Text(error).foregroundStyle(.red) }
+        }.navigationTitle("暮らしの秘書").refreshable { await store.refresh() }
+    }
+}
+
+struct SecretaryWeeklySection: View {
+    @ObservedObject var store: LifeStore
+    let weekly: SecretaryWeekly
+    var body: some View {
+        Section("今週の振り返り") {
+            Text("\(weekly.start_date)〜\(weekly.end_date) · \(weekly.timezone)").font(.caption)
+            Text("自己記録 \(weekly.recorded_days)日")
+            metric("巡回・比較", weekly.browsing_minutes, unit: "分")
+            metric("用事の管理", weekly.management_minutes, unit: "分")
+            metric("忘れた約束", weekly.forgotten_count, unit: "件")
+            Text("調査の評価 \(weekly.research_evaluations)件 · 役立った \(weekly.research_useful)件")
+            if let minutes = weekly.saved_minutes.total {
+                Text("調査で省けた時間（本人の見積もり）\(minutes)分 · 入力\(weekly.saved_minutes.count)件")
+            } else { Text("調査で省けた時間：未入力") }
+            NavigationLink { SecretaryDayEditor(store: store, weekly: weekly) } label: {
+                Label("今日の短い記録（任意）", systemImage: "square.and.pencil")
+            }
+            Text("空欄は0とみなしません。自己記録と見積もりは別に表示し、改善率は推定しません。楽しみの閲覧は巡回時間から除いてください。")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+    private func metric(_ label: String, _ value: SecretaryMetric, unit: String) -> some View {
+        Text(value.total.map { "\(label) \($0)\(unit) · 入力\(value.count)日" } ?? "\(label)：未入力")
+    }
+}
+
+struct SecretaryDayEditor: View {
+    @ObservedObject var store: LifeStore
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let weekly: SecretaryWeekly
+    @State private var browsing = ""
+    @State private var management = ""
+    @State private var forgotten = ""
+    @State private var requestID = UUID().uuidString
+    @State private var saving = false
+    @State private var message: String?
+    var body: some View {
+        Form {
+            Text("\(weekly.end_date) · \(weekly.timezone)").font(.caption)
+            Text("減らしたい巡回・比較、用事の管理に使った時間だけを記録します。すべて任意です。")
+            TextField("巡回・比較（分）", text: $browsing)
+            TextField("用事の管理（分）", text: $management)
+            TextField("忘れた約束（件）", text: $forgotten)
+            Text("空欄は未入力、0は実際に0だった場合です。期限超過だけでは忘れた件数に含めません。")
+                .font(.caption)
+            if let message { Text(message).foregroundStyle(.red) }
+            Button(saving ? "保存中…" : "保存") { save() }.disabled(saving || model.isFixture)
+        }.navigationTitle("今日の記録")
+            .onAppear {
+                browsing = weekly.today?.browsing_minutes.map(String.init) ?? ""
+                management = weekly.today?.management_minutes.map(String.init) ?? ""
+                forgotten = weekly.today?.forgotten_count.map(String.init) ?? ""
+            }
+            .onChange(of: browsing) { _, _ in requestID = UUID().uuidString }
+            .onChange(of: management) { _, _ in requestID = UUID().uuidString }
+            .onChange(of: forgotten) { _, _ in requestID = UUID().uuidString }
+    }
+    private func save() {
+        let fields = [browsing, management, forgotten].map { $0.trimmingCharacters(in: .whitespaces) }
+        for (index, text) in fields.enumerated() where !text.isEmpty {
+            guard let number = Int(text), (0...(index == 2 ? 100 : 1440)).contains(number) else {
+                message = "分数は0〜1440、忘れ件数は0〜100で入力してください。"; return
+            }
+        }
+        let request = SecretaryDayRequest(request_id: requestID, day: weekly.end_date, timezone: weekly.timezone,
+            revision: weekly.today?.revision ?? 0, browsing_minutes: Int(fields[0]),
+            management_minutes: Int(fields[1]), forgotten_count: Int(fields[2]))
+        saving = true
+        Task {
+            do { try await store.saveDay(request); dismiss() }
+            catch { message = error.localizedDescription }
+            saving = false
+        }
     }
 }
 
