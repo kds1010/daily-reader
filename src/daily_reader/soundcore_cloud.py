@@ -120,7 +120,12 @@ def _public_addresses(host: str, deadline: float) -> list[str]:
 
     def resolve():
         try:
-            result.put(socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM))
+            # Both verified hosts serve public IPv4. AF_UNSPEC also waits for
+            # AAAA, which can stall on the deployment network despite working A
+            # answers; restrict this transfer without changing system DNS.
+            result.put(
+                socket.getaddrinfo(host, 443, family=socket.AF_INET, type=socket.SOCK_STREAM)
+            )
         except OSError:
             result.put(None)
 

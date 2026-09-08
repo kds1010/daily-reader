@@ -362,3 +362,20 @@ def test_blocked_dns_resolver_does_not_block_worker(monkeypatch):
         assert time.monotonic() - started < 1.0
     finally:
         release.set()
+
+
+def test_working_ipv4_is_not_delayed_by_unresponsive_aaaa(monkeypatch):
+    release = threading.Event()
+
+    def resolve(*args, family=socket.AF_UNSPEC, **kwargs):
+        if family != socket.AF_INET:
+            release.wait(2)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("18.193.246.36", 443))]
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+    try:
+        assert cloud._public_addresses(cloud.SHARE_HOST, time.monotonic() + 0.2) == [
+            "18.193.246.36"
+        ]
+    finally:
+        release.set()
