@@ -18,6 +18,11 @@ data/payments.sqlite3-*
 data/conversations.sqlite3
 data/conversations.sqlite3-*
 data/conversations/audio/
+data/drive-sync.json
+data/drive-sync.lock
+data/drive-sync.sqlite3
+data/drive-sync.sqlite3-*
+data/drive-sync-staging/
 site/data/articles.json
 site/data/highlights.json
 secrets/
