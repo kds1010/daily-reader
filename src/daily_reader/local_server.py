@@ -30,6 +30,7 @@ from time import monotonic, sleep
 
 from daily_reader import (
     connection_alerts,
+    conversation_corrections,
     device_context,
     diary,
     drive_imports,
@@ -1566,6 +1567,29 @@ def make_handler(
                     self._send_json(200, {"stored": count})
                 except (ValueError, TypeError, KeyError) as error:
                     self._log_device_sync_failure("locations", error)
+                    self._send_json(400, {"error": str(error)})
+                return
+            if path.startswith("/api/conversations/") and path.endswith("/corrections"):
+                if not self._soundcore_access_allowed():
+                    return
+                parts = path.split("/")
+                if len(parts) != 5 or not parts[-2]:
+                    self._send_json(404, {"error": "recording not found"})
+                    return
+                if self.headers.get("Content-Type", "").split(";", 1)[0] != "application/json":
+                    self._send_json(415, {"error": "application/jsonが必要です"})
+                    return
+                try:
+                    if self._read_json(max_length=1024) != {}:
+                        raise ValueError("補正開始の本文は空のオブジェクトにしてください")
+                    queued = conversation_corrections.queue(
+                        conversations_db, parts[-2], conversation_insight_schema,
+                        conversation_codex_command, conversation_insight_model,
+                    )
+                    self._send_json(202, {"queued": queued})
+                except KeyError:
+                    self._send_json(404, {"error": "recording not found"})
+                except ValueError as error:
                     self._send_json(400, {"error": str(error)})
                 return
             if path.startswith("/api/conversations/") and path.endswith(("/insights", "/overview")):

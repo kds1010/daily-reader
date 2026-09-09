@@ -286,6 +286,13 @@ def create_entry(database: Path, payload: dict, *, automatic: bool = False) -> d
         source_key = f"manual:{request_id}:{kind}"
     with connect(database) as connection:
         connection.execute("BEGIN IMMEDIATE")
+        if automatic:
+            from daily_reader.conversation_corrections import automatic_allowed
+
+            if not automatic_allowed(connection, evidence):
+                raise ValueError(
+                    "文字起こしの補正状態が変わりました。原文と候補を確認してください。"
+                )
         if source_key:
             row = connection.execute(
                 "SELECT * FROM life_entries WHERE source_key=?", (source_key,)
@@ -447,6 +454,14 @@ def update_entry(database: Path, entry_id: str, payload: dict) -> dict:
             "INSERT INTO life_changes(entry_id,action,created_at) VALUES(?,?,?)",
             (entry_id, f"{old['status']}->{state}", now),
         )
+        if (
+            row["kind"] == "profile"
+            and (state != row["status"] or data.get("expires_at") != old.get("expires_at"))
+            and old["evidence"].get("recording_id")
+        ):
+            from daily_reader.conversation_corrections import invalidate
+
+            invalidate(connection, old["evidence"]["recording_id"], context_only=True)
     return get_entry(database, entry_id)
 
 
@@ -455,10 +470,18 @@ def _confirm_owner(connection, evidence: dict, person_id: str, exclude_id: str =
     recording_id, subject = evidence.get("recording_id"), evidence.get("subject")
     if not recording_id or not subject:
         return
+    previous = connection.execute(
+        "SELECT person_id FROM life_speaker_people WHERE recording_id=? AND speaker=?",
+        (recording_id, subject),
+    ).fetchone()
     connection.execute(
         "INSERT OR REPLACE INTO life_speaker_people VALUES(?,?,?)",
         (recording_id, subject, person_id),
     )
+    from daily_reader.conversation_corrections import invalidate
+
+    if previous is None or previous["person_id"] != person_id:
+        invalidate(connection, recording_id, context_only=True)
     for row in connection.execute(
         "SELECT * FROM life_entries WHERE kind='profile' AND id<>?", (exclude_id,)
     ).fetchall():

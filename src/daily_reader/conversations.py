@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import BinaryIO
 from zoneinfo import ZoneInfo
 
+from daily_reader import conversation_corrections as corrections
 from daily_reader.conversation_context import (
     read_contexts,
     rebuild_context,
@@ -252,6 +253,7 @@ def initialize_database(path: Path) -> None:
             JOIN utterances ON utterances.id = proposals.utterance_id
             LEFT JOIN speakers ON speakers.id = utterances.speaker_id"""
         )
+        corrections.initialize(connection)
 
 
 def _connect(path: Path) -> sqlite3.Connection:
@@ -307,7 +309,14 @@ def recover_interrupted_conversations(database: Path) -> None:
         )
         connection.execute(
             "UPDATE recordings SET overview_status='failed',overview_error=? "
-            "WHERE overview_status IN ('queued','extracting')", (message,),
+            "WHERE overview_status IN ('queued','extracting')",
+            (message,),
+        )
+        connection.execute(
+            "UPDATE recordings SET correction_status='failed',correction_error=?,"
+            "correction_run_id=NULL "
+            "WHERE correction_status IN ('queued','correcting','verifying')",
+            (message,),
         )
         connection.execute(
             "UPDATE conversation_analysis_runs SET status='failed', error=? "
@@ -341,8 +350,14 @@ def store_cloud_audio(
 ) -> dict[str, object]:
     """Internal cloud path; normal HTTP uploads remain MP3-only."""
     return _store_audio(
-        database, audio_directory, source, length, filename, recorded_at,
-        cloud_metadata=metadata, cloud_import_id=import_id,
+        database,
+        audio_directory,
+        source,
+        length,
+        filename,
+        recorded_at,
+        cloud_metadata=metadata,
+        cloud_import_id=import_id,
     )
 
 
@@ -559,6 +574,8 @@ def list_recordings(database: Path) -> list[dict[str, object]]:
                 "location_timestamp, location_time_delta, source_type, insight_status, "
                 "insight_error, insight_analyzed_at, recorded_at_verified, recorded_at_source, "
                 "transcription_metadata, overview_status, overview_error, "
+                + ",".join(corrections.RECORDING_COLUMNS)
+                + ","
                 "(SELECT COUNT(*) FROM conversation_items WHERE recording_id=recordings.id "
                 "AND status='awaiting_review' AND (visible_rule_item(source,status,title) "
                 "OR (source='rule' AND updated_at<>created_at))) "
@@ -568,6 +585,9 @@ def list_recordings(database: Path) -> list[dict[str, object]]:
         ]
         attach_digests(connection, records)
         for recording in records:
+            recording["correction"] = corrections.describe(connection, recording)
+            for name in corrections.RECORDING_COLUMNS:
+                recording.pop(name, None)
             recording.pop("transcription_metadata", None)
         return records
 
@@ -628,6 +648,10 @@ def get_recording(database: Path, recording_id: str) -> dict[str, object]:
             "WHERE items.recording_id = ?",
             (recording_id,),
         )
+        result["correction"] = corrections.describe(connection, result, full=True)
+        corrected = {entry["utterance_id"]: entry for entry in result["correction"]["items"]}
+        for utterance in result["utterances"]:
+            utterance["correction"] = corrected.get(utterance["id"])
         attach_digests(connection, [result], full=True)
         return result
 
@@ -641,7 +665,10 @@ def _items_for_query(
         f"""SELECT items.*, recordings.filename AS recording_filename,
         recordings.recorded_at, recordings.recorded_at_verified,
         recordings.created_at AS recording_created_at,
-        recordings.source_type AS recording_source_type, recordings.transcription_needs_review
+        recordings.source_type AS recording_source_type, recordings.transcription_needs_review,
+        recordings.correction_status,recordings.correction_flagged_count,
+        recordings.correction_requires_review,
+        recordings.correction_revision_id AS recording_correction_revision_id
         FROM conversation_items AS items
         JOIN recordings ON recordings.id = items.recording_id
         {where} AND (visible_rule_item(items.source,items.status,items.title)
@@ -660,7 +687,7 @@ def _items_for_query(
             dict(evidence)
             for evidence in connection.execute(
                 """SELECT position, utterance_id, quote, speaker, start_seconds, end_seconds,
-                context_snapshot
+                context_snapshot,corrected_quote,correction_revision_id,correction_uncertain
                 FROM conversation_item_evidence WHERE item_id=? ORDER BY position""",
                 (row["id"],),
             )
@@ -672,6 +699,8 @@ def _items_for_query(
             }
         contexts = context_cache[row["recording_id"]]
         for evidence in item["evidence"]:
+            evidence["correction_is_snapshot"] = bool(evidence["correction_revision_id"])
+            evidence["correction_uncertain"] = bool(evidence["correction_uncertain"])
             snapshot = evidence.pop("context_snapshot")
             evidence["location_context"] = (
                 json.loads(snapshot)
@@ -893,9 +922,15 @@ def update_speaker(database: Path, speaker_id: str, display_name: str) -> None:
         )
         if cursor.rowcount != 1:
             raise KeyError(speaker_id)
+        recording_id = connection.execute(
+            "SELECT recording_id FROM speakers WHERE id=?",
+            (speaker_id,),
+        ).fetchone()["recording_id"]
+        corrections.invalidate(connection, recording_id)
         connection.execute(
             "UPDATE conversation_overviews SET stale=1 WHERE recording_id IN "
-            "(SELECT recording_id FROM speakers WHERE id=?)", (speaker_id,),
+            "(SELECT recording_id FROM speakers WHERE id=?)",
+            (speaker_id,),
         )
 
 
@@ -954,8 +989,10 @@ def _replace_analysis_results(
     created_at: str,
 ) -> None:
     snapshot_evidence_contexts(connection, recording_id)
+    corrections.invalidate(connection, recording_id)
     connection.execute(
-        "UPDATE conversation_overviews SET stale=1 WHERE recording_id=?", (recording_id,),
+        "UPDATE conversation_overviews SET stale=1 WHERE recording_id=?",
+        (recording_id,),
     )
     connection.execute(
         """UPDATE conversation_items SET status='superseded', updated_at=?
@@ -1043,14 +1080,20 @@ def _analyze_recording(database: Path, recording_id: str, token_file: Path) -> N
 
         with OPERATION_LOCK, _connect(database) as connection:
             connection.execute("BEGIN IMMEDIATE")
-            old_utterances = [dict(item) for item in connection.execute(
-                "SELECT * FROM utterances WHERE recording_id=?", (recording_id,)
-            )]
+            old_utterances = [
+                dict(item)
+                for item in connection.execute(
+                    "SELECT * FROM utterances WHERE recording_id=?", (recording_id,)
+                )
+            ]
             if old_utterances:
                 snapshot = {"utterances": old_utterances}
-                snapshot["speakers"] = [dict(item) for item in connection.execute(
-                    "SELECT * FROM speakers WHERE recording_id=?", (recording_id,)
-                )]
+                snapshot["speakers"] = [
+                    dict(item)
+                    for item in connection.execute(
+                        "SELECT * FROM speakers WHERE recording_id=?", (recording_id,)
+                    )
+                ]
                 previous = connection.execute(
                     "SELECT transcription_metadata, analyzed_at FROM recordings WHERE id=?",
                     (recording_id,),
@@ -1091,8 +1134,9 @@ def _analyze_recording(database: Path, recording_id: str, token_file: Path) -> N
             )
     except Exception as error:
         message = (
-            str(error) if isinstance(error, TranscriptionError) else
-            "音声解析に失敗しました。原音・モデルの取得状況を確認して再試行してください。"
+            str(error)
+            if isinstance(error, TranscriptionError)
+            else "音声解析に失敗しました。原音・モデルの取得状況を確認して再試行してください。"
         )
         with _connect(database) as connection:
             connection.execute(
@@ -1106,12 +1150,17 @@ class AnalysisConflict(ValueError):
 
 
 def start_analysis(
-    database: Path, recording_id: str, token_file: Path, *, initial_only: bool = False,
+    database: Path,
+    recording_id: str,
+    token_file: Path,
+    *,
+    initial_only: bool = False,
 ) -> bool:
     with _connect(database) as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
-            "SELECT source_type,status,insight_status,overview_status FROM recordings WHERE id=?",
+            "SELECT source_type,status,insight_status,overview_status,correction_status "
+            "FROM recordings WHERE id=?",
             (recording_id,),
         ).fetchone()
         if row is None:
@@ -1122,8 +1171,13 @@ def start_analysis(
         # analysis can finish after their earlier status read.
         if initial_only and row["status"] in {"analyzing", "completed"}:
             return False
-        if row["status"] == "analyzing" or any(
-            row[key] in {"queued", "extracting"} for key in ("insight_status", "overview_status")
+        if (
+            row["status"] == "analyzing"
+            or row["correction_status"] in corrections.ACTIVE
+            or any(
+                row[key] in {"queued", "extracting"}
+                for key in ("insight_status", "overview_status")
+            )
         ):
             raise AnalysisConflict("この録音は処理中です。完了後に再試行してください。")
         # Uploads already have status=queued, so a separate reserved state is unnecessary:
@@ -1145,7 +1199,7 @@ def start_analysis(
     return True
 
 
-def _insight_input(
+def _raw_insight_input(
     connection: sqlite3.Connection, recording_id: str
 ) -> tuple[str | None, list[dict[str, object]]]:
     recording = connection.execute(
@@ -1166,6 +1220,11 @@ def _insight_input(
     return (recording["recorded_at"] if recording["recorded_at_verified"] else None), utterances
 
 
+def _insight_input(connection, recording_id):
+    recorded_at, rows = _raw_insight_input(connection, recording_id)
+    return recorded_at, corrections.apply_overlay(connection, recording_id, rows)
+
+
 def queue_insight_extraction(
     database: Path,
     recording_id: str,
@@ -1178,20 +1237,32 @@ def queue_insight_extraction(
     with _connect(database) as connection:
         connection.execute("BEGIN IMMEDIATE")
         recording = connection.execute(
-            "SELECT status, insight_status, overview_status FROM recordings WHERE id=?",
+            "SELECT status, insight_status, overview_status,correction_status "
+            "FROM recordings WHERE id=?",
             (recording_id,),
         ).fetchone()
         if recording is None:
             raise KeyError(recording_id)
         if recording["status"] != "completed":
             raise ValueError("文字起こしの完了後にCodexで整理できます")
-        if any(recording[key] in {"queued", "extracting"}
-               for key in ("insight_status", "overview_status")):
+        if recording["correction_status"] in corrections.ACTIVE or any(
+            recording[key] in {"queued", "extracting"}
+            for key in ("insight_status", "overview_status")
+        ):
             return False
         if not connection.execute(
             "SELECT 1 FROM utterances WHERE recording_id=? LIMIT 1", (recording_id,)
         ).fetchone():
             raise ValueError("整理できる発話がありません")
+        if connection.execute(
+            "SELECT COUNT(*) FROM recordings WHERE correction_status "
+            "IN ('queued','correcting','verifying')"
+        ).fetchone()[0] >= 10:
+            raise ValueError("補正待ちが10件あります。完了後に再試行してください")
+        connection.execute(
+            "UPDATE recordings SET correction_status='queued',correction_error=NULL WHERE id=?",
+            (recording_id,),
+        )
         if not overview_only:
             connection.execute(
                 "UPDATE recordings SET insight_status='queued', insight_error=NULL WHERE id=?",
@@ -1205,7 +1276,9 @@ def queue_insight_extraction(
     threading.Thread(
         target=extract_recording_overview if overview_only else extract_recording_insights,
         args=(database, recording_id, schema_path, codex_command, model),
-        kwargs={} if overview_only else {"generate_overview": True},
+        kwargs={"correct_first": True}
+        if overview_only
+        else {"generate_overview": True, "correct_first": True},
         daemon=True,
     ).start()
     return True
@@ -1285,13 +1358,24 @@ def _store_extracted_items(
     raw_items: list[dict[str, object]],
     utterance_rows: list[dict[str, object]],
     completed_at: str,
+    *,
+    expected_input_hash: str | None = None,
 ) -> None:
+    from daily_reader.life_automation import OPERATION_LOCK
+
     utterances = {str(row["id"]): row for row in utterance_rows}
     validated: dict[str, tuple[dict[str, object], list[dict[str, object]]]] = {}
     for raw in raw_items:
         values, evidence, fingerprint = _validate_extracted_item(raw, utterances)
         validated[fingerprint] = (values, evidence)
-    with _connect(database) as connection:
+    with OPERATION_LOCK, _connect(database) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if expected_input_hash is not None:
+            current_date, current_rows = _insight_input(connection, recording_id)
+            if _overview_input_hash(current_date, current_rows) != expected_input_hash:
+                raise ConversationInsightError(
+                    "整理中に原文または補正版が変わりました。再試行してください"
+                )
         connection.execute(
             """UPDATE conversation_items SET status='superseded', updated_at=?
             WHERE recording_id=? AND status='awaiting_review'""",
@@ -1357,16 +1441,20 @@ def _store_extracted_items(
             for position, row in enumerate(evidence):
                 connection.execute(
                     """INSERT INTO conversation_item_evidence
-                    (item_id, position, utterance_id, quote, speaker, start_seconds, end_seconds)
-                    VALUES(?,?,?,?,?,?,?)""",
+                    (item_id, position, utterance_id, quote, speaker, start_seconds, end_seconds,
+                    corrected_quote,correction_revision_id,correction_uncertain)
+                    VALUES(?,?,?,?,?,?,?,?,?,?)""",
                     (
                         item_id,
                         position,
                         row["id"],
-                        row["text"],
+                        row.get("raw_text", row["text"]),
                         row["speaker"],
                         row["start_seconds"],
                         row["end_seconds"],
+                        row["text"] if row.get("raw_text", row["text"]) != row["text"] else None,
+                        row.get("correction_revision_id"),
+                        int(bool(row.get("correction_uncertain"))),
                     ),
                 )
         connection.execute(
@@ -1393,8 +1481,23 @@ def extract_recording_overview(
     schema_path: Path,
     codex_command: str = "codex",
     model: str = DEFAULT_INSIGHT_MODEL,
+    *,
+    correct_first: bool = False,
 ) -> None:
     with INSIGHT_ANALYSIS_LOCK:
+        if correct_first and not corrections.ensure_corrected(
+            database,
+            recording_id,
+            schema_path,
+            codex_command,
+            model,
+        ):
+            with _connect(database) as connection:
+                connection.execute(
+                    "UPDATE recordings SET overview_status='failed',overview_error=? WHERE id=?",
+                    ("文字起こしの補正を完了してから要約を再試行してください。", recording_id),
+                )
+            return
         _extract_recording_overview(database, recording_id, schema_path, codex_command, model)
 
 
@@ -1405,7 +1508,8 @@ def _extract_recording_overview(database, recording_id, schema_path, codex_comma
         with _connect(database) as connection:
             connection.execute("BEGIN IMMEDIATE")
             recording = connection.execute(
-                "SELECT status,source_type FROM recordings WHERE id=?", (recording_id,),
+                "SELECT status,source_type FROM recordings WHERE id=?",
+                (recording_id,),
             ).fetchone()
             if recording is None or recording["status"] != "completed":
                 raise ConversationInsightError("文字起こしの完了後に要約できます")
@@ -1423,7 +1527,8 @@ def _extract_recording_overview(database, recording_id, schema_path, codex_comma
             if existing:
                 connection.execute(
                     "UPDATE recordings SET overview_status='completed',overview_error=NULL "
-                    "WHERE id=?", (recording_id,),
+                    "WHERE id=?",
+                    (recording_id,),
                 )
                 return
             previous = connection.execute(
@@ -1436,7 +1541,8 @@ def _extract_recording_overview(database, recording_id, schema_path, codex_comma
             if previous:
                 connection.execute(
                     "UPDATE conversation_analysis_runs SET status='extracting',error=NULL,"
-                    "completed_at=NULL,created_at=? WHERE id=?", (now, run_id),
+                    "completed_at=NULL,created_at=? WHERE id=?",
+                    (now, run_id),
                 )
             else:
                 connection.execute(
@@ -1455,28 +1561,40 @@ def _extract_recording_overview(database, recording_id, schema_path, codex_comma
         except (OSError, json.JSONDecodeError) as error:
             raise ConversationInsightError("会話要約の出力スキーマを読み取れません") from error
         is_audio = recording["source_type"] == "audio"
-        utterance_map = {str(row["id"]): {
-            **row, "start_seconds": row["start_seconds"] if is_audio else None,
-            "end_seconds": row["end_seconds"] if is_audio else None,
-        } for row in utterances}
+        utterance_map = {
+            str(row["id"]): {
+                **row,
+                "start_seconds": row["start_seconds"] if is_audio else None,
+                "end_seconds": row["end_seconds"] if is_audio else None,
+            }
+            for row in utterances
+        }
         overview = {"points": [], "chunks": []}
         for index, chunk in enumerate(chunk_utterances(utterances), 1):
             raw = request_overview(
-                codex_command=codex_command, model=model, schema_path=overview_schema,
-                recorded_at=recorded_at, timezone="Asia/Tokyo", utterances=chunk,
+                codex_command=codex_command,
+                model=model,
+                schema_path=overview_schema,
+                recorded_at=recorded_at,
+                timezone="Asia/Tokyo",
+                utterances=chunk,
             )
             scoped = {str(row["id"]): utterance_map[str(row["id"])] for row in chunk}
             points = raw.get("points") if isinstance(raw, dict) else None
             if not isinstance(points, list) or len(points) > 5:
                 raise ConversationInsightError("Codexの会話要約が不正です")
             overview["points"].extend(grounded_points(points, scoped, index))
-            overview["chunks"].append({
-                "index": index, "start_seconds": chunk[0]["start_seconds"] if is_audio else None,
-                "end_seconds": chunk[-1]["end_seconds"] if is_audio else None,
-                "utterance_count": len(chunk),
-                "character_count": sum(len(str(row["text"])) for row in chunk),
-                "first_utterance_id": chunk[0]["id"], "last_utterance_id": chunk[-1]["id"],
-            })
+            overview["chunks"].append(
+                {
+                    "index": index,
+                    "start_seconds": chunk[0]["start_seconds"] if is_audio else None,
+                    "end_seconds": chunk[-1]["end_seconds"] if is_audio else None,
+                    "utterance_count": len(chunk),
+                    "character_count": sum(len(str(row["text"])) for row in chunk),
+                    "first_utterance_id": chunk[0]["id"],
+                    "last_utterance_id": chunk[-1]["id"],
+                }
+            )
         completed_at = datetime.now(UTC).isoformat()
         with _connect(database) as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -1492,20 +1610,29 @@ def _extract_recording_overview(database, recording_id, schema_path, codex_comma
                 analysis_run_id=excluded.analysis_run_id,input_hash=excluded.input_hash,
                 extractor_version=excluded.extractor_version,data=excluded.data,
                 created_at=excluded.created_at,stale=0""",
-                (recording_id, run_id, input_hash, OVERVIEW_PROMPT_VERSION,
-                 json.dumps(overview, ensure_ascii=False), completed_at),
+                (
+                    recording_id,
+                    run_id,
+                    input_hash,
+                    OVERVIEW_PROMPT_VERSION,
+                    json.dumps(overview, ensure_ascii=False),
+                    completed_at,
+                ),
             )
             connection.execute(
                 "UPDATE conversation_analysis_runs SET status='completed',error=NULL,"
-                "completed_at=? WHERE id=?", (completed_at, run_id),
+                "completed_at=? WHERE id=?",
+                (completed_at, run_id),
             )
             connection.execute(
                 "UPDATE recordings SET overview_status='completed',overview_error=NULL WHERE id=?",
                 (recording_id,),
             )
     except Exception as error:
-        message = str(error) if isinstance(error, ConversationInsightError) else (
-            "会話要約を生成できませんでした。再試行してください。"
+        message = (
+            str(error)
+            if isinstance(error, ConversationInsightError)
+            else ("会話要約を生成できませんでした。再試行してください。")
         )
         with _connect(database) as connection:
             if run_id:
@@ -1527,10 +1654,21 @@ def extract_recording_insights(
     model: str = DEFAULT_INSIGHT_MODEL,
     *,
     generate_overview: bool = False,
+    correct_first: bool = False,
 ) -> None:
     with INSIGHT_ANALYSIS_LOCK:
         run_id: str | None = None
         try:
+            if correct_first and not corrections.ensure_corrected(
+                database,
+                recording_id,
+                schema_path,
+                codex_command,
+                model,
+            ):
+                raise ConversationInsightError(
+                    "文字起こしの補正を完了してから整理を再試行してください。"
+                )
             with _connect(database) as connection:
                 connection.execute("BEGIN IMMEDIATE")
                 recording = connection.execute(
@@ -1606,10 +1744,15 @@ def extract_recording_insights(
                 raw_items,
                 utterances,
                 datetime.now(UTC).isoformat(),
+                expected_input_hash=input_hash,
             )
             if generate_overview:
                 _extract_recording_overview(
-                    database, recording_id, schema_path, codex_command, model,
+                    database,
+                    recording_id,
+                    schema_path,
+                    codex_command,
+                    model,
                 )
         except Exception as error:
             message = str(error)[:500] or "Codexによる整理に失敗しました"

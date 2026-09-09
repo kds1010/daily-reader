@@ -30,7 +30,16 @@ def grounded_points(raw: list[dict], utterances: dict[str, dict], chunk_index: i
         points.append({
             "text": text.strip(), "chunk_index": chunk_index,
             "evidence": [{
-                "utterance_id": value, "quote": utterances[value]["text"],
+                "utterance_id": value,
+                "quote": utterances[value].get("raw_text", utterances[value]["text"]),
+                "corrected_quote": (
+                    utterances[value]["text"] if utterances[value].get(
+                        "raw_text", utterances[value]["text"]
+                    ) != utterances[value]["text"] else None
+                ),
+                "correction_revision_id": utterances[value].get("correction_revision_id"),
+                "correction_is_snapshot": bool(utterances[value].get("correction_revision_id")),
+                "correction_uncertain": bool(utterances[value].get("correction_uncertain")),
                 "speaker": utterances[value].get("speaker"),
                 "start_seconds": utterances[value].get("start_seconds"),
                 "end_seconds": utterances[value].get("end_seconds"),

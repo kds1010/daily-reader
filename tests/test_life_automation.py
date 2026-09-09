@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from daily_reader import conversation_correction_engine as correction_engine
 from daily_reader import conversations as conv
 from daily_reader import life_assistant as life
 from daily_reader import life_automation as auto
@@ -57,7 +58,8 @@ def extracted(db, monkeypatch, items, *, verified=True, name="recording"):
             for item in items
         ],
     )
-    conv.extract_recording_insights(db, record["id"], SCHEMA)
+    monkeypatch.setattr(correction_engine, "run_correction_passes", lambda *a, **kw: [])
+    conv.extract_recording_insights(db, record["id"], SCHEMA, correct_first=True)
     return record
 
 
@@ -442,7 +444,7 @@ def test_audio_reanalysis_keeps_adopted_entries_and_requires_review(db, worker, 
         auto.adopt(db, pending[0]["id"], {})
     with life.connect(db) as connection:
         assert connection.execute("SELECT count(*) FROM life_speaker_people").fetchone()[0] == 0
-    conv.extract_recording_insights(db, record["id"], SCHEMA)
+    conv.extract_recording_insights(db, record["id"], SCHEMA, correct_first=True)
     worker.step()
     worker.step()
     assert [entry["id"] for entry in life.snapshot(db)["entries"]] == [saved[0]["id"]]

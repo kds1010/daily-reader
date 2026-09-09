@@ -292,9 +292,14 @@ def test_reviewed_items_appear_in_counts_and_preview(record):
 
 
 def test_auto_extraction_queue_generates_overview_after_candidates(record, monkeypatch):
+    from daily_reader import conversation_correction_engine as engine
+
     database, item = record
     life_automation.settings(database)
     calls = []
+    monkeypatch.setattr(
+        engine, "run_correction_passes", lambda *a, **kw: calls.append("correction") or []
+    )
     monkeypatch.setattr(conv, "request_insights", lambda **_: calls.append("items") or [])
     monkeypatch.setattr(
         conv, "request_overview", lambda **kw: calls.append("overview") or fake_overview(**kw)
@@ -310,7 +315,7 @@ def test_auto_extraction_queue_generates_overview_after_candidates(record, monke
     monkeypatch.setattr(conv.threading, "Thread", ImmediateThread)
     worker = life_automation.AutomationWorker(database, SCHEMA, "unused", "unused")
     worker._queue_recording({"since": "2020-01-01T00:00:00+00:00"})
-    assert calls == ["items", "overview"]
+    assert calls == ["correction", "items", "overview"]
     assert conv.get_recording(database, item["id"])["overview"]["status"] == "ready"
 
 

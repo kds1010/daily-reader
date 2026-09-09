@@ -134,7 +134,41 @@ def _put_draft(
                 now_string(),
             ),
         )
+        previous = connection.execute(
+            "SELECT evidence FROM life_drafts WHERE id=? AND status='pending'",
+            (draft_id,),
+        ).fetchone()
+        if (
+            previous
+            and evidence.get("type") == "conversation"
+            and _correction_lineage(json.loads(previous["evidence"]))
+            != _correction_lineage(evidence)
+        ):
+            # Pending drafts have no persisted user edits; edits are applied only by adopt().
+            connection.execute(
+                "UPDATE life_drafts SET data=?,evidence=?,reason=?,automatic=? "
+                "WHERE id=? AND status='pending'",
+                (
+                    json.dumps(payload, ensure_ascii=False),
+                    json.dumps(evidence, ensure_ascii=False),
+                    reason,
+                    int(automatic),
+                    draft_id,
+                ),
+            )
     return draft_id
+
+
+def _correction_lineage(evidence):
+    return [
+        (
+            q.get("utterance_id"),
+            q.get("quote"),
+            q.get("corrected_quote"),
+            q.get("correction_revision_id"),
+        )
+        for q in evidence.get("quotes", [])
+    ]
 
 
 def adopt(database: Path, draft_id: str, changes: dict, *, automatic: bool = False) -> dict:
@@ -148,6 +182,14 @@ def adopt(database: Path, draft_id: str, changes: dict, *, automatic: bool = Fal
             if row["status"] != "pending":
                 raise ValueError("この候補は取り下げられています")
             payload, evidence = json.loads(row["data"]), json.loads(row["evidence"])
+        if evidence.get("type") == "conversation":
+            current = conversations.get_insight_item(database, evidence["item_id"])
+            if _correction_lineage(evidence) != _correction_lineage(
+                {"quotes": current["evidence"]}
+            ):
+                raise ValueError(
+                    "補正後に候補が更新されました。候補一覧を再読み込みして確認してください。"
+                )
         payload.update({key: value for key, value in changes.items() if key in EDITABLE})
         entry = create_entry(database, payload, automatic=automatic)
         with connect(database) as connection:
@@ -373,6 +415,7 @@ class AutomationWorker:
                 WHERE r.status='completed' AND julianday(r.created_at)>=julianday(?)
                 AND r.insight_status IN ('not_requested','failed')
                 AND r.overview_status NOT IN ('queued','extracting')
+                AND r.correction_status NOT IN ('queued','correcting','verifying')
                 AND r.transcription_needs_review=0
                 AND COALESCE(a.attempts,0)<3 ORDER BY r.created_at LIMIT 20""",
                 (policy["since"],),
@@ -431,15 +474,34 @@ class AutomationWorker:
                     "preference",
                 }:
                     continue
+                if item["correction_status"] != "completed":
+                    continue
                 payload, evidence, reason, automatic = _candidate(self.database, item)
+                with connect(self.database) as connection:
+                    if not conversations.corrections.automatic_allowed(connection, evidence):
+                        automatic = False
+                        reason = "\n".join(
+                            filter(
+                                None,
+                                [
+                                    reason,
+                                    "補正前の候補または不確かな発言を含みます。原文と補正文を確認してください。",
+                                ],
+                            )
+                        )
                 if payload["kind"] == "research" and not policy["research_enabled"]:
                     reason = "自動調査を停止中です。内容を確認して個別に開始できます。"
                 if item["transcription_needs_review"]:
                     automatic = False
-                    reason = "\n".join(filter(None, [
-                        reason,
-                        "再解析後の候補です。追加済みの用事・調査との重複を確認してください。",
-                    ]))
+                    reason = "\n".join(
+                        filter(
+                            None,
+                            [
+                                reason,
+                                "再解析後の候補です。追加済みの用事・調査との重複を確認してください。",
+                            ],
+                        )
+                    )
                 draft_id = _put_draft(
                     self.database,
                     f"conversation:{item['recording_id']}:{item['fingerprint']}",
