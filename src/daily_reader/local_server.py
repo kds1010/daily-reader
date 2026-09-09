@@ -11,12 +11,14 @@ import plistlib
 import select
 import shutil
 import signal
+import socket
 import sqlite3
 import stat
 import subprocess
 import threading
 import urllib.parse
 from collections import Counter
+from contextlib import suppress
 from datetime import UTC, datetime
 from datetime import date as calendar_date
 from http import HTTPStatus
@@ -29,6 +31,8 @@ from time import monotonic, sleep
 from daily_reader import (
     device_context,
     diary,
+    drive_imports,
+    drive_sync,
     life_assistant,
     life_automation,
     payment_history,
@@ -721,6 +725,10 @@ def make_handler(
         def log_request(self, code="-", size="-") -> None:
             # Never log a supplied filename, query, or other payment input.
             if urllib.parse.urlsplit(self.path).path.startswith(
+                "/api/conversations/drive-imports"
+            ):
+                self.log_message("Drive import API response %s", code)
+            elif urllib.parse.urlsplit(self.path).path.startswith(
                 "/api/conversations/soundcore-imports"
             ):
                 self.log_message("Soundcore import API response %s", code)
@@ -854,6 +862,30 @@ def make_handler(
         def do_GET(self) -> None:  # noqa: N802
             parsed_url = urllib.parse.urlsplit(self.path)
             path = parsed_url.path
+            if path == "/api/conversations/drive-imports" or path.startswith(
+                "/api/conversations/drive-imports/"
+            ):
+                if not self._soundcore_access_allowed():
+                    return
+                try:
+                    if path == "/api/conversations/drive-imports":
+                        query = dict(urllib.parse.parse_qsl(parsed_url.query))
+                        result = drive_imports.list_imports(
+                            conversations_db, limit=int(query.get("limit", "100")),
+                            offset=int(query.get("offset", "0")),
+                        )
+                    elif len(path.split("/")) == 5:
+                        result = drive_imports.get_import(conversations_db, path.rsplit("/", 1)[-1])
+                    else:
+                        raise KeyError("route")
+                    self._send_json(200, result)
+                except KeyError:
+                    self._send_json(404, {"error": "Drive取り込みが見つかりません"})
+                except (TypeError, ValueError):
+                    self._send_json(400, {"error": "Drive取り込みの取得条件が不正です"})
+                except (OSError, sqlite3.Error):
+                    self._send_json(503, {"error": "Drive取り込みの状態を取得できませんでした"})
+                return
             if path in {"/api/diary", "/api/diary/settings"}:
                 try:
                     if path.endswith("/settings"):
@@ -1167,8 +1199,84 @@ def make_handler(
                 return
             super().do_GET()
 
+        def _drive_import_post(self, path: str) -> None:
+            # An accepted duplicate does not consume the body; never reuse that socket.
+            self.close_connection = True
+            if not self._soundcore_access_allowed():
+                return
+            timer = None
+            connection = getattr(self, "connection", None)
+            original_timeout = None
+            try:
+                if self.headers.get("Transfer-Encoding"):
+                    raise ValueError("unsupported transfer encoding")
+                content_type = self.headers.get("Content-Type", "").split(";", 1)[0]
+                parts = path.split("/")
+                if len(parts) == 6 and parts[-1] == "audio":
+                    if content_type not in {*drive_imports.MIMES, "application/octet-stream"}:
+                        self._send_json(415, {"error": "OGGまたはMP3音声を送信してください"})
+                        return
+                    if not self.headers.get("Content-Length"):
+                        self._send_json(411, {"error": "Content-Lengthが必要です"})
+                        return
+                    length = int(self.headers["Content-Length"])
+                    if not 0 < length <= drive_imports.conversations.MAX_UPLOAD_BYTES:
+                        self._send_json(413, {"error": "音声サイズが上限を超えています"})
+                        return
+                    before = drive_imports.get_import(conversations_db, parts[-2])
+                    if connection is not None:
+                        original_timeout = connection.gettimeout()
+                        connection.settimeout(60)
+
+                        def abort_transfer():
+                            with suppress(OSError):
+                                connection.shutdown(socket.SHUT_RDWR)
+
+                        timer = threading.Timer(15 * 60, abort_transfer)
+                        timer.daemon = True
+                        timer.start()
+                    item = drive_imports.receive_audio(
+                        conversations_db, conversation_audio_dir, parts[-2], self.rfile, length,
+                    )
+                    self._send_json(200 if before["recording_id"] else 202, item)
+                elif path == "/api/conversations/drive-imports" or (
+                    len(parts) == 6 and parts[-1] == "retry"
+                ):
+                    if content_type != "application/json":
+                        self._send_json(415, {"error": "application/jsonが必要です"})
+                        return
+                    payload = self._read_json(max_length=8192)
+                    item = (
+                        drive_imports.retry(conversations_db, parts[-2])
+                        if parts[-1] == "retry"
+                        else drive_imports.enqueue(conversations_db, payload)
+                    )
+                    self._send_json(202, item)
+                else:
+                    self._send_json(404, {"error": "Drive取り込みが見つかりません"})
+            except drive_imports.ImportConflict as error:
+                self._send_json(409, {"error": str(error), "code": error.code})
+            except drive_imports.ImportQueueFull as error:
+                self._send_json(409, {"error": str(error), "code": "queue_full"})
+            except KeyError:
+                self._send_json(404, {"error": "Drive取り込みが見つかりません"})
+            except (ValueError, TypeError):
+                self._send_json(400, {"error": "Drive音声またはメタデータを検証できませんでした"})
+            except (OSError, sqlite3.Error, subprocess.SubprocessError):
+                self._send_json(503, {"error": drive_imports.FAILURE})
+            finally:
+                if timer is not None:
+                    timer.cancel()
+                    with suppress(OSError):
+                        connection.settimeout(original_timeout)
+
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path == "/api/conversations/drive-imports" or path.startswith(
+                "/api/conversations/drive-imports/"
+            ):
+                self._drive_import_post(path)
+                return
             if path == "/api/conversations/soundcore-imports" or (
                 path.startswith("/api/conversations/soundcore-imports/")
                 and path.endswith("/retry") and len(path.split("/")) == 6
@@ -2356,6 +2464,14 @@ def main() -> None:
     )
     soundcore_worker.start()
 
+    drive_worker = drive_imports.DriveImportWorker(
+        args.conversations_db, args.conversation_audio_dir, args.huggingface_token
+    )
+    drive_worker.start()
+    drive_sync_worker = drive_sync.DriveSyncWorker(
+        args.conversations_db.parent, args.gmail_client_secret, server_port=args.port,
+    )
+
     research_worker = ResearchWorker(
         args.conversations_db, _codex_executable(), args.conversation_insight_model
     )
@@ -2372,6 +2488,8 @@ def main() -> None:
 
     def stop_research(_signum, _frame):
         soundcore_worker.stop()
+        drive_worker.stop()
+        drive_sync_worker.stop()
         diary_worker.stop()
         automation_worker.stop()
         research_worker.stop()
@@ -2444,11 +2562,15 @@ def main() -> None:
     )
     LOGGER.info("Serving %s at http://%s:%d", args.site, args.host, args.port)
     try:
+        # The loopback API socket is listening before the first Drive sync starts.
+        drive_sync_worker.start()
         server.serve_forever()
     except KeyboardInterrupt:
         LOGGER.info("Stopping")
     finally:
         soundcore_worker.stop()
+        drive_worker.stop()
+        drive_sync_worker.stop()
         diary_worker.stop()
         automation_worker.stop()
         research_worker.stop()

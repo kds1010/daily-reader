@@ -7,6 +7,7 @@ import shutil
 import sqlite3
 import threading
 import uuid
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import BinaryIO
@@ -334,6 +335,11 @@ def _store_audio(
     *,
     cloud_metadata: dict[str, object] | None = None,
     cloud_import_id: str | None = None,
+    imported_date_source: str = "soundcore_cloud_timestamp",
+    import_checkpoint: Callable[[sqlite3.Connection, str, bool], None] | None = None,
+    audio_validator: Callable[[Path], None] | None = None,
+    expected_md5: str | None = None,
+    storage_id: str | None = None,
 ) -> dict[str, object]:
     if not 0 < length <= MAX_UPLOAD_BYTES:
         raise ValueError("invalid audio size")
@@ -342,7 +348,7 @@ def _store_audio(
     if extension not in ({".mp3", ".ogg"} if cloud else {".mp3"}):
         raise ValueError("only MP3 audio is supported")
     if cloud:
-        date_source = "soundcore_cloud_timestamp"
+        date_source = imported_date_source
         recorded_at = _validated_recording_date(recorded_at)
     else:
         date_source = "explicit" if recorded_at else "soundcore_filename_jst"
@@ -356,7 +362,8 @@ def _store_audio(
         raise OSError("録音を保存すると空き容量が5 GiB未満になります")
     audio_directory.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256()
-    recording_id = uuid.uuid4().hex
+    md5 = hashlib.md5(usedforsecurity=False)
+    recording_id = storage_id or uuid.uuid4().hex
     destination = audio_directory / recording_id / ("original" + extension)
     destination.parent.mkdir(mode=0o700)
     temporary = destination.with_suffix(".tmp")
@@ -371,7 +378,14 @@ def _store_audio(
                     raise ValueError("incomplete audio upload")
                 output.write(chunk)
                 digest.update(chunk)
+                md5.update(chunk)
                 remaining -= len(chunk)
+                if shutil.disk_usage(audio_directory).free < MINIMUM_FREE_BYTES:
+                    raise OSError("録音を保存すると空き容量が5 GiB未満になります")
+        if expected_md5 is not None and md5.hexdigest() != expected_md5:
+            raise ValueError("audio checksum mismatch")
+        if audio_validator is not None:
+            audio_validator(temporary)
         checksum = digest.hexdigest()
         with _connect(database) as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -386,6 +400,8 @@ def _store_audio(
                         "status='saved' WHERE id=?",
                         (existing["id"], cloud_import_id),
                     )
+                if import_checkpoint is not None:
+                    import_checkpoint(connection, existing["id"], False)
                 result = dict(existing)
                 result.pop("cloud_metadata", None)
                 result.pop("audio_path", None)
@@ -426,6 +442,8 @@ def _store_audio(
                     "status='saved' WHERE id=?",
                     (recording_id, cloud_import_id),
                 )
+            if import_checkpoint is not None:
+                import_checkpoint(connection, recording_id, True)
         committed = True
         return {**get_recording(database, recording_id), "upload_created": True}
     except Exception:
@@ -1042,7 +1060,9 @@ class AnalysisConflict(ValueError):
     """Another operation owns this recording."""
 
 
-def start_analysis(database: Path, recording_id: str, token_file: Path) -> bool:
+def start_analysis(
+    database: Path, recording_id: str, token_file: Path, *, initial_only: bool = False,
+) -> bool:
     with _connect(database) as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
@@ -1052,6 +1072,10 @@ def start_analysis(database: Path, recording_id: str, token_file: Path) -> bool:
             raise KeyError(recording_id)
         if row["source_type"] != "audio":
             raise ValueError("文字起こしテキストは音声解析できません")
+        # Import workers must recheck inside the claim transaction: a manual
+        # analysis can finish after their earlier status read.
+        if initial_only and row["status"] in {"analyzing", "completed"}:
+            return False
         if row["status"] == "analyzing" or row["insight_status"] in {"queued", "extracting"}:
             raise AnalysisConflict("この録音は処理中です。完了後に再試行してください。")
         # Uploads already have status=queued, so a separate reserved state is unnecessary:
