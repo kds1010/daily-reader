@@ -86,6 +86,18 @@ def test_old_topic_fragments_are_not_used_as_summary(record):
     assert summary["text"] is None and summary["source"] is None
 
 
+def test_empty_overview_is_completed_without_filling_from_greeting_fragments(tmp_path, monkeypatch):
+    database = tmp_path / "conversations.sqlite3"
+    text = "ご視聴ありがとうございました!".encode()
+    item = conv.store_transcript(database, io.BytesIO(text), len(text), "greeting.txt")
+    monkeypatch.setattr(conv, "request_overview", lambda **_: {"points": []})
+    conv.extract_recording_overview(database, item["id"], SCHEMA)
+    summary = conv.list_recordings(database)[0]["digest"]["summary"]
+    assert summary["status"] == "empty" and summary["generation_status"] == "completed"
+    assert summary["source"] == "codex" and summary["generated_at"]
+    assert summary["text"] is None and summary["points"] == []
+
+
 def test_failed_refresh_keeps_successful_summary_and_review_state(record, monkeypatch):
     database, item = record
     monkeypatch.setattr(conv, "request_overview", fake_overview)

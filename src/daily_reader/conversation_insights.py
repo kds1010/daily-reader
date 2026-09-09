@@ -9,7 +9,7 @@ from pathlib import Path
 DEFAULT_INSIGHT_MODEL = "gpt-5.6-luna"
 DEFAULT_INSIGHT_REASONING_EFFORT = "low"
 PROMPT_VERSION = "conversation-insights-codex-v4"
-OVERVIEW_PROMPT_VERSION = "conversation-overview-codex-v1"
+OVERVIEW_PROMPT_VERSION = "conversation-overview-codex-v2"
 MAX_CHUNK_CHARACTERS = 60_000
 
 OVERVIEW_INSTRUCTIONS = """Summarize the supplied Japanese conversation section in grounded,
@@ -22,6 +22,12 @@ useful points even when it contains no actionable tasks. Do not fill space: use 
 empty array if the transcript is too fragmentary. Every point must cite 1 to 8 exact supplied short
 evidence_utterance_ids (for example u0001). Never invent or rewrite an ID. Do not invent names,
 venues, facts or missing context. You see only this section, so do not imply it covers unseen parts.
+Include only content whose concrete subject and meaning can be recovered from the supplied text.
+Greetings, thanks for watching (such as ご視聴ありがとうございました), acknowledgements alone,
+and fragments with an unknown object or referent are not discussion points. Do not create a point
+merely to explain that something is unknown (such as 何かを調整したが、何かは不明).
+Omit that fragment instead of turning it into a generic recap. When no meaningful content remains,
+return points=[].
 Do not infer identity, preferences or sensitive traits. Preserve uncertainty, negation, completion
 and retraction. Recording time is not a deadline; when unknown never resolve dates using today.
 """
