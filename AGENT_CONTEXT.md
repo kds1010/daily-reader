@@ -425,6 +425,14 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - Soundcore Online Hubを閉じた間は新規テスト音声がDriveへ届かず、開いた直後に保存されたことを同日に確認した。この環境の観測であり、すべての構成に一般化しない。Soundcoreの認証復旧とMacのDrive認証は別に扱う。仕様・制限・運用手順は[Drive取り込み](docs/soundcore-drive-sync.md)を参照する。
 - 同日の実取り込みで8件すべてのサイズ・MD5・SHA256・録音日時・取得元情報を照合し、再同期は新規0件・登録済み8件・失敗0件で重複を作らなかった。専用サービスアカウントでも対象フォルダーの読み取り・編集不可と代表音声1件のサイズ・MD5・SHA256一致を確認した。`status`の`auth_type`で認証方式を区別し、サービスアカウントの`authorized`/`credential_private`は鍵の属性だけを調べるため、実接続成功や音声解析完了の根拠にしない。
 
+## 音声取り込みの認証通知
+
+- Soundcoreのログイン・本人確認・Drive連携再認証と、MacのDrive取得で確認した認証・鍵・権限の失敗を、`data/connection-alerts.sqlite3`へ0600で保持する。providerは`soundcore`と`google_drive`だけで、固定の通知文を返す。自由文、録音名、メールアドレス、秘密鍵やトークンは通知へ含めない。
+- `GET /api/connection-alerts`と既存`GET /api/agent-notifications`の`connection_alerts`で現在の認証通知を取得する。同じ障害は同じID、正常復帰で解消、再発は別IDとする。通常の通信失敗や取得件数不変を認証切れにせず、Soundcoreの一時的な確認失敗で既存auth通知を消さない。
+- Soundcoreの既存Codex接続監視は、実際のUI確認結果だけをloopback専用の`POST /api/connection-health/soundcore`へ報告する。`connected`、固定reason付き`authentication_required`、`unavailable`だけを受け付け、既存Host/Origin検査も維持する。Drive workerの通知記録とは分離する。通知のために実アカウントを意図的に失効させない。
+- iPhone/macOSのローカル通知はAgent通知とは独立して重複を抑え、初回取得時の未解決認証も対象とする。通知未許可・登録失敗・キャンセルでは通知済みにせず次回へ残す。前景の専用更新とiOSのバックグラウンド更新から取得し、通知タップで会話の接続確認画面を開く。
+- APNsではないため、アプリ強制終了や通信不可の間の即時通知、15分間隔の到着は保証しない。OSの通知許可とiPhoneのTailscale接続が必要で、アプリ内表示は通知許可と独立する。仕様・運用・公式根拠は[認証通知](docs/connection-alerts.md)を参照する。共有Swiftとサーバーの変更はWeb再起動と両OS配布物の再生成・配信検証が必要で、iPhoneへのインストール・通知許可は独立した実機工程とする。
+
 ## 音声認識の精度と再解析
 
 - `conversation_transcription.py`がfaster-whisperのlarge-v3-turbo（既定）、CPU int8、日本語、VAD既定で認識する。`DAYMELD_WHISPER_MODEL`の既存指定を優先する。前文引き継ぎを無効にして反復ループを抑えるが、窓間の表記不一致は起こり得る。モデル・設定版・時間・VAD通過・品質診断を`transcription_metadata`に保存し、avg_logprobを正解率とは表示しない。原音はMac外へ送らない。

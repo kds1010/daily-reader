@@ -23,6 +23,8 @@ data/drive-sync.lock
 data/drive-sync.sqlite3
 data/drive-sync.sqlite3-*
 data/drive-sync-staging/
+data/connection-alerts.sqlite3
+data/connection-alerts.sqlite3-*
 site/data/articles.json
 site/data/highlights.json
 secrets/
