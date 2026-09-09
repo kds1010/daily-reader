@@ -1,0 +1,20 @@
+{
+  "type": "object", "additionalProperties": false,
+  "required": ["corrections", "uncertain_utterance_ids"],
+  "properties": {
+    "corrections": {
+      "type": "array", "maxItems": 200,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["utterance_id", "corrected_text", "kind", "context_ids"],
+        "properties": {
+          "utterance_id": {"type": "string"},
+          "corrected_text": {"type": "string", "minLength": 1, "maxLength": 4000},
+          "kind": {"type": "string", "enum": ["punctuation", "notation", "grammar", "recognition"]},
+          "context_ids": {"type": "array", "maxItems": 8, "items": {"type": "string"}}
+        }
+      }
+    },
+    "uncertain_utterance_ids": {"type": "array", "maxItems": 200, "items": {"type": "string"}}
+  }
+}

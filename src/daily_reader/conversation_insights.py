@@ -156,19 +156,39 @@ def _request(
     reasoning_effort: str = DEFAULT_INSIGHT_REASONING_EFFORT,
     timeout: float = 300,
     developer_instructions: str = DEVELOPER_INSTRUCTIONS,
+    context_payload: dict[str, object] | None = None,
 ) -> dict[str, object]:
     if not codex_available(codex_command):
         raise ConversationInsightError("Codex CLIへChatGPTアカウントでログインしてください")
     # Short IDs are scoped to this request; model output never becomes a guessed DB identifier.
     aliases = {f"u{index:04d}": str(row["id"]) for index, row in enumerate(utterances, 1)}
     compact = [
-        {**row, "id": short_id} for short_id, row in zip(aliases, utterances, strict=True)
+        {**{key: row[key] for key in (
+            "text", "raw_text", "start_seconds", "end_seconds", "speaker", "part", "parts",
+            "correction_uncertain",
+        ) if key in row}, "id": short_id}
+        for short_id, row in zip(aliases, utterances, strict=True)
     ]
+    extra = {}
+    if context_payload is not None:
+        reverse = {value: key for key, value in aliases.items()}
+        extra = {
+            "reference_context": [{
+                "id": entry["id"], "text": entry["text"],
+                "target_speakers": entry["target_speakers"],
+            } for entry in context_payload.get("reference_context", [])],
+            "target_utterance_ids": [reverse[value] for value in context_payload["target_ids"]],
+            "proposals": [{
+                "utterance_id": reverse[entry["utterance_id"]],
+                "corrected_text": entry["corrected_text"],
+            } for entry in context_payload.get("proposals", [])],
+        }
     input_payload = json.dumps(
         {
             "recorded_at": recorded_at,
             "timezone": timezone,
             "utterances": compact,
+            **extra,
         },
         ensure_ascii=False,
     )
@@ -235,6 +255,22 @@ def _request(
         ):
             raise ConversationInsightError("Codexの根拠発話が不正です")
         entry["evidence_utterance_ids"] = [aliases[value] for value in ids]
+    for key in ("corrections", "verdicts"):
+        if key not in result:
+            continue
+        entries = result[key]
+        if not isinstance(entries, list):
+            raise ConversationInsightError("Codexの補正結果が不正です")
+        for entry in entries:
+            value = entry.get("utterance_id") if isinstance(entry, dict) else None
+            if not isinstance(value, str) or value not in aliases:
+                raise ConversationInsightError("Codexの補正発話IDが不正です")
+            entry["utterance_id"] = aliases[value]
+    if "uncertain_utterance_ids" in result:
+        ids = result["uncertain_utterance_ids"]
+        if not isinstance(ids, list) or not all(isinstance(v, str) and v in aliases for v in ids):
+            raise ConversationInsightError("Codexの補正発話IDが不正です")
+        result["uncertain_utterance_ids"] = [aliases[value] for value in ids]
     return result
 
 
