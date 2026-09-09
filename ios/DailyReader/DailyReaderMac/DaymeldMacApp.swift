@@ -7,12 +7,13 @@ extension Notification.Name {
     static let openAgentFromNotification = Notification.Name("Daymeld.openAgentFromNotification")
 }
 
+@MainActor
 final class DaymeldMacAppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         UNUserNotificationCenter.current().delegate = self
     }
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
@@ -20,14 +21,21 @@ final class DaymeldMacAppDelegate: NSObject, NSApplicationDelegate, UNUserNotifi
         completionHandler([.banner, .list, .sound])
     }
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        let connectionID = response.notification.request.content.userInfo["connection_alert_id"] as? String
         let life = response.notification.request.content.userInfo["life_entry_id"] as? String
-        NotificationCenter.default.post(name: life == nil ? .openAgentFromNotification : .openLifeFromNotification, object: life)
-        completionHandler()
+        Task { @MainActor in
+            if let connectionID, !connectionID.isEmpty {
+                ConnectionAlerts.shared.open(alertID: connectionID)
+            } else {
+                NotificationCenter.default.post(name: life == nil ? .openAgentFromNotification : .openLifeFromNotification, object: life)
+            }
+            completionHandler()
+        }
     }
 }
 

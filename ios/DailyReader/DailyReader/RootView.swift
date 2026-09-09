@@ -107,6 +107,7 @@ struct DaymeldRootPreview: PreviewProvider {
 #endif
 
 struct RootView: View {
+    @ObservedObject private var connections = ConnectionAlerts.shared
     @ObservedObject private var conversationImports = ConversationImports.shared
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
@@ -125,6 +126,21 @@ struct RootView: View {
             NavigationStack { SettingsView() }.tabItem { Label("設定", systemImage: "gearshape") }.tag(6)
         }
         .tint(.mint)
+        .sheet(item: $connections.destination) { destination in
+            ConnectionAlertsView(connections: connections, selectedAlertID: destination.alertID, isFixture: model.isFixture)
+        }
+        .onReceive(connections.$destination) { destination in
+            if destination != nil { model.selectedTab = 4 }
+        }
+        .task(id: scenePhase) {
+            guard scenePhase == .active, !model.isFixture else { return }
+            // Separate from Agent polling: a slow connection check never delays
+            // task display, and resumes immediately when the app becomes active.
+            while !Task.isCancelled {
+                await connections.refresh()
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
+            }
+        }
         .alert("接続できませんでした", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {
             Button("閉じる", role: .cancel) {}
         } message: { Text(model.errorMessage ?? "") }
@@ -189,7 +205,86 @@ struct RootView: View {
     }
 }
 
+private struct ConnectionAlertsView: View {
+    @ObservedObject var connections: ConnectionAlerts
+    let selectedAlertID: String?
+    let isFixture: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("認証・接続の確認") {
+                    if let error = connections.loadError {
+                        Text(error).foregroundStyle(.orange)
+                    }
+                    if connections.alerts.isEmpty {
+                        if connections.hasLoaded {
+                            Text(connections.loadError == nil ? "現在、対応が必要な接続アラートはありません。" : "前回の確認時には、対応が必要な接続アラートはありませんでした。")
+                                .foregroundStyle(.secondary)
+                        } else if connections.loadError == nil {
+                            ProgressView("接続状況を確認しています。")
+                        }
+                    }
+                    ForEach(connections.alerts.sorted { ($0.id == selectedAlertID ? 0 : 1) < ($1.id == selectedAlertID ? 0 : 1) }) { alert in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label(alert.providerName, systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange).appFont(.caption)
+                            Text(verbatim: alert.title).appFont(.headline)
+                            Text(verbatim: alert.message)
+                            Text(alert.guidance).appFont(.subheadline).foregroundStyle(.secondary)
+                        }.padding(.vertical, 4)
+                    }
+                    Button("接続状況を再確認") { Task { await connections.refresh() } }
+                        .disabled(isFixture)
+                }
+                Section("この端末への通知") {
+                    Text(permissionDescription)
+                    if let error = connections.deliveryError { Text(error).foregroundStyle(.orange) }
+                    if connections.notificationPermission == .notDetermined {
+                        Button("通知を許可する") { Task { await connections.requestPermission() } }
+                            .disabled(isFixture)
+                    }
+                    #if os(iOS)
+                    Button("iPhoneの通知設定を開く") {
+                        guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
+                        UIApplication.shared.open(url)
+                    }.disabled(isFixture)
+                    Text("アプリを開いた時と、iOSが許可するバックグラウンド更新時に確認します。閉じている間や強制終了中に、すぐ届くことは保証されません。Mac miniへの接続も必要です。")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                    #else
+                    Text("表示方法はシステム設定 → 通知 → Daymeldで変更できます。アプリを開いて更新した時に確認するため、終了中の即時通知はありません。Mac miniへの接続も必要です。")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                    #endif
+                    Text("同じ障害は一度だけ通知し、復旧後に再発した場合は再び通知します。通知が許可されていなくても、この一覧で確認できます。")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("接続と通知")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("閉じる") { dismiss() } } }
+            .task {
+                guard !isFixture else { return }
+                await connections.refreshPermission()
+                await connections.refresh()
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 520, minHeight: 480)
+        #endif
+    }
+
+    private var permissionDescription: String {
+        switch connections.notificationPermission {
+        case .allowed: return "通知はOSで許可されています。表示方法は端末の設定に従います。"
+        case .denied: return "通知は許可されていません。端末の設定から変更できます。"
+        case .notDetermined: return "通知の許可がまだ設定されていません。"
+        case .unknown: return "通知の許可状態を確認しています。"
+        }
+    }
+}
+
 struct ConversationsView: View {
+    @ObservedObject private var connections = ConnectionAlerts.shared
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var imports = ConversationImports.shared
@@ -212,6 +307,13 @@ struct ConversationsView: View {
 
     var body: some View {
         List {
+            Section {
+                Button { connections.open() } label: {
+                    Label(connections.alerts.isEmpty ? "接続と通知を確認" : "接続の確認が必要（\(connections.alerts.count)件）",
+                          systemImage: connections.alerts.isEmpty ? "bell.badge" : "exclamationmark.triangle")
+                        .foregroundStyle(connections.alerts.isEmpty ? Color.primary : Color.orange)
+                }
+            }
             SoundcoreImportSection(imports: soundcore, isFixture: model.isFixture)
             Section {
                 Button { importing = true } label: {

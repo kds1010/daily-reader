@@ -171,6 +171,48 @@ struct AgentEnvelope: Decodable {
 
 struct AgentNotificationEnvelope: Decodable {
     let jobs: [AgentJob]
+    let connectionAlerts: [ConnectionAlert]?
+
+    enum CodingKeys: String, CodingKey {
+        case jobs
+        case connectionAlerts = "connection_alerts"
+    }
+}
+
+struct ConnectionAlertEnvelope: Decodable {
+    let alerts: [ConnectionAlert]
+}
+
+struct ConnectionAlert: Decodable, Identifiable, Equatable {
+    let id: String
+    let provider: String
+    let title: String
+    let message: String
+    let occurredAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, provider, title, message
+        case occurredAt = "occurred_at"
+    }
+
+    var providerName: String {
+        switch provider {
+        case "soundcore": return "Soundcore"
+        case "google_drive": return "Google Drive"
+        default: return "外部サービス"
+        }
+    }
+
+    var guidance: String {
+        switch provider {
+        case "soundcore":
+            return "SoundcoreアプリまたはOnline HubでログインとGoogle Driveへの同期設定を確認してください。"
+        case "google_drive":
+            return "Mac miniのDrive接続と、SoundCoreフォルダーの共有権限を確認してください。サービスアカウント利用時は、鍵や共有設定の確認が必要な場合があります。"
+        default:
+            return "Mac miniで接続状況を確認してください。"
+        }
+    }
 }
 
 struct AgentModelOption: Decodable, Identifiable, Hashable {

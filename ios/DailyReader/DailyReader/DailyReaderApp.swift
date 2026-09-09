@@ -108,6 +108,10 @@ final class DailyReaderAppDelegate: NSObject, UIApplicationDelegate, UNUserNotif
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        if ConnectionAlerts.shared.handleNotification(userInfo: response.notification.request.content.userInfo) {
+            completionHandler()
+            return
+        }
         let life = response.notification.request.content.userInfo["life_entry_id"] as? String
         NotificationCenter.default.post(name: life == nil ? .openAgentFromNotification : .openLifeFromNotification, object: life)
         completionHandler()

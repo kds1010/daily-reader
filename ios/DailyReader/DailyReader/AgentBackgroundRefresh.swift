@@ -28,8 +28,12 @@ enum AgentBackgroundRefresh {
         let operation = Task { @MainActor in
             var success = false
             defer { task.setTaskCompleted(success: success) }
+            let connectionGeneration = ConnectionAlerts.shared.beginSnapshot()
+            var receivedConnectionSnapshot = false
             do {
                 let envelope: AgentNotificationEnvelope = try await APIClient.shared.get("/api/agent-notifications")
+                receivedConnectionSnapshot = true
+                await ConnectionAlerts.shared.accept(envelope.connectionAlerts, generation: connectionGeneration)
                 for job in AgentNotificationCoordinator.shared.changedJobs(active: envelope.jobs, archived: []) {
                     await AgentNotificationCoordinator.shared.schedule(for: job)
                 }
@@ -39,6 +43,7 @@ enum AgentBackgroundRefresh {
                 _ = await LifeCalendar.shared.synchronize(life.entries)
                 success = !Task.isCancelled
             } catch {
+                if !receivedConnectionSnapshot { ConnectionAlerts.shared.failed(generation: connectionGeneration) }
                 NSLog("Daymeld background refresh failed: %@", error.localizedDescription)
             }
         }
