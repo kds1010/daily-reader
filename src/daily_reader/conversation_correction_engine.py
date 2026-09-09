@@ -5,13 +5,14 @@ from __future__ import annotations
 import difflib
 import json
 import re
+import tempfile
 import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 
 from daily_reader.conversation_insights import ConversationInsightError, _request
 
-VERSION = "conversation-correction-v1"
+VERSION = "conversation-correction-v2"
 MAX_UTTERANCE_CHARACTERS = 4000
 MAX_REQUEST_CHARACTERS = 24000
 MAX_TARGETS = 200
@@ -189,6 +190,45 @@ def _chunks(utterances: list[dict]) -> list[list[dict]]:
     return groups
 
 
+def _scoped_request(
+    *, schema_path: Path, utterances: list[dict], context_payload: dict, **kwargs
+) -> dict:
+    """Constrain model output to this request's exact IDs, including empty history.
+
+    The temporary schema contains short IDs and structural constraints, never
+    speech, historical text, source recording IDs, filenames, or coordinates.
+    Runtime validation remains mandatory even with a constrained output schema.
+    """
+    aliases = {row["id"]: f"u{index:04d}" for index, row in enumerate(utterances, 1)}
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        properties = schema["properties"]
+        if "corrections" in properties:
+            allowed = [aliases[value] for value in context_payload["target_ids"]]
+            item = properties["corrections"]["items"]["properties"]
+            item["utterance_id"]["enum"] = allowed
+            properties["uncertain_utterance_ids"]["items"]["enum"] = allowed
+            historical = [row["id"] for row in context_payload["reference_context"]]
+            if historical:
+                item["context_ids"]["items"]["enum"] = historical
+            else:
+                item["context_ids"]["maxItems"] = 0
+        else:
+            allowed = [aliases[row["utterance_id"]] for row in context_payload["proposals"]]
+            properties["verdicts"]["items"]["properties"]["utterance_id"]["enum"] = allowed
+            properties["verdicts"]["minItems"] = len(allowed)
+            properties["verdicts"]["maxItems"] = len(allowed)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise ConversationInsightError("補正の出力制約を読み取れません") from error
+    with tempfile.TemporaryDirectory(prefix="daymeld-correction-schema-") as temporary:
+        path = Path(temporary) / "schema.json"
+        path.write_text(json.dumps(schema, ensure_ascii=False), encoding="utf-8")
+        path.chmod(0o600)
+        return _request(
+            schema_path=path, utterances=utterances, context_payload=context_payload, **kwargs
+        )
+
+
 def run_correction_passes(
     utterances: list[dict],
     contexts: list[dict],
@@ -250,7 +290,7 @@ def run_correction_passes(
         }
         if on_stage:
             on_stage("correcting")
-        proposals = _request(
+        proposals = _scoped_request(
             **common,
             schema_path=schema_directory / "conversation-correction-schema.json",
             developer_instructions=CORRECTION_INSTRUCTIONS,
@@ -302,7 +342,7 @@ def run_correction_passes(
             continue
         if on_stage:
             on_stage("verifying")
-        checked = _request(
+        checked = _scoped_request(
             **common,
             schema_path=schema_directory / "conversation-correction-verification-schema.json",
             developer_instructions=VERIFICATION_INSTRUCTIONS,

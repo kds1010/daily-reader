@@ -269,6 +269,74 @@ def test_historical_hint_requires_matching_target_speaker(monkeypatch):
         )
 
 
+@pytest.mark.parametrize(
+    "history", [[], [{"id": "c001", "text": "reference", "target_speakers": ["speaker"]}]]
+)
+def test_output_schema_excludes_neighbor_ids_and_disallows_unavailable_history(
+    monkeypatch, history
+):
+    seen = []
+
+    def request(**kwargs):
+        schema = json.loads(kwargs["schema_path"].read_text())
+        seen.append(schema)
+        return {}
+
+    monkeypatch.setattr(engine, "_request", request)
+    rows = [utterance("neighbor"), utterance("target")]
+    payload = {"target_ids": ["target"], "reference_context": history}
+    engine._scoped_request(
+        schema_path=Path("config/conversation-correction-schema.json"),
+        utterances=rows,
+        context_payload=payload,
+    )
+    properties = seen[0]["properties"]
+    item = properties["corrections"]["items"]["properties"]
+    assert item["utterance_id"]["enum"] == ["u0002"]
+    assert properties["uncertain_utterance_ids"]["items"]["enum"] == ["u0002"]
+    if history:
+        assert item["context_ids"]["items"]["enum"] == ["c001"]
+    else:
+        assert item["context_ids"]["maxItems"] == 0
+    engine._scoped_request(
+        schema_path=Path("config/conversation-correction-verification-schema.json"),
+        utterances=rows,
+        context_payload={**payload, "proposals": [proposal("target")]},
+    )
+    verdicts = seen[1]["properties"]["verdicts"]
+    assert verdicts["items"]["properties"]["utterance_id"]["enum"] == ["u0002"]
+    assert verdicts["minItems"] == verdicts["maxItems"] == 1
+
+
+def test_scoped_schema_and_transport_use_same_aliases(monkeypatch):
+    monkeypatch.setattr(insights, "codex_available", lambda _: True)
+
+    def fake_run(command, **kwargs):
+        body = json.loads(kwargs["input"])
+        schema_path = Path(command[command.index("--output-schema") + 1])
+        schema = json.loads(schema_path.read_text())
+        assert [row["id"] for row in body["utterances"]] == ["u0001", "u0002"]
+        assert body["target_utterance_ids"] == ["u0002"]
+        allowed = schema["properties"]["corrections"]["items"]["properties"]
+        assert allowed["utterance_id"]["enum"] == body["target_utterance_ids"]
+        assert allowed["context_ids"]["maxItems"] == 0
+        output = {"corrections": [proposal("u0002", text="資料。")], "uncertain_utterance_ids": []}
+        Path(command[command.index("--output-last-message") + 1]).write_text(json.dumps(output))
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(insights.subprocess, "run", fake_run)
+    result = engine._scoped_request(
+        codex_command="unused",
+        model="unused",
+        schema_path=Path("config/conversation-correction-schema.json"),
+        recorded_at=None,
+        timezone="Asia/Tokyo",
+        utterances=[utterance("neighbor"), utterance("target", text="資料")],
+        context_payload={"reference_context": [], "target_ids": ["target"]},
+    )
+    assert result["corrections"][0]["utterance_id"] == "target"
+
+
 def test_correction_transport_sends_only_allowed_fields_and_restores_ids(monkeypatch, tmp_path):
     monkeypatch.setattr(insights, "codex_available", lambda _: True)
 
