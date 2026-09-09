@@ -676,7 +676,7 @@ struct ConversationDetailView: View {
                 Section("話したこと") {
                     Text(recording.displayDate).appFont(.headline)
                     ConversationSummaryContent(recording: recording)
-                    Button(recording.summaryText != nil ? "要約を更新" : "要約を作成") {
+                    Button(recording.summaryText != nil ? "最新の要約を確認" : "要約を作成") {
                         Task {
                             guard !overviewInFlight else { return }
                             overviewInFlight = true
@@ -685,7 +685,7 @@ struct ConversationDetailView: View {
                         }
                     }
                     .disabled(model.isFixture || overviewInFlight || recording.status != "completed" || recording.isSummaryProcessing || ["queued", "extracting"].contains(recording.insightStatus ?? ""))
-                    Text("要約だけを作成・更新します。抽出済みの候補や追加済みの用事は変更しません。この録音の文字起こしをCodexへ渡し、原音・GPSは送りません。")
+                    Text("要約だけを作成・更新します。本文が変わっていなければ保存済み要約を表示します。抽出済みの候補や追加済みの用事は変更しません。この録音の文字起こしをCodexへ渡し、原音・GPSは送りません。")
                         .appFont(.caption).foregroundStyle(.secondary)
                 }
                 Section("抽出された内容") {
