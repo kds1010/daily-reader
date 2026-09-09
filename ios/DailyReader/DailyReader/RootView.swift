@@ -341,16 +341,8 @@ struct ConversationsView: View {
                     Button("録音を取り込む") { showsImport = true }
                 }
                 ForEach(recordings) { recording in
-                    VStack(alignment: .leading, spacing: 10) {
-                        NavigationLink { ConversationDetailView(recordingID: recording.id) } label: {
-                            ConversationOverviewCard(recording: recording)
-                        }
-                        if let location = recording.startLocationContext, location.location != nil {
-                            NavigationLink { ConversationLocationMap(links: [location]) } label: {
-                                Label("この会話の推定場所", systemImage: "mappin.and.ellipse")
-                                    .appFont(.caption)
-                            }
-                        }
+                    NavigationLink { ConversationDetailView(recordingID: recording.id) } label: {
+                        ConversationOverviewCard(recording: recording)
                     }.padding(.vertical, 5)
                 }
             }
@@ -868,15 +860,14 @@ private struct ConversationSummaryContent: View {
             }
             if summary.points.isEmpty, let text = recording.summaryText { Text(verbatim: text) }
             ForEach(Array(summary.points.enumerated()), id: \.offset) { _, point in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(verbatim: point.text)
-                    DisclosureGroup("この要点の根拠（\(point.evidence.count)件）") {
-                        ForEach(Array(point.evidence.enumerated()), id: \.offset) { index, evidence in
-                            ConversationEvidenceQuote(recording: recording, utteranceID: evidence.utteranceID,
-                                                      quote: evidence.quote, speaker: evidence.speaker,
-                                                      startSeconds: evidence.startSeconds, position: index)
-                        }
-                    }.appFont(.caption)
+                NavigationLink {
+                    ConversationSummaryEvidenceView(recording: recording, point: point)
+                } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(verbatim: point.text)
+                        Label("この要点の根拠（\(point.evidence.count)件）", systemImage: "text.quote")
+                            .appFont(.caption)
+                    }
                 }.padding(.vertical, 4)
             }
         } else {
@@ -885,6 +876,25 @@ private struct ConversationSummaryContent: View {
         ForEach(recording.summary?.qualityWarnings ?? [], id: \.self) { warning in
             Text(warning).appFont(.caption).foregroundStyle(.orange)
         }
+    }
+}
+
+private struct ConversationSummaryEvidenceView: View {
+    let recording: ConversationRecording
+    let point: ConversationSummaryPoint
+    var body: some View {
+        List {
+            Section("要点") {
+                Text(verbatim: point.text)
+            }
+            Section("この要点の根拠（\(point.evidence.count)件）") {
+                ForEach(Array(point.evidence.enumerated()), id: \.offset) { index, evidence in
+                    ConversationEvidenceQuote(recording: recording, utteranceID: evidence.utteranceID,
+                                              quote: evidence.quote, speaker: evidence.speaker,
+                                              startSeconds: evidence.startSeconds, position: index)
+                }
+            }
+        }.navigationTitle("要点の根拠")
     }
 }
 
