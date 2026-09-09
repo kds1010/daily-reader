@@ -65,6 +65,9 @@ _TIME = re.compile(
 )
 _QUOTATION = re.compile(r"[「」『』“”\"'？?]")
 _REFERENCE = re.compile(r"これ|それ|あれ|この|その|あの|どれ|どの|何か|誰か")
+_REPETITION_RISK = re.compile(
+    r"ない|なく|なかっ|ません|ぬ|ず|不要|必要|もし|なら|たら|れば|場合|のに|かも|未"
+)
 _LEXEME = re.compile(r"[A-Za-z][A-Za-z0-9_+#.-]*|[ァ-ヺー]{2,}|[一-龯]{2,}")
 
 
@@ -134,7 +137,11 @@ def change_guard(original: str, proposed: str, supporting_texts: list[str]) -> s
 
     if without_punctuation(before) == without_punctuation(after):
         return None
-    repeated = re.sub(r"(.{4,40}?)\1+", r"\1", before)
+    repeated = re.sub(
+        r"(.{4,40}?)\1+",
+        lambda match: match[0] if _REPETITION_RISK.search(match[1]) else match[1],
+        before,
+    )
     if repeated != before and without_punctuation(repeated) == without_punctuation(after):
         return None
     if _MEANING.findall(before) != _MEANING.findall(after):

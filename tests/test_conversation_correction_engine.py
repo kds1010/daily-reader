@@ -153,6 +153,14 @@ def test_guard_allows_local_compound_abbreviation_and_exact_adjacent_repetition(
     assert engine.change_guard("資料", "資料" + "。" * 100, []) == "large_change"
 
 
+@pytest.mark.parametrize("prefix", ["できない", "必要ない"])
+def test_repetition_cleanup_does_not_remove_nested_negation(prefix):
+    assert (
+        engine.change_guard(prefix + "わけではないわけではない", prefix + "わけではない", [])
+        == "protected_meaning"
+    )
+
+
 @pytest.mark.parametrize(
     ("before", "after"),
     [
