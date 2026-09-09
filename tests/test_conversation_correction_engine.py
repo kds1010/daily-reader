@@ -135,6 +135,24 @@ def test_punctuation_before_name_does_not_change_identity():
     )
 
 
+def test_guard_allows_local_compound_abbreviation_and_exact_adjacent_repetition():
+    assert (
+        engine.change_guard(
+            "プロリックレビューの手順を確認します。",
+            "プルリクレビューの手順を確認します。",
+            ["プルリクエストのレビューについて話します。"],
+        )
+        is None
+    )
+    assert (
+        engine.change_guard(
+            "データ品質を確認しました確認しました。", "データ品質を確認しました。", []
+        )
+        is None
+    )
+    assert engine.change_guard("資料", "資料" + "。" * 100, []) == "large_change"
+
+
 @pytest.mark.parametrize(
     ("before", "after"),
     [

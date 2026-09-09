@@ -80,6 +80,14 @@ def _supported_term(term: str, support: str) -> bool:
     if not re.fullmatch(r"[ァ-ヺー]+", term):
         return False
     words = set(re.findall(r"[ァ-ヺー]{2,}", support))
+    # A long, contiguous prefix can form the shortened first part of a compound
+    # (プルリクエスト + レビュー → プルリクレビュー). The independent verifier
+    # still decides whether that reading fits; arbitrary suffixes are not added.
+    words |= {
+        word[:size]
+        for word in list(words)
+        for size in range(max(4, (len(word) + 1) // 2), len(word))
+    }
     reachable = {0}
     for index in range(len(term)):
         if index in reachable:
@@ -104,20 +112,6 @@ def change_guard(original: str, proposed: str, supporting_texts: list[str]) -> s
         return "protected_meaning"
     if _REFERENCE.findall(before) != _REFERENCE.findall(after):
         return "protected_meaning"
-
-    def without_punctuation(text):
-        return "".join(
-            char
-            for char in text
-            if not unicodedata.category(char).startswith("P") and not char.isspace()
-        )
-
-    if without_punctuation(before) == without_punctuation(after):
-        return None
-    if _MEANING.findall(before) != _MEANING.findall(after):
-        return "protected_meaning"
-    if _NAME.findall(before) != _NAME.findall(after):
-        return "protected_name"
     if not after.strip():
         return "unsupported_change"
     edits = [
@@ -130,6 +124,23 @@ def change_guard(original: str, proposed: str, supporting_texts: list[str]) -> s
         8, len(before) * 0.2
     ):
         return "large_change"
+
+    def without_punctuation(text):
+        return "".join(
+            char
+            for char in text
+            if not unicodedata.category(char).startswith("P") and not char.isspace()
+        )
+
+    if without_punctuation(before) == without_punctuation(after):
+        return None
+    repeated = re.sub(r"(.{4,40}?)\1+", r"\1", before)
+    if repeated != before and without_punctuation(repeated) == without_punctuation(after):
+        return None
+    if _MEANING.findall(before) != _MEANING.findall(after):
+        return "protected_meaning"
+    if _NAME.findall(before) != _NAME.findall(after):
+        return "protected_name"
     # New content words need support in the source or its supplied context. This
     # deliberately holds corrections which are plausible but not locally grounded.
     support = "\n".join(_normalized(text).casefold() for text in [original, *supporting_texts])
