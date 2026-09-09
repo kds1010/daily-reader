@@ -136,8 +136,10 @@ def _public(row) -> dict:
 
 
 def _has_capacity(connection) -> None:
+    # Discovery metadata owns no audio or analysis resources. A client crash
+    # before sending bytes must not consume every processing slot forever.
     if connection.execute(
-        "SELECT COUNT(*) FROM drive_imports WHERE status IN ('pending','receiving','saved')"
+        "SELECT COUNT(*) FROM drive_imports WHERE status IN ('receiving','saved')"
     ).fetchone()[0] >= MAX_PENDING:
         raise ImportQueueFull("Drive取り込み待ちは10件までです。完了後に追加してください。")
 
@@ -163,7 +165,6 @@ def enqueue(database: Path, payload: object) -> dict:
                 conflict = True
             result = _public(row)
         else:
-            _has_capacity(connection)
             job_id = uuid.uuid4().hex
             connection.execute(
                 "INSERT INTO drive_imports "
@@ -282,6 +283,7 @@ def receive_audio(
                 raise ValueError("audio length differs from Drive metadata")
             if row["recording_id"]:
                 return _public(row)
+            _has_capacity(connection)
             connection.execute(
                 "UPDATE drive_imports SET status='receiving',upload_attempts=upload_attempts+1,"
                 "error=NULL,updated_at=? WHERE id=?", (datetime.now(UTC).isoformat(), job_id),
@@ -329,7 +331,8 @@ def retry(database: Path, job_id: str) -> dict:
         if row["status"] == "conflict":
             raise ImportConflict(CONFLICT)
         if row["status"] == "failed":
-            _has_capacity(connection)
+            if row["recording_id"]:
+                _has_capacity(connection)
             now = datetime.now(UTC).isoformat()
             connection.execute(
                 "UPDATE drive_imports SET status=?,attempts=0,upload_attempts=0,error=NULL,"

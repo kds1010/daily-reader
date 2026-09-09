@@ -90,16 +90,39 @@ def test_registration_concurrency_is_one_row(imported):
 
 
 def test_capacity_and_stable_pagination(imported):
-    database, _, _, metadata, _ = imported
+    database, directory, data, metadata, _ = imported
     jobs = [drive_imports.enqueue(database, {**metadata, "file_id": f"file-{i}"})
-            for i in range(10)]
+            for i in range(11)]
     assert drive_imports.enqueue(database, {**metadata, "file_id": "file-0"}) == jobs[0]
+    for job in jobs[:10]:
+        drive_imports.receive_audio(database, directory, job["id"], io.BytesIO(data), len(data))
     with pytest.raises(drive_imports.ImportQueueFull):
-        drive_imports.enqueue(database, {**metadata, "file_id": "overflow"})
+        drive_imports.receive_audio(
+            database, directory, jobs[-1]["id"], io.BytesIO(data), len(data)
+        )
+    assert drive_imports.get_import(database, jobs[-1]["id"])["upload_attempts"] == 0
+    assert worker(imported).step()
+    assert drive_imports.receive_audio(
+        database, directory, jobs[-1]["id"], io.BytesIO(data), len(data)
+    )["status"] == "saved"
     one = drive_imports.list_imports(database, limit=4)
     two = drive_imports.list_imports(database, limit=4, offset=one["next_offset"])
-    assert one["total"] == two["total"] == 10
+    assert one["total"] == two["total"] == 11
     assert not ({job["id"] for job in one["items"]} & {job["id"] for job in two["items"]})
+
+
+def test_abandoned_metadata_registrations_do_not_block_new_audio(imported):
+    database, directory, data, metadata, _ = imported
+    abandoned = [drive_imports.enqueue(database, {**metadata, "file_id": f"abandoned-{i}"})
+                 for i in range(12)]
+    drive_imports.recover(database, directory)
+    assert receive(imported)["recording_id"]
+    # The same source resumes without expiry, deletion, or an explicit retry.
+    again = drive_imports.enqueue(database, {**metadata, "file_id": "abandoned-0"})
+    assert again["id"] == abandoned[0]["id"] and again["needs_audio"]
+    assert drive_imports.receive_audio(
+        database, directory, again["id"], io.BytesIO(data), len(data)
+    )["recording_id"]
 
 
 @pytest.mark.parametrize("change", [
@@ -527,14 +550,31 @@ def test_http_distinguishes_content_conflict_queue_full_and_busy(handler, import
     with drive_imports._operation_lock(database, "upload"):
         request.do_POST()
     assert responses[-1][0] == 409 and responses[-1][1]["code"] == "busy"
+    request.rfile = io.BytesIO(data)
+    request.do_POST()
+    assert responses[-1][0] == 202
     request.path = base
     for index in range(9):
         body(request, {**metadata, "file_id": f"other-{index}"})
         request.do_POST()
         assert responses[-1][0] == 202
+        queued = responses[-1][1]
+        request.path = base + "/" + queued["id"] + "/audio"
+        request.headers.update({"Content-Type": "audio/ogg", "Content-Length": str(len(data))})
+        request.rfile = io.BytesIO(data)
+        request.do_POST()
+        assert responses[-1][0] == 202
+        request.path = base
     body(request, {**metadata, "file_id": "overflow"})
     request.do_POST()
+    assert responses[-1][0] == 202
+    queued = responses[-1][1]
+    request.path = base + "/" + queued["id"] + "/audio"
+    request.headers.update({"Content-Type": "audio/ogg", "Content-Length": str(len(data))})
+    request.rfile = io.BytesIO(data)
+    request.do_POST()
     assert responses[-1][0] == 409 and responses[-1][1]["code"] == "queue_full"
+    request.path = base
     body(request, {**metadata, "md5_checksum": "a" * 32})
     request.do_POST()
     assert responses[-1][0] == 409 and responses[-1][1]["code"] == "source_conflict"
