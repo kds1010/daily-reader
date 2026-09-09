@@ -1,6 +1,7 @@
 """Read-only Soundcore Drive import, with resumable local folder traversal.
 
-OAuth is interactive only through ``python -m daily_reader.drive_sync auth``.
+User OAuth is interactive only through ``python -m daily_reader.drive_sync auth``.
+Service-account authentication requires explicit configuration and a shared folder.
 The server worker never opens a browser and never shares the Gmail token.
 """
 
@@ -16,6 +17,7 @@ import os
 import re
 import shutil
 import sqlite3
+import stat
 import tempfile
 import threading
 import time
@@ -29,6 +31,7 @@ import google_auth_httplib2
 import httplib2
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
+from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -36,6 +39,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 
 DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly"
+GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
 FOLDER_MIME = "application/vnd.google-apps.folder"
 AUDIO_MIMES = {"audio/ogg", "audio/mpeg"}
 MAX_AUDIO_BYTES = 2 * 1024**3
@@ -207,7 +211,101 @@ def load_credentials(
     return credentials
 
 
-def _drive_service(credentials: Credentials) -> Any:
+def _private_service_account_file(path: Path) -> bool:
+    """Stat only: status must not read a signing key or attempt authentication."""
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    return (
+        stat.S_ISREG(metadata.st_mode)
+        and stat.S_IMODE(metadata.st_mode) == 0o600
+        and metadata.st_uid == os.getuid()
+    )
+
+
+def load_service_account_credentials(path: Path) -> service_account.Credentials:
+    """Read only a private key file, with no delegated user or alternate issuer."""
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        raise DriveSyncError("service_account_key_unavailable") from None
+    try:
+        with os.fdopen(descriptor, "rb") as stream:
+            metadata = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or stat.S_IMODE(metadata.st_mode) != 0o600
+                or metadata.st_uid != os.getuid()
+            ):
+                raise DriveSyncError("service_account_key_not_private")
+            raw = stream.read(64 * 1024 + 1)
+            if len(raw) > 64 * 1024:
+                raise DriveSyncError("service_account_key_invalid")
+            info = json.loads(raw)
+    except DriveSyncError:
+        raise
+    except (OSError, ValueError, UnicodeError):
+        raise DriveSyncError("service_account_key_invalid") from None
+    if not isinstance(info, dict) or info.get("type") != "service_account":
+        raise DriveSyncError("service_account_key_invalid")
+    if info.get("token_uri") != GOOGLE_TOKEN_URI:
+        raise DriveSyncError("service_account_token_endpoint_invalid")
+    if info.get("universe_domain", "googleapis.com") != "googleapis.com":
+        raise DriveSyncError("service_account_universe_invalid")
+    if any(key in info for key in ("subject", "delegated_subject", "additional_claims")):
+        raise DriveSyncError("service_account_delegation_not_supported")
+    email = info.get("client_email")
+    if (
+        not isinstance(email, str)
+        or not email.endswith(".gserviceaccount.com")
+        or email.count("@") != 1
+        or any(character.isspace() for character in email)
+    ):
+        raise DriveSyncError("service_account_key_invalid")
+    # Feed the SDK only fields used for standard Google service-account auth.
+    # In particular, imported JSON must not introduce claims or trust boundaries.
+    selected = {
+        key: info[key]
+        for key in (
+            "type",
+            "private_key",
+            "private_key_id",
+            "client_email",
+            "project_id",
+            "token_uri",
+        )
+        if key in info
+    }
+    selected["universe_domain"] = "googleapis.com"
+    try:
+        return service_account.Credentials.from_service_account_info(
+            selected,
+            scopes=[DRIVE_SCOPE],
+            subject=None,
+            always_use_jwt_access=False,
+        )
+    except Exception:
+        raise DriveSyncError("service_account_key_invalid") from None
+
+
+def _auth_type(config: dict[str, Any]) -> str:
+    value = config.get("auth_type", "user_oauth")
+    if not isinstance(value, str) or value not in {"user_oauth", "service_account"}:
+        raise DriveSyncError("auth_configuration_invalid")
+    return value
+
+
+def _configured_service_account_key(config: dict[str, Any]) -> Path:
+    value = config.get("service_account_key")
+    if not isinstance(value, str) or not value or not Path(value).is_absolute():
+        raise DriveSyncError("auth_configuration_invalid")
+    return Path(value)
+
+
+def _drive_service(credentials: Credentials | service_account.Credentials) -> Any:
+    # This transport also refreshes SA credentials. Do not use requests.Request
+    # for SA refresh: its DEBUG request logger can include the signed assertion.
     transport = google_auth_httplib2.AuthorizedHttp(credentials, http=httplib2.Http(timeout=60))
     return build("drive", "v3", http=transport, cache_discovery=False)
 
@@ -610,13 +708,21 @@ def _import_file(
 def status(data_dir: Path, token_path: Path) -> dict[str, Any]:
     """Read-only, local diagnostic: contains no IDs, source names or secrets."""
     config = _read_json(data_dir / "drive-sync.json")
-    token = _read_json(token_path)
-    authorized = DRIVE_SCOPE in token.get("scopes", []) and bool(token.get("refresh_token"))
+    auth_type = _auth_type(config)
+    if auth_type == "service_account":
+        private = _private_service_account_file(_configured_service_account_key(config))
+        authorized = private
+    else:
+        token = _read_json(token_path)
+        authorized = DRIVE_SCOPE in (token.get("scopes") or []) and bool(token.get("refresh_token"))
+        private = (token_path.stat().st_mode & 0o777) == 0o600 if token else None
     result = {
         "configured": bool(config.get("folder_id")),
+        "auth_type": auth_type,
         "authorized": authorized,
         "status": config.get("status", "idle") if authorized else "auth_required",
-        "token_private": (token_path.stat().st_mode & 0o777) == 0o600 if token else None,
+        "credential_private": private,
+        "token_private": private if auth_type == "user_oauth" else None,
         "last_run_at": config.get("last_run_at"),
         "last_result": config.get("last_result"),
     }
@@ -631,6 +737,8 @@ def sync_once(
     token_path: Path,
     *,
     folder_id: str | None = None,
+    service_account_key: Path | None = None,
+    use_user_oauth: bool = False,
     server_port: int = 8787,
     retry_failed: bool = False,
     stop: threading.Event | None = None,
@@ -640,12 +748,22 @@ def sync_once(
     config_path = data_dir / "drive-sync.json"
     with _lock(data_dir / "drive-sync.lock", blocking=False):
         config = _read_json(config_path)
+        if service_account_key is not None and use_user_oauth:
+            raise DriveSyncError("invalid_command_options")
+        changing_auth = service_account_key is not None or use_user_oauth
+        requested_auth = (
+            "service_account"
+            if service_account_key is not None
+            else ("user_oauth" if use_user_oauth else _auth_type(config))
+        )
         if folder_id is not None:
             folder_id = _identifier(folder_id)
             if config.get("folder_id") and config["folder_id"] != folder_id:
                 raise DriveSyncError("folder_already_configured")
         root_id = folder_id or config.get("folder_id")
         if not root_id:
+            if changing_auth:
+                raise DriveSyncError("folder_required_for_auth_configuration")
             return {"status": "not_configured"}
         root_id = _identifier(root_id)
         deadline = time.monotonic() + RUN_SECONDS
@@ -658,6 +776,7 @@ def sync_once(
 
         service = None
         connection = None
+        auth_committed = False
         counts = {
             "uploaded": 0,
             "already_registered": 0,
@@ -666,11 +785,29 @@ def sync_once(
             "skipped_folders": 0,
         }
         try:
-            credentials = load_credentials(client_secret, token_path)
+            if requested_auth == "service_account":
+                key_path = service_account_key or _configured_service_account_key(config)
+                credentials = load_service_account_credentials(key_path)
+            else:
+                credentials = load_credentials(client_secret, token_path)
             service = _drive_service(credentials)
             root = _check_folder(service, root_id)
-            config.update({"version": 1, "folder_id": root_id, "status": "syncing"})
-            _atomic_json(config_path, config)
+            candidate = {
+                **config,
+                "version": 1,
+                "folder_id": root_id,
+                "status": "syncing",
+                "auth_type": requested_auth,
+            }
+            if requested_auth == "service_account":
+                candidate["service_account_key"] = str(key_path.resolve())
+            else:
+                candidate.pop("service_account_key", None)
+            # Neither key parsing nor an unsuccessful Drive root read may
+            # replace a working authentication mode or its saved diagnostics.
+            _atomic_json(config_path, candidate)
+            config = candidate
+            auth_committed = True
             connection = _queue(data_dir)
             staging = data_dir / "drive-sync-staging"
             if staging.is_symlink():
@@ -808,12 +945,12 @@ def sync_once(
             return {"status": outcome, **counts}
         except DriveSyncError as error:
             # Initial unverified folder IDs are never persisted as configured.
-            if config.get("folder_id"):
+            if config.get("folder_id") and (not changing_auth or auth_committed):
                 config.update({"status": error.code, "last_run_at": _now(), "last_result": counts})
                 _atomic_json(config_path, config)
             raise
         except Exception:
-            if config.get("folder_id"):
+            if config.get("folder_id") and (not changing_auth or auth_committed):
                 config.update(
                     {"status": "sync_failed", "last_run_at": _now(), "last_result": counts}
                 )
@@ -887,12 +1024,26 @@ def main() -> None:
     parser.add_argument("--server-port", type=int, default=8787)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--retry-failed", action="store_true")
+    authentication = parser.add_mutually_exclusive_group()
+    authentication.add_argument(
+        "--service-account-key",
+        type=Path,
+        help="syncのみ: 対象フォルダーの読み取り確認後、専用サービスアカウントへ切り替える",
+    )
+    authentication.add_argument(
+        "--user-oauth",
+        action="store_true",
+        help="syncのみ: 対象フォルダーの読み取り確認後、既存ユーザーOAuthへ戻す",
+    )
     args = parser.parse_args()
     try:
         if (
             (args.force and args.command != "auth")
             or (args.retry_failed and args.command != "sync")
             or (args.folder_id and args.command != "sync")
+            or (
+                (args.service_account_key is not None or args.user_oauth) and args.command != "sync"
+            )
         ):
             raise DriveSyncError("invalid_command_options")
         if args.command == "auth":
@@ -906,6 +1057,8 @@ def main() -> None:
                 args.client_secret,
                 args.token,
                 folder_id=args.folder_id,
+                service_account_key=args.service_account_key,
+                use_user_oauth=args.user_oauth,
                 server_port=args.server_port,
                 retry_failed=args.retry_failed,
             )

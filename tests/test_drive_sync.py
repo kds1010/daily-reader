@@ -7,10 +7,168 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from google.auth.exceptions import RefreshError
 from googleapiclient.errors import HttpError
 
 from daily_reader import drive_sync as sync
+
+
+@pytest.fixture(scope="module")
+def anonymous_service_account_info():
+    # This throwaway signer is never registered with Google or sent to a server.
+    signer = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_key = signer.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+    return {
+        "type": "service_account",
+        "project_id": "anonymous-test",
+        "client_email": "reader@anonymous-test.iam.gserviceaccount.com",
+        "private_key_id": "anonymous-key",
+        "private_key": private_key,
+        "token_uri": sync.GOOGLE_TOKEN_URI,
+    }
+
+
+@pytest.fixture
+def service_account_key(tmp_path, anonymous_service_account_info):
+    key = tmp_path / "private-service-account.json"
+    sync._atomic_json(key, anonymous_service_account_info)
+    return key
+
+
+def test_service_account_uses_real_sdk_with_readonly_scope_and_no_delegation(service_account_key):
+    original = service_account_key.read_bytes()
+    credentials = sync.load_service_account_credentials(service_account_key)
+    assert isinstance(credentials, sync.service_account.Credentials)
+    assert credentials.scopes == [sync.DRIVE_SCOPE]
+    assert credentials._subject is None
+    assert credentials._additional_claims == {}
+    assert credentials._always_use_jwt_access is False
+    assert credentials.universe_domain == "googleapis.com"
+    assert credentials._token_uri == sync.GOOGLE_TOKEN_URI
+    assert service_account_key.read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://oauth2.googleapis.com/token",
+        "https://oauth2.googleapis.com:443/token",
+        "https://oauth2.googleapis.com/token?query=value",
+        "https://oauth2.googleapis.com/token#fragment",
+        "https://user@oauth2.googleapis.com/token",
+        "https://other.example/token",
+        "https://oauth2.googleapis.com/other",
+        "https://oauth2.googleapis.com/token/",
+    ],
+)
+def test_service_account_rejects_noncanonical_token_endpoint(service_account_key, endpoint):
+    info = json.loads(service_account_key.read_text())
+    info["token_uri"] = endpoint
+    sync._atomic_json(service_account_key, info)
+    with pytest.raises(sync.DriveSyncError, match="service_account_token_endpoint_invalid"):
+        sync.load_service_account_credentials(service_account_key)
+
+
+@pytest.mark.parametrize("claim", ["subject", "delegated_subject", "additional_claims"])
+def test_service_account_rejects_delegation_and_claim_overrides(service_account_key, claim):
+    info = json.loads(service_account_key.read_text())
+    info[claim] = None
+    sync._atomic_json(service_account_key, info)
+    with pytest.raises(sync.DriveSyncError, match="service_account_delegation_not_supported"):
+        sync.load_service_account_credentials(service_account_key)
+
+
+def test_service_account_rejects_alternate_universe(service_account_key):
+    info = json.loads(service_account_key.read_text())
+    info["universe_domain"] = "other.example"
+    sync._atomic_json(service_account_key, info)
+    with pytest.raises(sync.DriveSyncError, match="service_account_universe_invalid"):
+        sync.load_service_account_credentials(service_account_key)
+
+
+def test_service_account_ignores_unrelated_extension_fields(service_account_key):
+    info = json.loads(service_account_key.read_text())
+    info.update(
+        {
+            "trust_boundary": {"locations": ["unexpected"]},
+            "quota_project_id": "other-project",
+            "auth_uri": "https://other.example",
+        }
+    )
+    sync._atomic_json(service_account_key, info)
+    credentials = sync.load_service_account_credentials(service_account_key)
+    assert credentials._trust_boundary is None
+    assert credentials.quota_project_id is None
+
+
+def test_service_account_refuses_oauth_token_and_malformed_signer(service_account_key):
+    info = json.loads(service_account_key.read_text())
+    info["type"] = "authorized_user"
+    sync._atomic_json(service_account_key, info)
+    with pytest.raises(sync.DriveSyncError, match="service_account_key_invalid"):
+        sync.load_service_account_credentials(service_account_key)
+    info["type"] = "service_account"
+    info["private_key"] = "invalid"
+    sync._atomic_json(service_account_key, info)
+    with pytest.raises(sync.DriveSyncError, match="service_account_key_invalid"):
+        sync.load_service_account_credentials(service_account_key)
+
+
+def test_service_account_key_permissions_and_symlinks_are_not_repaired(service_account_key):
+    original = service_account_key.read_bytes()
+    service_account_key.chmod(0o644)
+    with pytest.raises(sync.DriveSyncError, match="service_account_key_not_private"):
+        sync.load_service_account_credentials(service_account_key)
+    assert service_account_key.stat().st_mode & 0o777 == 0o644
+    assert service_account_key.read_bytes() == original
+    service_account_key.chmod(0o600)
+    alias = service_account_key.with_name("linked-key.json")
+    alias.symlink_to(service_account_key)
+    with pytest.raises(sync.DriveSyncError, match="service_account_key_unavailable"):
+        sync.load_service_account_credentials(alias)
+
+
+def test_service_account_status_reads_neither_key_nor_oauth_token(
+    tmp_path, service_account_key, monkeypatch
+):
+    data = tmp_path / "data"
+    sync._atomic_json(
+        data / "drive-sync.json",
+        {
+            "folder_id": "root",
+            "status": "ready",
+            "auth_type": "service_account",
+            "service_account_key": str(service_account_key),
+        },
+    )
+    token = tmp_path / "do-not-read-oauth-token.json"
+    original = sync._read_json
+
+    def read(path):
+        assert path not in {token, service_account_key}
+        return original(path)
+
+    monkeypatch.setattr(sync, "_read_json", read)
+    monkeypatch.setattr(
+        sync,
+        "load_service_account_credentials",
+        lambda path: pytest.fail("Status must not load a signing key"),
+    )
+    result = sync.status(data, token)
+    assert result["auth_type"] == "service_account"
+    assert result["authorized"] is True and result["credential_private"] is True
+    assert result["token_private"] is None
+    rendered = json.dumps(result)
+    assert str(service_account_key) not in rendered and "gserviceaccount.com" not in rendered
+    service_account_key.chmod(0o644)
+    result = sync.status(data, token)
+    assert not result["authorized"] and not result["credential_private"]
 
 
 class FakeCredentials:
@@ -192,7 +350,7 @@ def test_status_is_read_only_and_excludes_sensitive_metadata(tmp_path):
     sync._atomic_json(data / "drive-sync.json", {"folder_id": "private-folder", "status": "ready"})
     token.write_text(FakeCredentials().to_json())
     rendered = json.dumps(sync.status(data, token))
-    assert "private" not in rendered.replace('"token_private"', "")
+    assert not any(value in rendered for value in ("private-folder", "private-access", "refresh"))
     assert "authorized" in rendered
 
 
@@ -321,6 +479,188 @@ def run(environment, **kwargs):
         directory / "token.json",
         folder_id="root",
         **kwargs,
+    )
+
+
+def test_service_account_switch_requires_opt_in_and_preserves_oauth(
+    environment,
+    service_account_key,
+    monkeypatch,
+):
+    _, _, directory = environment
+    token = directory / "token.json"
+    token.write_text(FakeCredentials().to_json())
+    original_token = token.read_bytes()
+    run(environment)
+    config_path = directory / "data" / "drive-sync.json"
+    assert json.loads(config_path.read_text())["auth_type"] == "user_oauth"
+    monkeypatch.setattr(
+        sync, "load_credentials", lambda *args, **kwargs: pytest.fail("SA must not load user OAuth")
+    )
+    # Reuse the configured folder ID while explicitly selecting the new mode.
+    sync.sync_once(
+        directory / "data",
+        directory / "client.json",
+        token,
+        service_account_key=service_account_key,
+    )
+    config = json.loads(config_path.read_text())
+    assert config["auth_type"] == "service_account"
+    assert config["service_account_key"] == str(service_account_key.resolve())
+    assert config_path.stat().st_mode & 0o777 == 0o600
+    assert token.read_bytes() == original_token
+    # A worker/default invocation uses the saved mode without CLI overrides.
+    run(environment)
+    assert token.read_bytes() == original_token
+
+
+@pytest.mark.parametrize("failure", ["missing_key", "invalid_key", "root_denied", "save_failed"])
+def test_failed_service_account_switch_preserves_previous_configuration(
+    environment,
+    service_account_key,
+    monkeypatch,
+    failure,
+):
+    _, _, directory = environment
+    token = directory / "token.json"
+    token.write_text(FakeCredentials().to_json())
+    original_token = token.read_bytes()
+    run(environment)
+    config_path = directory / "data" / "drive-sync.json"
+    original_config = config_path.read_bytes()
+    monkeypatch.setattr(
+        sync, "load_credentials", lambda *args, **kwargs: pytest.fail("SA must not load user OAuth")
+    )
+    key = service_account_key
+    if failure == "missing_key":
+        key = directory / "missing.json"
+    elif failure == "invalid_key":
+        key.write_text("invalid JSON")
+    elif failure == "root_denied":
+
+        def denied(*args):
+            raise sync.DriveSyncError("drive_permission_denied")
+
+        monkeypatch.setattr(sync, "_check_folder", denied)
+    else:
+
+        def cannot_save(*args):
+            raise OSError("private-path must not be printed")
+
+        monkeypatch.setattr(sync, "_atomic_json", cannot_save)
+    with pytest.raises(sync.DriveSyncError):
+        run(environment, service_account_key=key)
+    assert config_path.read_bytes() == original_config
+    assert token.read_bytes() == original_token
+
+
+def test_missing_saved_service_account_does_not_fall_back_to_oauth(
+    environment,
+    service_account_key,
+    monkeypatch,
+):
+    _, _, directory = environment
+    run(environment, service_account_key=service_account_key)
+    service_account_key.unlink()
+    monkeypatch.setattr(
+        sync, "load_credentials", lambda *args, **kwargs: pytest.fail("No silent OAuth fallback")
+    )
+    with pytest.raises(sync.DriveSyncError, match="service_account_key_unavailable"):
+        run(environment)
+    config = json.loads((directory / "data" / "drive-sync.json").read_text())
+    assert config["auth_type"] == "service_account"
+
+
+def test_failed_key_replacement_keeps_working_service_account_configuration(
+    environment,
+    service_account_key,
+):
+    _, _, directory = environment
+    run(environment, service_account_key=service_account_key)
+    config_path = directory / "data" / "drive-sync.json"
+    original = config_path.read_bytes()
+    with pytest.raises(sync.DriveSyncError, match="service_account_key_unavailable"):
+        run(environment, service_account_key=directory / "missing-replacement.json")
+    assert config_path.read_bytes() == original
+
+
+def test_failed_oauth_restore_keeps_working_service_account_configuration(
+    environment,
+    service_account_key,
+    monkeypatch,
+):
+    _, _, directory = environment
+    run(environment, service_account_key=service_account_key)
+    config_path = directory / "data" / "drive-sync.json"
+    original = config_path.read_bytes()
+
+    def unavailable(*args, **kwargs):
+        raise sync.DriveSyncError("auth_required")
+
+    monkeypatch.setattr(sync, "load_credentials", unavailable)
+    with pytest.raises(sync.DriveSyncError, match="auth_required"):
+        run(environment, use_user_oauth=True)
+    assert config_path.read_bytes() == original
+
+
+def test_explicit_oauth_restore_preserves_service_account_key(
+    environment,
+    service_account_key,
+    monkeypatch,
+):
+    _, _, directory = environment
+    run(environment, service_account_key=service_account_key)
+    original_key = service_account_key.read_bytes()
+    called = []
+
+    def oauth(*args, **kwargs):
+        called.append(True)
+        return FakeCredentials()
+
+    monkeypatch.setattr(sync, "load_credentials", oauth)
+    run(environment, use_user_oauth=True)
+    config = json.loads((directory / "data" / "drive-sync.json").read_text())
+    assert config["auth_type"] == "user_oauth" and "service_account_key" not in config
+    assert called == [True] and service_account_key.read_bytes() == original_key
+
+
+def test_service_account_configuration_without_folder_does_not_change_state(
+    tmp_path,
+    service_account_key,
+):
+    with pytest.raises(sync.DriveSyncError, match="folder_required_for_auth_configuration"):
+        sync.sync_once(
+            tmp_path / "data",
+            tmp_path / "client",
+            tmp_path / "token",
+            service_account_key=service_account_key,
+        )
+    assert not (tmp_path / "data" / "drive-sync.json").exists()
+
+
+def test_worker_reuses_saved_service_account_mode(environment, service_account_key, monkeypatch):
+    _, _, directory = environment
+    run(environment, service_account_key=service_account_key)
+    monkeypatch.setattr(
+        sync, "load_credentials", lambda *args, **kwargs: pytest.fail("Worker must retain SA mode")
+    )
+    called = threading.Event()
+    original = sync.sync_once
+
+    def once(*args, **kwargs):
+        try:
+            return original(*args, **kwargs)
+        finally:
+            called.set()
+
+    monkeypatch.setattr(sync, "sync_once", once)
+    worker = sync.DriveSyncWorker(directory / "data", token_path=directory / "token.json")
+    worker.start()
+    assert called.wait(timeout=2)
+    worker.stop()
+    assert not worker._thread.is_alive()
+    assert (
+        sync.status(directory / "data", directory / "token.json")["auth_type"] == "service_account"
     )
 
 
@@ -574,6 +914,8 @@ def test_busy_lock_and_different_root_do_not_change_configuration(environment):
         ["sync", "--force"],
         ["auth", "--retry-failed"],
         ["status", "--folder-id", "root"],
+        ["auth", "--service-account-key", "unused-key.json"],
+        ["status", "--user-oauth"],
     ],
 )
 def test_command_specific_flags_are_rejected(monkeypatch, capsys, arguments):
