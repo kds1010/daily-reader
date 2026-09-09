@@ -48,19 +48,44 @@ GPSや原音をCodexへ送る範囲は増やしません。
 SoundcoreとGoogle DriveとDaymeldの接続は、それぞれ別です。Soundcore側の認証を復旧しても、
 Mac側のDrive取得が成功したことにはなりません。
 
-Mac用の取得処理はGoogleのデスクトップOAuthを使います。既存のOAuthクライアント定義を
-読み取り専用で再利用し、Drive用の認証情報をGmailの認証情報とは別に保存します。
-Googleへの初回同意が必要です。要求する`drive.readonly`はDrive全体の読み取り権限であり、
-フォルダー単位の権限ではありません。実際に巡回・取得する範囲は設定したSoundCore配下へ限定します。
-共有設定、ファイルの作成・変更・削除は行いません。
+Mac用の取得処理は、SoundCoreフォルダーだけを閲覧者として共有した専用サービスアカウントを
+使用できます。Google Cloudのプロジェクト管理ロールやWorkspaceのドメイン全体の委任は不要です。
+スコープは`drive.readonly`で、Driveの共有権限と組み合わせて読み取れる対象を限定します。
+巡回・取得処理も設定したSoundCore配下だけを扱います。共有設定、作成・変更・削除は行いません。
 
-アクセストークンは更新可能な認証情報が有効な間、自動更新します。Google側で同意の取り消しや
-認証情報の失効が起きた場合は本人の再認証が必要です。永久接続は保証しません。
+専用鍵から短期アクセストークンを自動取得するため、外部OAuthアプリのTestingに伴う
+更新用トークンの7日制限は適用されません。鍵の無効化・削除、ポリシーによる失効、
+フォルダー共有の解除では取得できなくなるため、永久接続を保証するものではありません。
 認証情報、取得元情報、同期状態はMac内で保護し、URLやトークンをログへ出しません。
+
+従来のデスクトップOAuthも選べます。既存クライアント定義を再利用し、Drive用の認証情報を
+Gmailとは別に保存します。この方式の`drive.readonly`は本人のDrive全体の読み取り許可です。
+初回同意が必要で、外部アプリがTestingの場合は更新用トークンが7日で失効します。
+サービスアカウントへの切り替えでは既存OAuthトークンを読み書きしません。
+個人Gmailはこのフォルダー共有方式の対象外で、既存のGmail認証を維持します。
 
 ## Macでの設定と確認
 
-サービス用のリポジトリから、最初に認証します。作業用worktreeで実運用の認証情報を作成しません。
+サービス用リポジトリの`secrets/`に専用サービスアカウントのJSON鍵を保存し、
+ファイルを本人所有の0600にします。シンボリックリンク、別所有者、広い権限の鍵は拒否します。
+キーを置くだけでは認証方式は変わりません。Google Driveで対象のSoundCoreフォルダーを
+そのサービスアカウントへ閲覧者として共有してから、明示的に切り替えます。
+サービスアカウントにはメール受信箱がないため、共有時の「通知」は外します。
+
+```bash
+uv run --frozen python -m daily_reader.drive_sync sync \
+  --service-account-key secrets/drive-service-account.json \
+  --folder-id '<SoundCoreフォルダーのID>'
+uv run --frozen python -m daily_reader.drive_sync status
+```
+
+既に同じフォルダーを設定済みなら`--folder-id`は省略できます。鍵の読込と実際のDrive上の
+対象フォルダーの読み取りに成功した後だけ、認証方式と鍵の参照を保護された設定へ保存します。
+確認前の失敗・設定保存の失敗では、既存設定とOAuthトークンを保持します。
+通常の`sync`と常駐workerは保存済み認証方式を再利用します。
+認証先はGoogleの正規トークンURLだけに固定し、別ユーザーへの委任は受け付けません。
+
+デスクトップOAuthを使う場合は次の手順です。作業用worktreeで実運用の認証情報を作成しません。
 
 ```bash
 uv run --frozen python -m daily_reader.drive_sync auth
@@ -77,6 +102,10 @@ uv run --frozen python -m daily_reader.drive_sync sync --folder-id '<SoundCore�
 uv run --frozen python -m daily_reader.drive_sync status
 ```
 
+サービスアカウントから既存OAuthへ戻す場合は`sync --user-oauth`を明示します。
+OAuthで対象フォルダーを読み取れることを確認してから設定を切り替えます。
+`auth`はOAuthの認証情報を更新するだけで、選択中の認証方式を変更しません。
+
 初回にDrive上の対象フォルダーを確認してから、`data/drive-sync.json`へ設定を保存します。
 Webサーバー内の`DriveSyncWorker`が起動時と通常15分ごとに確認し、未設定時は取得しません。
 Macのサーバーが稼働していればDriveからの取得は続きます。SoundcoreからDriveへの転送は
@@ -91,7 +120,9 @@ Macのサーバーが稼働していればDriveからの取得は続きます。
 一時コピーは`data/drive-sync-staging/`で保護し、取得・送信後に回収します。
 取得中は一時コピーとDaymeldへの保存コピーを考慮して5 GiBの空きを残します。
 
-`status`は設定・認証情報の存在と直近実行結果を読む診断です。ファイルを読めることだけで
+`status`は設定・認証情報の存在と直近実行結果を読む診断です。`auth_type`が認証方式、
+`credential_private`が認証ファイルの保護状態です。サービスアカウントでは鍵のファイル属性
+だけを調べ、鍵本文の読み取りやGoogle認証を行いません。`authorized`がtrueでも
 Googleとの通信成功や全録音の解析完了とは判断しません。失敗した取得を明示的に再試行する場合は
 `sync --retry-failed`を使います。内容が変更された元ファイルの競合は、自動上書きで解消しません。
 
@@ -122,9 +153,14 @@ Driveへ届きませんでした。Online Hubを開いた直後、同期設定�
 通常ダウンロードも失敗したため、Mac用のDrive API取得処理を用意しています。
 コネクターの取得成功だけを、Macへの原音保存成功とは扱いません。
 
-統合時の検証は全783テスト、ruff、Web JavaScript構文、JSONスキーマと差分チェックが成功しました。
-この検証には匿名の音声転送・再開・重複排除・日時の引き継ぎを含みます。Googleの実認証と
-本番音声の取得は初回設定後に別途確認します。
+初回OAuth取り込みでは実音声8件を保存し、8件ともサイズ・MD5・SHA256・録音日時・取得元情報が
+一致しました。再同期は新規0件・登録済み8件・失敗0件で、録音IDと原音ハッシュも同じでした。
+この時点の取り込み完了は解析受付までであり、全8件の文字起こし完了を意味しません。
+専用サービスアカウントでも対象フォルダーの読み取りと編集不可を実通信で確認し、
+代表音声1件のサイズ・MD5・SHA256が既存原音と一致しました。
+
+回帰検証には匿名の音声転送・再開・重複排除・日時の引き継ぎ、および専用認証への切り替え・
+失敗時の既存認証保持・OAuthへの復帰・常駐workerによる認証方式の再利用を含みます。
 
 ## 公式仕様
 
@@ -136,3 +172,9 @@ Driveへ届きませんでした。Online Hubを開いた直後、同期設定�
   ブラウザーの同意とloopbackでの応答受信を使用します。
 - [Google認証情報の失効条件](https://developers.google.com/identity/protocols/oauth2#expiration):
   更新用の認証情報にも失効条件があります。
+- [サービスアカウントへのDrive共有](https://developers.google.com/workspace/guides/create-credentials):
+  特定フォルダーを直接共有する場合、管理ロールやドメイン全体の委任は不要です。
+- [サービスアカウント認証](https://developers.google.com/identity/protocols/oauth2/service-account):
+  専用鍵から短期アクセストークンを取得します。
+- [サービスアカウント鍵の管理](https://docs.cloud.google.com/iam/docs/best-practices-for-managing-service-account-keys):
+  鍵を保護し、失効・無効化と運用時の交換を別に管理します。

@@ -355,7 +355,9 @@ uv run --frozen daily-reader-gmail doctor
 2. Testingなら、[個人利用の審査例外](https://support.google.com/cloud/answer/13464323?hl=en)
    と対象ユーザーを確認し、本人が公開状態をIn productionへ変更します。個人利用でも未確認アプリの
    警告やユーザー数上限は残ります。これはOAuthアプリの公開設定であり、DaymeldのWebサーバーを
-   インターネットへ公開する操作ではありません。本環境の状態は未確認で、自動変更しません。
+   インターネットへ公開する操作ではありません。2026-09-09に本環境がExternal/Testingであることを
+   Google Cloud画面で確認しました。同日の指示変更でDriveは専用サービスアカウント方式を選び、
+   OAuthの本番公開は行っていません。対象Gmailは個人アカウントであり、既存OAuthを維持しています。
 3. 変更後は、古いトークンが有効でも新しく同意するため、次を実行します。
 
 ```bash
@@ -417,9 +419,11 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - 2026-09-09のユーザー指示により、SoundcoreがGoogle Driveへ保存したOGG/MP3原音をMacへ取り込む経路を追加した。SoundcoreからDriveへの転送と、DriveからDaymeldへの取得は独立した工程として検証する。コネクターが返す内部ファイル参照はMacへの保存完了ではない。
 - `drive_imports.py`はDriveファイルIDを登録し、原音を受け取り、保存後の解析受付を永続キューで進める。Drive IDと版・チェックサム、および既存の音声SHA重複排除を使い、既存本文・日時・候補を上書きしない。同じDrive IDで原音が変わる場合は競合として止める。`completed`は原音保存・解析受付までであり、文字起こし完了と区別する。
 - 録音の直上フォルダー名が厳格な`YYYY-MM-DD HH:MM:SS`の場合だけ日本時間として`recorded_at_source=soundcore_drive_folder_name`を確定する。元のフォルダー・ファイル名とDrive IDを保持し、Driveの作成・更新日時を録音日時へ代用しない。日時形式でない名前・不正な日時は不明とし、GPS・発話時刻へ推測で結び付けない。別の有効な日時への改名は検出できず、改名後の日時として扱う。
-- Mac用のDrive取得は既存OAuthクライアント定義を再利用し、Drive専用の読み取り認証をGmailと分けて保持する。`drive.readonly`はDrive全体の読み取り権限なので、初回は本人の同意を必要とする。実処理は設定したSoundCoreフォルダー配下に限定し、Driveの共有・変更・削除は行わない。認証情報や取得用URLを応答・ログ・Codexへ出さない。
+- Mac用のDrive取得は、SoundCoreフォルダーだけを閲覧者として共有した専用サービスアカウントへ明示的に切り替えられる。`sync --service-account-key PATH`で本人所有・0600・通常ファイルの鍵を読み、Googleの正規トークンURL・`drive.readonly`固定・ユーザー委任なしで対象フォルダーの実読み取りを確認した後、設定を原子的に保存する。確認・保存前の失敗は既存認証方式とOAuthトークンを保持する。短期トークンは自動取得し、ユーザーOAuthのTestingに伴う7日制限は適用されないが、鍵の失効・共有解除後の継続は保証しない。実処理は設定フォルダー配下だけを取得し、Driveの共有・変更・削除は行わない。鍵は`secrets/drive-service-account.json`、認証方式と鍵参照は保護された設定へ保存し、応答・ログ・Codexへ出さない。
+- 従来のDrive専用OAuthも保持する。既存OAuthクライアント定義を再利用し、Drive用トークンをGmailと分離する。本人のDrive全体への`drive.readonly`同意が必要で、Testingの7日制限がある。サービスアカウントから戻す場合だけ`sync --user-oauth`を明示し、対象読み取り成功後に切り替える。`auth`だけでは選択方式を変更しない。個人GmailにはDriveフォルダー共有方式を適用せず、Gmail認証・実装は変更しない。
 - `python -m daily_reader.drive_sync auth/status/sync`で初回認証・診断・同期を行う。認証は`secrets/drive-token.json`、対象フォルダーと診断は`data/drive-sync.json`、巡回中のページ・ファイル状態は`data/drive-sync.sqlite3`へ保護して保存する。`sync --folder-id`でDrive上のフォルダーを検証して設定後、Webサーバー内の`DriveSyncWorker`が起動時・通常15分ごとに原音を取得する。1回10ファイル・50ページ、15分を目安に区切り（通信終了待ちを除く）、上限到達時は次回へ継続。全体障害は既定設定で最大4時間まで間隔を広げる。初回認証と対象設定前は取得しない。Soundcore接続復旧のCodex heartbeatとは別に動作する。
 - Soundcore Online Hubを閉じた間は新規テスト音声がDriveへ届かず、開いた直後に保存されたことを同日に確認した。この環境の観測であり、すべての構成に一般化しない。Soundcoreの認証復旧とMacのDrive認証は別に扱う。仕様・制限・運用手順は[Drive取り込み](docs/soundcore-drive-sync.md)を参照する。
+- 同日の実取り込みで8件すべてのサイズ・MD5・SHA256・録音日時・取得元情報を照合し、再同期は新規0件・登録済み8件・失敗0件で重複を作らなかった。専用サービスアカウントでも対象フォルダーの読み取り・編集不可と代表音声1件のサイズ・MD5・SHA256一致を確認した。`status`の`auth_type`で認証方式を区別し、サービスアカウントの`authorized`/`credential_private`は鍵の属性だけを調べるため、実接続成功や音声解析完了の根拠にしない。
 
 ## 音声認識の精度と再解析
 
