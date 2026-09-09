@@ -305,7 +305,7 @@ def test_conversation_endpoints_expose_codex_availability_and_queue_extraction(
     )
     monkeypatch.setattr(
         "daily_reader.local_server.queue_insight_extraction",
-        lambda *args: queued.append(args) or True,
+        lambda *args, **kwargs: queued.append((args, kwargs)) or True,
     )
     handler_factory = make_handler(
         tmp_path / "site",
@@ -332,12 +332,17 @@ def test_conversation_endpoints_expose_codex_availability_and_queue_extraction(
     assert responses[0][0] == 200
     assert responses[0][1]["llm_available"] is True
     assert responses[1] == (202, {"queued": True})
-    assert queued[0][1:] == (
+    assert queued[0][0][1:] == (
         recording["id"],
         tmp_path / "schema.json",
         "/usr/local/bin/codex",
         "gpt-5.6-luna",
     )
+    assert queued[0][1] == {"overview_only": False}
+    handler.path = f"/api/conversations/{recording['id']}/overview"
+    handler.do_POST()
+    assert responses[-1] == (202, {"queued": True})
+    assert queued[-1][1] == {"overview_only": True}
 
 
 def test_conversation_item_review_and_planner_dispatch_preserve_edits(

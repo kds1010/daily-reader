@@ -1568,7 +1568,7 @@ def make_handler(
                     self._log_device_sync_failure("locations", error)
                     self._send_json(400, {"error": str(error)})
                 return
-            if path.startswith("/api/conversations/") and path.endswith("/insights"):
+            if path.startswith("/api/conversations/") and path.endswith(("/insights", "/overview")):
                 recording_id = path.split("/")[-2]
                 try:
                     queued = queue_insight_extraction(
@@ -1577,6 +1577,7 @@ def make_handler(
                         conversation_insight_schema,
                         conversation_codex_command,
                         conversation_insight_model,
+                        overview_only=path.endswith("/overview"),
                     )
                     self._send_json(202, {"queued": queued})
                 except KeyError:

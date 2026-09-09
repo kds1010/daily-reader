@@ -372,6 +372,7 @@ class AutomationWorker:
                 FROM recordings r LEFT JOIN life_automation_recordings a ON a.recording_id=r.id
                 WHERE r.status='completed' AND julianday(r.created_at)>=julianday(?)
                 AND r.insight_status IN ('not_requested','failed')
+                AND r.overview_status NOT IN ('queued','extracting')
                 AND r.transcription_needs_review=0
                 AND COALESCE(a.attempts,0)<3 ORDER BY r.created_at LIMIT 20""",
                 (policy["since"],),

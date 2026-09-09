@@ -205,7 +205,7 @@ def test_recording_returns_speakers_utterances_topics_and_tasks(tmp_path: Path) 
         connection.execute(
             """INSERT INTO task_proposals
             (id,recording_id,utterance_id,title,created_at)
-            VALUES('p1',?,'u1','資料を確認','now')""",
+            VALUES('p1',?,'u1','資料を確認して','now')""",
             (recording_id,),
         )
 

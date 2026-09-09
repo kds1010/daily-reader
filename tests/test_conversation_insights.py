@@ -4,10 +4,14 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from daily_reader.conversation_insights import (
+    ConversationInsightError,
     chunk_utterances,
     codex_available,
     request_insights,
+    request_overview,
 )
 
 
@@ -47,7 +51,7 @@ def test_request_insights_uses_ephemeral_read_only_codex_with_schema(
                             "due_date": None,
                             "due_date_original": None,
                             "certainty": "explicit",
-                            "evidence_utterance_ids": ["u1"],
+                            "evidence_utterance_ids": ["u0001"],
                         }
                     ]
                 },
@@ -80,11 +84,12 @@ def test_request_insights_uses_ephemeral_read_only_codex_with_schema(
     assert "資料を確認します" not in " ".join(command)
     kwargs = captured["kwargs"]
     assert json.loads(str(kwargs["input"]))["utterances"] == [
-        {"id": "u1", "text": "資料を確認します"}
+        {"id": "u0001", "text": "資料を確認します"}
     ]
     assert "OPENAI_API_KEY" not in kwargs["env"]
     assert "CODEX_API_KEY" not in kwargs["env"]
     assert items[0]["title"] == "資料を確認する"
+    assert items[0]["evidence_utterance_ids"] == ["u1"]
 
 
 def test_codex_available_requires_successful_chatgpt_login(monkeypatch) -> None:
@@ -119,3 +124,39 @@ def test_codex_available_rejects_api_key_login(monkeypatch) -> None:
     )
 
     assert codex_available("codex") is False
+
+
+@pytest.mark.parametrize("overview", [False, True])
+@pytest.mark.parametrize("ids", [
+    ["u0001"], ["missing"], [" u0001"], ["u0001 "], ["original-uuid"],
+    ["u0001", "u0001"], [], ["u0002"],
+])
+def test_short_ids_are_strictly_restored_for_items_and_overview(
+    monkeypatch, tmp_path, overview, ids,
+):
+    from daily_reader import conversation_insights as insights
+
+    def fake_run(command, **kwargs):
+        payload = json.loads(kwargs["input"])
+        assert payload["utterances"][0]["id"] == "u0001"
+        assert "original-uuid" not in kwargs["input"]
+        point = {"text": "資料の確認について話しました", "evidence_utterance_ids": ids}
+        data = {"overview": {"points": [point]}} if overview else {"items": [point]}
+        Path(command[command.index("--output-last-message") + 1]).write_text(json.dumps(data))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(insights, "codex_available", lambda _: True)
+    monkeypatch.setattr(insights.subprocess, "run", fake_run)
+    request = request_overview if overview else request_insights
+    kwargs = {
+        "codex_command": "unused", "model": "unused", "schema_path": tmp_path / "schema",
+        "recorded_at": None, "timezone": "Asia/Tokyo",
+        "utterances": [{"id": "original-uuid", "text": "資料を確認します"}],
+    }
+    if ids == ["u0001"]:
+        result = request(**kwargs)
+        entries = result["points"] if overview else result
+        assert entries[0]["evidence_utterance_ids"] == ["original-uuid"]
+    else:
+        with pytest.raises(ConversationInsightError, match="根拠発話"):
+            request(**kwargs)
