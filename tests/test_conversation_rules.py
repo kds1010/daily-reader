@@ -1,8 +1,6 @@
-import sqlite3
-
 import pytest
 
-from daily_reader.conversation_rules import retire_unreviewed_rule_fragments, rule_task_title
+from daily_reader.conversation_rules import rule_task_title, visible_rule_item
 
 
 @pytest.mark.parametrize("text", [
@@ -26,44 +24,15 @@ def test_fallback_omits_negations_fragments_quoted_and_unclear_actions(text):
     assert rule_task_title(text) is None
 
 
-def test_migration_preserves_reviewed_items_and_evidence_and_is_idempotent():
-    with sqlite3.connect(":memory:") as connection:
-        connection.executescript("""
-            CREATE TABLE conversation_items(
-                id TEXT PRIMARY KEY,title TEXT,source TEXT,status TEXT,
-                certainty TEXT,updated_at TEXT);
-            CREATE TABLE task_proposals(id TEXT PRIMARY KEY,status TEXT);
-            CREATE TABLE conversation_item_evidence(item_id TEXT,quote TEXT);
-        """)
-        cases = [
-            ("bad", "ボタンを押す必要があるから", "rule", "awaiting_review"),
-            ("good", "資料を確認してください", "rule", "awaiting_review"),
-            ("saved", "それを確認して", "rule", "kept"),
-            ("approved", "それを確認して", "rule", "approved"),
-            ("codex", "それを確認して", "codex", "awaiting_review"),
-        ]
-        for item_id, title, source, status in cases:
-            connection.execute(
-                "INSERT INTO conversation_items VALUES(?,?,?,?,?,?)",
-                (item_id, title, source, status, "explicit", "old"),
-            )
-            connection.execute("INSERT INTO task_proposals VALUES(?,?)", (item_id, status))
-            connection.execute(
-                "INSERT INTO conversation_item_evidence VALUES(?,?)", (item_id, title),
-            )
-        assert retire_unreviewed_rule_fragments(connection) == 1
-        assert retire_unreviewed_rule_fragments(connection) == 0
-        results = {r[0]: r[1:] for r in connection.execute(
-            "SELECT id,status,certainty FROM conversation_items"
-        )}
-        assert results["bad"][0] == "superseded"
-        assert results["good"] == ("awaiting_review", "ambiguous")
-        assert results["saved"] == ("kept", "explicit")
-        assert results["approved"] == ("approved", "explicit")
-        assert results["codex"] == ("awaiting_review", "explicit")
-        assert connection.execute(
-            "SELECT status FROM task_proposals WHERE id=?", ("bad",)
-        ).fetchone()[0] == "superseded"
-        assert connection.execute(
-            "SELECT count(*) FROM conversation_item_evidence"
-        ).fetchone()[0] == 5
+
+@pytest.mark.parametrize("source,status,title,visible", [
+    ("rule", "awaiting_review", "ボタンを押す必要があるから", False),
+    ("rule", "awaiting_review", "資料を確認してください", True),
+    ("rule", "kept", "それを確認して", True),
+    ("rule", "approved", "それを確認して", True),
+    ("rule", "dismissed", "それを確認して", True),
+    ("rule", "superseded", "それを確認して", True),
+    ("codex", "awaiting_review", "それを確認して", True),
+])
+def test_visibility_only_filters_unreviewed_rule_fragments(source, status, title, visible):
+    assert visible_rule_item(source, status, title) is visible

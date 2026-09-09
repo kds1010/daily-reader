@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import re
-import sqlite3
-from datetime import UTC, datetime
 
 
 def rule_task_title(text: str) -> str | None:
@@ -36,25 +34,7 @@ def rule_task_title(text: str) -> str | None:
     return title
 
 
-def retire_unreviewed_rule_fragments(connection: sqlite3.Connection) -> int:
-    """Retain rejected legacy evidence while removing it from actionable inboxes."""
-    rows = connection.execute(
-        "SELECT id,title FROM conversation_items WHERE source='rule' AND status='awaiting_review'"
-    ).fetchall()
-    rejected = [row[0] for row in rows if rule_task_title(row[1]) is None]
-    now = datetime.now(UTC).isoformat()
-    for item_id in rejected:
-        connection.execute(
-            "UPDATE conversation_items SET status='superseded',updated_at=? "
-            "WHERE id=? AND source='rule' AND status='awaiting_review'",
-            (now, item_id),
-        )
-        connection.execute(
-            "UPDATE task_proposals SET status='superseded' WHERE id=? AND status='awaiting_review'",
-            (item_id,),
-        )
-    connection.execute(
-        "UPDATE conversation_items SET certainty='ambiguous' "
-        "WHERE source='rule' AND status='awaiting_review' AND certainty<>'ambiguous'"
-    )
-    return len(rejected)
+
+def visible_rule_item(source: str, status: str, title: str) -> bool:
+    """Hide unreviewed fallback fragments without changing saved review decisions."""
+    return source != "rule" or status != "awaiting_review" or rule_task_title(title) is not None
