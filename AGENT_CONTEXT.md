@@ -412,6 +412,15 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - 成功後だけ端末キューを削除し、iPhoneの受信Inboxコピーは元の内容と一致する場合だけ削除する。外部原本とMac miniの原音は保持する。読み取れない項目は保持・警告し、正常分は送信する。受付前に中断された一時コピーは次の復元時に回収する。録音日時、SHA重複排除、Macの5 GiB残量条件、自動整理の設定は従来どおり。OSの停止中の転送は保証しない。
 - 手順と公式根拠は[SoundcoreのMP3取り込み](docs/soundcore-import.md)。検証は`tests/test_conversation_import_native.py`（実Intentファイル・Swiftキュー・URLSessionと匿名HTTP）、`tests/test_ios_file_sharing.py`、両OSビルド。共有Swift変更の配信はサーバー事前確認と両OS成果物の再生成・配信検証を行う。サーバー正常時の再起動は不要。
 
+## SoundcoreのGoogle Drive経由の取り込み
+
+- 2026-09-09のユーザー指示により、SoundcoreがGoogle Driveへ保存したOGG/MP3原音をMacへ取り込む経路を追加した。SoundcoreからDriveへの転送と、DriveからDaymeldへの取得は独立した工程として検証する。コネクターが返す内部ファイル参照はMacへの保存完了ではない。
+- `drive_imports.py`はDriveファイルIDを登録し、原音を受け取り、保存後の解析受付を永続キューで進める。Drive IDと版・チェックサム、および既存の音声SHA重複排除を使い、既存本文・日時・候補を上書きしない。同じDrive IDで原音が変わる場合は競合として止める。`completed`は原音保存・解析受付までであり、文字起こし完了と区別する。
+- 録音の直上フォルダー名が厳格な`YYYY-MM-DD HH:MM:SS`の場合だけ日本時間として`recorded_at_source=soundcore_drive_folder_name`を確定する。元のフォルダー・ファイル名とDrive IDを保持し、Driveの作成・更新日時を録音日時へ代用しない。日時形式でない名前・不正な日時は不明とし、GPS・発話時刻へ推測で結び付けない。別の有効な日時への改名は検出できず、改名後の日時として扱う。
+- Mac用のDrive取得は既存OAuthクライアント定義を再利用し、Drive専用の読み取り認証をGmailと分けて保持する。`drive.readonly`はDrive全体の読み取り権限なので、初回は本人の同意を必要とする。実処理は設定したSoundCoreフォルダー配下に限定し、Driveの共有・変更・削除は行わない。認証情報や取得用URLを応答・ログ・Codexへ出さない。
+- `python -m daily_reader.drive_sync auth/status/sync`で初回認証・診断・同期を行う。認証は`secrets/drive-token.json`、対象フォルダーと診断は`data/drive-sync.json`、巡回中のページ・ファイル状態は`data/drive-sync.sqlite3`へ保護して保存する。`sync --folder-id`でDrive上のフォルダーを検証して設定後、Webサーバー内の`DriveSyncWorker`が起動時・通常15分ごとに原音を取得する。1回10ファイル・50ページ、15分を目安に区切り（通信終了待ちを除く）、上限到達時は次回へ継続。全体障害は既定設定で最大4時間まで間隔を広げる。初回認証と対象設定前は取得しない。Soundcore接続復旧のCodex heartbeatとは別に動作する。
+- Soundcore Online Hubを閉じた間は新規テスト音声がDriveへ届かず、開いた直後に保存されたことを同日に確認した。この環境の観測であり、すべての構成に一般化しない。Soundcoreの認証復旧とMacのDrive認証は別に扱う。仕様・制限・運用手順は[Drive取り込み](docs/soundcore-drive-sync.md)を参照する。
+
 ## 音声認識の精度と再解析
 
 - `conversation_transcription.py`がfaster-whisperのlarge-v3-turbo（既定）、CPU int8、日本語、VAD既定で認識する。`DAYMELD_WHISPER_MODEL`の既存指定を優先する。前文引き継ぎを無効にして反復ループを抑えるが、窓間の表記不一致は起こり得る。モデル・設定版・時間・VAD通過・品質診断を`transcription_metadata`に保存し、avg_logprobを正解率とは表示しない。原音はMac外へ送らない。

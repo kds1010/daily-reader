@@ -1,5 +1,9 @@
 # Soundcoreクラウドからの取り込み
 
+継続的な自動取得には、SoundcoreのGoogle Drive連携で保存された原音を取得する
+[Google Drive経由の取り込み](soundcore-drive-sync.md)を使います。以下は共有リンクを
+個別に渡す場合と、書き出し済みMP3を取り込む場合の手順です。
+
 Soundcoreで音声を含む共有リンクを作り、Daymeldの「会話」→「Soundcoreの共有リンクを取り込む」へ
 貼り付けると、Mac miniがクラウドから原音を直接取得します。iPhoneでMP3を書き出す必要はありません。
 Soundcore側で文字起こしをしていない録音も、音声が共有されていれば取り込めます。
