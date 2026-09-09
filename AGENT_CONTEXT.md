@@ -293,7 +293,7 @@ launchctl kickstart -k gui/$(id -u)/org.nix-community.home.daily-reader-agent-wo
 - 候補抽出とは独立したCodex処理で根拠付きoverviewを生成し、`conversation_overviews`へ入力・生成版・分割範囲・発話IDを保存する。短い入力専用IDを実発話IDへ厳密に戻し、不明なIDの要点は受け入れない。GPSはCodexへ送らず、Mac内の既存リンクを一覧へ結合する。
 - `GET /api/conversations`は後方互換の`digest`を付加し、全録音の原文・発話ごとのGPSを含めない。詳細で全要点と根拠、確認待ち・保存済み・追加済み候補を表示する。録音一覧の成功を候補一覧APIの成功待ちにせず、詳細の更新失敗時は前回成功データを保持する。
 - `POST /api/conversations/{id}/overview`の空JSONで要約だけを生成・更新できる。候補と採用履歴を変更せず、音声の再文字起こしも行わない。要約の生成状態は候補抽出状態から独立させ、再生成失敗時は前回要約と失敗状態を区別する。通常の候補抽出・再整理の保存方式は変更しない。
-- `conversation_rules.py`は完結した具体的依頼だけを補助候補にし、未確認rule候補の否定・条件・完了・引用・曖昧な断片を返却時に除く。既存DBの候補状態や根拠は変更せず、kept/approved・Codex候補はこの補助条件で除外しない。rule由来の残る未確認候補は表示上ambiguousとする。件数・代表・詳細・承認可否に同じ判定を用いる。
+- `conversation_rules.py`は完結した具体的依頼だけを補助候補にし、未確認rule候補の否定・条件・完了・引用・曖昧な断片を返却時に除く。既存DBの候補状態や根拠は変更せず、本人の編集済み候補（updated_atがcreated_atと異なるrule）・kept/approved・Codex候補はこの補助条件で除外しない。rule由来の残る未確認候補は表示上ambiguousとする。件数・代表・詳細・承認可否に同じ判定を用いる。
 - 根拠付きでも文字起こしの誤りは解消しない。文字起こしの診断や長文分割の範囲を表示し、場所不明・整理未実施・処理中・失敗・整理済みで項目なしを区別する。設計と抽出種別の例は[会話ごとの振り返り](docs/conversation-overview.md)を参照する。サーバーと共有Swiftの変更はWeb再起動、両OSビルド・配信検証まで行う。
 
 ## 会話とGPSの自動紐付け
