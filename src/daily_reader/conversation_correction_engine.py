@@ -225,6 +225,10 @@ def _scoped_request(
         path.write_text(json.dumps(schema, ensure_ascii=False), encoding="utf-8")
         path.chmod(0o600)
         return _request(
+            usage_task_type=(
+                "daymeld-conversation-correction" if "corrections" in properties
+                else "daymeld-conversation-verification"
+            ),
             schema_path=path, utterances=utterances, context_payload=context_payload, **kwargs
         )
 
@@ -237,6 +241,7 @@ def run_correction_passes(
     codex_command: str,
     model: str,
     on_stage: Callable[[str], None] | None = None,
+    usage_task_id: str | None = None,
 ) -> list[dict]:
     """Return a complete verified batch, or fail without publishing partial results."""
     ids = [row.get("id") for row in utterances]
@@ -283,6 +288,7 @@ def run_correction_passes(
         payload = {"reference_context": used_context, "target_ids": list(scoped)}
         common = {
             "codex_command": codex_command,
+            "usage_task_id": usage_task_id,
             "model": model,
             "recorded_at": None,
             "timezone": "Asia/Tokyo",

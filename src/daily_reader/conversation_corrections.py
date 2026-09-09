@@ -303,6 +303,7 @@ def ensure_corrected(database: Path, recording_id: str, schema_path: Path, codex
             codex_command=codex,
             model=model,
             on_stage=on_stage,
+            usage_task_id=recording_id,
         )
         results = validate_results(results, rows, contexts)
         with OPERATION_LOCK, _connect(database) as connection:

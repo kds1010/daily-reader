@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from daily_reader.ai_usage import run_codex, usage_context
+
 DEFAULT_INSIGHT_MODEL = "gpt-5.6-luna"
 DEFAULT_INSIGHT_REASONING_EFFORT = "low"
 PROMPT_VERSION = "conversation-insights-codex-v4"
@@ -196,6 +198,8 @@ def _request(
     timeout: float = 300,
     developer_instructions: str = DEVELOPER_INSTRUCTIONS,
     context_payload: dict[str, object] | None = None,
+    usage_task_type: str = "daymeld-conversation-insights",
+    usage_task_id: str | None = None,
 ) -> dict[str, object]:
     if not codex_available(codex_command):
         raise ConversationInsightError("Codex CLIへChatGPTアカウントでログインしてください")
@@ -231,15 +235,19 @@ def _request(
         },
         ensure_ascii=False,
     )
-    with tempfile.TemporaryDirectory(prefix="daymeld-conversation-insight-") as directory:
+    with (
+        usage_context(usage_task_type, usage_task_id),
+        tempfile.TemporaryDirectory(prefix="daymeld-conversation-insight-") as directory,
+    ):
         result_path = Path(directory) / "result.json"
         output_schema = _evidence_schema(schema_path, list(aliases), Path(directory))
         try:
-            subprocess.run(
+            run_codex(
                 [
                     codex_command,
                     "exec",
                     "--ephemeral",
+                    "--json",
                     "--ignore-user-config",
                     "--ignore-rules",
                     "--sandbox",
@@ -323,7 +331,10 @@ def request_insights(**kwargs: object) -> list[dict[str, object]]:
 
 
 def request_overview(**kwargs: object) -> dict[str, object]:
-    result = _request(**kwargs, developer_instructions=OVERVIEW_INSTRUCTIONS)
+    result = _request(
+        **kwargs, developer_instructions=OVERVIEW_INSTRUCTIONS,
+        usage_task_type="daymeld-conversation-overview",
+    )
     overview = result.get("overview")
     if (
         not isinstance(overview, dict) or not isinstance(overview.get("points"), list)

@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
 
+from daily_reader.ai_usage import run_codex, usage_context
 from daily_reader.core import Article
 
 LOGGER = logging.getLogger(__name__)
@@ -818,30 +819,32 @@ def generate_highlights(
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as result_file:
         result_path = Path(result_file.name)
     try:
-        subprocess.run(
-            [
-                codex,
-                "exec",
-                "--ephemeral",
-                "--ignore-user-config",
-                "--ignore-rules",
-                "--sandbox",
-                "read-only",
-                "--model",
-                "gpt-5.6-luna",
-                "--config",
-                'model_reasoning_effort="low"',
-                "--output-schema",
-                str(schema_path.resolve()),
-                "--output-last-message",
-                str(result_path),
-                prompt,
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
+        with usage_context("daymeld-news", current_hash):
+            run_codex(
+                [
+                    codex,
+                    "exec",
+                    "--ephemeral",
+                    "--json",
+                    "--ignore-user-config",
+                    "--ignore-rules",
+                    "--sandbox",
+                    "read-only",
+                    "--model",
+                    "gpt-5.6-luna",
+                    "--config",
+                    'model_reasoning_effort="low"',
+                    "--output-schema",
+                    str(schema_path.resolve()),
+                    "--output-last-message",
+                    str(result_path),
+                    prompt,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
         result = json.loads(result_path.read_text(encoding="utf-8"))
         article_by_id = {article.id: article for article in articles}
         candidate_by_id = {article.id: article for article in candidates}

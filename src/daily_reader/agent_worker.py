@@ -34,6 +34,7 @@ from daily_reader.agent_jobs import (
     take_pending_instructions,
     update_job,
 )
+from daily_reader.ai_usage import UsageCapture, usage_context
 
 LOGGER = logging.getLogger(__name__)
 MAX_TURNS = 8
@@ -232,9 +233,13 @@ def run_codex_turn(
             model,
             reasoning_effort,
         )
-        with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr_file:
+        with (
+            UsageCapture(command) as usage,
+            tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr_file,
+        ):
             with CODEX_PROCESS_LOCK:
                 if WORKER_STOPPING.is_set():
+                    usage.status = "cancelled"
                     raise WorkerStopping
                 process = subprocess.Popen(
                     command, cwd=worktree, stdout=subprocess.PIPE, stderr=stderr_file,
@@ -250,6 +255,7 @@ def run_codex_turn(
                         event = json.loads(line)
                     except json.JSONDecodeError:
                         continue
+                    usage.observe(event)
                     if on_event is not None:
                         on_event(event)
                 process.wait()
@@ -259,6 +265,7 @@ def run_codex_turn(
                 stop_codex_processes([process])
                 raise
             finally:
+                usage.return_code = process.returncode
                 process.stdout.close()
                 with CODEX_PROCESS_LOCK:
                     CODEX_PROCESSES.pop(process.pid, None)
@@ -280,7 +287,8 @@ def run_deployment_turn(
 ) -> tuple[str | None, dict[str, Any], str]:
     # `codex exec resume` cannot accept `--approve-for-me`. Start deployment in a
     # fresh session so launchctl and live checks can use automatic approval review.
-    return run_codex_turn(worktree, schema, prompt, None)
+    with usage_context("daymeld-agent-deployment"):
+        return run_codex_turn(worktree, schema, prompt, None)
 
 
 def _initial_prompt(task: str, mode: str = "execute") -> str:
@@ -732,19 +740,24 @@ current worktree state. Continue autonomously until the task is committed and ve
                 planning_turn and attempt == 1
                 )
             )
-            thread_id, result, messages = run_codex_turn(
-                worktree,
-                schema,
-                prompt,
-                thread_id,
-                model=implementation_model if use_implementation_model else None,
-                reasoning_effort=(
-                    implementation_reasoning_effort
-                    if use_implementation_model
-                    else None
-                ),
-                on_event=record_activity,
+            usage_phase = (
+                "follow-up" if follow_up else "requirements" if job.get("mode") == "requirements"
+                else "implementation" if use_implementation_model else "planning"
             )
+            with usage_context(f"daymeld-agent-{usage_phase}", job_id):
+                thread_id, result, messages = run_codex_turn(
+                    worktree,
+                    schema,
+                    prompt,
+                    thread_id,
+                    model=implementation_model if use_implementation_model else None,
+                    reasoning_effort=(
+                        implementation_reasoning_effort
+                        if use_implementation_model
+                        else None
+                    ),
+                    on_event=record_activity,
+                )
             # Result/state persistence remains mandatory. A transient progress
             # lock does not abandon the running Codex process or lose events.
             flush_activity()
@@ -831,9 +844,10 @@ current worktree state. Continue autonomously until the task is committed and ve
 default branch and encountered conflicts. Resolve every conflict without discarding unrelated
 upstream changes, complete the rebase, rerun the relevant verification, and keep the worktree
 clean. Return done only when the rebase and verification succeed."""
-                thread_id, conflict_result, messages = run_codex_turn(
-                    worktree, schema, conflict_prompt, thread_id
-                )
+                with usage_context("daymeld-agent-integration-conflict", job_id):
+                    thread_id, conflict_result, messages = run_codex_turn(
+                        worktree, schema, conflict_prompt, thread_id
+                    )
                 update_job(
                     database,
                     job_id,
@@ -882,9 +896,10 @@ clean. Return done only when the rebase and verification succeed."""
                 conflict_prompt = _default_branch_conflict_prompt(
                     repository["default_branch"]
                 )
-                _, conflict_result, messages = run_codex_turn(
-                    default_worktree, schema, conflict_prompt, None
-                )
+                with usage_context("daymeld-agent-default-branch-conflict", job_id):
+                    _, conflict_result, messages = run_codex_turn(
+                        default_worktree, schema, conflict_prompt, None
+                    )
                 append_event(
                     database,
                     job_id,
@@ -917,9 +932,10 @@ clean. Return done only when the rebase and verification succeed."""
                 "deploying",
                 f"{commit} のデプロイと実環境確認を開始しました",
             )
-            thread_id, deployment_result, messages = run_deployment_turn(
-                worktree, schema, _deployment_prompt(commit)
-            )
+            with usage_context("daymeld-agent-deployment", job_id):
+                thread_id, deployment_result, messages = run_deployment_turn(
+                    worktree, schema, _deployment_prompt(commit)
+                )
             update_job(
                 database,
                 job_id,

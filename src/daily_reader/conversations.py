@@ -1572,6 +1572,7 @@ def _extract_recording_overview(database, recording_id, schema_path, codex_comma
         overview = {"points": [], "chunks": []}
         for index, chunk in enumerate(chunk_utterances(utterances), 1):
             raw = request_overview(
+                usage_task_id=recording_id,
                 codex_command=codex_command,
                 model=model,
                 schema_path=overview_schema,
@@ -1729,6 +1730,7 @@ def extract_recording_insights(
             for chunk in chunk_utterances(utterances):
                 raw_items.extend(
                     request_insights(
+                        usage_task_id=recording_id,
                         codex_command=codex_command,
                         model=model,
                         schema_path=schema_path,

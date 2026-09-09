@@ -13,6 +13,7 @@ import threading
 import time
 from pathlib import Path
 
+from daily_reader.ai_usage import UsageCapture, usage_context
 from daily_reader.conversation_insights import _codex_environment, codex_available
 from daily_reader.life_assistant import connect, now_string, present, public_url, text_value
 
@@ -208,6 +209,7 @@ class ResearchWorker:
                     self.codex_command,
                     "exec",
                     "--ephemeral",
+                    "--json",
                     "--ignore-user-config",
                     "--ignore-rules",
                     "--sandbox",
@@ -233,41 +235,53 @@ class ResearchWorker:
                 request_path.write_text(
                     json.dumps({**data, "today": now_string()}, ensure_ascii=False)
                 )
-                with (root / "process.log").open("w+") as log, request_path.open() as request_input:
-                    self.process = subprocess.Popen(
-                        command,
-                        cwd=root,
-                        env=_codex_environment(),
-                        stdin=request_input,
-                        stdout=log,
-                        stderr=log,
-                        text=True,
-                        start_new_session=True,
-                    )
-                    deadline = time.monotonic() + self.timeout
-                    while self.process.poll() is None:
-                        with connect(self.database) as connection:
-                            row = connection.execute(
-                                "SELECT status FROM life_entries WHERE id=?", (job["id"],)
-                            ).fetchone()
-                        if self.stopped.is_set() or not row or row["status"] != "running":
-                            self._terminate()
-                            return
-                        if time.monotonic() >= deadline:
-                            self._terminate()
-                            raise ValueError(
-                                "調査が10分以内に完了しませんでした。範囲を絞って再試行してください"
-                            )
-                        self.stopped.wait(1)
-                    if (
-                        self.process.returncode != 0
-                        or not output.exists()
-                        or output.stat().st_size > 100_000
-                    ):
-                        raise ValueError(
-                            "調査を完了できませんでした。利用枠や接続を確認して再試行してください"
+                with (
+                    usage_context("daymeld-life-research", str(job["id"])),
+                    UsageCapture(command) as usage,
+                    (root / "process.log").open("w+") as log,
+                    request_path.open() as request_input,
+                ):
+                    try:
+                        self.process = subprocess.Popen(
+                            command,
+                            cwd=root,
+                            env=_codex_environment(),
+                            stdin=request_input,
+                            stdout=log,
+                            stderr=log,
+                            text=True,
+                            start_new_session=True,
                         )
-                    result = validate_result(json.loads(output.read_text()))
+                        deadline = time.monotonic() + self.timeout
+                        while self.process.poll() is None:
+                            with connect(self.database) as connection:
+                                row = connection.execute(
+                                    "SELECT status FROM life_entries WHERE id=?", (job["id"],)
+                                ).fetchone()
+                            if self.stopped.is_set() or not row or row["status"] != "running":
+                                usage.status = "cancelled"
+                                self._terminate()
+                                return
+                            if time.monotonic() >= deadline:
+                                usage.status = "timeout"
+                                self._terminate()
+                                raise ValueError(
+                                    "調査が10分以内に完了しませんでした。範囲を絞って再試行してください"
+                                )
+                            self.stopped.wait(1)
+                        if (
+                            self.process.returncode != 0
+                            or not output.exists()
+                            or output.stat().st_size > 100_000
+                        ):
+                            raise ValueError(
+                                "調査を完了できませんでした。利用枠や接続を確認して再試行してください"
+                            )
+                        result = validate_result(json.loads(output.read_text()))
+                    finally:
+                        if self.process is not None:
+                            usage.return_code = self.process.returncode
+                        usage.observe_file(log)
         except (OSError, ValueError, subprocess.SubprocessError) as exc:
             error = (
                 str(exc) if isinstance(exc, ValueError) else "調査プロセスを開始できませんでした"
