@@ -334,6 +334,75 @@ def test_successful_refresh_is_atomic_private_and_scope_checked(tmp_path, monkey
     assert token.read_bytes() == original
 
 
+@pytest.mark.parametrize("detail,retryable,expected", [
+    ({"error": "invalid_grant"}, False, "auth_required"),
+    ({"error": "invalid_client"}, False, "auth_required"),
+    ({"error": "unauthorized_client"}, False, "auth_required"),
+    ({"error": "invalid_grant"}, True, "auth_refresh_failed"),
+    ({"error": "temporarily_unavailable"}, False, "auth_refresh_failed"),
+    ({"error": "private-response"}, False, "auth_refresh_failed"),
+    ({"error": []}, False, "auth_refresh_failed"),
+])
+def test_refresh_failure_classification_never_uses_unknown_response_text(
+    detail, retryable, expected,
+):
+    error = RefreshError("private-token-response", detail, retryable=retryable)
+    assert sync._refresh_error_code(error) == expected
+
+
+def drive_http_error(status, reason=None):
+    content = json.dumps({"error": {"errors": [{"reason": reason}], "message": "private"}})
+    return HttpError(SimpleNamespace(status=status, reason="private"), content.encode())
+
+
+@pytest.mark.parametrize("status,reason,expected", [
+    (401, None, "auth_required"),
+    *[(403, value, "drive_permission_denied") for value in sync.PERMISSION_REASONS],
+    *[(403, value, "drive_api_failed") for value in sync.RATE_REASONS],
+    (403, "private-unknown-reason", "drive_api_failed"),
+    (429, None, "drive_api_failed"), (500, None, "drive_api_failed"),
+    (404, None, "drive_item_unavailable"),
+])
+def test_drive_http_status_and_reason_separate_authentication_from_limits(status, reason, expected):
+    failure = drive_http_error(status, reason)
+
+    def fail():
+        raise failure
+
+    with pytest.raises(sync.DriveSyncError) as caught:
+        sync._execute(Request(fail))
+    assert caught.value.code == expected and "private" not in str(caught.value)
+
+
+@pytest.mark.parametrize("location", ["root", "listing", "audio"])
+@pytest.mark.parametrize("failure,expected", [
+    (RefreshError("private", {"error": "invalid_grant"}), "auth_required"),
+    (drive_http_error(403, "insufficientPermissions"), "drive_permission_denied"),
+    (drive_http_error(403, "rateLimitExceeded"), "drive_api_failed"),
+])
+def test_auth_and_limit_failures_escape_file_retry_loop(environment, monkeypatch, location,
+                                                      failure, expected):
+    drive, api, directory = environment
+    drive.add_audio()
+
+    def fail(*args, **kwargs):
+        raise failure
+
+    if location == "root":
+        monkeypatch.setattr(drive, "get", lambda **kwargs: Request(fail))
+    elif location == "listing":
+        monkeypatch.setattr(drive, "list", lambda **kwargs: Request(fail))
+    else:
+        monkeypatch.setattr(FakeDownloader, "next_chunk", fail)
+    with pytest.raises(sync.DriveSyncError, match=expected):
+        run(environment)
+    assert not api.uploads
+    if location == "audio":
+        with sync._queue(directory / "data") as connection:
+            row = connection.execute("SELECT status,attempts FROM files").fetchone()
+        assert tuple(row) == ("pending", 0)
+
+
 @pytest.mark.parametrize("name", ["gmail-token.json", "gmail-client.json"])
 def test_auth_refuses_overwriting_gmail_files(tmp_path, name):
     client = tmp_path / "gmail-client.json"

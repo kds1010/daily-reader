@@ -29,6 +29,7 @@ from pathlib import Path
 from time import monotonic, sleep
 
 from daily_reader import (
+    connection_alerts,
     device_context,
     diary,
     drive_imports,
@@ -684,10 +685,12 @@ def make_handler(
     conversation_codex_command: str = "codex",
     conversation_insight_model: str = DEFAULT_INSIGHT_MODEL,
     payments_db: Path = Path("data/payments.sqlite3"),
+    connection_alert_data_dir: Path | None = None,
 ):
     repositories = agent_repositories or {}
     tanomi = tanomi_client
     soan = soan_client
+    alert_data_dir = connection_alert_data_dir or conversations_db.parent
 
     class DailyReaderHandler(SimpleHTTPRequestHandler):
         def _soundcore_access_allowed(self) -> bool:
@@ -724,7 +727,9 @@ def make_handler(
 
         def log_request(self, code="-", size="-") -> None:
             # Never log a supplied filename, query, or other payment input.
-            if urllib.parse.urlsplit(self.path).path.startswith(
+            if urllib.parse.urlsplit(self.path).path.startswith("/api/connection-"):
+                self.log_message("connection health API response %s", code)
+            elif urllib.parse.urlsplit(self.path).path.startswith(
                 "/api/conversations/drive-imports"
             ):
                 self.log_message("Drive import API response %s", code)
@@ -862,6 +867,16 @@ def make_handler(
         def do_GET(self) -> None:  # noqa: N802
             parsed_url = urllib.parse.urlsplit(self.path)
             path = parsed_url.path
+            if path == "/api/connection-alerts":
+                if not self._soundcore_access_allowed():
+                    return
+                try:
+                    self._send_json(200, {
+                        "alerts": connection_alerts.active_alerts(alert_data_dir),
+                    })
+                except (OSError, sqlite3.Error):
+                    self._send_json(503, {"error": "接続状態を取得できませんでした"})
+                return
             if path == "/api/conversations/drive-imports" or path.startswith(
                 "/api/conversations/drive-imports/"
             ):
@@ -1118,7 +1133,14 @@ def make_handler(
                 )
                 return
             if self.path == "/api/agent-notifications":
-                self._send_json(200, {"jobs": present_agent_notification_jobs(list_jobs(agent_db))})
+                result = {
+                    "jobs": present_agent_notification_jobs(list_jobs(agent_db)),
+                    "connection_alerts": None,
+                }
+                # Null means unknown; [] would falsely imply recovery.
+                with suppress(OSError, sqlite3.Error):
+                    result["connection_alerts"] = connection_alerts.active_alerts(alert_data_dir)
+                self._send_json(200, result)
                 return
             if self.path.startswith("/api/agent-jobs/"):
                 job_id = urllib.parse.unquote(self.path.rsplit("/", 1)[-1])
@@ -1272,6 +1294,43 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path == "/api/connection-health/soundcore":
+                self.close_connection = True
+                if not self._soundcore_access_allowed():
+                    return
+                try:
+                    peer = ip_address(self.client_address[0])
+                    host = urllib.parse.urlsplit("//" + self.headers.get("Host", "")).hostname
+                except (ValueError, AttributeError, IndexError):
+                    peer, host = None, None
+                # Serve preserves the caller's Host, but adds forwarding headers.
+                # Reject proxied traffic even when its Host claims to be localhost.
+                forwarded = any(
+                    name.lower() == "forwarded"
+                    or name.lower().startswith(("x-forwarded-", "tailscale-"))
+                    for name in self.headers
+                )
+                if (
+                    peer is None or not peer.is_loopback or forwarded
+                    or host not in {"127.0.0.1", "localhost"}
+                ):
+                    self._send_json(403, {"error": "接続状態の更新はMac内からのみ利用できます"})
+                    return
+                if self.headers.get("Content-Type", "").split(";", 1)[0] != "application/json":
+                    self._send_json(415, {"error": "application/jsonが必要です"})
+                    return
+                try:
+                    if self.headers.get("Transfer-Encoding"):
+                        raise ValueError("unsupported transfer encoding")
+                    connection_alerts.report_soundcore(
+                        alert_data_dir, self._read_json(max_length=1024)
+                    )
+                    self._send_json(200, {"updated": True})
+                except (ValueError, TypeError):
+                    self._send_json(400, {"error": "接続状態の形式が不正です"})
+                except (OSError, sqlite3.Error):
+                    self._send_json(503, {"error": "接続状態を保存できませんでした"})
+                return
             if path == "/api/conversations/drive-imports" or path.startswith(
                 "/api/conversations/drive-imports/"
             ):

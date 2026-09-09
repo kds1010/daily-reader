@@ -38,8 +38,33 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 
+from daily_reader import connection_alerts
+
 DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly"
 GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
+AUTH_ERRORS = {
+    "invalid_grant", "invalid_client", "deleted_client", "disabled_client", "unauthorized_client",
+    "access_denied", "admin_policy_enforced", "invalid_scope",
+}
+PERMISSION_REASONS = {
+    "authError", "insufficientPermissions", "insufficientFilePermissions",
+    "appNotAuthorizedToFile", "domainPolicy",
+}
+RATE_REASONS = {
+    "rateLimitExceeded", "userRateLimitExceeded", "downloadQuotaExceeded",
+    "dailyLimitExceeded", "quotaExceeded", "storageQuotaExceeded",
+}
+AUTH_ALERT_REASONS = {
+    "auth_required": "sign_in_required",
+    "drive_permission_denied": "permission_required",
+    "drive_download_not_allowed": "permission_required",
+    "token_unreadable": "credential_required",
+    **{code: "credential_required" for code in (
+        "service_account_key_unavailable", "service_account_key_not_private",
+        "service_account_key_invalid", "service_account_token_endpoint_invalid",
+        "service_account_universe_invalid", "service_account_delegation_not_supported",
+    )},
+}
 FOLDER_MIME = "application/vnd.google-apps.folder"
 AUDIO_MIMES = {"audio/ogg", "audio/mpeg"}
 MAX_AUDIO_BYTES = 2 * 1024**3
@@ -66,6 +91,48 @@ class DriveSyncError(Exception):
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _refresh_error_code(error: RefreshError) -> str:
+    if not error.retryable and any(
+        isinstance(detail, dict) and isinstance(detail.get("error"), str)
+        and detail["error"] in AUTH_ERRORS for detail in error.args
+    ):
+        return "auth_required"
+    return "auth_refresh_failed"
+
+
+def _http_error_code(error: HttpError, fallback: str = "drive_api_failed") -> str:
+    if error.resp.status == 401:
+        return "auth_required"
+    if error.resp.status == 404:
+        return "drive_item_unavailable"
+    if error.resp.status == 429 or error.resp.status >= 500:
+        return "drive_api_failed"
+    if error.resp.status == 403:
+        try:
+            details = json.loads(error.content[:65536]).get("error", {}).get("errors", [])
+            reasons = {item.get("reason") for item in details if isinstance(item, dict)}
+            if reasons & RATE_REASONS:
+                return "drive_api_failed"
+            if reasons & PERMISSION_REASONS:
+                return "drive_permission_denied"
+        except (ValueError, TypeError, AttributeError):
+            pass
+    return fallback
+
+
+def _record_connection_health(data_dir: Path, *, error: str | None = None) -> None:
+    """A failed alert write must never fail an import or disclose SDK details."""
+    try:
+        if error in AUTH_ALERT_REASONS:
+            connection_alerts.report(
+                data_dir, "google_drive", "authentication_required", AUTH_ALERT_REASONS[error]
+            )
+        elif error is None:
+            connection_alerts.report(data_dir, "google_drive", "connected")
+    except Exception:
+        pass
 
 
 def _identifier(value: Any) -> str:
@@ -158,11 +225,7 @@ def load_credentials(
             try:
                 credentials.refresh(Request())
             except RefreshError as error:
-                invalid_grant = any(
-                    isinstance(detail, dict) and detail.get("error") == "invalid_grant"
-                    for detail in error.args
-                )
-                if not invalid_grant:
+                if _refresh_error_code(error) != "auth_required":
                     raise DriveSyncError("auth_refresh_failed") from None
                 credentials = None
             except Exception:
@@ -314,12 +377,9 @@ def _execute(request: Any) -> dict[str, Any]:
     try:
         result = request.execute(num_retries=0)
     except HttpError as error:
-        code = "drive_api_failed"
-        if error.resp.status in {401, 403}:
-            code = "drive_permission_denied"
-        elif error.resp.status == 404:
-            code = "drive_item_unavailable"
-        raise DriveSyncError(code) from None
+        raise DriveSyncError(_http_error_code(error)) from None
+    except RefreshError as error:
+        raise DriveSyncError(_refresh_error_code(error)) from None
     except Exception:
         raise DriveSyncError("drive_api_failed") from None
     if not isinstance(result, dict):
@@ -539,7 +599,9 @@ def _list_page(service: Any, connection: sqlite3.Connection, folder: sqlite3.Row
             connection.execute("UPDATE folders SET page_token=NULL WHERE id=?", (folder["id"],))
             connection.commit()
             return
-        raise DriveSyncError("drive_api_failed") from None
+        raise DriveSyncError(_http_error_code(error)) from None
+    except RefreshError as error:
+        raise DriveSyncError(_refresh_error_code(error)) from None
     except Exception:
         raise DriveSyncError("drive_api_failed") from None
     if not isinstance(page, dict) or page.get("incompleteSearch"):
@@ -624,6 +686,10 @@ def _download(service: Any, metadata: dict[str, Any], path: Path, check: Any) ->
                 _, done = download.next_chunk(num_retries=0)
         except DriveSyncError:
             raise
+        except HttpError as error:
+            raise DriveSyncError(_http_error_code(error, "audio_download_failed")) from None
+        except RefreshError as error:
+            raise DriveSyncError(_refresh_error_code(error)) from None
         except Exception:
             raise DriveSyncError("audio_download_failed") from None
         if sink.written != size:
@@ -861,11 +927,15 @@ def sync_once(
                             service, api, connection, row, root_id, staging, check, retry_failed
                         )
                     except DriveSyncError as error:
+                        if error.code == "drive_download_not_allowed":
+                            _record_connection_health(data_dir, error=error.code)
                         if error.code in {
                             "daymeld_unavailable",
                             "daymeld_busy",
                             "drive_api_failed",
                             "drive_permission_denied",
+                            "auth_required",
+                            "auth_refresh_failed",
                             "insufficient_disk_space",
                             "stopped",
                         }:
@@ -995,17 +1065,20 @@ class DriveSyncWorker:
         failures = 0
         while not self._stop.is_set():
             try:
-                sync_once(
+                result = sync_once(
                     self.data_dir,
                     self.client_secret,
                     self.token_path,
                     server_port=self.server_port,
                     stop=self._stop,
                 )
+                if result.get("status") == "ready" and not result.get("failed"):
+                    _record_connection_health(self.data_dir)
                 failures = 0
             except DriveSyncError as error:
                 if error.code == "stopped":
                     return
+                _record_connection_health(self.data_dir, error=error.code)
                 failures = 0 if error.code in {"auth_required", "busy"} else min(failures + 1, 4)
             except Exception:
                 # No raw SDK/HTTP exception is safe to send to server logs.
