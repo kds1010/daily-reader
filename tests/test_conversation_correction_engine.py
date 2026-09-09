@@ -338,6 +338,7 @@ def test_scoped_schema_and_transport_use_same_aliases(monkeypatch):
 
 
 def test_correction_transport_sends_only_allowed_fields_and_restores_ids(monkeypatch, tmp_path):
+    (tmp_path / "schema").write_text('{"type":"object"}')
     monkeypatch.setattr(insights, "codex_available", lambda _: True)
 
     def fake_run(command, **kwargs):

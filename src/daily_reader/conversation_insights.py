@@ -145,6 +145,45 @@ def codex_available(codex_command: str, timeout: float = 5) -> bool:
     return result.returncode == 0 and "chatgpt" in status
 
 
+def _evidence_schema(schema_path: Path, aliases: list[str], directory: Path) -> Path:
+    """Constrain only evidence IDs; keep the shared source schema unchanged."""
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ConversationInsightError("会話整理の出力スキーマを読み取れません") from error
+    if not isinstance(schema, dict):
+        raise ConversationInsightError("会話整理の出力スキーマが不正です")
+
+    def bind(node: object) -> bool:
+        changed = False
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict) and "evidence_utterance_ids" in properties:
+                evidence = properties["evidence_utterance_ids"]
+                if (not isinstance(evidence, dict) or evidence.get("type") != "array"
+                        or not isinstance(evidence.get("items"), dict)):
+                    raise ConversationInsightError("会話整理の根拠スキーマが不正です")
+                if not aliases:
+                    raise ConversationInsightError("根拠となる発話がありません")
+                evidence["items"]["enum"] = aliases
+                changed = True
+            for value in node.values():
+                changed = bind(value) or changed
+        elif isinstance(node, list):
+            for value in node:
+                changed = bind(value) or changed
+        return changed
+
+    if not bind(schema):
+        return schema_path
+    scoped_path = directory / "evidence-schema.json"
+    try:
+        scoped_path.write_text(json.dumps(schema, ensure_ascii=False), encoding="utf-8")
+    except OSError as error:
+        raise ConversationInsightError("会話整理の出力スキーマを準備できません") from error
+    return scoped_path
+
+
 def _request(
     *,
     codex_command: str,
@@ -194,6 +233,7 @@ def _request(
     )
     with tempfile.TemporaryDirectory(prefix="daymeld-conversation-insight-") as directory:
         result_path = Path(directory) / "result.json"
+        output_schema = _evidence_schema(schema_path, list(aliases), Path(directory))
         try:
             subprocess.run(
                 [
@@ -210,7 +250,7 @@ def _request(
                     "--config",
                     f'model_reasoning_effort="{reasoning_effort}"',
                     "--output-schema",
-                    str(schema_path.resolve()),
+                    str(output_schema.resolve()),
                     "--output-last-message",
                     str(result_path),
                     developer_instructions,
