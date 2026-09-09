@@ -625,6 +625,7 @@ private struct ConversationLocationSummary: View {
         switch link.dateSource {
         case "soundcore_filename_jst": "ファイル名・日本時間"
         case "soundcore_cloud_timestamp": "Soundcoreクラウドの日時"
+        case "soundcore_drive_folder_name": "Driveフォルダー名・日本時間"
         case "explicit": "明示指定の日時"
         case "legacy_verified": "確認済みの既存日時"
         default: "日時不明"
