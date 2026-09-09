@@ -11,6 +11,7 @@ enum DaymeldResource: String, CaseIterable, Hashable {
 }
 
 struct DaymeldFixture {
+    var conversations: [ConversationRecording] = []
     var diaryScenario = "standard"
     var repositories: [Repository]
     var agentModels: [AgentModelOption]
@@ -57,6 +58,7 @@ struct DaymeldFixture {
     }
 
     init(
+        conversations: [ConversationRecording] = [],
         repositories: [Repository] = [],
         agentModels: [AgentModelOption] = [.fallback],
         agents: [AgentJob] = [],
@@ -83,6 +85,7 @@ struct DaymeldFixture {
         failedResources: Set<DaymeldResource> = [],
         referenceDate: Date? = nil
     ) {
+        self.conversations = conversations
         self.repositories = repositories
         self.agentModels = agentModels
         self.agents = agents
@@ -105,6 +108,19 @@ struct DaymeldFixture {
     }
 
 #if DEBUG
+    static func conversationExamples() -> [ConversationRecording] {
+        let wire = #"""
+        [{"id":"fixture-conversation-1","filename":"匿名の会話.ogg","byte_size":120000,"status":"completed","created_at":"2026-09-02T00:00:00Z","recorded_at":"2026-09-01T09:30:00+09:00","recorded_at_verified":true,"recorded_at_source":"soundcore_drive_folder_name","duration_seconds":780,"source_type":"audio","insight_status":"completed",
+          "digest":{"summary":{"status":"ready","source":"codex","text":"説明用の会話です。資料の送付と、次の打ち合わせの準備を話しました。","points":[{"text":"資料を送り、打ち合わせまでに比較内容を確認する。","chunk_index":0,"evidence":[{"utterance_id":"fixture-u1","quote":"明日までに資料を送ります。","speaker":"話者1","start_seconds":12,"end_seconds":16}]}],"chunk_count":1,"scope":"full_recording","quality_warnings":[],"generated_at":"2026-09-01T10:00:00+09:00"},"counts":[{"kind":"task","status":"awaiting_review","count":1},{"kind":"decision","status":"kept","count":1},{"kind":"research","status":"approved","count":1}],"preview_items":[{"id":"fixture-i1","kind":"task","title":"資料を送る","certainty":"explicit","status":"awaiting_review","evidence_count":1},{"id":"fixture-i2","kind":"decision","title":"比較表で検討する","certainty":"explicit","status":"kept","evidence_count":1}],"location_context":{"subject_id":"fixture-conversation-1","utterance_id":null,"location_event_id":"fixture-gps","target_timestamp":"2026-09-01T09:30:00+09:00","time_basis":"recording_start","date_source":"soundcore_drive_folder_name","state":"matched_estimate","time_delta_seconds":20,"method_version":"nearest-gps-v2","location":{"timestamp":"2026-09-01T09:30:20+09:00","latitude":35,"longitude":139,"horizontal_accuracy":30,"is_approximate":false}}},
+          "utterances":[{"id":"fixture-u1","speaker":"話者1","start_seconds":12,"end_seconds":16,"text":"明日までに資料を送ります。","context":"説明用","topic":"準備"},{"id":"fixture-u2","speaker":"話者2","start_seconds":17,"end_seconds":22,"text":"比較表を使って検討しましょう。","context":"説明用","topic":"準備"}],
+          "insight_items":[{"id":"fixture-i1","recording_id":"fixture-conversation-1","kind":"task","title":"資料を送る","detail":"説明用の確認待ち項目です。","certainty":"explicit","status":"awaiting_review","source":"codex","evidence":[{"position":0,"utterance_id":"fixture-u1","quote":"明日までに資料を送ります。","speaker":"話者1","start_seconds":12,"end_seconds":16}]},{"id":"fixture-i2","recording_id":"fixture-conversation-1","kind":"decision","title":"比較表で検討する","detail":"説明用の保存済み項目です。","certainty":"explicit","status":"kept","source":"codex","evidence":[{"position":0,"utterance_id":"fixture-u2","quote":"比較表を使って検討しましょう。","speaker":"話者2","start_seconds":17,"end_seconds":22}]},{"id":"fixture-i3","recording_id":"fixture-conversation-1","kind":"research","title":"比較軸を調べる","detail":"説明用の追加済み項目です。","certainty":"explicit","status":"approved","source":"codex","approved_target":"life","approved_item_id":"fixture-life","evidence":[{"position":0,"utterance_id":"fixture-u2","quote":"比較表を使って検討しましょう。","speaker":"話者2","start_seconds":17,"end_seconds":22}]}]},
+         {"id":"fixture-conversation-2","filename":"処理中の会話.ogg","byte_size":90000,"status":"analyzing","created_at":"2026-09-02T01:00:00Z","recorded_at":"2026-09-01T10:00:00+09:00","recorded_at_verified":true,"insight_status":"not_requested","source_type":"audio"},
+         {"id":"fixture-conversation-3","filename":"整理失敗の会話.ogg","byte_size":180000,"status":"completed","created_at":"2026-09-02T02:00:00Z","recorded_at":"2026-09-01T11:00:00+09:00","recorded_at_verified":true,"insight_status":"failed","source_type":"audio","digest":{"summary":{"status":"failed","source":null,"text":null,"points":[],"chunk_count":0,"scope":"unknown","quality_warnings":[],"generated_at":null},"counts":[],"preview_items":[],"location_context":{"subject_id":"fixture-conversation-3","utterance_id":null,"location_event_id":null,"target_timestamp":"2026-09-01T11:00:00+09:00","time_basis":"recording_start","date_source":"soundcore_drive_folder_name","state":"no_nearby_gps","time_delta_seconds":null,"method_version":"nearest-gps-v2","location":null}}},
+         {"id":"fixture-conversation-4","filename":"日時不明の会話.txt","byte_size":2500,"status":"completed","created_at":"2026-09-03T00:00:00Z","recorded_at_verified":0,"insight_status":"not_requested","source_type":"transcript","topics":[{"id":"old-topic","name":"話題","context":"説明用","summary":"これは旧形式の発言連結であり、要約には使いません。"}]}]
+        """#
+        return (try? JSONDecoder().decode([ConversationRecording].self, from: Data(wire.utf8))) ?? []
+    }
+
     static let tanomiMarkdown = """
     # 実装結果
 
@@ -303,6 +319,7 @@ struct DaymeldFixture {
             ]
         )
         return DaymeldFixture(
+            conversations: conversationExamples(),
             repositories: repositories, agentModels: models, agents: agents, archivedAgents: archivedAgents,
             tanomiRepositories: tanomiRepositories,
             tanomiConfig: TanomiConfig(models: ["opus", "sonnet"], defaultModel: "opus", efforts: ["low", "medium", "high"], defaultEffort: "medium", permissionModes: ["acceptEdits", "plan", "manual", "bypassPermissions"]),
@@ -321,6 +338,7 @@ struct DaymeldFixture {
             return .standard
         case .empty:
             var fixture = standard
+            fixture.conversations = []
             fixture.diaryScenario = "empty"
             fixture.agents = []
             fixture.archivedAgents = []

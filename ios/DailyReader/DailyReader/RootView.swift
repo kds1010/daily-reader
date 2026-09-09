@@ -289,16 +289,17 @@ struct ConversationsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var imports = ConversationImports.shared
     @ObservedObject private var soundcore = SoundcoreImports.shared
-    @State private var importing = false
+    @State private var showsImport = false
 
+    private var recordings: [ConversationRecording] { model.conversations.sorted(by: ConversationRecording.newestFirst) }
     private var isActive: Bool { scenePhase == .active && model.selectedTab == 4 && !model.isFixture }
     private var hasPendingProcessing: Bool {
-        soundcore.hasPendingJobs || model.conversations.contains {
+        soundcore.hasPendingJobs || recordings.contains {
             ["pending", "queued", "analyzing"].contains($0.status)
                 || ["queued", "extracting"].contains($0.insightStatus ?? "")
+                || $0.isSummaryProcessing
         }
     }
-
     private func refreshConversationData() async {
         async let cloud: Void = soundcore.refresh()
         async let recordings: Void = model.refreshConversations()
@@ -307,13 +308,83 @@ struct ConversationsView: View {
 
     var body: some View {
         List {
-            Section {
-                Button { connections.open() } label: {
-                    Label(connections.alerts.isEmpty ? "接続と通知を確認" : "接続の確認が必要（\(connections.alerts.count)件）",
-                          systemImage: connections.alerts.isEmpty ? "bell.badge" : "exclamationmark.triangle")
-                        .foregroundStyle(connections.alerts.isEmpty ? Color.primary : Color.orange)
+            if !connections.alerts.isEmpty {
+                Section {
+                    Button { connections.open() } label: {
+                        Label("取り込みの接続確認が必要（\(connections.alerts.count)件）", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
+            if !imports.pending.isEmpty || !imports.failures.isEmpty || imports.storageError != nil || imports.unreadableCount > 0 || soundcore.jobs.contains(where: { $0.isPending || $0.status == "failed" }) {
+                Section {
+                    Button { showsImport = true } label: {
+                        Label("取り込み中・要確認のデータがあります", systemImage: "arrow.down.circle")
+                    }
+                }
+            }
+            Section {
+                NavigationLink { ConversationExtractionGuide() } label: {
+                    Label("会話から何が見つかる？", systemImage: "sparkles")
+                }
+                NavigationLink { ConversationRecordingsMap(recordings: recordings) } label: {
+                    Label("場所から会話を探す", systemImage: "map")
+                }
+            }
+            Section("録音ごとの会話") {
+                ResourceStatusView(state: model.conversationLoadState, label: "会話一覧") {
+                    Task { await model.refreshConversations() }
+                }
+                if recordings.isEmpty && model.conversationLoadState == .loaded {
+                    Text("会話はまだありません。取り込んだ録音を、日時・要点・抽出内容ごとに確認できます。")
+                        .foregroundStyle(.secondary)
+                    Button("録音を取り込む") { showsImport = true }
+                }
+                ForEach(recordings) { recording in
+                    VStack(alignment: .leading, spacing: 10) {
+                        NavigationLink { ConversationDetailView(recordingID: recording.id) } label: {
+                            ConversationOverviewCard(recording: recording)
+                        }
+                        if let location = recording.startLocationContext, location.location != nil {
+                            NavigationLink { ConversationLocationMap(links: [location]) } label: {
+                                Label("この会話の推定場所", systemImage: "mappin.and.ellipse")
+                                    .appFont(.caption)
+                            }
+                        }
+                    }.padding(.vertical, 5)
+                }
+            }
+        }
+        .navigationTitle("会話")
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button { connections.open() } label: { Image(systemName: "bell.badge") }
+                    .accessibilityLabel("接続と通知を確認")
+                Button { showsImport = true } label: { Label("取り込む", systemImage: "plus") }
+            }
+        }
+        .sheet(isPresented: $showsImport) { ConversationImportView() }
+        .refreshable { if !model.isFixture { await refreshConversationData() } }
+        .task(id: "\(isActive)-\(soundcore.pollRevision)-\(imports.completedCount)") {
+            guard isActive else { return }
+            await refreshConversationData()
+            while !Task.isCancelled, hasPendingProcessing {
+                do { try await Task.sleep(for: .seconds(3)) } catch { return }
+                await refreshConversationData()
+            }
+        }
+    }
+}
+
+private struct ConversationImportView: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var imports = ConversationImports.shared
+    @ObservedObject private var soundcore = SoundcoreImports.shared
+    @State private var importing = false
+    var body: some View {
+        NavigationStack {
+            List {
             SoundcoreImportSection(imports: soundcore, isFixture: model.isFixture)
             Section {
                 Button { importing = true } label: {
@@ -361,74 +432,9 @@ struct ConversationsView: View {
                     }
                 }
             }
-            Section("音声インボックス") {
-                if model.conversationItems.isEmpty {
-                    Text("確認待ちの候補はありません。録音の詳細からCodex整理を開始できます。")
-                        .appFont(.subheadline).foregroundStyle(.secondary)
-                } else {
-                    ForEach(model.conversationItems) { item in
-                        ConversationInsightCard(item: item, showsRecordingLink: true) {
-                            await model.refreshConversations()
-                        }
-                    }
-                }
             }
-            if !model.keptConversationItems.isEmpty {
-                Section("保存した気づき") {
-                    ForEach(model.keptConversationItems) { item in
-                        VStack(alignment: .leading, spacing: 7) {
-                            Label(item.title, systemImage: insightKindIcon(item.kind))
-                                .appFont(.headline)
-                            if !item.detail.isEmpty {
-                                Text(item.detail).appFont(.subheadline).foregroundStyle(.secondary)
-                            }
-                            NavigationLink {
-                                ConversationDetailView(recordingID: item.recordingID)
-                            } label: {
-                                Label(item.recordingFilename ?? "録音を表示", systemImage: "waveform")
-                                    .appFont(.caption)
-                            }
-                        }
-                    }
-                }
-            }
-            Section("取り込み履歴") {
-                ResourceStatusView(state: model.conversationLoadState, label: "会話") {
-                    Task { await model.refreshConversations() }
-                }
-                ForEach(model.conversations) { recording in
-                    NavigationLink {
-                        ConversationDetailView(recordingID: recording.id)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(recording.filename).appFont(.headline)
-                            HStack {
-                                Text(recording.isTranscript ? "テキスト" : "音声")
-                                Text(recording.status == "completed" ? "解析済み" : recording.status == "failed" ? "要確認" : "解析中")
-                                if let count = recording.insightItemCount, count > 0 {
-                                    Text("候補 \(count)件")
-                                }
-                                Text(ByteCountFormatter.string(fromByteCount: Int64(recording.byteSize), countStyle: .file))
-                            }.appFont(.caption).foregroundStyle(.secondary)
-                            if let error = recording.error { Text(error).appFont(.caption).foregroundStyle(.orange) }
-                            if let error = recording.insightError { Text(error).appFont(.caption).foregroundStyle(.orange) }
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle("会話")
-        .refreshable { if !model.isFixture { await refreshConversationData() } }
-        .task(id: "\(isActive)-\(soundcore.pollRevision)-\(imports.completedCount)") {
-            guard isActive else { return }
-            // Refresh once when opened/accepted, then only while retrieval or
-            // existing recording analysis is pending. View/scene exit cancels it.
-            await refreshConversationData()
-            while !Task.isCancelled, hasPendingProcessing {
-                do { try await Task.sleep(for: .seconds(3)) } catch { return }
-                await refreshConversationData()
-            }
-        }
+            .navigationTitle("録音を取り込む")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("閉じる") { dismiss() } } }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.mp3, .plainText], allowsMultipleSelection: false) { result in
             if case .success(let urls) = result, let url = urls.first {
                 Task { await model.importConversationFile(url) }
@@ -436,6 +442,127 @@ struct ConversationsView: View {
                 model.errorMessage = error.localizedDescription
             }
         }
+        }
+        #if os(macOS)
+        .frame(minWidth: 560, minHeight: 520)
+        #endif
+    }
+}
+
+private struct ConversationOverviewCard: View {
+    let recording: ConversationRecording
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(recording.displayDate).appFont(.headline)
+                Spacer()
+                if let duration = recording.durationSeconds ?? recording.transcriptionMetadata?.durationSeconds, duration.isFinite, duration > 0 {
+                    Text("\(Int(duration) / 60)分\(Int(duration) % 60)秒").appFont(.caption)
+                }
+            }
+            if recording.verifiedDate == nil, let imported = conversationDate(recording.createdAt) {
+                Text("取り込み: \(imported.formatted(date: .abbreviated, time: .shortened))")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            if let summary = recording.summaryText {
+                if let label = recording.previousSummaryLabel {
+                    Text(label).appFont(.caption).foregroundStyle(.orange)
+                }
+                Text(verbatim: summary).appFont(.subheadline).lineLimit(4)
+            } else {
+                Text(recording.summaryStateLabel).appFont(.subheadline).foregroundStyle(.secondary)
+            }
+            if recording.summary?.scope == "chunked" {
+                Text("区間ごとの要点").appFont(.caption2).foregroundStyle(.secondary)
+            }
+            let kinds = ConversationExtractionKind.allCases.filter { recording.extractionCount($0.rawValue) > 0 }
+            if !kinds.isEmpty {
+                Text(kinds.map { "\($0.label) \(recording.extractionCount($0.rawValue))" }.joined(separator: " · "))
+                    .appFont(.caption, weight: .semibold).foregroundStyle(.mint)
+            } else if recording.digest != nil && recording.insightStatus == "completed" {
+                Text("抽出された項目はありません").appFont(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(Array((recording.digest?.previewItems ?? []).prefix(3))) { item in
+                Text("\(ConversationExtractionKind(rawValue: item.kind)?.label ?? item.kind): \(item.title)")
+                    .appFont(.caption).lineLimit(1)
+            }
+            Label(recording.locationStateLabel, systemImage: recording.startLocationContext?.location == nil ? "location.slash" : "mappin.and.ellipse")
+                .appFont(.caption).foregroundStyle(.secondary)
+            if let warning = recording.summary?.qualityWarnings.first {
+                Text(warning).appFont(.caption).foregroundStyle(.orange).lineLimit(2)
+            }
+            if recording.insightStatus == "failed" {
+                Text("抽出処理に失敗しています。詳細で再試行できます。")
+                    .appFont(.caption).foregroundStyle(.orange)
+            }
+            if recording.status == "failed" {
+                Text("文字起こしに失敗しています。詳細で確認できます。")
+                    .appFont(.caption).foregroundStyle(.orange)
+            }
+            Text(recording.filename).appFont(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+        }
+    }
+}
+
+private struct ConversationExtractionGuide: View {
+    private let examples = ["task": "『明日、資料を送ります』→ 用事の候補", "follow_up": "『返事がなければ確認します』→ 連絡・確認の候補", "decision": "『今回はA案にしましょう』→ 決定事項", "idea": "『入力を自動化できそう』→ 改善案", "friction": "『毎回ログインするのが面倒』→ 困りごと", "research": "『この2製品の違いを調べたい』→ 調べもの", "event": "『金曜の15時に打ち合わせ』→ 予定の候補", "interest": "『最近、写真に興味がある』→ 関心の候補", "preference": "『静かな店が好き』→ 好みの候補"]
+    var body: some View {
+        List {
+            Section {
+                Text("以下は説明用の例です。実際の録音から抽出した内容ではありません。")
+                Text("発言の根拠を残し、明言・推定・曖昧を区別します。日時や相手が不明な約束は、確認が必要な候補として扱います。")
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(ConversationExtractionKind.allCases) { kind in
+                Section {
+                    Label(kind.label, systemImage: kind.icon).appFont(.headline)
+                    Text(kind.explanation)
+                    Text(examples[kind.rawValue] ?? "").appFont(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            Section {
+                Text("関心・好みは発言に基づく候補です。声や場所だけで人物を同定せず、同じ話者名を別の録音へ自動で結び付けません。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+        }.navigationTitle("会話から見つかること")
+    }
+}
+
+private struct ConversationRecordingsMap: View {
+    let recordings: [ConversationRecording]
+    @State private var selectedID: String?
+    private var located: [ConversationRecording] { recordings.filter { $0.startLocationContext?.state == "matched_estimate" && $0.startLocationContext?.location != nil } }
+    var body: some View {
+        List {
+            if located.isEmpty {
+                Text("GPSと照合できた会話はまだありません。日時不明や近いGPSがない会話も、会話一覧には表示されます。")
+            } else {
+                Map(selection: $selectedID) {
+                    ForEach(located) { recording in
+                        if let location = recording.startLocationContext?.location {
+                            Marker(recording.displayDate, coordinate: CLLocationCoordinate2D(latitude: location.latitude, longitude: location.longitude))
+                                .tag(recording.id)
+                        }
+                    }
+                }.frame(height: 300)
+                Text("録音開始付近の端末の位置です。会話全体の場所や人物を示すものではありません。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+                if let selected = located.first(where: { $0.id == selectedID }) {
+                    Section("選択した会話") {
+                        NavigationLink { ConversationDetailView(recordingID: selected.id) } label: { ConversationOverviewCard(recording: selected) }
+                    }
+                }
+                Section("GPSと照合した会話（\(located.count)件）") {
+                    ForEach(located) { recording in
+                        NavigationLink { ConversationDetailView(recordingID: recording.id) } label: { ConversationOverviewCard(recording: recording) }
+                    }
+                }
+            }
+            if recordings.count > located.count {
+                Text("位置未照合の会話: \(recordings.count - located.count)件。会話一覧から内容を確認できます。")
+                    .foregroundStyle(.secondary)
+            }
+        }.navigationTitle("場所と会話")
     }
 }
 
@@ -533,44 +660,63 @@ struct ConversationDetailView: View {
     @State private var showTranscriptionConfirmation = false
     @State private var transcriptionInFlight = false
     @State private var extractionInFlight = false
+    @State private var overviewInFlight = false
+    @State private var selectedKind = ""
 
     var body: some View {
         List {
+            if let error = model.conversationDetailErrors[recordingID] {
+                Section {
+                    Text(error).foregroundStyle(.orange)
+                    Button("再読み込み") { Task { await reload() } }
+                }
+            }
             if let recording {
-                let contexts = recording.locationContexts ?? []
-                let byUtterance = Dictionary(uniqueKeysWithValues: contexts.compactMap { link in
-                    link.utteranceID.map { ($0, link) }
-                })
-                Section("概要") {
-                    Text(recording.filename)
-                    ForEach(recording.topics ?? []) { topic in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(topic.name).appFont(.headline)
-                            Text(topic.summary).appFont(.subheadline).foregroundStyle(.secondary)
+                let contexts = recording.locationContexts ?? recording.startLocationContext.map { [$0] } ?? []
+                Section("話したこと") {
+                    Text(recording.displayDate).appFont(.headline)
+                    ConversationSummaryContent(recording: recording)
+                    Button(recording.summaryText != nil ? "要約を更新" : "要約を作成") {
+                        Task {
+                            guard !overviewInFlight else { return }
+                            overviewInFlight = true
+                            defer { overviewInFlight = false }
+                            if await model.summarizeConversation(recordingID) { await reload(afterMutation: true) }
                         }
                     }
-                    if recording.status == "failed" {
-                        Text(recording.error ?? "解析に失敗しました").foregroundStyle(.orange)
-                    }
-                    if let name = recording.transcriptionMetadata?.model {
-                        Text("文字起こしモデル: \(name)").appFont(.caption).foregroundStyle(.secondary)
-                    }
-                    ForEach(recording.transcriptionMetadata?.warnings ?? [], id: \.self) { warning in
-                        Text(warning).appFont(.caption).foregroundStyle(.orange)
-                    }
-                    if recording.transcriptionNeedsReview == 1 {
-                        Text("再解析後の自動整理は停止しています。Codexで整理した候補も、追加済みの用事との重複を確認してから保存してください。")
-                            .appFont(.caption).foregroundStyle(.secondary)
-                    }
-                    if !recording.isTranscript {
-                        if recording.status == "queued" || recording.status == "analyzing" {
-                            HStack { ProgressView(); Text("Macで文字起こし・話者分離を処理しています…") }
-                        } else {
-                            Button("文字起こしを再実行") { showTranscriptionConfirmation = true }
-                                .disabled(transcriptionInFlight || extractionInFlight || recording.insightStatus == "queued" || recording.insightStatus == "extracting")
+                    .disabled(model.isFixture || overviewInFlight || recording.status != "completed" || recording.isSummaryProcessing || ["queued", "extracting"].contains(recording.insightStatus ?? ""))
+                    Text("要約だけを作成・更新します。抽出済みの候補や追加済みの用事は変更しません。この録音の文字起こしをCodexへ渡し、原音・GPSは送りません。")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                }
+                Section("抽出された内容") {
+                    Picker("種類", selection: $selectedKind) {
+                        Text("すべて").tag("")
+                        ForEach(ConversationExtractionKind.allCases) { kind in
+                            Text("\(kind.label)（\(recording.currentInsightItems.filter { $0.kind == kind.rawValue }.count)）").tag(kind.rawValue)
                         }
                     }
-                    insightExtractionControls(recording)
+                    if recording.currentInsightItems.isEmpty {
+                        Text(recording.insightStatus == "completed" ? "抽出された項目はありません。要約と原文から会話の内容を確認できます。" : recording.insightStatus == "failed" ? "抽出処理に失敗しています。下の処理情報から再試行できます。" : "抽出結果はまだありません。処理状況は下で確認できます。")
+                            .foregroundStyle(.secondary)
+                    }
+                    NavigationLink("抽出される種類と説明用の例") { ConversationExtractionGuide() }
+                }
+                ForEach(ConversationExtractionKind.allCases.filter { selectedKind.isEmpty || selectedKind == $0.rawValue }) { kind in
+                    let items = recording.currentInsightItems.filter { $0.kind == kind.rawValue }
+                    if !items.isEmpty {
+                        Section("\(kind.label)（\(items.count)件）") {
+                            ForEach(items) { item in
+                                ConversationExtractedItemView(item: item, recording: recording) { await reload(afterMutation: true) }
+                            }
+                        }
+                    }
+                }
+                Section("原文と根拠") {
+                    NavigationLink("文字起こしの全文を読む（\(recording.utterances?.count ?? 0)発話）") {
+                        ConversationTranscriptView(recording: recording)
+                    }
+                    Text("話者ラベルはこの録音内の区別です。声や場所だけで人物を同定しません。")
+                        .appFont(.caption).foregroundStyle(.secondary)
                 }
                 Section("録音日時と場所") {
                     if let start = contexts.first(where: { $0.utteranceID == nil }) {
@@ -592,47 +738,48 @@ struct ConversationDetailView: View {
                                 let _: EmptyResponse = try await APIClient.shared.post(
                                     "api/conversations/\(recordingID)/match-location",
                                     body: EmptyRequest(), as: EmptyResponse.self)
-                                await reload()
+                                await reload(afterMutation: true)
                             } catch { model.errorMessage = error.localizedDescription }
                         }
-                    }
+                    }.disabled(model.isFixture)
                 }
-                let awaitingItems = (recording.insightItems ?? []).filter { $0.status == "awaiting_review" }
-                if !awaitingItems.isEmpty {
-                    Section("確認待ちの候補") {
-                        ForEach(awaitingItems) { item in
-                            ConversationInsightCard(item: item) { await reload() }
+                Section("処理と取り込み情報") {
+                    Text(recording.filename)
+                    if recording.status == "failed" {
+                        Text(recording.error ?? "解析に失敗しました").foregroundStyle(.orange)
+                    }
+                    if let name = recording.transcriptionMetadata?.model {
+                        Text("文字起こしモデル: \(name)").appFont(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(recording.transcriptionMetadata?.warnings ?? [], id: \.self) { warning in
+                        Text(warning).appFont(.caption).foregroundStyle(.orange)
+                    }
+                    if recording.transcriptionNeedsReview == 1 {
+                        Text("再解析後の自動整理は停止しています。Codexで整理した候補も、追加済みの用事との重複を確認してから保存してください。")
+                            .appFont(.caption).foregroundStyle(.secondary)
+                    }
+                    if !recording.isTranscript {
+                        if recording.status == "queued" || recording.status == "analyzing" {
+                            HStack { ProgressView(); Text("Macで文字起こし・話者分離を処理しています…") }
+                        } else {
+                            Button("文字起こしを再実行") { showTranscriptionConfirmation = true }
+                                .disabled(transcriptionInFlight || extractionInFlight || recording.isSummaryProcessing || recording.insightStatus == "queued" || recording.insightStatus == "extracting")
                         }
                     }
-                }
-                Section("会話") {
-                    ForEach(recording.utterances ?? []) { utterance in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack { Text(utterance.speaker ?? "話者").bold(); Spacer(); Text(utterance.topic) }
-                                .appFont(.caption).foregroundStyle(.secondary)
-                            Text(utterance.text).textSelection(.enabled)
-                            if let link = byUtterance[utterance.id] {
-                                ConversationLocationSummary(link: link)
-                                if let context = link.deviceContext { PhoneEvidenceView(evidence: context) }
-                                if link.location != nil {
-                                    NavigationLink("この発言の推定場所") {
-                                        ConversationLocationMap(links: [link])
-                                    }
-                                    .appFont(.caption)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else { ProgressView("会話を読み込んでいます…") }
+                    insightExtractionControls(recording)
+                }.disabled(model.isFixture)
+            } else if model.conversationDetailErrors[recordingID] == nil {
+                ProgressView("会話を読み込んでいます…")
+            }
         }
-        .navigationTitle("解析結果")
-        .task(id: "\(recording?.status ?? ""):\(recording?.insightStatus ?? "")") {
+        .navigationTitle("会話の内容")
+        .task(id: "\(recording?.status ?? ""):\(recording?.insightStatus ?? ""):\(recording?.summary?.status ?? ""):\(recording?.summary?.generationStatus ?? "")") {
             while !Task.isCancelled {
                 await reload()
-                guard let recording,
+                guard !model.isFixture, let recording,
                       recording.status == "queued" || recording.status == "analyzing"
                         || recording.insightStatus == "queued" || recording.insightStatus == "extracting"
+                        || recording.isSummaryProcessing
                 else { return }
                 do { try await Task.sleep(for: .seconds(2)) }
                 catch { return }
@@ -646,7 +793,7 @@ struct ConversationDetailView: View {
                     transcriptionInFlight = true
                     defer { transcriptionInFlight = false }
                     await model.analyzeConversation(recordingID)
-                    await reload()
+                    await reload(afterMutation: true)
                 }
             }
             Button("キャンセル", role: .cancel) {}
@@ -669,7 +816,9 @@ struct ConversationDetailView: View {
         }
     }
 
-    private func reload() async { recording = await model.loadConversation(recordingID) }
+    private func reload(afterMutation: Bool = false) async {
+        if let value = await model.loadConversation(recordingID, afterMutation: afterMutation), !Task.isCancelled { recording = value }
+    }
 
     @ViewBuilder
     private func insightExtractionControls(_ recording: ConversationRecording) -> some View {
@@ -686,10 +835,10 @@ struct ConversationDetailView: View {
             Text(recording.insightError ?? "Codexによる整理に失敗しました。")
                 .foregroundStyle(.orange)
             Button("Codex整理を再試行") { showExtractionConfirmation = true }
-                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight)
+                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight || recording.isSummaryProcessing)
         default:
             Button("Codexでタスク・予定・関心などを整理") { showExtractionConfirmation = true }
-                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight)
+                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight || recording.isSummaryProcessing)
             if !model.conversationLLMAvailable {
                 Text("Mac miniでCodexへChatGPTログインすると利用できます。")
                     .appFont(.caption).foregroundStyle(.secondary)
@@ -702,7 +851,159 @@ struct ConversationDetailView: View {
         extractionInFlight = true
         defer { extractionInFlight = false }
         guard await model.extractConversationInsights(recordingID) else { return }
-        await reload()
+        await reload(afterMutation: true)
+    }
+}
+
+private struct ConversationSummaryContent: View {
+    let recording: ConversationRecording
+    var body: some View {
+        if let summary = recording.summary, recording.summaryText != nil || (!summary.points.isEmpty && summary.status != "stale") {
+            if let label = recording.previousSummaryLabel {
+                Text(label).appFont(.caption).foregroundStyle(.orange)
+            }
+            if summary.scope == "chunked" {
+                Text("長い録音を区間ごとに整理した要点です。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            if summary.points.isEmpty, let text = recording.summaryText { Text(verbatim: text) }
+            ForEach(Array(summary.points.enumerated()), id: \.offset) { _, point in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(verbatim: point.text)
+                    DisclosureGroup("この要点の根拠（\(point.evidence.count)件）") {
+                        ForEach(Array(point.evidence.enumerated()), id: \.offset) { index, evidence in
+                            ConversationEvidenceQuote(recording: recording, utteranceID: evidence.utteranceID,
+                                                      quote: evidence.quote, speaker: evidence.speaker,
+                                                      startSeconds: evidence.startSeconds, position: index)
+                        }
+                    }.appFont(.caption)
+                }.padding(.vertical, 4)
+            }
+        } else {
+            Text(recording.summaryStateLabel).foregroundStyle(.secondary)
+        }
+        ForEach(recording.summary?.qualityWarnings ?? [], id: \.self) { warning in
+            Text(warning).appFont(.caption).foregroundStyle(.orange)
+        }
+    }
+}
+
+private struct ConversationExtractedItemView: View {
+    @EnvironmentObject private var model: AppModel
+    let item: ConversationInsightItem
+    let recording: ConversationRecording
+    let onChanged: () async -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(item.status == "awaiting_review" ? "確認待ち" : item.status == "kept" ? "保存済み" : "追加済み")
+                    .appFont(.caption, weight: .bold).foregroundStyle(item.status == "awaiting_review" ? .orange : .mint)
+                Text(item.certainty == "explicit" ? "明言" : item.certainty == "inferred" ? "推定" : "曖昧")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            Text(verbatim: item.title).appFont(.headline)
+            if !item.detail.isEmpty { Text(verbatim: item.detail).appFont(.subheadline) }
+            if let assignee = item.assignee { Text("担当候補: \(assignee)").appFont(.caption) }
+            if let due = item.dueDate { Text("期限候補: \(due)").appFont(.caption) }
+            DisclosureGroup("根拠（\(item.evidence.count)件）") {
+                ForEach(Array(item.evidence.enumerated()), id: \.offset) { _, evidence in
+                    VStack(alignment: .leading, spacing: 6) {
+                        ConversationEvidenceQuote(recording: recording, utteranceID: evidence.utteranceID,
+                                                  quote: evidence.quote, speaker: evidence.speaker,
+                                                  startSeconds: evidence.startSeconds, position: evidence.position)
+                        if let context = evidence.locationContext {
+                            if evidence.locationContextIsSnapshot == true {
+                                Text("保存・追加時点の位置照合です。").appFont(.caption2).foregroundStyle(.secondary)
+                            }
+                            ConversationLocationSummary(link: context)
+                            if context.location != nil {
+                                NavigationLink("根拠の推定場所") { ConversationLocationMap(links: [context]) }
+                            }
+                        }
+                    }
+                }
+            }
+            if item.status == "awaiting_review" {
+                DisclosureGroup("内容を確認・修正する") {
+                    ConversationInsightCard(item: item, onChanged: onChanged)
+                        .disabled(model.isFixture)
+                }
+            } else if item.status == "approved" {
+                if item.approvedTarget == "life" {
+                    NavigationLink("暮らしに追加した内容を確認") { LifeAssistantView(store: model.life) }
+                } else if item.approvedTarget == "agent" {
+                    Button("Agentの一覧へ") { model.selectedTab = 0 }
+                } else if item.approvedTarget == "planner" {
+                    Button("今日のタスクへ") { model.selectedTab = 1 }
+                }
+            }
+        }.padding(.vertical, 4)
+    }
+}
+
+private struct ConversationEvidenceQuote: View {
+    let recording: ConversationRecording
+    let utteranceID: String?
+    let quote: String
+    let speaker: String?
+    let startSeconds: Double?
+    let position: Int
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(speaker ?? "話者未判定")
+                if recording.isTranscript {
+                    Text("文字起こしの根拠")
+                } else if let seconds = startSeconds, seconds.isFinite, seconds >= 0 {
+                    Text(String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60))
+                }
+            }.appFont(.caption2).foregroundStyle(.secondary)
+            Text(verbatim: quote).appFont(.caption).textSelection(.enabled)
+            if let utteranceID, recording.utterances?.contains(where: { $0.id == utteranceID }) == true {
+                NavigationLink("前後の発言を確認") {
+                    ConversationTranscriptView(recording: recording, selectedUtteranceID: utteranceID)
+                }.appFont(.caption)
+            } else {
+                Text("この根拠の引用を保持しています。現在の原文との対応は確認できません。")
+                    .appFont(.caption2).foregroundStyle(.secondary)
+            }
+        }.padding(.vertical, 4)
+    }
+}
+
+private struct ConversationTranscriptView: View {
+    let recording: ConversationRecording
+    var selectedUtteranceID: String? = nil
+    private var shown: [ConversationUtterance] {
+        let utterances = recording.utterances ?? []
+        guard let selectedUtteranceID, let index = utterances.firstIndex(where: { $0.id == selectedUtteranceID }) else { return utterances }
+        return Array(utterances[max(0, index - 1)...min(utterances.count - 1, index + 1)])
+    }
+    var body: some View {
+        List {
+            if selectedUtteranceID != nil {
+                Text("根拠の発言と、その前後を表示しています。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(shown) { utterance in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(utterance.speaker ?? "話者未判定").bold()
+                        if !recording.isTranscript, utterance.startSeconds.isFinite, utterance.startSeconds >= 0 {
+                            Text(String(format: "%d:%02d", Int(utterance.startSeconds) / 60, Int(utterance.startSeconds) % 60))
+                        }
+                        if utterance.id == selectedUtteranceID { Text("根拠").foregroundStyle(.mint) }
+                    }.appFont(.caption)
+                    Text(verbatim: utterance.text).textSelection(.enabled)
+                    if let link = recording.locationContexts?.first(where: { $0.utteranceID == utterance.id }) {
+                        ConversationLocationSummary(link: link)
+                        if link.location != nil {
+                            NavigationLink("この発言の推定場所") { ConversationLocationMap(links: [link]) }
+                        }
+                    }
+                }.padding(.vertical, 4)
+            }
+        }.navigationTitle(selectedUtteranceID == nil ? "文字起こし" : "根拠の前後")
     }
 }
 

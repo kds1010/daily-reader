@@ -18,6 +18,55 @@ def test_daymeld_ux_fixture_scenarios_cover_empty_failure_and_stress(tmp_path: P
 import Foundation
 
 let standard = DaymeldFixture.scenario(.standard)
+precondition(standard.conversations.count == 4)
+let overview = standard.conversations[0]
+precondition(overview.summaryText?.contains("説明用") == true)
+precondition(overview.currentInsightItems.count == 3)
+precondition(Set(overview.currentInsightItems.map(\.status))
+    == ["awaiting_review", "kept", "approved"])
+precondition(overview.extractionCount("task") == 1 && overview.extractionCount("decision") == 1)
+precondition(overview.startLocationContext?.state == "matched_estimate")
+precondition(overview.digest?.summary.points.first?.evidence.first?.utteranceID == "fixture-u1")
+let sortedConversations = standard.conversations.sorted(by: ConversationRecording.newestFirst)
+precondition(sortedConversations.first?.id == "fixture-conversation-3")
+precondition(sortedConversations.last?.id == "fixture-conversation-4")
+precondition(standard.conversations[1].summaryStateLabel.contains("文字起こし中"))
+precondition(standard.conversations[2].summaryStateLabel.contains("失敗"))
+precondition(standard.conversations[3].summaryText == nil,
+    "legacy topic excerpts must never be presented as summaries")
+precondition(ConversationExtractionKind.allCases.count == 9)
+precondition(ConversationExtractionKind.allCases.allSatisfy { !$0.explanation.isEmpty })
+let summaryWire = #"""
+{"status":"ready","source":"codex","text":"前回の要約","points":[],"chunk_count":1,
+ "scope":"full_recording","quality_warnings":[],"generated_at":null,
+ "generation_status":"analyzing"}
+"""#
+let generatingSummary = try! JSONDecoder().decode(ConversationSummary.self,
+    from: Data(summaryWire.utf8))
+precondition(generatingSummary.isGenerating)
+func recordingWithSummary(_ status: String, generation: String) -> ConversationRecording {
+    let summary: [String: Any] = ["status": status, "source": "codex", "text": "前回の要約",
+        "points": [], "chunk_count": 1, "scope": "full_recording", "quality_warnings": [],
+        "generated_at": NSNull(), "generation_status": generation]
+    let row: [String: Any] = ["id": "test", "filename": "anonymous.ogg", "byte_size": 10,
+        "status": "completed", "created_at": "2026-09-01T00:00:00Z",
+        "recorded_at": "2026-09-01T00:00:00Z", "recorded_at_verified": 1,
+        "digest": ["summary": summary, "counts": [], "preview_items": [],
+                   "location_context": NSNull()]]
+    return try! JSONDecoder().decode(ConversationRecording.self,
+        from: JSONSerialization.data(withJSONObject: row))
+}
+let updating = recordingWithSummary("ready", generation: "queued")
+precondition(updating.isSummaryProcessing && updating.summaryText == "前回の要約")
+precondition(updating.previousSummaryLabel?.contains("更新中") == true)
+precondition(updating.verifiedDate != nil)
+let failedUpdate = recordingWithSummary("ready", generation: "failed")
+precondition(failedUpdate.summaryText == "前回の要約"
+    && failedUpdate.previousSummaryLabel?.contains("失敗") == true)
+precondition(!failedUpdate.isSummaryProcessing)
+let staleSummary = recordingWithSummary("stale", generation: "not_requested")
+precondition(staleSummary.summaryText == nil,
+    "superseded transcript summary is never a current summary")
 precondition(standard.agents.count >= 6)
 precondition(standard.lifeSnapshot?.secretary?.top_ids.count == 3)
 precondition(standard.lifeSnapshot?.secretary?.weekly.browsing_minutes.total == nil)
@@ -44,6 +93,7 @@ if !standard.articles.contains(where: { $0.imageURL == nil }) {
 }
 
 let empty = DaymeldFixture.scenario(.empty)
+precondition(empty.conversations.isEmpty)
 if !(empty.agents.isEmpty && empty.tanomiTasks.isEmpty
     && empty.emails.isEmpty && empty.articles.isEmpty) {
     let counts = "empty counts: agents=\(empty.agents.count), tanomi=\(empty.tanomiTasks.count), "

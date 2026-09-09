@@ -66,8 +66,7 @@ final class AppModel: ObservableObject {
     @Published var codexUsageFailed = false
     @Published var deploymentInfo: DeploymentInfo?
     @Published var conversations: [ConversationRecording] = []
-    @Published var conversationItems: [ConversationInsightItem] = []
-    @Published var keptConversationItems: [ConversationInsightItem] = []
+    @Published private(set) var conversationDetailErrors: [String: String] = [:]
     @Published var conversationLLMAvailable = false
     @Published var conversationLoadState: ResourceLoadState = .idle
     @Published var isRefreshing = false
@@ -96,6 +95,7 @@ final class AppModel: ObservableObject {
     private let agentNotifications = AgentNotificationCoordinator()
     #endif
     private let refreshes = ResourceRefreshes()
+    private var conversationDetails: [String: ConversationRecording] = [:]
     private var fullRefreshCount = 0
     private var lastTanomiMetadataRefresh: Date = .distantPast
     private var pendingEmailActions: [String: (email: EmailReminder, index: Int)] = [:]
@@ -141,6 +141,8 @@ final class AppModel: ObservableObject {
         tanomiStatusMessage = fixture.tanomiStatusMessage
         life.isFixture = true
         life.snapshot = fixture.lifeSnapshot
+        conversations = fixture.conversations
+        conversationLoadState = .loaded
         today = fixture.today
         emails = fixture.emails
         articles = fixture.articles
@@ -272,14 +274,9 @@ final class AppModel: ObservableObject {
             if previous == .idle { self.conversationLoadState = .loading }
             do {
                 let envelope = try await self.api.get("api/conversations", as: ConversationEnvelope.self)
-                let items = try await self.api.get("api/conversation-items", as: ConversationItemsEnvelope.self)
-                let kept = try await self.api.get("api/conversation-items",
-                    queryItems: [URLQueryItem(name: "status", value: "kept")], as: ConversationItemsEnvelope.self)
                 guard self.refreshes.isCurrent("conversations", generation) else { return }
                 self.conversations = envelope.recordings
                 self.conversationLLMAvailable = envelope.llmAvailable ?? false
-                self.conversationItems = items.items
-                self.keptConversationItems = kept.items
                 self.conversationLoadState = .loaded
             } catch {
                 guard self.refreshes.isCurrent("conversations", generation, includingCancelled: true) else { return }
@@ -320,12 +317,39 @@ final class AppModel: ObservableObject {
     }
 #endif
 
-    func loadConversation(_ id: String) async -> ConversationRecording? {
-        do { return try await api.get("api/conversations/\(id)", as: ConversationRecording.self) }
-        catch { errorMessage = "会話を取得できませんでした：\(error.localizedDescription)"; return nil }
+    func loadConversation(_ id: String, afterMutation: Bool = false) async -> ConversationRecording? {
+        if let fixture { return fixture.conversations.first { $0.id == id } }
+        let key = "conversation-detail-\(id)"
+        await refreshes.run(key, replacing: afterMutation) { generation in
+            do {
+                let value = try await self.api.get("api/conversations/\(id)", as: ConversationRecording.self)
+                guard self.refreshes.isCurrent(key, generation) else { return }
+                self.conversationDetails[id] = value
+                self.conversationDetailErrors.removeValue(forKey: id)
+            } catch {
+                guard self.refreshes.isCurrent(key, generation) else { return }
+                self.conversationDetailErrors[id] = self.conversationDetails[id] == nil
+                    ? "会話を取得できませんでした。再試行してください。"
+                    : "更新できませんでした。前回取得した会話を表示しています。"
+            }
+        }
+        return conversationDetails[id]
+    }
+
+    func summarizeConversation(_ id: String) async -> Bool {
+        guard !isFixture else { return false }
+        do {
+            let _: EmptyResponse = try await api.post("api/conversations/\(id)/overview", body: EmptyRequest(), as: EmptyResponse.self)
+            await refreshConversations(afterMutation: true)
+            return true
+        } catch {
+            errorMessage = "要約を開始できませんでした。Mac miniの接続と処理状況を確認してください。"
+            return false
+        }
     }
 
     func analyzeConversation(_ id: String) async {
+        guard !isFixture else { return }
         do {
             let _: EmptyResponse = try await api.post("api/conversations/\(id)/analyze", body: EmptyRequest(), as: EmptyResponse.self)
             await refreshConversations(afterMutation: true)
@@ -333,6 +357,7 @@ final class AppModel: ObservableObject {
     }
 
     func extractConversationInsights(_ id: String) async -> Bool {
+        guard !isFixture else { return false }
         guard conversationLLMAvailable else {
             errorMessage = "Mac miniでCodexへChatGPTログインしていません。"
             return false

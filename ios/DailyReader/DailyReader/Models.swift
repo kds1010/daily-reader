@@ -535,6 +535,64 @@ func normalizedSoundcoreShareURL(_ value: String) throws -> String {
 struct ConversationTranscriptionMetadata: Decodable {
     let model: String?
     let warnings: [String]?
+    var durationSeconds: Double? = nil
+    enum CodingKeys: String, CodingKey {
+        case model, warnings
+        case durationSeconds = "duration_seconds"
+    }
+}
+
+enum ConversationExtractionKind: String, CaseIterable, Identifiable {
+    case task, follow_up, decision, idea, friction, research, event, interest, preference
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .task: "タスク"
+        case .follow_up: "フォローアップ"
+        case .decision: "決定事項"
+        case .idea: "アイデア"
+        case .friction: "困りごと"
+        case .research: "調べもの"
+        case .event: "予定"
+        case .interest: "関心"
+        case .preference: "好み"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .task: "checkmark.circle"
+        case .follow_up: "arrow.turn.up.right"
+        case .decision: "checkmark.seal"
+        case .idea: "lightbulb"
+        case .friction: "exclamationmark.bubble"
+        case .research: "magnifyingglass"
+        case .event: "calendar"
+        case .interest: "star"
+        case .preference: "heart"
+        }
+    }
+    var explanation: String {
+        switch self {
+        case .task: "やると話した用事"
+        case .follow_up: "連絡・確認・返答が必要なこと"
+        case .decision: "会話で決まったこと"
+        case .idea: "試したい案や工夫"
+        case .friction: "困りごとや改善したいこと"
+        case .research: "調べたい質問や比較"
+        case .event: "日時を伴う予定の候補"
+        case .interest: "明示した興味や関心"
+        case .preference: "明示した好みや希望"
+        }
+    }
+}
+
+func conversationDate(_ value: String?) -> Date? {
+    guard let value else { return nil }
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let date = formatter.date(from: value) { return date }
+    formatter.formatOptions = [.withInternetDateTime]
+    return formatter.date(from: value)
 }
 
 struct ConversationRecording: Decodable, Identifiable {
@@ -564,6 +622,13 @@ struct ConversationRecording: Decodable, Identifiable {
     var transcriptionMetadata: ConversationTranscriptionMetadata? = nil
     var transcriptionNeedsReview: Int? = nil
     var locationContexts: [ConversationLocationContext]? = nil
+    var recordedAtVerified: ConversationVerifiedFlag? = nil
+    var recordedAtSource: String? = nil
+    var durationSeconds: Double? = nil
+    var digest: ConversationDigest? = nil
+    var overview: ConversationSummary? = nil
+    var overviewStatus: String? = nil
+    var overviewError: String? = nil
     var isTranscript: Bool { sourceType == "transcript" }
     enum CodingKeys: String, CodingKey {
         case id, filename, status, error, speakers, utterances, topics
@@ -579,6 +644,149 @@ struct ConversationRecording: Decodable, Identifiable {
         case transcriptionMetadata = "transcription_metadata"
         case transcriptionNeedsReview = "transcription_needs_review"
         case locationContexts = "location_contexts"
+        case recordedAtVerified = "recorded_at_verified", recordedAtSource = "recorded_at_source"
+        case durationSeconds = "duration_seconds", digest, overview
+        case overviewStatus = "overview_status", overviewError = "overview_error"
+    }
+}
+
+// Older detail responses expose SQLite's 0/1; new projections use JSON Bool.
+struct ConversationVerifiedFlag: Decodable {
+    let value: Bool
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let boolean = try? container.decode(Bool.self) { value = boolean }
+        else { value = try container.decode(Int.self) == 1 }
+    }
+}
+
+struct ConversationDigest: Decodable {
+    let summary: ConversationSummary
+    let counts: [ConversationExtractionCount]
+    let previewItems: [ConversationExtractionPreview]
+    let locationContext: ConversationLocationContext?
+    enum CodingKeys: String, CodingKey {
+        case summary, counts
+        case previewItems = "preview_items", locationContext = "location_context"
+    }
+}
+
+struct ConversationSummary: Decodable {
+    let status: String
+    let source: String?
+    let text: String?
+    let points: [ConversationSummaryPoint]
+    let chunkCount: Int
+    let scope: String
+    let qualityWarnings: [String]
+    let generatedAt: String?
+    var generationStatus: String? = nil
+    var generationError: String? = nil
+    var isGenerating: Bool { ["queued", "analyzing", "extracting"].contains(generationStatus ?? status) }
+    enum CodingKeys: String, CodingKey {
+        case status, source, text, points, scope
+        case chunkCount = "chunk_count", qualityWarnings = "quality_warnings", generatedAt = "generated_at"
+        case generationStatus = "generation_status", generationError = "generation_error"
+    }
+}
+
+struct ConversationSummaryPoint: Decodable {
+    let text: String
+    let chunkIndex: Int
+    let evidence: [ConversationSummaryEvidence]
+    enum CodingKeys: String, CodingKey { case text, evidence; case chunkIndex = "chunk_index" }
+}
+
+struct ConversationSummaryEvidence: Decodable {
+    let utteranceID: String?
+    let quote: String
+    let speaker: String?
+    let startSeconds: Double?
+    let endSeconds: Double?
+    enum CodingKeys: String, CodingKey {
+        case quote, speaker
+        case utteranceID = "utterance_id", startSeconds = "start_seconds", endSeconds = "end_seconds"
+    }
+}
+
+struct ConversationExtractionCount: Decodable {
+    let kind: String
+    let status: String
+    let count: Int
+}
+
+struct ConversationExtractionPreview: Decodable, Identifiable {
+    let id: String
+    let kind: String
+    let title: String
+    let certainty: String
+    let status: String
+    let evidenceCount: Int
+    enum CodingKeys: String, CodingKey { case id, kind, title, certainty, status; case evidenceCount = "evidence_count" }
+}
+
+extension ConversationRecording {
+    var verifiedDate: Date? {
+        guard recordedAtVerified?.value == true else { return nil }
+        return conversationDate(recordedAt)
+    }
+    var displayDate: String {
+        verifiedDate?.formatted(date: .abbreviated, time: .shortened) ?? "録音日時不明"
+    }
+    var summary: ConversationSummary? { overview ?? digest?.summary }
+    var summaryText: String? {
+        guard let summary, summary.status != "stale", let text = summary.text,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return text
+    }
+    var previousSummaryLabel: String? {
+        guard summaryText != nil else { return nil }
+        switch summary?.generationStatus ?? summary?.status {
+        case "queued", "analyzing", "extracting": return "前回の要約を表示・更新中"
+        case "failed": return "前回の要約を表示・更新に失敗"
+        default: return nil
+        }
+    }
+    var isSummaryProcessing: Bool {
+        summary?.isGenerating == true || ["queued", "analyzing", "extracting"].contains(overviewStatus ?? "")
+    }
+    var summaryStateLabel: String {
+        if status == "failed" { return "文字起こし失敗・内容を確認してください" }
+        if ["pending", "queued", "analyzing"].contains(status) { return "文字起こし中・要約はまだありません" }
+        switch summary?.status ?? insightStatus {
+        case "queued", "analyzing", "extracting": return "会話を整理中です"
+        case "failed": return "整理に失敗・要約はありません"
+        case "stale": return "文字起こし更新後の要約は未作成です"
+        case "empty": return "整理済み・要約できる内容はありません"
+        case "ready": return "整理済み・要約文はありません"
+        default: return "未整理・要約はまだありません"
+        }
+    }
+    var startLocationContext: ConversationLocationContext? {
+        digest?.locationContext ?? locationContexts?.first { $0.utteranceID == nil }
+    }
+    var locationStateLabel: String {
+        switch startLocationContext?.state {
+        case "matched_estimate": return "GPS照合済み・推定場所"
+        case "unknown_time": return "録音日時不明・GPS未照合"
+        case "low_accuracy": return "近いGPSあり・照合条件を満たさず"
+        case "no_nearby_gps": return "近い時刻のGPSなし"
+        default: return "GPSの照合状態は未取得"
+        }
+    }
+    var currentInsightItems: [ConversationInsightItem] {
+        (insightItems ?? []).filter { ["awaiting_review", "kept", "approved"].contains($0.status) }
+    }
+    func extractionCount(_ kind: String) -> Int {
+        if let counts = digest?.counts { return counts.filter { $0.kind == kind }.reduce(0) { $0 + max(0, $1.count) } }
+        return currentInsightItems.filter { $0.kind == kind }.count
+    }
+    static func newestFirst(_ lhs: Self, _ rhs: Self) -> Bool {
+        if let left = lhs.verifiedDate, let right = rhs.verifiedDate, left != right { return left > right }
+        if (lhs.verifiedDate != nil) != (rhs.verifiedDate != nil) { return lhs.verifiedDate != nil }
+        let left = conversationDate(lhs.createdAt) ?? .distantPast
+        let right = conversationDate(rhs.createdAt) ?? .distantPast
+        return left == right ? lhs.id < rhs.id : left > right
     }
 }
 
@@ -662,6 +870,8 @@ struct ConversationInsightItem: Decodable, Identifiable {
     let recordedAt: String?
     let recordingSourceType: String?
     let evidence: [ConversationInsightEvidence]
+    var approvedTarget: String? = nil
+    var approvedItemID: String? = nil
 
     var isActionable: Bool { kind == "task" || kind == "follow_up" }
 
@@ -673,6 +883,7 @@ struct ConversationInsightItem: Decodable, Identifiable {
         case recordingFilename = "recording_filename"
         case recordedAt = "recorded_at"
         case recordingSourceType = "recording_source_type"
+        case approvedTarget = "approved_target", approvedItemID = "approved_item_id"
     }
 }
 
@@ -683,12 +894,15 @@ struct ConversationInsightEvidence: Decodable {
     let speaker: String?
     let startSeconds: Double?
     let endSeconds: Double?
+    var locationContext: ConversationLocationContext? = nil
+    var locationContextIsSnapshot: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case position, quote, speaker
         case utteranceID = "utterance_id"
         case startSeconds = "start_seconds"
         case endSeconds = "end_seconds"
+        case locationContext = "location_context", locationContextIsSnapshot = "location_context_is_snapshot"
     }
 }
 

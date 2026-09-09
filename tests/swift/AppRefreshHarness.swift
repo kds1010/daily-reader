@@ -11,6 +11,7 @@ final class Responses: @unchecked Sendable {
     var hidden = false
     var includeEmail = false
     var emailHidden = false
+    var conversationVersion = 1
     func locked<T>(_ action: () -> T) -> T { lock.lock(); defer { lock.unlock() }; return action() }
     func reply(_ request: URLRequest) -> (String, Double, Int) {
         locked {
@@ -41,7 +42,9 @@ final class Responses: @unchecked Sendable {
                     : #"{"items":[]}"#
             case "/api/conversation-items": payload = #"{"items":[]}"#
             case "/data/articles.json": payload = #"{"articles":[]}"#
-            case "/api/conversations": payload = #"{"recordings":[]}"#
+            case "/api/conversations": payload = #"{"recordings":[{"id":"conversation","filename":"anonymous.ogg","byte_size":100,"status":"completed","created_at":"2026-09-08T00:00:00Z"}]}"#
+            case "/api/conversations/conversation": payload = #"{"id":"conversation","filename":"version-\#(conversationVersion).ogg","byte_size":100,"status":"completed","created_at":"2026-09-08T00:00:00Z","utterances":[]}"#
+            case "/api/conversations/conversation/overview": payload = "{}"
             case "/api/codex-usage": payload = #"{"rateLimitsByLimitId":{}}"#
             case "/api/deployment": payload = #"{"version":"test","deployed_at":"2026-09-08T00:00:00Z"}"#
             default: payload = "{}"
@@ -197,6 +200,39 @@ final class DelayedProtocol: URLProtocol, @unchecked Sendable {
         await model.pollDaymeldAgents()
         precondition(server.locked { server.counts["/api/agent-jobs"] == 2 })
         await slowTanomi.value
+
+        // Slow or unavailable global candidates never hold up the recording
+        // projection. List loads do not fan out to each recording's detail.
+        server.locked {
+            server.delays = ["/api/conversation-items": 3]
+            server.failures = ["/api/conversation-items"]
+            server.counts = [:]
+        }
+        let conversationStart = Date()
+        await model.refreshConversations()
+        precondition(model.conversations.count == 1 && model.conversationLoadState == .loaded)
+        precondition(Date().timeIntervalSince(conversationStart) < 1)
+        precondition(server.locked { server.counts == ["/api/conversations": 1] })
+
+        let firstDetail = await model.loadConversation("conversation")
+        precondition(firstDetail?.filename == "version-1.ogg")
+        server.locked { server.failures.insert("/api/conversations/conversation") }
+        let retained = await model.loadConversation("conversation")
+        precondition(retained?.filename == "version-1.ogg")
+        precondition(model.conversationDetailErrors["conversation"] != nil)
+        server.locked { server.failures = []; server.delays = ["/api/conversations/conversation": 0.3]; server.counts = [:] }
+        let oldDetail = Task { await model.loadConversation("conversation") }
+        try await until { server.locked { server.counts["/api/conversations/conversation"] == 1 } }
+        server.locked { server.conversationVersion = 2 }
+        let replaced = await model.loadConversation("conversation", afterMutation: true)
+        _ = await oldDetail.value
+        precondition(replaced?.filename == "version-2.ogg" && model.conversationDetailErrors["conversation"] == nil)
+
+        server.locked { server.delays = [:]; server.counts = [:] }
+        let summaryStarted = await model.summarizeConversation("conversation")
+        precondition(summaryStarted)
+        precondition(server.locked { server.counts["/api/conversations/conversation/overview"] == 1 })
+        precondition(server.locked { server.counts.keys.allSatisfy { !$0.hasSuffix("/insights") && !$0.hasSuffix("/analyze") } })
         #endif
         print("AppModel delay, unchanged polls, coalescing, archive race, partial failure and cancellation passed")
     }
