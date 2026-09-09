@@ -18,7 +18,7 @@ def test_daymeld_ux_fixture_scenarios_cover_empty_failure_and_stress(tmp_path: P
 import Foundation
 
 let standard = DaymeldFixture.scenario(.standard)
-precondition(standard.conversations.count == 4)
+precondition(standard.conversations.count == 5)
 let overview = standard.conversations[0]
 precondition(overview.summaryText?.contains("説明用") == true)
 precondition(overview.currentInsightItems.count == 3)
@@ -27,6 +27,64 @@ precondition(Set(overview.currentInsightItems.map(\.status))
 precondition(overview.extractionCount("task") == 1 && overview.extractionCount("decision") == 1)
 precondition(overview.startLocationContext?.state == "matched_estimate")
 precondition(overview.digest?.summary.points.first?.evidence.first?.utteranceID == "fixture-u1")
+let originalUtterance = overview.utterances![0]
+let correctedItem = overview.correctionItem(for: originalUtterance)!
+precondition(correctedItem.acceptedText == "明日までに、資料を送ります。")
+precondition(originalUtterance.text == "明日までに資料を送ります。")
+precondition(originalUtterance.id == "fixture-u1" && originalUtterance.startSeconds == 12)
+precondition(overview.correction?.contexts?.first?.sourceID == "fixture-prior-u1")
+let uncertainItem = overview.correctionItem(for: overview.utterances![1])!
+precondition(uncertainItem.acceptedText == nil && uncertainItem.proposedText != nil)
+precondition(uncertainItem.verificationLabel.contains("原文を維持"))
+let inconsistentItem = ConversationCorrectionItem(utteranceID: "fixture-u1",
+    originalText: "原文", proposedText: "候補", correctedText: "候補", status: "accepted",
+    reason: "説明用", verification: "uncertain", contextIDs: [])
+precondition(inconsistentItem.acceptedText == nil,
+    "unverified proposals cannot become display text")
+precondition(overview.currentInsightItems[0].evidence[0].quote == originalUtterance.text)
+precondition(overview.correctedEvidence("参考補正文", revisionID: "fixture-correction-1")
+    == "参考補正文")
+precondition(overview.correctedEvidence("誤った版", revisionID: "other-revision") == nil)
+let evidenceSnapshot = overview.currentInsightItems[0].evidence[0]
+precondition(evidenceSnapshot.correctionIsSnapshot == true)
+precondition(overview.correctedEvidence(evidenceSnapshot.correctedQuote,
+    revisionID: evidenceSnapshot.correctionRevisionID, isSnapshot: true)
+    == "明日までに、資料を送ります。")
+let contextSource = overview.correction!.contexts![0]
+precondition(standard.conversations.contains(where: { $0.id == contextSource.recordingID
+    && $0.utterances?.contains(where: { $0.id == contextSource.sourceID }) == true }))
+precondition(overview.correctedEvidence("版なし", revisionID: nil) == nil)
+precondition(standard.conversations[3].correction == nil, "older servers remain decodable")
+func correctionState(_ status: String) -> ConversationCorrection {
+    let object: [String: Any] = ["status": status, "revision_id": "fixture-correction-1",
+        "corrected_count": 1, "retained_count": 0, "flagged_count": 0, "context_count": 0,
+        "error": NSNull(), "completed_at": NSNull(), "automatic_blocked": status == "failed"]
+    return try! JSONDecoder().decode(ConversationCorrection.self,
+        from: JSONSerialization.data(withJSONObject: object))
+}
+for status in ["queued", "correcting", "verifying"] {
+    var pending = overview
+    pending.correction = correctionState(status)
+    precondition(pending.isCorrectionProcessing)
+    precondition(pending.correction?.items == nil, "list projection omits full correction items")
+}
+for status in ["stale", "not_requested", "unknown"] {
+    var unavailable = overview
+    unavailable.correction = correctionState(status)
+    precondition(!unavailable.isCorrectionProcessing)
+    precondition(unavailable.correctedEvidence("古い補正文", revisionID: "fixture-correction-1")
+        == nil)
+    precondition(unavailable.correctionItem(for: originalUtterance) == nil)
+    precondition(unavailable.correctedEvidence("保存時の補正文", revisionID: "older",
+        isSnapshot: true) == "保存時の補正文", "historical evidence survives current revisions")
+}
+precondition(correctionState("failed").canDisplayCorrections,
+    "a failed refresh can retain the successful revision for the same original")
+var changedUtterance = ConversationUtterance(id: originalUtterance.id, speaker: nil,
+    startSeconds: 12, endSeconds: 16, text: "別の原文", confidence: nil, context: "", topic: "")
+changedUtterance.correction = correctedItem
+precondition(overview.correctionItem(for: changedUtterance) == nil,
+    "an overlay never applies to different source text")
 let sortedConversations = standard.conversations.sorted(by: ConversationRecording.newestFirst)
 precondition(sortedConversations.first?.id == "fixture-conversation-3")
 precondition(sortedConversations.last?.id == "fixture-conversation-4")

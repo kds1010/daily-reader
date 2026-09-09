@@ -629,6 +629,7 @@ struct ConversationRecording: Decodable, Identifiable {
     var overview: ConversationSummary? = nil
     var overviewStatus: String? = nil
     var overviewError: String? = nil
+    var correction: ConversationCorrection? = nil
     var isTranscript: Bool { sourceType == "transcript" }
     enum CodingKeys: String, CodingKey {
         case id, filename, status, error, speakers, utterances, topics
@@ -645,7 +646,7 @@ struct ConversationRecording: Decodable, Identifiable {
         case transcriptionNeedsReview = "transcription_needs_review"
         case locationContexts = "location_contexts"
         case recordedAtVerified = "recorded_at_verified", recordedAtSource = "recorded_at_source"
-        case durationSeconds = "duration_seconds", digest, overview
+        case durationSeconds = "duration_seconds", digest, overview, correction
         case overviewStatus = "overview_status", overviewError = "overview_error"
     }
 }
@@ -703,9 +704,98 @@ struct ConversationSummaryEvidence: Decodable {
     let speaker: String?
     let startSeconds: Double?
     let endSeconds: Double?
+    var correctedQuote: String? = nil
+    var correctionRevisionID: String? = nil
+    var correctionIsSnapshot: Bool? = nil
     enum CodingKeys: String, CodingKey {
         case quote, speaker
         case utteranceID = "utterance_id", startSeconds = "start_seconds", endSeconds = "end_seconds"
+        case correctedQuote = "corrected_quote", correctionRevisionID = "correction_revision_id"
+        case correctionIsSnapshot = "correction_is_snapshot"
+    }
+}
+
+struct ConversationCorrection: Decodable {
+    let status: String
+    let revisionID: String?
+    let correctedCount: Int
+    let retainedCount: Int
+    let flaggedCount: Int
+    let contextCount: Int
+    let error: String?
+    let completedAt: String?
+    let automaticBlocked: Bool
+    var contextMessage: String? = nil
+    var items: [ConversationCorrectionItem]? = nil
+    var contexts: [ConversationCorrectionContext]? = nil
+    var isProcessing: Bool { ["queued", "correcting", "verifying"].contains(status) }
+    var statusLabel: String {
+        switch status {
+        case "queued": return "補正の開始待ち"
+        case "correcting": return "第2段階：文脈を確認して補正中"
+        case "verifying": return "第3段階：補正内容を検証中"
+        case "completed": return "補正・検証済み"
+        case "failed": return "補正処理に失敗"
+        case "stale": return "原文更新後の補正は未実施"
+        case "not_requested": return "補正はまだ実施していません"
+        default: return "補正の状態を確認できません"
+        }
+    }
+    var canDisplayCorrections: Bool {
+        ["queued", "correcting", "verifying", "completed", "failed"].contains(status)
+            && revisionID?.isEmpty == false
+    }
+    enum CodingKeys: String, CodingKey {
+        case status, error, items, contexts
+        case revisionID = "revision_id", correctedCount = "corrected_count", retainedCount = "retained_count"
+        case flaggedCount = "flagged_count", contextCount = "context_count", completedAt = "completed_at"
+        case automaticBlocked = "automatic_blocked", contextMessage = "context_message"
+    }
+}
+
+struct ConversationCorrectionItem: Decodable, Identifiable {
+    let utteranceID: String
+    let originalText: String
+    let proposedText: String?
+    let correctedText: String?
+    let status: String
+    let reason: String
+    let verification: String
+    let contextIDs: [String]
+    var id: String { utteranceID }
+    var acceptedText: String? {
+        guard status == "accepted", verification == "verified", let correctedText,
+              !correctedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              correctedText != originalText else { return nil }
+        return correctedText
+    }
+    var verificationLabel: String {
+        switch verification {
+        case "verified": return "文脈との整合性を確認"
+        case "rejected": return "検証で不採用・原文を維持"
+        case "uncertain": return "確証がないため原文を維持"
+        case "not_needed": return "変更不要・原文を維持"
+        default: return "検証状態を確認できないため原文を表示"
+        }
+    }
+    enum CodingKeys: String, CodingKey {
+        case status, reason, verification
+        case utteranceID = "utterance_id", originalText = "original_text", proposedText = "proposed_text"
+        case correctedText = "corrected_text", contextIDs = "context_ids"
+    }
+}
+
+struct ConversationCorrectionContext: Decodable, Identifiable {
+    let id: String
+    let sourceType: String
+    let sourceID: String
+    let title: String
+    var recordingID: String? = nil
+    var recordedAt: String? = nil
+    enum CodingKeys: String, CodingKey {
+        case id, title
+        case sourceType = "source_type", sourceID = "source_id"
+        case recordingID = "recording_id", recordedAt = "recorded_at"
     }
 }
 
@@ -749,6 +839,20 @@ extension ConversationRecording {
     }
     var isSummaryProcessing: Bool {
         summary?.isGenerating == true || ["queued", "analyzing", "extracting"].contains(overviewStatus ?? "")
+    }
+    var isCorrectionProcessing: Bool { correction?.isProcessing == true }
+    func correctionItem(for utterance: ConversationUtterance) -> ConversationCorrectionItem? {
+        guard correction?.canDisplayCorrections == true,
+              let item = utterance.correction ?? correction?.items?.first(where: { $0.utteranceID == utterance.id }),
+              item.utteranceID == utterance.id, item.originalText == utterance.text else { return nil }
+        return item
+    }
+    func correctedEvidence(_ quote: String?, revisionID: String?, isSnapshot: Bool = false) -> String? {
+        guard let revisionID, !revisionID.isEmpty, let quote,
+              !quote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        if isSnapshot { return quote }
+        guard correction?.canDisplayCorrections == true, revisionID == correction?.revisionID else { return nil }
+        return quote
     }
     var summaryStateLabel: String {
         if status == "failed" { return "文字起こし失敗・内容を確認してください" }
@@ -836,8 +940,9 @@ struct ConversationSpeaker: Decodable, Identifiable {
 struct ConversationUtterance: Decodable, Identifiable {
     let id: String; let speaker: String?; let startSeconds: Double; let endSeconds: Double
     let text: String; let confidence: Double?; let context: String; let topic: String
+    var correction: ConversationCorrectionItem? = nil
     enum CodingKeys: String, CodingKey {
-        case id, speaker, text, confidence, context, topic
+        case id, speaker, text, confidence, context, topic, correction
         case startSeconds = "start_seconds"; case endSeconds = "end_seconds"
     }
 }
@@ -896,6 +1001,9 @@ struct ConversationInsightEvidence: Decodable {
     let endSeconds: Double?
     var locationContext: ConversationLocationContext? = nil
     var locationContextIsSnapshot: Bool? = nil
+    var correctedQuote: String? = nil
+    var correctionRevisionID: String? = nil
+    var correctionIsSnapshot: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case position, quote, speaker
@@ -903,6 +1011,8 @@ struct ConversationInsightEvidence: Decodable {
         case startSeconds = "start_seconds"
         case endSeconds = "end_seconds"
         case locationContext = "location_context", locationContextIsSnapshot = "location_context_is_snapshot"
+        case correctedQuote = "corrected_quote", correctionRevisionID = "correction_revision_id"
+        case correctionIsSnapshot = "correction_is_snapshot"
     }
 }
 

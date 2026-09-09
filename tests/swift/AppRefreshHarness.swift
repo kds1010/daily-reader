@@ -7,6 +7,7 @@ final class Responses: @unchecked Sendable {
     var delays: [String: Double] = ["/api/emails/unread": 2, "/api/tanomi/repos": 2, "/api/diary": 2]
     var failures: Set<String> = []
     var counts: [String: Int] = [:]
+    var methods: [String: String] = [:]
     var completed: Set<String> = []
     var hidden = false
     var includeEmail = false
@@ -17,6 +18,7 @@ final class Responses: @unchecked Sendable {
         locked {
             let path = request.url!.path
             counts[path, default: 0] += 1
+            methods[path] = request.httpMethod
             let delay = delays[path] ?? 0.02
             if path == "/api/agent-jobs/hide" { hidden = true; return ("{}", 0, 200) }
             if path == "/api/email-status" { emailHidden = true; return ("{}", 0, 200) }
@@ -45,6 +47,7 @@ final class Responses: @unchecked Sendable {
             case "/api/conversations": payload = #"{"recordings":[{"id":"conversation","filename":"anonymous.ogg","byte_size":100,"status":"completed","created_at":"2026-09-08T00:00:00Z"}]}"#
             case "/api/conversations/conversation": payload = #"{"id":"conversation","filename":"version-\#(conversationVersion).ogg","byte_size":100,"status":"completed","created_at":"2026-09-08T00:00:00Z","utterances":[]}"#
             case "/api/conversations/conversation/overview": payload = "{}"
+            case "/api/conversations/conversation/corrections": payload = #"{"queued":true}"#
             case "/api/codex-usage": payload = #"{"rateLimitsByLimitId":{}}"#
             case "/api/deployment": payload = #"{"version":"test","deployed_at":"2026-09-08T00:00:00Z"}"#
             default: payload = "{}"
@@ -233,6 +236,20 @@ final class DelayedProtocol: URLProtocol, @unchecked Sendable {
         precondition(summaryStarted)
         precondition(server.locked { server.counts["/api/conversations/conversation/overview"] == 1 })
         precondition(server.locked { server.counts.keys.allSatisfy { !$0.hasSuffix("/insights") && !$0.hasSuffix("/analyze") } })
+        server.locked { server.counts = [:] }
+        let correctionStarted = await model.correctConversation("conversation")
+        precondition(correctionStarted)
+        precondition(server.locked { server.counts == ["/api/conversations/conversation/corrections": 1, "/api/conversations": 1] })
+        precondition(server.locked { server.methods["/api/conversations/conversation/corrections"] == "POST" })
+        server.locked { server.failures.insert("/api/conversations/conversation/corrections"); server.counts = [:] }
+        let correctionFailed = await model.correctConversation("conversation")
+        precondition(!correctionFailed && model.errorMessage?.contains("補正を開始できません") == true)
+        precondition(model.conversations.count == 1, "failed correction requests retain the list")
+        precondition(server.locked { server.counts == ["/api/conversations/conversation/corrections": 1] })
+        server.locked { server.failures = []; server.counts = [:] }
+        let correctionRetried = await model.correctConversation("conversation")
+        precondition(correctionRetried)
+        precondition(server.locked { server.counts["/api/conversations/conversation/corrections"] == 1 })
         #endif
         print("AppModel delay, unchanged polls, coalescing, archive race, partial failure and cancellation passed")
     }

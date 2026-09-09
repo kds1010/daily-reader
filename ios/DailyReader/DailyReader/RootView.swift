@@ -297,7 +297,7 @@ struct ConversationsView: View {
         soundcore.hasPendingJobs || recordings.contains {
             ["pending", "queued", "analyzing"].contains($0.status)
                 || ["queued", "extracting"].contains($0.insightStatus ?? "")
-                || $0.isSummaryProcessing
+                || $0.isSummaryProcessing || $0.isCorrectionProcessing
         }
     }
     private func refreshConversationData() async {
@@ -491,6 +491,10 @@ private struct ConversationOverviewCard: View {
                 Text("文字起こしに失敗しています。詳細で確認できます。")
                     .appFont(.caption).foregroundStyle(.orange)
             }
+            if let correction = recording.correction,
+               correction.isProcessing || ["failed", "stale"].contains(correction.status) {
+                Text(correction.statusLabel).appFont(.caption).foregroundStyle(.secondary)
+            }
             Text(recording.filename).appFont(.caption2).foregroundStyle(.tertiary).lineLimit(1)
         }
     }
@@ -676,7 +680,7 @@ struct ConversationDetailView: View {
                             if await model.summarizeConversation(recordingID) { await reload(afterMutation: true) }
                         }
                     }
-                    .disabled(model.isFixture || overviewInFlight || recording.status != "completed" || recording.isSummaryProcessing || ["queued", "extracting"].contains(recording.insightStatus ?? ""))
+                    .disabled(model.isFixture || overviewInFlight || recording.status != "completed" || recording.isSummaryProcessing || recording.isCorrectionProcessing || ["queued", "extracting"].contains(recording.insightStatus ?? ""))
                     Text("要約だけを作成・更新します。本文が変わっていなければ保存済み要約を表示します。抽出済みの候補や追加済みの用事は変更しません。この録音の文字起こしをCodexへ渡し、原音・GPSは送りません。")
                         .appFont(.caption).foregroundStyle(.secondary)
                 }
@@ -700,6 +704,17 @@ struct ConversationDetailView: View {
                             ForEach(items) { item in
                                 ConversationExtractedItemView(item: item, recording: recording) { await reload(afterMutation: true) }
                             }
+                        }
+                    }
+                }
+                Section("文字起こしの補正") {
+                    NavigationLink {
+                        ConversationCorrectionView(recording: recording)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("原文・補正内容・検証を確認")
+                            Text(recording.correction?.statusLabel ?? "補正状態は未取得")
+                                .appFont(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -755,7 +770,7 @@ struct ConversationDetailView: View {
                             HStack { ProgressView(); Text("Macで文字起こし・話者分離を処理しています…") }
                         } else {
                             Button("文字起こしを再実行") { showTranscriptionConfirmation = true }
-                                .disabled(transcriptionInFlight || extractionInFlight || recording.isSummaryProcessing || recording.insightStatus == "queued" || recording.insightStatus == "extracting")
+                                .disabled(transcriptionInFlight || extractionInFlight || recording.isSummaryProcessing || recording.isCorrectionProcessing || recording.insightStatus == "queued" || recording.insightStatus == "extracting")
                         }
                     }
                     insightExtractionControls(recording)
@@ -765,13 +780,13 @@ struct ConversationDetailView: View {
             }
         }
         .navigationTitle("会話の内容")
-        .task(id: "\(recording?.status ?? ""):\(recording?.insightStatus ?? ""):\(recording?.summary?.status ?? ""):\(recording?.summary?.generationStatus ?? "")") {
+        .task(id: "\(recording?.status ?? ""):\(recording?.insightStatus ?? ""):\(recording?.summary?.status ?? ""):\(recording?.summary?.generationStatus ?? ""):\(recording?.correction?.status ?? "")") {
             while !Task.isCancelled {
                 await reload()
                 guard !model.isFixture, let recording,
                       recording.status == "queued" || recording.status == "analyzing"
                         || recording.insightStatus == "queued" || recording.insightStatus == "extracting"
-                        || recording.isSummaryProcessing
+                        || recording.isSummaryProcessing || recording.isCorrectionProcessing
                 else { return }
                 do { try await Task.sleep(for: .seconds(2)) }
                 catch { return }
@@ -827,10 +842,10 @@ struct ConversationDetailView: View {
             Text(recording.insightError ?? "Codexによる整理に失敗しました。")
                 .foregroundStyle(.orange)
             Button("Codex整理を再試行") { showExtractionConfirmation = true }
-                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight || recording.isSummaryProcessing)
+                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight || recording.isSummaryProcessing || recording.isCorrectionProcessing)
         default:
             Button("Codexでタスク・予定・関心などを整理") { showExtractionConfirmation = true }
-                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight || recording.isSummaryProcessing)
+                .disabled(recording.status != "completed" || !model.conversationLLMAvailable || extractionInFlight || recording.isSummaryProcessing || recording.isCorrectionProcessing)
             if !model.conversationLLMAvailable {
                 Text("Mac miniでCodexへChatGPTログインすると利用できます。")
                     .appFont(.caption).foregroundStyle(.secondary)
@@ -844,6 +859,206 @@ struct ConversationDetailView: View {
         defer { extractionInFlight = false }
         guard await model.extractConversationInsights(recordingID) else { return }
         await reload(afterMutation: true)
+    }
+}
+
+private struct ConversationCorrectionView: View {
+    @EnvironmentObject private var model: AppModel
+    @State var recording: ConversationRecording
+    @State private var starting = false
+    private var canStart: Bool {
+        !model.isFixture && recording.correction != nil && recording.status == "completed"
+            && !starting && !recording.isCorrectionProcessing && !recording.isSummaryProcessing
+            && !["queued", "extracting"].contains(recording.insightStatus ?? "")
+    }
+    private var actionLabel: String {
+        switch recording.correction?.status {
+        case "failed": return "補正を再試行"
+        case "completed": return "最新の補正を確認"
+        default: return "文脈による補正・検証を開始"
+        }
+    }
+    var body: some View {
+        List {
+            if let error = model.conversationDetailErrors[recording.id] {
+                Section {
+                    Text(error).foregroundStyle(.orange)
+                    Button("再読み込み") { Task { await reload() } }
+                }
+            }
+            Section("補正の状態") {
+                Text(recording.correction?.statusLabel ?? "補正状態を取得できません。サーバーの更新と接続を確認してください。")
+                if let correction = recording.correction {
+                    if correction.isProcessing { ProgressView() }
+                    Text("補正 \(correction.correctedCount)件 · 原文維持 \(correction.retainedCount)件 · 要確認 \(correction.flaggedCount)件")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                    if let completed = conversationDate(correction.completedAt) {
+                        Text("前回完了: \(completed.formatted(date: .abbreviated, time: .shortened))")
+                            .appFont(.caption).foregroundStyle(.secondary)
+                    }
+                    if correction.status == "failed", correction.canDisplayCorrections {
+                        Text("今回の補正に失敗したため、同じ原文に対する前回の補正を表示しています。")
+                            .appFont(.caption).foregroundStyle(.orange)
+                    }
+                    if let error = correction.error { Text(verbatim: error).foregroundStyle(.orange) }
+                    if correction.automaticBlocked {
+                        Text("補正後の自動処理は保留されています。原文と検証結果を確認してください。")
+                            .appFont(.caption).foregroundStyle(.orange)
+                    }
+                }
+                Button(actionLabel) {
+                    Task {
+                        guard canStart else { return }
+                        starting = true
+                        defer { starting = false }
+                        if await model.correctConversation(recording.id) { await reload(afterMutation: true) }
+                    }
+                }.disabled(!canStart)
+                Text("この録音の文字起こしと、Mac内の本人確認済みの関連する過去の文脈をCodexで確認します。原音・GPSは送りません。入力が同じなら保存済み補正を表示します。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+                Text("第2段階で補正を提案し、第3段階でテキストと文脈の整合性を確認します。音声との照合や正しさの保証ではありません。確証がない箇所は原文を維持します。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            if let correction = recording.correction {
+                Section("補正の比較") {
+                    Text("元の発話ID・時刻・GPSの対応を保持します。補正によって、話していない内容を新しい発言として追加しません。")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                    if correction.canDisplayCorrections, let items = correction.items, !items.isEmpty {
+                        ForEach(items) { item in
+                            NavigationLink {
+                                ConversationCorrectionItemView(recording: recording, item: item)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(item.verificationLabel).appFont(.caption).foregroundStyle(.secondary)
+                                    Text(verbatim: item.acceptedText ?? item.originalText).lineLimit(3)
+                                }
+                            }
+                        }
+                    } else {
+                        Text(correction.status == "stale" ? "原文が更新されたため、以前の補正文は表示していません。" : correction.status == "completed" ? "表示する変更はありません。原文を維持しています。" : "比較できる補正結果はまだありません。")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Section("参照した過去の文脈") {
+                    Text("過去の情報は表記を判断する参考です。この録音で発言された事実や人物同定の根拠にはしません。")
+                        .appFont(.caption).foregroundStyle(.secondary)
+                    if let contexts = correction.contexts, !contexts.isEmpty {
+                        ForEach(contexts) { context in ConversationCorrectionContextView(context: context) }
+                    } else {
+                        Text(correction.contextMessage ?? "参照した過去の文脈はありません。")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .navigationTitle("文字起こしの補正")
+        .task(id: recording.correction?.status) {
+            while !Task.isCancelled {
+                await reload()
+                guard !model.isFixture, recording.isCorrectionProcessing else { return }
+                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            }
+        }
+        .refreshable { await reload() }
+    }
+    private func reload(afterMutation: Bool = false) async {
+        if let value = await model.loadConversation(recording.id, afterMutation: afterMutation), !Task.isCancelled { recording = value }
+    }
+}
+
+private struct ConversationCorrectionItemView: View {
+    let recording: ConversationRecording
+    let item: ConversationCorrectionItem
+    var body: some View {
+        List {
+            Section("元の文字起こし") { Text(verbatim: item.originalText).textSelection(.enabled) }
+            if let corrected = item.acceptedText {
+                Section("補正後") { Text(verbatim: corrected).textSelection(.enabled) }
+            } else {
+                Section("原文を維持") {
+                    Text(item.verificationLabel)
+                    if let proposed = item.proposedText, proposed != item.originalText {
+                        Text("採用していない補正案").appFont(.caption).foregroundStyle(.secondary)
+                        Text(verbatim: proposed).textSelection(.enabled)
+                    }
+                }
+            }
+            Section("変更理由と検証") {
+                Text(item.verificationLabel)
+                Text(verbatim: item.reason)
+                Text("テキストと文脈の整合性確認であり、原音との照合ではありません。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            Section("発言の根拠") {
+                if let utterance = recording.utterances?.first(where: { $0.id == item.utteranceID }) {
+                    ConversationEvidenceQuote(recording: recording, utteranceID: utterance.id, quote: item.originalText,
+                                              speaker: utterance.speaker, startSeconds: utterance.startSeconds, position: 0)
+                } else {
+                    Text("現在の原文との対応を確認できません。保持された補正記録を表示しています。")
+                }
+            }
+            Section("参考にした過去の文脈") {
+                if item.contextIDs.isEmpty {
+                    Text("過去の情報を根拠とする補正ではありません。")
+                } else {
+                    ForEach(item.contextIDs, id: \.self) { id in
+                        if let context = recording.correction?.contexts?.first(where: { $0.id == id }) {
+                            ConversationCorrectionContextView(context: context)
+                        } else { Text("参照元の詳細を取得できませんでした。") }
+                    }
+                }
+                Text("この参照元の情報を、この録音で話された内容として補いません。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+        }.navigationTitle("原文と補正の比較")
+    }
+}
+
+private struct ConversationCorrectionContextView: View {
+    let context: ConversationCorrectionContext
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(context.sourceType == "confirmed_self_utterance" ? "本人として確認された過去の発言" : "補正の参考情報")
+                .appFont(.caption).foregroundStyle(.secondary)
+            Text(verbatim: context.title)
+            if let date = conversationDate(context.recordedAt) {
+                Text("参照元の録音: \(date.formatted(date: .abbreviated, time: .shortened))")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
+            if context.sourceType == "confirmed_self_utterance", context.recordingID != nil {
+                NavigationLink("参照した発言を確認") { ConversationCorrectionSourceView(context: context) }
+            }
+        }
+    }
+}
+
+private struct ConversationCorrectionSourceView: View {
+    @EnvironmentObject private var model: AppModel
+    let context: ConversationCorrectionContext
+    @State private var recording: ConversationRecording?
+    @State private var loaded = false
+    var body: some View {
+        List {
+            Text(verbatim: context.title)
+            Text("過去の参照元です。補正対象の録音で話された内容とは区別します。")
+                .appFont(.caption).foregroundStyle(.secondary)
+            if let recording,
+               let utterance = recording.utterances?.first(where: { $0.id == context.sourceID }) {
+                ConversationEvidenceQuote(recording: recording, utteranceID: utterance.id,
+                                          quote: utterance.text, speaker: utterance.speaker,
+                                          startSeconds: utterance.startSeconds, position: 0)
+            } else if loaded {
+                Text("参照した発言を取得できませんでした。録音の再解析や接続状態により、現在の原文と対応しない場合があります。")
+                Button("再読み込み") { Task { await reload() } }
+            } else { ProgressView("参照元を読み込んでいます…") }
+        }
+        .navigationTitle("補正の参照元")
+        .task { await reload() }
+    }
+    private func reload() async {
+        guard let id = context.recordingID else { loaded = true; return }
+        recording = await model.loadConversation(id)
+        loaded = true
     }
 }
 
@@ -891,7 +1106,9 @@ private struct ConversationSummaryEvidenceView: View {
                 ForEach(Array(point.evidence.enumerated()), id: \.offset) { index, evidence in
                     ConversationEvidenceQuote(recording: recording, utteranceID: evidence.utteranceID,
                                               quote: evidence.quote, speaker: evidence.speaker,
-                                              startSeconds: evidence.startSeconds, position: index)
+                                              startSeconds: evidence.startSeconds, position: index,
+                                              correctedQuote: evidence.correctedQuote, correctionRevisionID: evidence.correctionRevisionID,
+                                              correctionIsSnapshot: evidence.correctionIsSnapshot == true)
                 }
             }
         }.navigationTitle("要点の根拠")
@@ -920,7 +1137,9 @@ private struct ConversationExtractedItemView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         ConversationEvidenceQuote(recording: recording, utteranceID: evidence.utteranceID,
                                                   quote: evidence.quote, speaker: evidence.speaker,
-                                                  startSeconds: evidence.startSeconds, position: evidence.position)
+                                                  startSeconds: evidence.startSeconds, position: evidence.position,
+                                                  correctedQuote: evidence.correctedQuote, correctionRevisionID: evidence.correctionRevisionID,
+                                              correctionIsSnapshot: evidence.correctionIsSnapshot == true)
                         if let context = evidence.locationContext {
                             if evidence.locationContextIsSnapshot == true {
                                 Text("保存・追加時点の位置照合です。").appFont(.caption2).foregroundStyle(.secondary)
@@ -958,6 +1177,9 @@ private struct ConversationEvidenceQuote: View {
     let speaker: String?
     let startSeconds: Double?
     let position: Int
+    var correctedQuote: String? = nil
+    var correctionRevisionID: String? = nil
+    var correctionIsSnapshot = false
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
@@ -968,7 +1190,16 @@ private struct ConversationEvidenceQuote: View {
                     Text(String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60))
                 }
             }.appFont(.caption2).foregroundStyle(.secondary)
+            Text("根拠として保存した原文").appFont(.caption2).foregroundStyle(.secondary)
             Text(verbatim: quote).appFont(.caption).textSelection(.enabled)
+            if let corrected = recording.correctedEvidence(correctedQuote, revisionID: correctionRevisionID, isSnapshot: correctionIsSnapshot), corrected != quote {
+                Text(correctionIsSnapshot ? "この根拠の生成時の補正文" : "補正後の参考表示（元の根拠は保持）").appFont(.caption2).foregroundStyle(.secondary)
+                Text(verbatim: corrected).appFont(.caption).textSelection(.enabled)
+                if correctionIsSnapshot && (recording.correction?.status == "stale" || correctionRevisionID != recording.correction?.revisionID) {
+                    Text("現在の補正版とは別に、生成時の根拠を保持しています。")
+                        .appFont(.caption2).foregroundStyle(.secondary)
+                }
+            }
             if let utteranceID, recording.utterances?.contains(where: { $0.id == utteranceID }) == true {
                 NavigationLink("前後の発言を確認") {
                     ConversationTranscriptView(recording: recording, selectedUtteranceID: utteranceID)
@@ -1004,7 +1235,16 @@ private struct ConversationTranscriptView: View {
                         }
                         if utterance.id == selectedUtteranceID { Text("根拠").foregroundStyle(.mint) }
                     }.appFont(.caption)
+                    Text("元の文字起こし").appFont(.caption2).foregroundStyle(.secondary)
                     Text(verbatim: utterance.text).textSelection(.enabled)
+                    if let correction = recording.correctionItem(for: utterance) {
+                        if let corrected = correction.acceptedText {
+                            Text("補正後（文脈による確認）").appFont(.caption2).foregroundStyle(.secondary)
+                            Text(verbatim: corrected).textSelection(.enabled)
+                        } else {
+                            Text(correction.verificationLabel).appFont(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
                     if let link = recording.locationContexts?.first(where: { $0.utteranceID == utterance.id }) {
                         ConversationLocationSummary(link: link)
                         if link.location != nil {

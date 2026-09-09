@@ -348,6 +348,18 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func correctConversation(_ id: String) async -> Bool {
+        guard !isFixture else { return false }
+        do {
+            let _: EmptyResponse = try await api.post("api/conversations/\(id)/corrections", body: EmptyRequest(), as: EmptyResponse.self)
+            await refreshConversations(afterMutation: true)
+            return true
+        } catch {
+            errorMessage = "補正を開始できませんでした。Mac miniの接続と処理状況を確認してください。"
+            return false
+        }
+    }
+
     func analyzeConversation(_ id: String) async {
         guard !isFixture else { return }
         do {
