@@ -28,6 +28,9 @@ reference_context contains optional historical self-speech hints, not current ut
 only for spelling/vocabulary and only for a speaker in its target_speakers. Historical intentions,
 facts or appointments never establish a current commitment. Never infer the identity of a speaker.
 Each correction must identify its exact target ID and the context_ids actually used (empty if none).
+context_ids may contain ONLY IDs from reference_context (c001, c002, etc.). Current utterance IDs
+such as u0001 are NEVER context_ids. When reference_context is empty, every context_ids must be [].
+For recognition fixes prefer the exact spelling in nearby speech. Do not invent abbreviations.
 Use only supplied IDs. Do not return unchanged utterances. Put uncertain or unrecoverable targets in
 uncertain_utterance_ids, leaving them unchanged. An uncertain ID cannot also have a correction.
 Return empty arrays if no correction or ambiguity is detected. A fragment can remain a fragment.

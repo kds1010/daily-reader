@@ -11,7 +11,7 @@
           "utterance_id": {"type": "string"},
           "corrected_text": {"type": "string", "minLength": 1, "maxLength": 4000},
           "kind": {"type": "string", "enum": ["punctuation", "notation", "grammar", "recognition"]},
-          "context_ids": {"type": "array", "maxItems": 8, "items": {"type": "string"}}
+          "context_ids": {"type": "array", "maxItems": 8, "items": {"type": "string", "pattern": "^c[0-9]{3}$"}}
         }
       }
     },
