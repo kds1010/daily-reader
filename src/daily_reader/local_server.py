@@ -31,6 +31,7 @@ from time import monotonic, sleep
 from daily_reader import (
     connection_alerts,
     conversation_corrections,
+    conversation_vocabulary,
     device_context,
     diary,
     drive_imports,
@@ -728,7 +729,13 @@ def make_handler(
 
         def log_request(self, code="-", size="-") -> None:
             # Never log a supplied filename, query, or other payment input.
-            if urllib.parse.urlsplit(self.path).path.startswith("/api/connection-"):
+            request_path = urllib.parse.urlsplit(self.path).path
+            if request_path.startswith("/api/conversation-vocabulary") or (
+                request_path.startswith("/api/conversations/")
+                and request_path.endswith("/feedback")
+            ):
+                self.log_message("conversation vocabulary API response %s", code)
+            elif request_path.startswith("/api/connection-"):
                 self.log_message("connection health API response %s", code)
             elif urllib.parse.urlsplit(self.path).path.startswith(
                 "/api/conversations/drive-imports"
@@ -1016,6 +1023,14 @@ def make_handler(
                 except (OSError, sqlite3.Error):
                     self._send_json(503, {"error": "共有録音の取り込み状態を取得できませんでした"})
                 return
+            if path == "/api/conversation-vocabulary":
+                if not self._soundcore_access_allowed():
+                    return
+                try:
+                    self._send_json(200, conversation_vocabulary.list_terms(conversations_db))
+                except (OSError, sqlite3.Error):
+                    self._send_json(503, {"error": "用語辞書を取得できませんでした"})
+                return
             if path == "/api/conversations":
                 self._send_json(
                     200,
@@ -1222,6 +1237,55 @@ def make_handler(
                 return
             super().do_GET()
 
+        def _vocabulary_post(self, path: str) -> None:
+            self.close_connection = True
+            if not self._soundcore_access_allowed():
+                return
+            if self.headers.get("Content-Type", "").split(";", 1)[0] != "application/json":
+                self._send_json(415, {"error": "application/jsonが必要です"})
+                return
+            parts = path.split("/")
+            is_feedback = (
+                len(parts) == 7 and parts[1:3] == ["api", "conversations"]
+                and parts[4] == "utterances" and parts[6] == "feedback"
+                and parts[3] and parts[5]
+            )
+            is_create = parts == ["", "api", "conversation-vocabulary"]
+            is_update = len(parts) == 4 and parts[1:3] == ["api", "conversation-vocabulary"]
+            is_delete = (
+                len(parts) == 5 and parts[1:3] == ["api", "conversation-vocabulary"]
+                and parts[-1] == "delete"
+            )
+            if not (is_feedback or is_create or ((is_update or is_delete) and parts[3])):
+                self._send_json(404, {"error": "not found"})
+                return
+            try:
+                if self.headers.get("Transfer-Encoding"):
+                    raise ValueError("転送形式が不正です")
+                payload = self._read_json(max_length=96_000 if is_feedback else 8192)
+                if is_feedback:
+                    result = conversation_vocabulary.save_feedback(
+                        conversations_db, parts[3], parts[5], payload
+                    )
+                elif is_delete:
+                    conversation_vocabulary.delete_term(conversations_db, parts[3], payload)
+                    result = {"deleted": True}
+                else:
+                    result = {"term": conversation_vocabulary.save_term(
+                        conversations_db, payload, None if is_create else parts[3]
+                    )}
+                self._send_json(200, result)
+            except conversation_vocabulary.VocabularyConflict as error:
+                self._send_json(409, {"error": str(error)})
+            except KeyError:
+                self._send_json(404, {"error": "対象の用語または発言が見つかりません"})
+            except (json.JSONDecodeError, UnicodeDecodeError, TypeError):
+                self._send_json(400, {"error": "入力形式が不正です"})
+            except ValueError as error:
+                self._send_json(400, {"error": str(error)})
+            except (OSError, sqlite3.Error):
+                self._send_json(503, {"error": "用語または訂正を保存できませんでした"})
+
         def _drive_import_post(self, path: str) -> None:
             # An accepted duplicate does not consume the body; never reuse that socket.
             self.close_connection = True
@@ -1295,6 +1359,11 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path == "/api/conversation-vocabulary" or path.startswith(
+                "/api/conversation-vocabulary/"
+            ) or (path.startswith("/api/conversations/") and path.endswith("/feedback")):
+                self._vocabulary_post(path)
+                return
             if path == "/api/connection-health/soundcore":
                 self.close_connection = True
                 if not self._soundcore_access_allowed():

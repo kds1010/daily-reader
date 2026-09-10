@@ -51,6 +51,9 @@ Mac側ではfaster-whisperのlarge-v3-turbo（既定）で日本語を文字起�
 モデル・診断・比較方法は[文字起こし](docs/conversation-transcription.md)を参照してください。
 補正では原文を残し、補正案と検証を別に保存します。会話詳細から差分と理由を確認できます。
 過去の会話を参照する条件と限界は[文脈補正](docs/conversation-correction.md)を参照してください。
+会話画面の用語辞書で専門用語を登録し、発言の訂正を次回の認識・補正へ反映できます。
+本人訂正と原文を分けて保存します。操作と適用範囲は
+[用語辞書と本人訂正](docs/conversation-vocabulary.md)を参照してください。
 TXTは音声解析を行わないため、Hugging Faceトークンは不要です。非空行を順番に発話として扱い、
 話者を推測せず「話者1」として分類します。解析結果、話者、話題、発話、確認待ち候補は
 `data/conversations.sqlite3`へ保存されます。
