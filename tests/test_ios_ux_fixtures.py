@@ -36,6 +36,14 @@ precondition(overview.correction?.contexts?.first?.sourceID == "fixture-prior-u1
 let uncertainItem = overview.correctionItem(for: overview.utterances![1])!
 precondition(uncertainItem.acceptedText == nil && uncertainItem.proposedText != nil)
 precondition(uncertainItem.verificationLabel.contains("原文を維持"))
+let manualUtterance = overview.utterances!.first { $0.id == "fixture-u3" }!
+precondition(manualUtterance.text == "星身計画の資料です。")
+precondition(manualUtterance.userCorrectedText == "星見計画の資料です。")
+precondition(manualUtterance.feedbackRevision == 2 && manualUtterance.startSeconds == 23)
+precondition(overview.correctionItem(for: manualUtterance) == nil,
+    "manual correction is independent from the accepted and uncertain AI examples")
+precondition(originalUtterance.userCorrection == nil
+    && overview.utterances![1].userCorrection == nil)
 let inconsistentItem = ConversationCorrectionItem(utteranceID: "fixture-u1",
     originalText: "原文", proposedText: "候補", correctedText: "候補", status: "accepted",
     reason: "説明用", verification: "uncertain", contextIDs: [])
