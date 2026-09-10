@@ -208,7 +208,7 @@ def _request(
     compact = [
         {**{key: row[key] for key in (
             "text", "raw_text", "start_seconds", "end_seconds", "speaker", "part", "parts",
-            "correction_uncertain",
+            "correction_uncertain", "user_corrected",
         ) if key in row}, "id": short_id}
         for short_id, row in zip(aliases, utterances, strict=True)
     ]
@@ -225,6 +225,9 @@ def _request(
                 "utterance_id": reverse[entry["utterance_id"]],
                 "corrected_text": entry["corrected_text"],
             } for entry in context_payload.get("proposals", [])],
+            "approved_terms": [{
+                key: entry[key] for key in ("canonical", "reading", "aliases")
+            } for entry in context_payload.get("approved_terms", [])],
         }
     input_payload = json.dumps(
         {

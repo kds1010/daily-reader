@@ -383,3 +383,34 @@ def test_existing_manual_profile_confirmation_produces_usable_provenance(db):
             },
         )
     assert len(reference_context(db, "target", [target])) == 1
+
+
+def mark_user_corrected(db, name, row):
+    db.execute(
+        "INSERT INTO conversation_user_corrections "
+        "(id,utterance_id,recording_id,revision,original_text,corrected_text,active,"
+        "created_at,updated_at) "
+        "VALUES(?,?,?,1,?,'本人が訂正した内容',1,'2026','2026')",
+        ("feedback-" + row["id"], row["id"], name, row["text"]),
+    )
+
+
+@pytest.mark.parametrize("name", ["target", "past"])
+def test_user_corrected_identity_source_cannot_confirm_self_speech(db, name):
+    target = recording(db, "target")
+    past = recording(db, "past")
+    assert reference_context(db, "target", [target])
+    mark_user_corrected(db, name, target if name == "target" else past)
+    assert reference_context(db, "target", [target]) == []
+
+
+def test_user_corrected_past_quote_is_excluded_without_replacing_it(db):
+    target = recording(db, "target")
+    proof = recording(db, "past")
+    changed = utterance(db, "past", "changed", "Pythonで書いた処理です。")
+    reviewed_item(db, "past", changed)
+    assert len(reference_context(db, "target", [target])) == 2
+    mark_user_corrected(db, "past", changed)
+    result = reference_context(db, "target", [target])
+    assert [item["source_id"] for item in result] == [proof["id"]]
+    assert result[0]["text"] == proof["text"]

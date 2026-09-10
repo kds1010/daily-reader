@@ -434,7 +434,7 @@ def test_audio_reanalysis_keeps_adopted_entries_and_requires_review(db, worker, 
     monkeypatch.setattr(
         conv,
         "transcribe_audio",
-        lambda *_: Transcription(
+        lambda *_, **__: Transcription(
             [(0, 2, "資料を確認します", -0.1, "話者1")], {"warnings": [], "model": "test"}
         ),
     )

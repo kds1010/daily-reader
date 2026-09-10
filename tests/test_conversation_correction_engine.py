@@ -357,6 +357,9 @@ def test_correction_transport_sends_only_allowed_fields_and_restores_ids(monkeyp
         ]
         assert body["target_utterance_ids"] == ["u0001"]
         assert body["proposals"] == [{"utterance_id": "u0001", "corrected_text": "資料。"}]
+        assert body["approved_terms"] == [
+            {"canonical": "Palo Alto", "reading": "パロアルト", "aliases": ["パロあると"]}
+        ]
         assert "private" not in kwargs["input"]
         output = {
             "corrections": [{"utterance_id": "u0001"}],
@@ -385,6 +388,10 @@ def test_correction_transport_sends_only_allowed_fields_and_restores_ids(monkeyp
             ],
             "target_ids": ["original"],
             "proposals": [proposal(text="資料。")],
+            "approved_terms": [{
+                "canonical": "Palo Alto", "reading": "パロアルト", "aliases": ["パロあると"],
+                "id": "private", "recording_id": "private", "created_at": "private",
+            }],
         },
     )
     assert result["corrections"][0]["utterance_id"] == "original"

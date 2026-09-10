@@ -10,6 +10,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from daily_reader import conversation_vocabulary as vocabulary
 from daily_reader.conversation_insights import ConversationInsightError
 
 ACTIVE = {"queued", "correcting", "verifying"}
@@ -49,6 +50,7 @@ RECORDING_COLUMNS = {
     "correction_context_count": "INTEGER NOT NULL DEFAULT 0",
     "correction_requires_review": "INTEGER NOT NULL DEFAULT 0",
     "correction_valid_until": "TEXT",
+    "correction_vocabulary_revision": "INTEGER NOT NULL DEFAULT 0",
 }
 
 
@@ -69,6 +71,17 @@ def initialize(connection: sqlite3.Connection) -> None:
             PRIMARY KEY(revision_id,utterance_id)
         );
     """)
+    columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(conversation_correction_runs)")
+    }
+    for name, definition in {
+        "vocabulary_revision": "INTEGER NOT NULL DEFAULT 0",
+        "approved_terms": "TEXT NOT NULL DEFAULT '[]'",
+    }.items():
+        if name not in columns:
+            connection.execute(
+                f"ALTER TABLE conversation_correction_runs ADD COLUMN {name} {definition}"
+            )
     columns = {row[1] for row in connection.execute("PRAGMA table_info(recordings)")}
     for name, definition in RECORDING_COLUMNS.items():
         if name not in columns:
@@ -92,12 +105,21 @@ def inputs(connection, recording_id, version):
     from daily_reader.correction_context import reference_context
 
     recorded_at, rows = _raw_insight_input(connection, recording_id)
+    rows = _user_overlay(rows, vocabulary.feedback_for_recording(connection, recording_id))
+    terms = vocabulary.terms_snapshot(connection, rows)
     contexts = reference_context(connection, recording_id, rows)
     deadline = context_deadline(connection, recording_id, contexts)
     contexts = [{**entry, "valid_until": deadline} for entry in contexts]
     input_hash = hashlib.sha256(
         json.dumps(
-            [recorded_at, rows, contexts, version],
+            [
+                recorded_at,
+                rows,
+                contexts,
+                version,
+                terms,
+                vocabulary.feedback_revisions(connection, recording_id),
+            ],
             ensure_ascii=False,
             sort_keys=True,
         ).encode()
@@ -169,6 +191,8 @@ def validate_results(results, rows, contexts):
             raise ConversationInsightError("補正結果の発言IDが不正です")
         seen.add(utterance_id)
         original = originals[utterance_id]
+        if original.get("user_corrected"):
+            raise ConversationInsightError("本人が訂正した発言を自動補正できません")
         if result.get("original_text") != original["text"]:
             raise ConversationInsightError("補正結果の原文が一致しません")
         status, verification = result.get("status"), result.get("verification")
@@ -239,6 +263,7 @@ def ensure_corrected(database: Path, recording_id: str, schema_path: Path, codex
             if recording is None or recording["status"] != "completed":
                 raise ConversationInsightError("文字起こし完了後に補正できます")
             rows, contexts, input_hash = inputs(connection, recording_id, VERSION)
+            terms = vocabulary.terms_snapshot(connection, rows)
             if not rows or sum(len(row["text"]) for row in rows) > MAX_CHARACTERS:
                 raise ConversationInsightError("補正できる文字起こしの量を超えています")
             existing = connection.execute(
@@ -260,8 +285,9 @@ def ensure_corrected(database: Path, recording_id: str, schema_path: Path, codex
             now = datetime.now(UTC).isoformat()
             connection.execute(
                 """INSERT INTO conversation_correction_runs
-                (id,recording_id,input_hash,version,model,status,token,contexts,created_at)
-                VALUES(?,?,?,?,?,'correcting',?,?,?) ON CONFLICT(id) DO UPDATE SET
+                (id,recording_id,input_hash,version,model,status,token,contexts,created_at,
+                 vocabulary_revision,approved_terms)
+                VALUES(?,?,?,?,?,'correcting',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET
                 status='correcting',token=excluded.token,error=NULL,completed_at=NULL""",
                 (
                     run_id,
@@ -272,6 +298,8 @@ def ensure_corrected(database: Path, recording_id: str, schema_path: Path, codex
                     token,
                     json.dumps(contexts, ensure_ascii=False),
                     now,
+                    terms["revision"],
+                    json.dumps(terms["terms"], ensure_ascii=False),
                 ),
             )
             connection.execute(
@@ -304,6 +332,7 @@ def ensure_corrected(database: Path, recording_id: str, schema_path: Path, codex
             model=model,
             on_stage=on_stage,
             usage_task_id=recording_id,
+            approved_terms=terms["terms"],
         )
         results = validate_results(results, rows, contexts)
         with OPERATION_LOCK, _connect(database) as connection:
@@ -367,12 +396,11 @@ def ensure_corrected(database: Path, recording_id: str, schema_path: Path, codex
 
 
 def _publish(connection, recording_id, run_id, total, context_count, completed_at):
-    context_rows = json.loads(
-        connection.execute(
-            "SELECT contexts FROM conversation_correction_runs WHERE id=?",
-            (run_id,),
-        ).fetchone()[0]
-    )
+    run = connection.execute(
+        "SELECT contexts,vocabulary_revision FROM conversation_correction_runs WHERE id=?",
+        (run_id,),
+    ).fetchone()
+    context_rows = json.loads(run["contexts"])
     deadlines = [row["valid_until"] for row in context_rows if row.get("valid_until")]
     counts = dict(
         connection.execute(
@@ -386,6 +414,7 @@ def _publish(connection, recording_id, run_id, total, context_count, completed_a
         correction_revision_id=?,correction_run_id=?,correction_completed_at=?,correction_flagged_count=?,
         correction_corrected_count=?,correction_retained_count=?,correction_context_count=?,
         correction_valid_until=?,
+        correction_vocabulary_revision=?,
         correction_input_hash=(SELECT input_hash FROM conversation_correction_runs WHERE id=?)
         WHERE id=?""",
         (
@@ -397,6 +426,7 @@ def _publish(connection, recording_id, run_id, total, context_count, completed_a
             total - counts.get("accepted", 0),
             context_count,
             min(deadlines) if deadlines else None,
+            run["vocabulary_revision"],
             run_id,
             recording_id,
         ),
@@ -487,6 +517,7 @@ def automatic_allowed(connection, evidence):
         or recording["correction_status"] != "completed"
         or recording["correction_requires_review"]
         or expired(recording)
+        or vocabulary_changed(connection, recording)
     ):
         return False
     quotes = evidence.get("quotes", [])
@@ -497,9 +528,57 @@ def automatic_allowed(connection, evidence):
     )
 
 
+def vocabulary_changed(connection, recording):
+    recording = dict(recording)
+    if recording.get("correction_vocabulary_revision", 0) == vocabulary.vocabulary_revision(
+        connection
+    ):
+        return False
+    run_id = recording.get("correction_revision_id")
+    if not run_id:
+        return False
+    run = connection.execute(
+        "SELECT approved_terms FROM conversation_correction_runs WHERE id=?", (run_id,)
+    ).fetchone()
+    if not run:
+        return True
+    previous = json.loads(run["approved_terms"])
+    if not previous:
+        # Adding a dictionary cannot invalidate an older, independently grounded
+        # correction that never used it. The next explicit run still has a new hash.
+        return False
+    current = {
+        term["id"]: term["revision"] for term in vocabulary.terms_snapshot(connection)["terms"]
+    }
+    return any(current.get(term["id"]) != term["revision"] for term in previous)
+
+
+def _user_overlay(rows, feedback):
+    output = []
+    for row in rows:
+        entry = feedback.get(row["id"])
+        raw = row.get("raw_text", row["text"])
+        if entry and entry["original_text"] == raw:
+            output.append(
+                {
+                    **row,
+                    "raw_text": raw,
+                    "text": entry["corrected_text"],
+                    "user_corrected": True,
+                    "correction_revision_id": f"user:{entry['id']}:{entry['revision']}",
+                    "correction_uncertain": False,
+                }
+            )
+        else:
+            output.append(row)
+    return output
+
+
 def apply_overlay(connection, recording_id, rows):
+    feedback = vocabulary.feedback_for_recording(connection, recording_id)
     recording = connection.execute(
-        "SELECT correction_status,correction_revision_id,correction_valid_until "
+        "SELECT correction_status,correction_revision_id,correction_valid_until,"
+        "correction_vocabulary_revision "
         "FROM recordings WHERE id=?",
         (recording_id,),
     ).fetchone()
@@ -507,8 +586,9 @@ def apply_overlay(connection, recording_id, rows):
         recording["correction_status"] != "completed"
         or not recording["correction_revision_id"]
         or expired(recording)
+        or vocabulary_changed(connection, recording)
     ):
-        return rows
+        return _user_overlay(rows, feedback)
     entries = {
         row["utterance_id"]: row
         for row in connection.execute(
@@ -520,7 +600,7 @@ def apply_overlay(connection, recording_id, rows):
     for row in rows:
         entry = entries.get(row["id"])
         if entry and entry["original_text"] != row["text"]:
-            return rows
+            return _user_overlay(rows, feedback)
         output.append(
             {
                 **row,
@@ -532,7 +612,7 @@ def apply_overlay(connection, recording_id, rows):
                 "correction_uncertain": bool(entry and entry["status"] == "retained"),
             }
         )
-    return output
+    return _user_overlay(output, feedback)
 
 
 def describe(connection, recording, *, full=False):
@@ -541,6 +621,8 @@ def describe(connection, recording, *, full=False):
         recording.get("correction_status", "not_requested"),
     )
     if recording.get("correction_valid_until") and expired(recording):
+        status = "stale"
+    if run_id and status not in ACTIVE and vocabulary_changed(connection, recording):
         status = "stale"
     result = {
         "status": status,
@@ -551,6 +633,7 @@ def describe(connection, recording, *, full=False):
         "context_count": recording.get("correction_context_count", 0),
         "error": recording.get("correction_error"),
         "completed_at": recording.get("correction_completed_at"),
+        "vocabulary_revision": recording.get("correction_vocabulary_revision", 0),
         "automatic_blocked": status != "completed"
         or bool(recording.get("correction_requires_review")),
         "context_message": "本人として確認された関連する過去の文脈がありません",
@@ -559,7 +642,7 @@ def describe(connection, recording, *, full=False):
         result["context_message"] = "本人として確認された関連する過去の文脈を語彙の参考にしました"
     if not full:
         return result
-    result.update(items=[], contexts=[])
+    result.update(items=[], contexts=[], approved_terms=[])
     if not run_id or status == "stale":
         return result
     run = connection.execute(
@@ -578,6 +661,7 @@ def describe(connection, recording, *, full=False):
         entry["context_ids"] = json.loads(entry["context_ids"])
         entry["reason"] = REASONS[entry["reason"]]
     result["items"] = entries
+    result["approved_terms"] = json.loads(run["approved_terms"])
     result["contexts"] = [
         {
             key: entry[key]

@@ -581,7 +581,7 @@ def test_reanalysis_failure_keeps_previous_results_and_success_archives_them(tmp
         connection.execute("UPDATE recordings SET source_type='audio'")
     update_speaker(db, record["speakers"][0]["id"], "確認済みの名前")
 
-    def failed(*_):
+    def failed(*_, **__):
         raise RuntimeError("private-path secret-token")
 
     monkeypatch.setattr(conv, "transcribe_audio", failed)
@@ -596,7 +596,7 @@ def test_reanalysis_failure_keeps_previous_results_and_success_archives_them(tmp
     monkeypatch.setattr(
         conv,
         "transcribe_audio",
-        lambda *_: Transcription(
+        lambda *_, **__: Transcription(
             [(0, 2, "新しい本文", -0.2, "話者未判定")], {"model": "test", "warnings": []}
         ),
     )
@@ -641,7 +641,7 @@ def test_empty_reanalysis_does_not_replace_old_transcript(tmp_path, monkeypatch)
     record = store_transcript(db, io.BytesIO(b"old"), 3, "test.txt")
     with sqlite3.connect(db) as connection:
         connection.execute("UPDATE recordings SET source_type='audio'")
-    monkeypatch.setattr(conv, "transcribe_audio", lambda *_: Transcription([], {}))
+    monkeypatch.setattr(conv, "transcribe_audio", lambda *_, **__: Transcription([], {}))
     conv.analyze_recording(db, record["id"], tmp_path / "token")
     current = get_recording(db, record["id"])
     assert current["utterances"][0]["text"] == "old"

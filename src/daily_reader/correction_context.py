@@ -94,10 +94,32 @@ def _terms(text: str) -> set[str]:
     return {_word(match[0]) for match in _WORDS.finditer(text) if len(match[0]) <= 40} - _COMMON
 
 
+def _user_corrected_ids(connection, recording_ids):
+    if (
+        not recording_ids
+        or not connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='conversation_user_corrections'"
+        ).fetchone()
+    ):
+        return set()
+    marks = ",".join("?" for _ in recording_ids)
+    return {
+        row[0]
+        for row in connection.execute(
+            "SELECT f.utterance_id FROM conversation_user_corrections f JOIN utterances u "
+            "ON u.id=f.utterance_id AND u.recording_id=f.recording_id AND u.text=f.original_text "
+            f"WHERE f.active=1 AND f.recording_id IN ({marks})",
+            tuple(sorted(recording_ids)),
+        )
+    }
+
+
 def _confirmed_speakers(connection: sqlite3.Connection, recording_ids: set[str]) -> dict:
     """The legacy mapping stores a subject name, so require live speaker evidence."""
     if not recording_ids:
         return {}
+    corrected_ids = _user_corrected_ids(connection, recording_ids)
     placeholders = ",".join("?" for _ in recording_ids)
     profiles = _rows(
         connection,
@@ -154,6 +176,10 @@ def _confirmed_speakers(connection: sqlite3.Connection, recording_ids: set[str])
         if any(not isinstance(value, str) or not value for value in ids) or len(set(ids)) != len(
             ids
         ):
+            continue
+        if any(value in corrected_ids for value in ids):
+            # A saved identity decision is historical evidence, not permission to
+            # reinterpret its edited source text as a fresh self-identification.
             continue
         item = connection.execute(
             "SELECT 1 FROM conversation_items WHERE id=? AND recording_id=? "
@@ -222,8 +248,11 @@ def reference_context(
         (recording_id, *selected),
     )
     labels = {speaker_id: label for (_, label), speaker_id in speakers.items()}
+    corrected_ids = _user_corrected_ids(connection, {recording_id})
     target_terms: dict[str, set[str]] = {}
     for row in live:
+        if row["id"] in corrected_ids:
+            continue
         label = labels.get(row["speaker_id"])
         supplied = selected[row["id"]]
         if label and supplied.get("speaker") == label and supplied["text"] == row["text"]:
@@ -256,9 +285,12 @@ def reference_context(
         connection,
         {row["recording_id"] for row in candidates},
     )
+    corrected_ids = _user_corrected_ids(connection, {row["recording_id"] for row in candidates})
     all_terms = set().union(*target_terms.values())
     result = []
     for row in candidates:
+        if row["id"] in corrected_ids:
+            continue
         recorded_at = _date(row["recorded_at"])
         if recorded_at is None or recorded_at >= target_date:
             continue

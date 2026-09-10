@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_MODEL = "large-v3-turbo"
-SETTINGS_VERSION = "local-ja-v2"
+SETTINGS_VERSION = "local-ja-v3-vocabulary"
 
 
 class TranscriptionError(ValueError):
@@ -32,6 +32,35 @@ class Transcription:
     metadata: dict
 
 
+def vocabulary_hotwords(model, snapshot: dict | None) -> tuple[str, dict]:
+    """Keep complete canonical terms within the installed decoder's token budget.
+
+    Readings and observed mistakes are useful for text correction, but including
+    those spellings as ASR hints would also encourage the unwanted spelling.
+    No model weights or utterances are changed by dictionary updates.
+    """
+    snapshot = snapshot or {"revision": 0, "terms": []}
+    terms = snapshot["terms"]
+    limit = max(0, min(223, model.max_length // 2 - 1)) if terms else 223
+    selected, texts, tokens = [], [], 0
+    for term in terms:
+        candidate = ", ".join([*texts, term["canonical"]])
+        count = len(model.hf_tokenizer.encode(" " + candidate, add_special_tokens=False).ids)
+        if count > limit:
+            continue
+        selected.append(term)
+        texts.append(term["canonical"])
+        tokens = count
+    return ", ".join(texts), {
+        "vocabulary_revision": snapshot["revision"],
+        "vocabulary_term_ids": [term["id"] for term in selected],
+        "vocabulary_term_revisions": {term["id"]: term["revision"] for term in selected},
+        "vocabulary_omitted_count": len(terms) - len(selected),
+        "hotword_tokens": tokens,
+        "hotword_token_limit": limit,
+    }
+
+
 def recognize(
     wav: Path,
     *,
@@ -39,6 +68,7 @@ def recognize(
     download_root: str | None = None,
     condition_on_previous_text: bool = False,
     vad_filter: bool = True,
+    vocabulary_snapshot: dict | None = None,
 ) -> Transcription:
     from faster_whisper import WhisperModel
 
@@ -48,12 +78,14 @@ def recognize(
         model = WhisperModel(name, device="cpu", compute_type="int8", download_root=download_root)
     except Exception:
         raise TranscriptionError("model") from None
+    hotwords, vocabulary_metadata = vocabulary_hotwords(model, vocabulary_snapshot)
     segments, info = model.transcribe(
         str(wav),
         language="ja",
         vad_filter=vad_filter,
         beam_size=5,
         condition_on_previous_text=condition_on_previous_text,
+        **({"hotwords": hotwords} if hotwords else {}),
     )
     duration = float(info.duration)
     if not math.isfinite(duration) or duration <= 0:
@@ -104,6 +136,7 @@ def recognize(
             "low_logprob_segments": low_probability,
             "consecutive_repetitions": repetitions,
             "warnings": warnings,
+            **vocabulary_metadata,
         },
     )
 
@@ -137,7 +170,9 @@ def speaker_for(start: float, end: float, turns: list[tuple[float, float, str]])
     return label if overlap > 0 else "話者未判定"
 
 
-def transcribe_audio(audio_path: Path, token_file: Path) -> Transcription:
+def transcribe_audio(
+    audio_path: Path, token_file: Path, *, vocabulary_snapshot: dict | None = None
+) -> Transcription:
     import numpy as np
     from scipy.io import wavfile
 
@@ -165,7 +200,11 @@ def transcribe_audio(audio_path: Path, token_file: Path) -> Transcription:
             )
         except (OSError, subprocess.CalledProcessError):
             raise TranscriptionError("decode") from None
-        result = recognize(wav)
+        result = (
+            recognize(wav, vocabulary_snapshot=vocabulary_snapshot)
+            if vocabulary_snapshot is not None
+            else recognize(wav)
+        )
         if not result.segments:
             raise TranscriptionError("empty")
         _, samples = wavfile.read(wav)

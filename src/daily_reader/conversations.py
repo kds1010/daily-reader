@@ -14,6 +14,7 @@ from typing import BinaryIO
 from zoneinfo import ZoneInfo
 
 from daily_reader import conversation_corrections as corrections
+from daily_reader import conversation_vocabulary as vocabulary
 from daily_reader.conversation_context import (
     read_contexts,
     rebuild_context,
@@ -254,6 +255,7 @@ def initialize_database(path: Path) -> None:
             LEFT JOIN speakers ON speakers.id = utterances.speaker_id"""
         )
         corrections.initialize(connection)
+        vocabulary.initialize(connection)
 
 
 def _connect(path: Path) -> sqlite3.Connection:
@@ -586,10 +588,34 @@ def list_recordings(database: Path) -> list[dict[str, object]]:
         attach_digests(connection, records)
         for recording in records:
             recording["correction"] = corrections.describe(connection, recording)
+            _hide_invalidated_summary(connection, recording)
             for name in corrections.RECORDING_COLUMNS:
                 recording.pop(name, None)
             recording.pop("transcription_metadata", None)
         return records
+
+
+def _hide_invalidated_summary(connection, recording):
+    """Project dictionary-invalidated recaps as stale without rewriting saved evidence."""
+    correction = recording["correction"]
+    if correction["status"] != "stale" or not correction["revision_id"]:
+        return
+    stored = connection.execute(
+        "SELECT data FROM conversation_overviews WHERE recording_id=?", (recording["id"],)
+    ).fetchone()
+    if not stored or not any(
+        quote.get("correction_revision_id") == correction["revision_id"]
+        for point in json.loads(stored[0])["points"]
+        for quote in point["evidence"]
+    ):
+        # A recap explicitly regenerated from raw/user-corrected text can be
+        # current even while an older, unused AI overlay remains stale.
+        return
+    for summary in (recording.get("overview"), recording.get("digest", {}).get("summary")):
+        if summary and summary["status"] in {"ready", "empty"}:
+            summary.update(
+                status="stale", text=None, points=[], point_count=0, chunks=[], chunk_count=0
+            )
 
 
 def get_recording(database: Path, recording_id: str) -> dict[str, object]:
@@ -650,9 +676,14 @@ def get_recording(database: Path, recording_id: str) -> dict[str, object]:
         )
         result["correction"] = corrections.describe(connection, result, full=True)
         corrected = {entry["utterance_id"]: entry for entry in result["correction"]["items"]}
+        feedback = vocabulary.feedback_for_recording(connection, recording_id)
+        feedback_revisions = vocabulary.feedback_revisions(connection, recording_id)
         for utterance in result["utterances"]:
             utterance["correction"] = corrected.get(utterance["id"])
+            utterance["user_correction"] = feedback.get(utterance["id"])
+            utterance["user_correction_revision"] = feedback_revisions.get(utterance["id"], 0)
         attach_digests(connection, [result], full=True)
+        _hide_invalidated_summary(connection, result)
         return result
 
 
@@ -1070,7 +1101,8 @@ def _analyze_recording(database: Path, recording_id: str, token_file: Path) -> N
                 "UPDATE recordings SET status='analyzing', error=NULL WHERE id=?", (recording_id,)
             )
             audio_path = Path(row["audio_path"])
-        result = transcribe_audio(audio_path, token_file)
+            terms = vocabulary.terms_snapshot(connection)
+        result = transcribe_audio(audio_path, token_file, vocabulary_snapshot=terms)
         if not result.segments:
             raise TranscriptionError("empty")
         now = datetime.now(UTC).isoformat()
@@ -1254,10 +1286,13 @@ def queue_insight_extraction(
             "SELECT 1 FROM utterances WHERE recording_id=? LIMIT 1", (recording_id,)
         ).fetchone():
             raise ValueError("整理できる発話がありません")
-        if connection.execute(
-            "SELECT COUNT(*) FROM recordings WHERE correction_status "
-            "IN ('queued','correcting','verifying')"
-        ).fetchone()[0] >= 10:
+        if (
+            connection.execute(
+                "SELECT COUNT(*) FROM recordings WHERE correction_status "
+                "IN ('queued','correcting','verifying')"
+            ).fetchone()[0]
+            >= 10
+        ):
             raise ValueError("補正待ちが10件あります。完了後に再試行してください")
         connection.execute(
             "UPDATE recordings SET correction_status='queued',correction_error=NULL WHERE id=?",
