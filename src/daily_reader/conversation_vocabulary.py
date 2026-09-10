@@ -19,6 +19,10 @@ MAX_ALIASES = 5
 class VocabularyConflict(ValueError):
     """The displayed revision is no longer current, or the recording is busy."""
 
+    def __init__(self, message: str, *, code: str = "revision_conflict"):
+        super().__init__(message)
+        self.code = code
+
 
 def initialize(connection: sqlite3.Connection) -> None:
     connection.executescript("""
@@ -177,7 +181,9 @@ def _save_term(connection, payload, term_id=None):
         (_normalized(canonical),),
     ).fetchone()
     if duplicate and duplicate["id"] != term_id:
-        raise VocabularyConflict("同じ表記の用語が登録済みです。辞書から編集してください")
+        raise VocabularyConflict(
+            "同じ表記の用語が登録済みです。辞書から編集してください", code="duplicate_term"
+        )
     if (
         previous is None
         and connection.execute(
@@ -354,7 +360,9 @@ def save_feedback(database: Path, recording_id: str, utterance_id: str, payload)
             in {"queued", "analyzing", "extracting", "generating", "correcting", "verifying"}
             for key in ("status", "insight_status", "overview_status", "correction_status")
         ):
-            raise VocabularyConflict("この会話を処理中です。処理完了後に訂正してください")
+            raise VocabularyConflict(
+                "この会話を処理中です。処理完了後に訂正してください", code="recording_busy"
+            )
         if payload.get("expected_original_text") != utterance["text"]:
             raise VocabularyConflict("文字起こしが更新されました。再取得してください")
         previous = connection.execute(

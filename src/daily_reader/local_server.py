@@ -1276,7 +1276,7 @@ def make_handler(
                     )}
                 self._send_json(200, result)
             except conversation_vocabulary.VocabularyConflict as error:
-                self._send_json(409, {"error": str(error)})
+                self._send_json(409, {"error": str(error), "code": error.code})
             except KeyError:
                 self._send_json(404, {"error": "対象の用語または発言が見つかりません"})
             except (json.JSONDecodeError, UnicodeDecodeError, TypeError):

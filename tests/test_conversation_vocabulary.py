@@ -361,3 +361,25 @@ def test_feedback_preserves_already_created_task_evidence(database):
     with closing(vocab._connect(database)) as connection:
         for table, values in before.items():
             assert [tuple(item) for item in connection.execute(f"SELECT * FROM {table}")] == values
+
+
+def test_http_conflicts_distinguish_duplicate_busy_and_revision(tmp_path, database):
+    h, responses = handler(tmp_path, database)
+    base = "/api/conversation-vocabulary"
+    request(h, base, term_payload())
+    request(h, base, term_payload())
+    assert responses[-1][0] == 409
+    assert responses[-1][1]["code"] == "duplicate_term"
+    recording_id, row = recording(database)
+    route = f"/api/conversations/{recording_id}/utterances/{row['id']}/feedback"
+    with closing(vocab._connect(database)) as connection, connection:
+        connection.execute("UPDATE recordings SET overview_status='extracting' WHERE id=?",
+                           (recording_id,))
+    request(h, route, feedback_payload(row))
+    assert responses[-1][1]["code"] == "recording_busy"
+    with closing(vocab._connect(database)) as connection, connection:
+        connection.execute("UPDATE recordings SET overview_status='not_requested' WHERE id=?",
+                           (recording_id,))
+    request(h, route, feedback_payload(row, expected_feedback_revision=9))
+    assert responses[-1][1]["code"] == "revision_conflict"
+    assert vocab.list_terms(database)["revision"] == 1
