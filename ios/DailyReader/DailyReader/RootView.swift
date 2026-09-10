@@ -327,6 +327,11 @@ struct ConversationsView: View {
                 NavigationLink { ConversationExtractionGuide() } label: {
                     Label("会話から何が見つかる？", systemImage: "sparkles")
                 }
+                NavigationLink {
+                    ConversationVocabularyView(api: model.conversationAPI, isFixture: model.isFixture)
+                } label: {
+                    Label("文字起こしの用語辞書", systemImage: "character.book.closed")
+                }
                 NavigationLink { ConversationRecordingsMap(recordings: recordings) } label: {
                     Label("場所から会話を探す", systemImage: "map")
                 }
@@ -758,6 +763,14 @@ struct ConversationDetailView: View {
                     if let name = recording.transcriptionMetadata?.model {
                         Text("文字起こしモデル: \(name)").appFont(.caption).foregroundStyle(.secondary)
                     }
+                    if !recording.isTranscript {
+                        Text(recording.transcriptionMetadata?.vocabularyUsageLabel ?? "用語ヒントの使用状況は未記録です")
+                            .appFont(.caption).foregroundStyle(.secondary)
+                        if let omitted = recording.transcriptionMetadata?.vocabularyOmittedCount, omitted > 0 {
+                            Text("上限により \(omitted)件は今回未使用です。")
+                                .appFont(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                     ForEach(recording.transcriptionMetadata?.warnings ?? [], id: \.self) { warning in
                         Text(warning).appFont(.caption).foregroundStyle(.orange)
                     }
@@ -935,7 +948,7 @@ private struct ConversationCorrectionView: View {
                             }
                         }
                     } else {
-                        Text(correction.status == "stale" ? "原文が更新されたため、以前の補正文は表示していません。" : correction.status == "completed" ? "表示する変更はありません。原文を維持しています。" : "比較できる補正結果はまだありません。")
+                        Text(correction.status == "stale" ? "原文・本人訂正・参考情報が更新されたため、以前の補正文は表示していません。" : correction.status == "completed" ? "表示する変更はありません。原文を維持しています。" : "比較できる補正結果はまだありません。")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -1213,7 +1226,15 @@ private struct ConversationEvidenceQuote: View {
 }
 
 private struct ConversationTranscriptView: View {
-    let recording: ConversationRecording
+    @EnvironmentObject private var model: AppModel
+    let initialRecording: ConversationRecording
+    @State private var updatedRecording: ConversationRecording?
+    @State private var editing: ConversationUtterance?
+    private var recording: ConversationRecording { updatedRecording ?? initialRecording }
+    init(recording: ConversationRecording, selectedUtteranceID: String? = nil) {
+        initialRecording = recording
+        self.selectedUtteranceID = selectedUtteranceID
+    }
     var selectedUtteranceID: String? = nil
     private var shown: [ConversationUtterance] {
         let utterances = recording.utterances ?? []
@@ -1226,6 +1247,10 @@ private struct ConversationTranscriptView: View {
                 Text("根拠の発言と、その前後を表示しています。")
                     .appFont(.caption).foregroundStyle(.secondary)
             }
+            if let error = model.conversationDetailErrors[recording.id] {
+                Text(error).foregroundStyle(.orange)
+                Button("最新の文字起こしを確認") { Task { await reload() } }
+            }
             ForEach(shown) { utterance in
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -1237,7 +1262,10 @@ private struct ConversationTranscriptView: View {
                     }.appFont(.caption)
                     Text("元の文字起こし").appFont(.caption2).foregroundStyle(.secondary)
                     Text(verbatim: utterance.text).textSelection(.enabled)
-                    if let correction = recording.correctionItem(for: utterance) {
+                    if let corrected = utterance.userCorrectedText {
+                        Text("本人が訂正した発言").appFont(.caption2).foregroundStyle(.secondary)
+                        Text(verbatim: corrected).textSelection(.enabled)
+                    } else if let correction = recording.correctionItem(for: utterance) {
                         if let corrected = correction.acceptedText {
                             Text("補正後（文脈による確認）").appFont(.caption2).foregroundStyle(.secondary)
                             Text(verbatim: corrected).textSelection(.enabled)
@@ -1245,6 +1273,9 @@ private struct ConversationTranscriptView: View {
                             Text(correction.verificationLabel).appFont(.caption2).foregroundStyle(.secondary)
                         }
                     }
+                    Button("訂正", systemImage: "pencil") { editing = utterance }
+                        .buttonStyle(.borderless)
+                        .disabled(recording.status != "completed")
                     if let link = recording.locationContexts?.first(where: { $0.utteranceID == utterance.id }) {
                         ConversationLocationSummary(link: link)
                         if link.location != nil {
@@ -1253,7 +1284,27 @@ private struct ConversationTranscriptView: View {
                     }
                 }.padding(.vertical, 4)
             }
-        }.navigationTitle(selectedUtteranceID == nil ? "文字起こし" : "根拠の前後")
+        }
+        .navigationTitle(selectedUtteranceID == nil ? "文字起こし" : "根拠の前後")
+        .sheet(item: $editing) { utterance in
+            ConversationFeedbackView(editor: ConversationFeedbackEditor(recordingID: recording.id, utterance: utterance, api: model.conversationAPI, isFixture: model.isFixture)) { response in
+                if model.isFixture {
+                    var copy = recording
+                    if let index = copy.utterances?.firstIndex(where: { $0.id == utterance.id }) {
+                        copy.utterances?[index].userCorrection = response.feedback
+                        copy.utterances?[index].userCorrectionRevision = response.feedback_revision
+                    }
+                    updatedRecording = copy
+                } else {
+                    await reload(afterMutation: true)
+                    await model.refreshConversations(afterMutation: true)
+                }
+            }
+        }
+        .refreshable { await reload() }
+    }
+    private func reload(afterMutation: Bool = false) async {
+        if let latest = await model.loadConversation(recording.id, afterMutation: afterMutation) { updatedRecording = latest }
     }
 }
 

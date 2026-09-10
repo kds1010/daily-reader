@@ -30,14 +30,14 @@ actor APIClient {
         return try await execute(request, as: type)
     }
 
-    func post<T: Encodable, R: Decodable>(_ path: String, body: T, as type: R.Type, timeout: TimeInterval = 20) async throws -> R {
+    func post<T: Encodable, R: Decodable>(_ path: String, body: T, as type: R.Type, timeout: TimeInterval = 20, preservingConflict: Bool = false) async throws -> R {
         let url = makeAPIURL(baseURL: baseURL, path: path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(body)
         request.timeoutInterval = timeout
-        return try await execute(request, as: type)
+        return try await execute(request, as: type, preservingConflict: preservingConflict)
     }
 
     func syncHealth(_ snapshot: HealthSnapshot, token: String) async throws {
@@ -111,12 +111,19 @@ actor APIClient {
         return try await execute(request, as: PaymentImportResult.self)
     }
 
-    private func execute<T: Decodable>(_ request: URLRequest, as type: T.Type) async throws -> T {
+    private func execute<T: Decodable>(_ request: URLRequest, as type: T.Type, preservingConflict: Bool = false) async throws -> T {
         let (data, response) = try await session.data(for: request)
         try Task.checkCancellation()
         guard let http = response as? HTTPURLResponse else { throw APIClientError.invalidResponse }
         guard 200..<300 ~= http.statusCode else {
             let message = (try? decoder.decode(APIErrorPayload.self, from: data).error) ?? "HTTP \(http.statusCode)"
+            if preservingConflict && http.statusCode == 409 {
+                switch (try? decoder.decode(APIErrorPayload.self, from: data))?.code {
+                case "duplicate_term": throw APIClientError.vocabularyDuplicate
+                case "recording_busy": throw APIClientError.recordingBusy
+                default: throw APIClientError.conflict
+                }
+            }
             throw APIClientError.server(message)
         }
         return try decoder.decode(type, from: data)
@@ -186,10 +193,16 @@ struct LocationHistoryResponse: Decodable {
 struct LocationSyncRequest: Encodable { let events: [LocationEvent] }
 struct LocationSyncResponse: Decodable { let stored: Int }
 enum APIClientError: LocalizedError {
+    case conflict
+    case vocabularyDuplicate
+    case recordingBusy
     case invalidResponse
     case server(String)
     var errorDescription: String? {
-        switch self { case .invalidResponse: "サーバーの応答を確認できませんでした"; case .server(let message): message }
+        switch self {
+        case .vocabularyDuplicate: "この表記は用語辞書に登録済みです。発言訂正では用語登録のチェックを外して保存し、用語の変更は辞書から編集してください。"
+        case .recordingBusy: "この録音は処理中です。入力は保持しています。処理が完了してから保存を再試行してください。"
+        case .conflict: "ほかの操作で内容が更新されています。入力は保持しています。最新の内容を確認してから編集し直してください。"; case .invalidResponse: "サーバーの応答を確認できませんでした"; case .server(let message): message }
     }
 }
 

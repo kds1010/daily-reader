@@ -536,9 +536,21 @@ struct ConversationTranscriptionMetadata: Decodable {
     let model: String?
     let warnings: [String]?
     var durationSeconds: Double? = nil
+    var vocabularyRevision: Int? = nil
+    var vocabularyTermIDs: [String]? = nil
+    var vocabularyOmittedCount: Int? = nil
+    var hotwordTokens: Int? = nil
+    var hotwordTokenLimit: Int? = nil
+    var vocabularyUsageLabel: String {
+        guard vocabularyRevision != nil, let vocabularyTermIDs else { return "用語ヒントの使用状況は未記録です" }
+        return "用語ヒント \(vocabularyTermIDs.count)件"
+    }
     enum CodingKeys: String, CodingKey {
         case model, warnings
         case durationSeconds = "duration_seconds"
+        case vocabularyRevision = "vocabulary_revision", vocabularyTermIDs = "vocabulary_term_ids"
+        case vocabularyOmittedCount = "vocabulary_omitted_count", hotwordTokens = "hotword_tokens"
+        case hotwordTokenLimit = "hotword_token_limit"
     }
 }
 
@@ -605,7 +617,7 @@ struct ConversationRecording: Decodable, Identifiable {
     let analyzedAt: String?
     let sourceType: String?
     let speakers: [ConversationSpeaker]?
-    let utterances: [ConversationUtterance]?
+    var utterances: [ConversationUtterance]?
     let topics: [ConversationTopic]?
     let taskProposals: [ConversationTaskProposal]?
     let insightItems: [ConversationInsightItem]?
@@ -736,7 +748,7 @@ struct ConversationCorrection: Decodable {
         case "verifying": return "第3段階：補正内容を検証中"
         case "completed": return "補正・検証済み"
         case "failed": return "補正処理に失敗"
-        case "stale": return "原文更新後の補正は未実施"
+        case "stale": return "本文・参考情報の更新後の補正は未実施"
         case "not_requested": return "補正はまだ実施していません"
         default: return "補正の状態を確認できません"
         }
@@ -842,7 +854,7 @@ extension ConversationRecording {
     }
     var isCorrectionProcessing: Bool { correction?.isProcessing == true }
     func correctionItem(for utterance: ConversationUtterance) -> ConversationCorrectionItem? {
-        guard correction?.canDisplayCorrections == true,
+        guard utterance.userCorrectedText == nil, correction?.canDisplayCorrections == true,
               let item = utterance.correction ?? correction?.items?.first(where: { $0.utteranceID == utterance.id }),
               item.utteranceID == utterance.id, item.originalText == utterance.text else { return nil }
         return item
@@ -860,7 +872,7 @@ extension ConversationRecording {
         switch summary?.status ?? insightStatus {
         case "queued", "analyzing", "extracting": return "会話を整理中です"
         case "failed": return "整理に失敗・要約はありません"
-        case "stale": return "文字起こし更新後の要約は未作成です"
+        case "stale": return "本文・参考情報の更新後の要約は未作成です"
         case "empty": return "整理済み・要約できる内容はありません"
         case "ready": return "整理済み・要約文はありません"
         default: return "未整理・要約はまだありません"
@@ -941,8 +953,16 @@ struct ConversationUtterance: Decodable, Identifiable {
     let id: String; let speaker: String?; let startSeconds: Double; let endSeconds: Double
     let text: String; let confidence: Double?; let context: String; let topic: String
     var correction: ConversationCorrectionItem? = nil
+    var userCorrection: ConversationUserCorrection? = nil
+    var userCorrectionRevision: Int? = nil
+    var feedbackRevision: Int { userCorrectionRevision ?? userCorrection?.revision ?? 0 }
+    var userCorrectedText: String? {
+        guard let userCorrection, userCorrection.originalText == text else { return nil }
+        return userCorrection.correctedText
+    }
     enum CodingKeys: String, CodingKey {
         case id, speaker, text, confidence, context, topic, correction
+        case userCorrection = "user_correction", userCorrectionRevision = "user_correction_revision"
         case startSeconds = "start_seconds"; case endSeconds = "end_seconds"
     }
 }
@@ -1150,7 +1170,7 @@ struct Article: Decodable, Identifiable {
     }
 }
 
-struct APIErrorPayload: Decodable { let error: String }
+struct APIErrorPayload: Decodable { let error: String; var code: String? = nil }
 
 extension String {
     var iso8601Date: Date? {
@@ -1225,4 +1245,53 @@ func mergedSleepMinutes(_ intervals: [DateInterval], window: DateInterval) -> Do
         } else { total += current.duration; current = next }
     }
     return (total + current.duration) / 60
+}
+
+
+struct ConversationUserCorrection: Codable, Identifiable {
+    let id: String
+    let revision: Int
+    let originalText: String
+    let correctedText: String
+    enum CodingKeys: String, CodingKey {
+        case id, revision
+        case originalText = "original_text", correctedText = "corrected_text"
+    }
+}
+
+struct ConversationVocabularyTerm: Codable, Identifiable {
+    let id: String
+    let revision: Int
+    let canonical: String
+    let reading: String
+    let aliases: [String]
+    let enabled: Bool
+    let created_at: String?
+    let updated_at: String?
+}
+struct ConversationVocabularyEnvelope: Decodable {
+    let revision: Int
+    let terms: [ConversationVocabularyTerm]
+    let max_terms: Int
+}
+struct ConversationVocabularyResponse: Decodable { let term: ConversationVocabularyTerm }
+struct ConversationVocabularyRequest: Codable {
+    var revision: Int? = nil
+    var canonical: String
+    var reading: String
+    var aliases: [String]
+    var enabled: Bool
+}
+struct ConversationVocabularyDelete: Encodable { let revision: Int }
+struct ConversationFeedbackRequest: Encodable {
+    let expected_original_text: String
+    let expected_feedback_revision: Int
+    var corrected_text: String? = nil
+    var term: ConversationVocabularyRequest? = nil
+    var reset: Bool? = nil
+}
+struct ConversationFeedbackResponse: Decodable {
+    let feedback: ConversationUserCorrection?
+    let vocabulary_term: ConversationVocabularyTerm?
+    var feedback_revision: Int? = nil
 }

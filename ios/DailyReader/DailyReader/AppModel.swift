@@ -107,6 +107,7 @@ final class AppModel: ObservableObject {
     private var pendingTanomiTasks: [String: TanomiTask] = [:]
 
     var isFixture: Bool { fixture != nil }
+    var conversationAPI: APIClient { api }
 
     init(fixture: DaymeldFixture? = nil, api: APIClient = .shared) {
         self.api = api
