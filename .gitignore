@@ -27,6 +27,7 @@ data/connection-alerts.sqlite3
 data/connection-alerts.sqlite3-*
 site/data/articles.json
 site/data/highlights.json
+site/data/highlights.lock
 secrets/
 
 # Xcode user state and local build products
