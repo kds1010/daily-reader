@@ -93,6 +93,35 @@ def test_source_hash_ignores_order_images_and_unverified_fetch_time(generation):
     assert highlights._input_hash([article, other]) == highlights._input_hash([later, article])
 
 
+def test_candidate_ties_do_not_regenerate_when_fetch_order_changes(generation):
+    generate, calls, article, now, _, _ = generation
+    articles = [replace(article, id=key) for key in ("left", "right")]
+    before = highlights._candidate_articles(articles, generated_at=now)
+    after = highlights._candidate_articles(list(reversed(articles)), generated_at=now)
+    assert [item.id for item in before] == [item.id for item in after]
+    assert generate(articles=articles)
+    assert not generate(articles=list(reversed(articles)))
+    assert len(calls) == 1
+
+
+def test_edit_to_previous_rotated_candidate_invalidates_cache(generation, monkeypatch):
+    generate, calls, article, now, output, history = generation
+    extra = replace(article, id="rotated", title="Another relevant story")
+    history.write_text(json.dumps({"fields": {"データ・AI": ["a1"]}}) + "\n")
+
+    def select(articles, *, previous_ids=None, **_kwargs):
+        return list(articles) if previous_ids else [articles[0]]
+
+    # The rotating pool can contain relevant evidence outside the default 105.
+    monkeypatch.setattr(highlights, "_candidate_articles", select)
+    assert generate(articles=[article, extra])
+    assert "rotated" in json.loads(output.read_text())["candidate_ids"]
+    assert not generate(articles=[article, extra], at=now + timedelta(minutes=1))
+    assert generate(articles=[article, replace(extra, summary="Correction to selected evidence")],
+                    at=now + timedelta(minutes=2))
+    assert len(calls) == 2
+
+
 def test_concurrent_generation_is_skipped(generation):
     generate, calls, _, _, output, _ = generation
     with output.with_suffix(".lock").open("a") as lock:
