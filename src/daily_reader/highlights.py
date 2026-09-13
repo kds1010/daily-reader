@@ -392,6 +392,8 @@ def _candidate_articles(
 ) -> list[Article]:
     previous_ids = previous_ids or set()
     generated_at = generated_at or datetime.now().astimezone()
+    # Stable ties also matter before title/source diversification and pool limits.
+    articles = sorted(articles, key=lambda article: article.id)
     focused = [
         article
         for article in articles
@@ -634,14 +636,20 @@ def _append_selection_history(
         history_file.write(json.dumps(event, ensure_ascii=False) + "\n")
 
 
-def _generation_is_current(output_path: Path, input_hash: str, now: datetime) -> bool:
+def _generation_is_current(
+    output_path: Path, input_hash: str, now: datetime, articles: list[Article]
+) -> bool:
     try:
         saved = json.loads(output_path.read_text(encoding="utf-8"))
         previous = datetime.fromisoformat(saved["generated_at"])
         age = now - previous
+        candidate_ids = set(saved["candidate_ids"])
+        previous_candidates = [article for article in articles if article.id in candidate_ids]
         return (
             saved["input_hash"] == input_hash
             and timedelta(0) <= age < SELECTION_REFRESH_INTERVAL
+            and len(previous_candidates) == len(candidate_ids)
+            and _input_hash(previous_candidates) == saved["candidate_hash"]
         )
     except (FileNotFoundError, ValueError, KeyError, TypeError):
         return False
@@ -690,7 +698,7 @@ def _generate_highlights(
     current_hash = hashlib.sha256(
         f"{_input_hash(source_candidates)}:{feedback_hash}".encode()
     ).hexdigest()
-    if _generation_is_current(output_path, current_hash, generated_at):
+    if _generation_is_current(output_path, current_hash, generated_at, articles):
         LOGGER.info("Highlights are already current")
         return False
     if not source_candidates:
@@ -995,6 +1003,10 @@ def _generate_highlights(
         payload = {
             "generated_at": generated_at.isoformat(),
             "input_hash": current_hash,
+            # Check the actual prior model evidence too: rotation can admit
+            # articles outside the default pool whose corrections must be read.
+            "candidate_ids": [article.id for article in candidates],
+            "candidate_hash": _input_hash(candidates),
             "headline": result["headline"],
             "overview": result["overview"],
             "field_highlights": field_highlights,
