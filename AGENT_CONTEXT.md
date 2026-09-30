@@ -491,3 +491,12 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - 仕様・初回設定・公式根拠は[アプリからのGmail認証](docs/gmail-mobile-auth.md)。
   検証は`tests/test_gmail_oauth.py`とSwiftデコード・両OSビルド。
   配信はWeb再起動と両OS成果物生成・配信検証。Googleの初回設定・本人同意・実機導入は別途確認する。
+
+- Gmail一括同期はCLI・OAuth完了・定期処理で同じ`gmail-token.json.sync.lock`を使い直列化する。
+  トークン保存用ロックとは別で、同期中もOAuth認証情報の保存を妨げない。
+  各読み取り要求前に0.5秒待ち、403のrateLimitExceeded/userRateLimitExceededと429だけを
+  最大7回再試行する（1/2/4/8/16/32/32秒＋1秒未満のjitter）。権限不足は再試行しない。
+  Googleの[新しい利用上限](https://developers.google.com/workspace/gmail/api/reference/quota)
+  （6,000 units/user/min、threads.getは40 units）に余裕を残す。大量の未読は同期に時間がかかる。
+  全取得成功後に既存の保存・未読照合を行い、失敗で保存済みメールを消さない。
+  回帰検証は`tests/test_gmail_sync_quota.py`と既存Gmailテスト。サーバー変更のためWeb再起動が必要。

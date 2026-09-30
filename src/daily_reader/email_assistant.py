@@ -7,9 +7,11 @@ import fcntl
 import html
 import json
 import os
+import random
 import re
 import sqlite3
 import tempfile
+import time
 import urllib.parse
 from contextlib import closing, contextmanager
 from dataclasses import asdict, dataclass
@@ -22,6 +24,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
@@ -702,6 +705,29 @@ def fetch_gmail_thread_content(
     }
 
 
+def _execute_gmail_sync_request(request: Any) -> Any:
+    # Gmail threads.get costs 40 units; 0.5s leaves headroom below 6,000/user/min.
+    # Retry only transient quota failures, without logging URLs or error bodies.
+    for attempt in range(8):
+        time.sleep(0.5)
+        try:
+            return request.execute()
+        except HttpError as error:
+            retryable = error.resp.status == 429
+            if error.resp.status == 403:
+                try:
+                    details = json.loads(error.content).get("error", {}).get("errors", [])
+                    retryable = any(
+                        item.get("reason") in {"rateLimitExceeded", "userRateLimitExceeded"}
+                        for item in details if isinstance(item, dict)
+                    )
+                except (ValueError, TypeError, AttributeError):
+                    retryable = False
+            if not retryable or attempt == 7:
+                raise
+            time.sleep(min(2 ** attempt, 32) + random.random())
+
+
 def _list_thread_ids(service: Any, query: str) -> list[str]:
     thread_ids: list[str] = []
     page_token = None
@@ -711,7 +737,7 @@ def _list_thread_ids(service: Any, query: str) -> list[str]:
                 {"pageToken": page_token} if page_token else {}
             )
         )
-        response = request.execute()
+        response = _execute_gmail_sync_request(request)
         thread_ids.extend(
             item["id"] for item in response.get("threads", []) if item.get("id")
         )
@@ -729,6 +755,23 @@ def sync_gmail(
     interactive: bool = False,
     force: bool = False,
 ) -> int:
+    # Serialize CLI, OAuth completion and scheduled sync across processes. This
+    # is separate from the token lock, which is never held during consent.
+    with _token_lock(token_path.with_name(token_path.name + ".sync")):
+        return _sync_gmail_locked(
+            database, client_secret, token_path, query, account_index, interactive, force,
+        )
+
+
+def _sync_gmail_locked(
+    database: Path,
+    client_secret: Path,
+    token_path: Path,
+    query: str,
+    account_index: int,
+    interactive: bool,
+    force: bool,
+) -> int:
     attempted_at = datetime.now(UTC)
     credentials = None
     try:
@@ -741,7 +784,9 @@ def sync_gmail(
         )
         can_mark_read = GMAIL_MODIFY_SCOPE in set(credentials.scopes or ())
         service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
-        account_email = service.users().getProfile(userId="me").execute()["emailAddress"]
+        account_email = _execute_gmail_sync_request(
+            service.users().getProfile(userId="me")
+        )["emailAddress"]
         unread_thread_ids = set(_list_thread_ids(service, GMAIL_UNREAD_QUERY))
         target_thread_ids = set(unread_thread_ids)
         if query != GMAIL_UNREAD_QUERY:
@@ -749,9 +794,9 @@ def sync_gmail(
         now = datetime.now(UTC)
         records: list[GmailThreadRecord] = []
         for thread_id in sorted(target_thread_ids):
-            thread = service.users().threads().get(
+            thread = _execute_gmail_sync_request(service.users().threads().get(
                 userId="me", id=thread_id, format="full"
-            ).execute()
+            ))
             messages = sorted(
                 thread.get("messages", []), key=lambda value: int(value["internalDate"])
             )
