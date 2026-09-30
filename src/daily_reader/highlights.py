@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import html
 import ipaddress
@@ -25,6 +26,7 @@ from daily_reader.core import Article
 
 LOGGER = logging.getLogger(__name__)
 PROMPT_VERSION = "selection-novelty-series-diversity-v28"
+SELECTION_REFRESH_INTERVAL = timedelta(days=1)
 FOCUS_CATEGORIES = {
     "データマネジメント",
     "データ基盤",
@@ -390,6 +392,8 @@ def _candidate_articles(
 ) -> list[Article]:
     previous_ids = previous_ids or set()
     generated_at = generated_at or datetime.now().astimezone()
+    # Stable ties also matter before title/source diversification and pool limits.
+    articles = sorted(articles, key=lambda article: article.id)
     focused = [
         article
         for article in articles
@@ -521,9 +525,22 @@ def _candidate_articles(
 
 
 def _input_hash(articles: list[Article]) -> str:
-    value = PROMPT_VERSION + "\n" + "\n".join(
-        f"{article.id}:{article.title}" for article in articles
-    )
+    # Selection history and fetch order are outputs/telemetry, not new evidence.
+    evidence = [
+        {
+            "id": article.id,
+            "title": article.title,
+            "source": article.source,
+            "category": article.category,
+            "published_at": article.published_at if article.published_at_verified else None,
+            "published_at_verified": article.published_at_verified,
+            "score": article.score,
+            "source_priority": article.source_priority,
+            "summary": article.summary[:400],
+        }
+        for article in sorted(articles, key=lambda item: item.id)
+    ]
+    value = json.dumps([PROMPT_VERSION, evidence], ensure_ascii=False, sort_keys=True)
     return hashlib.sha256(value.encode()).hexdigest()
 
 
@@ -619,11 +636,23 @@ def _append_selection_history(
         history_file.write(json.dumps(event, ensure_ascii=False) + "\n")
 
 
-def _existing_hash(output_path: Path) -> str | None:
+def _generation_is_current(
+    output_path: Path, input_hash: str, now: datetime, articles: list[Article]
+) -> bool:
     try:
-        return json.loads(output_path.read_text(encoding="utf-8")).get("input_hash")
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
+        saved = json.loads(output_path.read_text(encoding="utf-8"))
+        previous = datetime.fromisoformat(saved["generated_at"])
+        age = now - previous
+        candidate_ids = set(saved["candidate_ids"])
+        previous_candidates = [article for article in articles if article.id in candidate_ids]
+        return (
+            saved["input_hash"] == input_hash
+            and timedelta(0) <= age < SELECTION_REFRESH_INTERVAL
+            and len(previous_candidates) == len(candidate_ids)
+            and _input_hash(previous_candidates) == saved["candidate_hash"]
+        )
+    except (FileNotFoundError, ValueError, KeyError, TypeError):
+        return False
 
 
 def generate_highlights(
@@ -634,8 +663,47 @@ def generate_highlights(
     feedback_path: Path | None = None,
     history_path: Path | None = None,
 ) -> bool:
+    # Serialise CLI and server refreshes before checking the persisted result.
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.with_suffix(".lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            LOGGER.info("Highlight generation is already running")
+            return False
+        return _generate_highlights(
+            articles, output_path, schema_path, generated_at, feedback_path, history_path
+        )
+
+
+def _generate_highlights(
+    articles: list[Article],
+    output_path: Path,
+    schema_path: Path,
+    generated_at: datetime,
+    feedback_path: Path | None,
+    history_path: Path | None,
+) -> bool:
     feedback_examples = _feedback_examples(feedback_path)
     hidden_ids = {str(item["article_id"]) for item in feedback_examples}
+    # Admission uses candidates ranked without our previous selection. Rotation
+    # can change the model's candidates, but must not invalidate its own result.
+    source_candidates = [
+        article for article in _candidate_articles(articles, generated_at=generated_at)
+        if article.id not in hidden_ids
+    ]
+    feedback_hash = hashlib.sha256(
+        json.dumps(feedback_examples, ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+    current_hash = hashlib.sha256(
+        f"{_input_hash(source_candidates)}:{feedback_hash}".encode()
+    ).hexdigest()
+    if _generation_is_current(output_path, current_hash, generated_at, articles):
+        LOGGER.info("Highlights are already current")
+        return False
+    if not source_candidates:
+        LOGGER.info("No eligible highlight candidates; keeping previous highlights")
+        return False
     selection_runs = _selection_runs(output_path, history_path)
     previous_ids = {
         article_id
@@ -649,19 +717,6 @@ def generate_highlights(
         )
         if article.id not in hidden_ids
     ]
-    feedback_hash = hashlib.sha256(
-        json.dumps(feedback_examples, ensure_ascii=False, sort_keys=True).encode()
-    ).hexdigest()
-    selection_hash = hashlib.sha256(
-        json.dumps(selection_runs[-2:], ensure_ascii=False, sort_keys=True).encode()
-    ).hexdigest()
-    current_hash = hashlib.sha256(
-        f"{_input_hash(candidates)}:{feedback_hash}:{selection_hash}".encode()
-    ).hexdigest()
-    if _existing_hash(output_path) == current_hash:
-        LOGGER.info("Highlights are already current")
-        return False
-
     codex = shutil.which("codex")
     if codex is None:
         LOGGER.warning("Codex CLI is unavailable; keeping previous highlights")
@@ -948,6 +1003,10 @@ def generate_highlights(
         payload = {
             "generated_at": generated_at.isoformat(),
             "input_hash": current_hash,
+            # Check the actual prior model evidence too: rotation can admit
+            # articles outside the default pool whose corrections must be read.
+            "candidate_ids": [article.id for article in candidates],
+            "candidate_hash": _input_hash(candidates),
             "headline": result["headline"],
             "overview": result["overview"],
             "field_highlights": field_highlights,
