@@ -161,6 +161,11 @@ iPhone・macOSの「今日」→「日記」から、完了タスク、体調、
 
 ## Gmailアシスタント
 
+iPhone・Macのメール画面／設定の「Gmailを再接続」からブラウザでGoogleへの同意を行えます。
+初回だけWebアプリ用OAuthクライアントの設定が必要です。戻り先の登録、秘密JSONの配置、
+既存CLIとの使い分けは[アプリからのGmail認証](docs/gmail-mobile-auth.md)を参照してください。
+認証情報はMac miniに保存し、iPhoneでのコード貼り付けは不要です。
+
 Google Cloudでデスクトップアプリ用OAuthクライアントを作成し、JSONを
 `secrets/gmail-client.json`へ配置します。権限はGmailの読み取り・ラベル変更に必要な
 `gmail.modify`を使用します。

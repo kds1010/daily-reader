@@ -3163,6 +3163,7 @@ struct HealthCard: View {
 struct EmailView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var showingGmailAuth = false
     @State private var completingEmailIDs = Set<String>()
     @State private var completionFeedback = 0
 
@@ -3176,6 +3177,8 @@ struct EmailView: View {
             }
             if let error = model.emailSyncError {
                 Text(error).appFont(.footnote).foregroundStyle(.orange)
+                    .listRowBackground(Color.clear)
+                Button("Gmailを再接続") { showingGmailAuth = true }
                     .listRowBackground(Color.clear)
             }
             ForEach(model.emails) { email in
@@ -3197,6 +3200,8 @@ struct EmailView: View {
         .scrollContentBackground(.hidden)
         .background(AppBackground())
         .navigationTitle("未読メール")
+        .toolbar { Button("Gmailを再接続") { showingGmailAuth = true } }
+        .sheet(isPresented: $showingGmailAuth) { GmailConnectionView() }
         .refreshable { await model.refresh() }
         .sensoryFeedback(.success, trigger: completionFeedback)
     }
@@ -3505,11 +3510,115 @@ struct ArticleCard: View {
     }
 }
 
+struct GmailConnectionView: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var configuration: GmailAuthConfiguration?
+    @State private var state: GmailAuthState?
+    @State private var identifier: String?
+    @State private var error: String?
+    @State private var busy = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Googleへのログインと権限の許可を、この端末のブラウザで行います。完了後はDaymeldに戻ってください。")
+                    Text("Tailscaleを接続したまま操作してください。認証情報はMac miniだけに保存されます。")
+                        .appFont(.footnote).foregroundStyle(.secondary)
+                }
+                if let state {
+                    Section("接続状況") {
+                        Text(state.message)
+                        if state.isActive { ProgressView() }
+                    }
+                }
+                if let error { Text(error).foregroundStyle(.orange) }
+                if configuration?.configured == false {
+                    Section("初回設定が必要です") {
+                        Text(configuration?.message ?? "")
+                        Text("Google CloudでWebアプリ用OAuthクライアントを作成し、Mac miniに設定してください。既存のデスクトップ用とは別の設定です。")
+                        Text("戻り先URL")
+                        Text("https://sk-mins-mac-mini.tailc193b2.ts.net/api/gmail-auth/callback")
+                            .appFont(.caption).textSelection(.enabled)
+                        Text("ダウンロードしたJSONは secrets/gmail-web-client.json に本人だけが読める権限（0600）で配置します。")
+                            .appFont(.footnote)
+                        Button("設定を再確認") { Task { await loadConfiguration() } }
+                    }
+                }
+                if state?.isActive != true {
+                    Button("GoogleでGmailを接続") { Task { await start() } }
+                        .disabled(busy || configuration?.configured != true)
+                } else if state?.canCancel == true {
+                    Button("認証をキャンセル", role: .cancel) { Task { await cancel() } }
+                        .disabled(busy)
+                }
+            }
+            .navigationTitle("Gmailの接続")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("閉じる") { dismiss() }.disabled(busy)
+                }
+            }
+        }
+        .frame(minWidth: 300, minHeight: 420)
+        .interactiveDismissDisabled(busy)
+        .task {
+            state = model.gmailAuthState
+            identifier = model.gmailAuthIdentifier
+            await loadConfiguration()
+            while !Task.isCancelled {
+                if scenePhase == .active, let identifier, state?.isActive == true, !busy {
+                    do {
+                        state = try await model.gmailAuthStatus(identifier)
+                        error = nil
+                    } catch is CancellationError { return }
+                    catch { self.error = error.localizedDescription }
+                }
+                do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            }
+        }
+    }
+
+    private func loadConfiguration() async {
+        do { configuration = try await model.gmailAuthConfiguration(); error = nil }
+        catch { self.error = error.localizedDescription }
+    }
+
+    private func start() async {
+        busy = true
+        defer { busy = false }
+        do {
+            let response = try await model.startGmailAuth()
+            state = response
+            identifier = response.session_id
+            guard let url = response.browserURL, identifier != nil else {
+                throw APIClientError.invalidResponse
+            }
+            error = nil
+            openURL(url) { accepted in
+                if !accepted { error = "ブラウザを開けませんでした。キャンセルして再試行してください。" }
+            }
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func cancel() async {
+        guard let identifier else { return }
+        busy = true
+        defer { busy = false }
+        do { state = try await model.gmailAuthStatus(identifier, cancel: true); error = nil }
+        catch { self.error = error.localizedDescription }
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
     @AppStorage("serverURL") private var serverURL = "https://sk-mins-mac-mini.tailc193b2.ts.net/"
     @State private var healthToken = ""
     @State private var tokenStatus = ""
+    @State private var showingGmailAuth = false
     private var versionText: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
@@ -3542,6 +3651,11 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
 #endif
             }
+            Section("Gmail") {
+                Button("Gmailを再接続") { showingGmailAuth = true }
+                Text("この端末でGoogleに同意すると、Mac miniのメール同期を再開します。")
+                    .appFont(.caption).foregroundStyle(.secondary)
+            }
             Section("プライバシー") {
 #if os(iOS)
                 Label("健康情報はtailnet内のMac miniだけへ送信します", systemImage: "lock.shield")
@@ -3560,6 +3674,7 @@ struct SettingsView: View {
             }
         }
             .navigationTitle("設定")
+            .sheet(isPresented: $showingGmailAuth) { GmailConnectionView() }
 #if os(iOS)
             .onAppear { healthToken = (try? SecretStore.readHealthToken()) ?? "" }
 #endif

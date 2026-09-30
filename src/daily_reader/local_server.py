@@ -5,6 +5,7 @@ import base64
 import binascii
 import functools
 import hmac
+import html
 import json
 import logging
 import plistlib
@@ -22,6 +23,7 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from datetime import date as calendar_date
 from http import HTTPStatus
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from importlib.metadata import PackageNotFoundError, version
 from ipaddress import IPv4Network, ip_address, ip_network
@@ -36,6 +38,7 @@ from daily_reader import (
     diary,
     drive_imports,
     drive_sync,
+    gmail_oauth,
     life_assistant,
     life_automation,
     payment_history,
@@ -688,13 +691,107 @@ def make_handler(
     conversation_insight_model: str = DEFAULT_INSIGHT_MODEL,
     payments_db: Path = Path("data/payments.sqlite3"),
     connection_alert_data_dir: Path | None = None,
+    gmail_web_client_secret: Path | None = None,
 ):
     repositories = agent_repositories or {}
     tanomi = tanomi_client
     soan = soan_client
     alert_data_dir = connection_alert_data_dir or conversations_db.parent
+    gmail_auth = gmail_oauth.GmailOAuth(
+        gmail_web_client_secret or gmail_client_secret.with_name("gmail-web-client.json"),
+        gmail_token, assistant_db,
+    )
 
     class DailyReaderHandler(SimpleHTTPRequestHandler):
+        def _gmail_access_allowed(self, browser: bool = False) -> bool:
+            host = self.headers.get("Host", "")
+            allowed_hosts = {"sk-mins-mac-mini.tailc193b2.ts.net",
+                             "sk-mins-mac-mini.tailc193b2.ts.net:443"}
+            if not browser:
+                allowed_hosts |= {"127.0.0.1:8787", "localhost:8787"}
+            allowed = host in allowed_hosts
+            if not browser:
+                allowed = allowed and (
+                    self.headers.get("Sec-Fetch-Site") != "cross-site"
+                    and self.headers.get("Origin", "https://" + host)
+                    in {"http://" + host, "https://" + host}
+                )
+            if not allowed:
+                self._send_json(403, {"error": "この接続元からはGmail認証を利用できません"})
+            return allowed
+
+        def _gmail_page(self, status: int, message: str) -> None:
+            body = ("<!doctype html><html lang=ja><meta charset=utf-8>"
+                    '<meta name="viewport" content="width=device-width,initial-scale=1">'
+                    "<title>Daymeld Gmail接続</title><h1>Gmail接続</h1><p>"
+                    + html.escape(message)
+                    + "</p><p>Daymeldアプリに戻ってください。</p></html>").encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _gmail_get(self, parsed) -> None:
+            browser = parsed.path != gmail_oauth.PREFIX + "config"
+            if not self._gmail_access_allowed(browser=browser):
+                return
+            try:
+                if not browser:
+                    self._send_json(200, gmail_auth.configuration())
+                elif parsed.path == gmail_oauth.PREFIX + "open":
+                    query = urllib.parse.parse_qs(parsed.query, max_num_fields=2)
+                    if len(query.get("ticket", [])) != 1:
+                        raise ValueError("invalid ticket")
+                    url, cookie = gmail_auth.open_browser(query["ticket"][0])
+                    self.send_response(303)
+                    self.send_header("Location", url)
+                    self.send_header("Set-Cookie", f"{gmail_oauth.COOKIE}={cookie}; "
+                                     "Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=600")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                elif parsed.path == gmail_oauth.PREFIX + "callback":
+                    cookies = SimpleCookie(self.headers.get("Cookie", ""))
+                    cookie = cookies.get(gmail_oauth.COOKIE)
+                    result = gmail_auth.callback(parsed.query, cookie.value if cookie else "")
+                    self._gmail_page(200, result["message"])
+                else:
+                    self._gmail_page(404, "認証ページが見つかりません。")
+            except gmail_oauth.OAuthError as error:
+                self._gmail_page(error.status, str(error))
+            except Exception:  # noqa: BLE001 - never return/log OAuth inputs or exceptions
+                self._gmail_page(
+                    400, "認証を開始・確認できませんでした。アプリからやり直してください。"
+                )
+
+        def _gmail_post(self, path: str) -> None:
+            self.close_connection = True
+            if not self._gmail_access_allowed():
+                return
+            if (self.headers.get("Content-Type", "").split(";", 1)[0] != "application/json"
+                    or self.headers.get("Transfer-Encoding")):
+                self._send_json(415, {"error": "application/jsonが必要です"})
+                return
+            try:
+                payload = self._read_json(max_length=1024)
+                if path == gmail_oauth.PREFIX + "start" and not payload:
+                    result = gmail_auth.start()
+                elif path in {gmail_oauth.PREFIX + "status", gmail_oauth.PREFIX + "cancel"}:
+                    identifier = payload.get("session_id")
+                    if not isinstance(identifier, str) or not 1 <= len(identifier) <= 100:
+                        raise ValueError("invalid session")
+                    result = (gmail_auth.cancel(identifier) if path.endswith("/cancel")
+                              else gmail_auth.status(identifier))
+                else:
+                    raise ValueError("invalid request")
+                self._send_json(200, result)
+            except gmail_oauth.OAuthError as error:
+                self._send_json(error.status, {"error": str(error)})
+            except Exception:  # noqa: BLE001 - credential/provider errors are sensitive
+                self._send_json(
+                    400, {"error": "認証要求を処理できませんでした。再試行してください。"}
+                )
+
         def _soundcore_access_allowed(self) -> bool:
             host = self.headers.get("Host", "")
             try:
@@ -730,7 +827,9 @@ def make_handler(
         def log_request(self, code="-", size="-") -> None:
             # Never log a supplied filename, query, or other payment input.
             request_path = urllib.parse.urlsplit(self.path).path
-            if request_path.startswith("/api/conversation-vocabulary") or (
+            if request_path.startswith(gmail_oauth.PREFIX):
+                self.log_message("Gmail authentication response %s", code)
+            elif request_path.startswith("/api/conversation-vocabulary") or (
                 request_path.startswith("/api/conversations/")
                 and request_path.endswith("/feedback")
             ):
@@ -751,6 +850,13 @@ def make_handler(
                 super().log_request(code, size)
         def end_headers(self) -> None:
             path = urllib.parse.urlsplit(self.path).path
+            if path.startswith(gmail_oauth.PREFIX):
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Referrer-Policy", "no-referrer")
+                self.send_header(
+                    "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+                )
+                self.send_header("X-Content-Type-Options", "nosniff")
             if path in {"/", "/index.html", "/sw.js"}:
                 self.send_header("Cache-Control", "no-cache")
             super().end_headers()
@@ -875,6 +981,9 @@ def make_handler(
         def do_GET(self) -> None:  # noqa: N802
             parsed_url = urllib.parse.urlsplit(self.path)
             path = parsed_url.path
+            if path.startswith(gmail_oauth.PREFIX):
+                self._gmail_get(parsed_url)
+                return
             if path == "/api/connection-alerts":
                 if not self._soundcore_access_allowed():
                     return
@@ -1359,6 +1468,9 @@ def make_handler(
 
         def do_POST(self) -> None:  # noqa: N802
             path = urllib.parse.urlsplit(self.path).path
+            if path.startswith(gmail_oauth.PREFIX):
+                self._gmail_post(path)
+                return
             if path == "/api/conversation-vocabulary" or path.startswith(
                 "/api/conversation-vocabulary/"
             ) or (path.startswith("/api/conversations/") and path.endswith("/feedback")):
@@ -2593,6 +2705,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--gmail-client-secret", type=Path, default=Path("secrets/gmail-client.json")
     )
+    parser.add_argument(
+        "--gmail-web-client-secret", type=Path, default=None,
+        help="Web OAuth client JSON (default: gmail-web-client.json beside Gmail client)",
+    )
     parser.add_argument("--gmail-token", type=Path, default=Path("secrets/gmail-token.json"))
     parser.add_argument("--gmail-sync-minutes", type=int, default=15)
     return parser
@@ -2700,6 +2816,7 @@ def main() -> None:
         conversation_codex_command=_codex_executable(),
         conversation_insight_model=args.conversation_insight_model,
         payments_db=args.payments_db,
+        gmail_web_client_secret=args.gmail_web_client_secret,
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     sidestore_server = start_sidestore_server(

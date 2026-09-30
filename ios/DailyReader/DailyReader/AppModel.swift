@@ -106,6 +106,9 @@ final class AppModel: ObservableObject {
     private var pendingAgentJobs: [String: AgentJob] = [:]
     private var pendingTanomiTasks: [String: TanomiTask] = [:]
 
+    @Published private(set) var gmailAuthState: GmailAuthState?
+    private(set) var gmailAuthIdentifier: String?
+
     var isFixture: Bool { fixture != nil }
     var conversationAPI: APIClient { api }
 
@@ -216,13 +219,38 @@ final class AppModel: ObservableObject {
                               force: force, as: TodayEnvelope.self) { self.today = $0 }
     }
 
+    func gmailAuthConfiguration() async throws -> GmailAuthConfiguration {
+        if isFixture {
+            return GmailAuthConfiguration(configured: false, message: "プレビューではGmail認証を開始しません。")
+        }
+        return try await api.get("api/gmail-auth/config", as: GmailAuthConfiguration.self)
+    }
+
+    func startGmailAuth() async throws -> GmailAuthState {
+        guard !isFixture else { throw APIClientError.server("プレビューでは認証できません。") }
+        let result = try await api.post("api/gmail-auth/start", body: EmptyRequest(), as: GmailAuthState.self)
+        gmailAuthState = result
+        gmailAuthIdentifier = result.session_id
+        return result
+    }
+
+    func gmailAuthStatus(_ identifier: String, cancel: Bool = false) async throws -> GmailAuthState {
+        guard !isFixture else { throw APIClientError.server("プレビューでは認証できません。") }
+        let result = try await api.post("api/gmail-auth/" + (cancel ? "cancel" : "status"),
+                                        body: GmailAuthSessionRequest(session_id: identifier),
+                                        as: GmailAuthState.self)
+        gmailAuthState = result
+        if result.status == "connected" { await refreshEmails(force: true) }
+        return result
+    }
+
     private func refreshEmails(force: Bool) async {
         await refreshResource("email", path: "api/emails/unread", state: \.emailLoadState,
                               force: force, as: EmailEnvelope.self) { mail in
             let pendingIDs = Set(self.pendingEmailActions.keys)
             self.emails = mail.items.filter { !pendingIDs.contains($0.threadID) }
             self.emailSyncError = mail.authorizationRequired == true
-                ? "Gmailの再認証が必要です。Mac miniで再接続してください。"
+                ? "Gmailの再認証が必要です。「Gmailを再接続」から認証してください。"
                 : mail.syncError != nil ? "Gmailの同期に失敗したため、保存済みのメールを表示しています。" : nil
             self.emailCanMarkRead = mail.canMarkRead ?? true
         }

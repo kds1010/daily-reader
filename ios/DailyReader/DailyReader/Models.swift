@@ -1295,3 +1295,30 @@ struct ConversationFeedbackResponse: Decodable {
     let vocabulary_term: ConversationVocabularyTerm?
     var feedback_revision: Int? = nil
 }
+
+
+struct GmailAuthConfiguration: Decodable {
+    let configured: Bool
+    let message: String
+}
+
+struct GmailAuthState: Decodable {
+    let status: String
+    let message: String
+    let session_id: String?
+    let browser_url: String?
+    var isActive: Bool { ["pending", "exchanging", "syncing"].contains(status) }
+    var canCancel: Bool { status == "pending" }
+
+    var browserURL: URL? {
+        guard let browser_url, let url = URL(string: browser_url),
+              url.scheme == "https", url.host == "sk-mins-mac-mini.tailc193b2.ts.net",
+              url.port == nil, url.user == nil, url.password == nil,
+              url.path == "/api/gmail-auth/open", url.fragment == nil else { return nil }
+        return url
+    }
+}
+
+struct GmailAuthSessionRequest: Encodable {
+    let session_id: String
+}

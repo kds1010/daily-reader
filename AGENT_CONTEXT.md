@@ -473,3 +473,21 @@ In productionでもユーザーの取り消し、Gmail権限を含む場合の�
 - 本人訂正は原文/ID/話者/時刻を上書きせず、AI補正より優先する別overlayとする。要約/抽出の引用は原文と本人訂正版を保持する。訂正は取り消せるが版を戻さず、編集競合は409で拒否する。再解析後の新発言へ旧訂正を自動移植しない。辞書版を補正cacheと保存直前の再検査へ含める。
 - 訂正後は要約と依存する過去文脈の補正版を更新待ちにし、新しい候補の自動採用を停止する。既存用事・確認済み候補・判断時の引用は保持する。本人訂正済みの古い原文を正しい参考語として再使用しない。
 - APIは `/api/conversation-vocabulary` のGET/POST、`/{id}` のPOST編集、`/{id}/delete` のPOST削除と、`/api/conversations/{recording}/utterances/{utterance}/feedback` のPOSTを使う。共有SwiftはiPhone/macOSに辞書と本人訂正を表示する。仕様・検証・限界は[用語辞書](docs/conversation-vocabulary.md)。Web再起動と両OS配布物生成・配信検証が必要。
+
+
+## iPhone・MacからのGmail認証
+
+- メール画面と設定に「Gmailを再接続」を追加。`gmail_oauth.py`がWeb OAuthを担当し、
+  `/api/gmail-auth/config`、JSON POSTの`start/status/cancel`、ブラウザの`open/callback`を提供する。
+  同意は本人のブラウザで行い、トークンは従来のMac内`gmail-token.json`だけに保存する。
+- 初回はWeb用クライアントを別の`secrets/gmail-web-client.json`（本人所有・0600）へ配置し、
+  `https://sk-mins-mac-mini.tailc193b2.ts.net/api/gmail-auth/callback`をGoogleへ登録する。
+  既存デスクトップ用クライアント、CLI、Drive認証を変更しない。未設定時はアプリに案内する。
+- メモリ上の10分・1件の認証要求、一度限りのブラウザURL、state・PKCE・Secure HttpOnly Cookie、
+  Host/Origin検査で保護。callbackだけはGoogleからのクロスサイト遷移を許可し、Cookieとstateで検証する。
+  443はtailnet限定のまま。認証URLやcodeをログに残さず、秘密をCodexへ渡さない。
+- 既存トークンとの競合・同意拒否・権限不足・保存失敗は旧認証を保持する。
+  保存後に同期を開始し、認証成功と同期成功を区別する。サーバー再起動では待機要求が失効する。
+- 仕様・初回設定・公式根拠は[アプリからのGmail認証](docs/gmail-mobile-auth.md)。
+  検証は`tests/test_gmail_oauth.py`とSwiftデコード・両OSビルド。
+  配信はWeb再起動と両OS成果物生成・配信検証。Googleの初回設定・本人同意・実機導入は別途確認する。
